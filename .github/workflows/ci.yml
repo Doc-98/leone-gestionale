@@ -13,14 +13,27 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
       # I test d'integrazione avviano Postgres in un container (Testcontainers): Docker è già sul runner
-      - run: mvn -B -ntp verify
+      - name: mvn verify
+        shell: bash
+        run: mvn -B -ntp verify 2>&1 | tee mvn.log; exit ${PIPESTATUS[0]}
+      # Se fallisce, gli errori diventano annotazioni leggibili dalla pagina della CI e dalle API di GitHub
+      - name: Riassunto errori
+        if: failure()
+        shell: bash
+        run: |
+          annota() { local m="${1//'%'/'%25'}"; m="${m//$'\n'/'%0A'}"; echo "::error title=$2::$m"; }
+          annota "$(grep -E '^\[ERROR\]' mvn.log | grep -vE '^\[ERROR\] *$|Re-run Maven|full stack trace|Help 1|^\[ERROR\] -> ' | head -25)" "Errori Maven"
+          for f in target/surefire-reports/*.txt; do
+            [ -f "$f" ] && grep -q -E 'FAILURE|ERROR' "$f" && annota "$(head -c 3500 "$f")" "$(basename "$f")"
+          done
+          true
 
   frontend:
     runs-on: ubuntu-latest
@@ -28,8 +41,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
