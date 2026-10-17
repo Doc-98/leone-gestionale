@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.config;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,9 @@ class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
             .authorizeHttpRequests(a -> a
+                // Le risposte di errore (es. 403 per CSRF mancante) passano da /error: non vanno protette,
+                // altrimenti un 403 a chi non è collegato diventerebbe 401
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/csrf", "/actuator/health").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
