@@ -1,0 +1,14 @@
+# Java / Maven
+backend/target/
+*.class
+# Node
+node_modules/
+frontend/dist/
+# IDE e sistema
+.idea/
+.vscode/
+*.iml
+.DS_Store
+# Configurazioni locali con segreti
+.env
+*.local.yml

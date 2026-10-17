@@ -1,0 +1,12 @@
+# 0004 · Lettura dei bracciali con la Web NFC (Android)
+
+**Contesto.** I bracciali dei tornelli contengono un chip NFC. Prova del 17/10/2026 su Nothing Phone 3 con
+Chrome: seriale di 4 byte letto in modo stabile, nessun dato salvato nel chip.
+
+**Decisione.** La PWA legge il seriale con la Web NFC (`NDEFReader`). Il seriale viene normalizzato in
+esadecimale maiuscolo nell'ordine di lettura e associato a una persona tramite la tabella `credenziale`
+(unico tra le credenziali attive).
+
+**Conseguenze.** Funziona solo su Android con Chrome: la postazione atrio usa un dispositivo Android.
+Su iPhone la lettura richiederebbe un'app nativa (fuori dallo scopo per ora). Va verificato in che formato
+il gestionale attuale salva lo stesso codice, per importare i bracciali esistenti.

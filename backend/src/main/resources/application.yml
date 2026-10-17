@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: leone-gestionale
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/gestionale}
+    username: ${DB_USER:gestionale}
+    password: ${DB_PASSWORD:gestionale}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Lo schema lo gestisce Flyway: Hibernate controlla solo che le entità corrispondano
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: Europe/Rome
+  flyway:
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  servlet:
+    session:
+      timeout: 12h
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+---
+# Dati demo (persone inventate, turni intorno a oggi): per sviluppo e test
+spring:
+  config:
+    activate:
+      on-profile: demo
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo

@@ -1,0 +1,290 @@
+/* Sistema visivo "Corsia" */
+
+:root {
+  --ink: #10212b;
+  --cloro: #0b6e78;
+  --cloro-dark: #08555d;
+  --cloro-soft: #ddefef;
+  --cloro-ink: #1d3a40;   /* testo su cloro-soft, 10,2:1 */
+  --carta: #f4f1ea;
+  --surface: #ffffff;
+  --surface-sunken: #e9e4da; /* binario del controllo segmentato */
+  --line: #e2ddd2;
+  --line-soft: #efebe3;
+  --line-dashed: #b9b2a3;
+  --muted: #56636b;
+  /* Bordi e segni dei controlli: almeno 3:1 su surface e carta (WCAG 1.4.11) */
+  --line-strong: #8f8677; /* 3,6:1 su surface, 3,2:1 su carta */
+  --switch-off: #958d7f;  /* 3,3:1 su surface */
+  --chevron: #7d888e;     /* 3,6:1 su surface */
+  --seg-fg: #33454f;      /* segmenti non selezionati, 7,9:1 su surface-sunken */
+  --warn-bg: #fdf1dc;
+  --warn: #8a4b05;
+  --warn-line: #e4c79b;
+  --ok: #2f7d4f;
+  --danger: #b42318;
+  --danger-line: #e8c4c0;
+  /* Ruoli dei riempimenti forti. In chiaro coincidono con ink e bianco; nel tema scuro si separano. */
+  --fill: #10212b;     /* pulsante primario, chip e giorno selezionati, numeri dei passi */
+  --on-fill: #ffffff;
+  --hero: #10212b;     /* card del turno principale e KPI del compenso: scuri in entrambi i temi */
+  --on-cloro: #ffffff; /* testo su btn-accent, pallino dell'interruttore acceso */
+  --knob: #ffffff;     /* pallino dell'interruttore spento */
+  /* Testo e segni sulle superfici hero */
+  --on-ink: #ffffff;
+  --on-ink-soft: #dce3e7;   /* 12,7:1 su ink */
+  --on-ink-muted: #c9d3d9;  /* 10,8:1 */
+  --on-ink-faint: #aab7be;  /* 8,0:1 */
+  --on-ink-veil: rgba(255, 255, 255, 0.12);
+  --on-ink-track: rgba(255, 255, 255, 0.14);
+  --on-ink-badge: rgba(255, 255, 255, 0.2);
+  --mint: #5ee0b5;          /* «in corso»: solo su ink */
+  --area-m: #2b59c3; --area-m-bg: #e3eafb; --area-m-fg: #1e3f99;
+  --area-f: #b8367a; --area-f-bg: #f8e1ec; --area-f-fg: #8c2358;
+  --area-p: #d9711c; --area-p-bg: #fbe7d6; --area-p-fg: #8a3a06;
+  --area-a: #6b4fbb; --area-a-bg: #ece6f9; --area-a-fg: #4a338c;
+  --area-x: #6f7c83; --area-x-bg: #ebe7de; --area-x-fg: #3d4a52;
+  --font-display: 'Bricolage Grotesque', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  /* Scala tipografica: 11 gradini al posto di 16 taglie sparse */
+  --text-2xs: 11px;  /* barra in basso, giorno della settimana, intestazioni di tabella */
+  --text-xs: 12px;   /* etichette .lbl, tag, legenda */
+  --text-sm: 13px;   /* note, chip, segmenti */
+  --text-md: 14px;   /* messaggi, banner, righe del foglio ore */
+  --text-base: 15px; /* testo di base, pulsanti */
+  --text-lg: 16px;   /* campi (sotto i 16px Safari ingrandisce), titolo della schermata Turno */
+  --text-xl: 17px;   /* titoli di sezione */
+  --text-2xl: 20px;  /* cifre secondarie, compenso */
+  --text-3xl: 28px;  /* titoli di pagina e del mese */
+  --text-4xl: 32px;  /* la cifra grande delle ore */
+  --text-5xl: 40px;  /* orario del turno principale */
+  --shadow-seg: 0 1px 2px rgba(16, 33, 43, 0.12);
+  --icona-avviso: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4 2.5 20h19z'/%3E%3Cpath d='M12 10v4.5M12 17.2v.1'/%3E%3C/svg%3E");
+  /* Spaziatura: i valori che l'app usa davvero, in px. Gap, padding e margin passano da qui;
+     restano scritti a mano solo i casi isolati (1px, 3px, 38px, 56px). */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  /* Raggi. Le forme piccolissime (barrette da 3px, quadratino dell'atrio da 2px) restano a mano. */
+  --radius-xs: 6px;    /* etichetta «PDF» nel pulsante */
+  --radius-sm: 10px;   /* segmenti, riquadro icona file */
+  --radius-md: 12px;   /* campi, messaggi, celle del calendario */
+  --radius-lg: 14px;   /* pulsanti, banner, binario segmentato */
+  --radius: 16px;      /* card */
+  --radius-xl: 22px;   /* card del turno principale */
+  --radius-pill: 999px;
+  /* Testo sopra i colori di Google Calendar: fissi, non cambiano col tema */
+  --swatch-on-dark: #ffffff;
+  --swatch-on-light: #10212b;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+
+
+/* Tema scuro. data-tema lo mette lo script in index.html (e src/lib/tema.svelte.ts quando cambia):
+   «Sistema» diventa chiaro o scuro lì, così qui basta un blocco solo.
+   Contrasti: testo ≥ 7:1 tranne on-ink-faint su hero (5,9:1); bordi, segni e anello di focus ≥ 3:1. */
+:root[data-tema='scuro'] {
+  --carta: #0e1a21;
+  --surface: #16252e;
+  --surface-sunken: #0a1419;
+  --line: #2b3c46;
+  --line-soft: #213139;
+  --line-dashed: #56686f;
+  --line-strong: #71848f;
+  --ink: #e6edf0;
+  --muted: #9eb0ba;
+  --chevron: #7e909a;
+  --switch-off: #62747e;
+  --seg-fg: #b9c6cd;
+  --cloro: #4fbcc6;
+  --cloro-dark: #3fa5af;
+  --cloro-soft: #163a40;
+  --cloro-ink: #bfe7ea;
+  --warn-bg: #3a2a12;
+  --warn: #f2b766;
+  --warn-line: #6e5023;
+  --ok: #4fc283;
+  --danger: #ff8b7b;
+  --danger-line: #6e2f29;
+  --fill: #e6edf0;
+  --on-fill: #10212b;
+  --hero: #1d3945;
+  --on-cloro: #0a1c22;
+  --knob: #f4f6f7;
+  --area-m: #7a9cff;
+  --area-m-bg: #1c2b52;
+  --area-m-fg: #c3d1ff;
+  --area-f: #ef77b6;
+  --area-f-bg: #45182f;
+  --area-f-fg: #ffc6e2;
+  --area-p: #f2913f;
+  --area-p-bg: #43260c;
+  --area-p-fg: #ffcf9f;
+  --area-a: #b39cf5;
+  --area-a-bg: #2c2350;
+  --area-a-fg: #d9ccff;
+  --area-x: #94a3aa;
+  --area-x-bg: #26333a;
+  --area-x-fg: #cdd7dc;
+  --shadow-seg: 0 1px 2px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--carta); color: var(--ink); }
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--cloro); }
+
+.d { font-family: var(--font-display); letter-spacing: -0.01em; }
+.m { font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; } /* 500: il 400 di Plex Mono non è caricato */
+.lbl { font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+
+.btn {
+  height: 48px; padding: 0 var(--space-20); border-radius: var(--radius-lg); border: none;
+  font-size: var(--text-base); font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8);
+}
+.btn-primary { background: var(--fill); color: var(--on-fill); }
+.btn-accent { background: var(--cloro); color: var(--on-cloro); }
+.btn-secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
+.btn-accent:active:not(:disabled) { background: var(--cloro-dark); }
+/* Distruttivo: solo per eliminare, con conferma nel pulsante stesso */
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger-line); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.inp {
+  height: 46px; width: 100%; border: 1px solid var(--line-strong); border-radius: var(--radius-md);
+  /* 16px: sotto questa taglia Safari su iPhone ingrandisce la pagina quando si tocca il campo */
+  background: var(--surface); padding: 0 var(--space-14); font-size: var(--text-lg);
+}
+
+/* Focus da tastiera: un solo anello per tutto ciò che si tocca.
+   cloro è 5,3:1 su carta e 6,0:1 su surface (serve almeno 3:1). */
+:focus-visible { outline: 2px solid var(--cloro); outline-offset: 2px; }
+.inp:focus-visible { outline-offset: 1px; }
+/* Pulsanti che nascondono un <input type="file"> trasparente: l'anello va sul pulsante */
+label:has(> input[type='file']:focus-visible) { outline: 2px solid var(--cloro); outline-offset: 2px; }
+/* Dentro un contenitore che taglia ciò che sborda, l'anello va all'interno */
+.focus-inset:focus-visible { outline-offset: -2px; }
+
+.tag { display: inline-flex; align-items: center; gap: var(--space-6); height: 24px; padding: 0 var(--space-10); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
+.t-maschile { background: var(--area-m-bg); color: var(--area-m-fg); }
+.t-femminile { background: var(--area-f-bg); color: var(--area-f-fg); }
+.t-piccoli { background: var(--area-p-bg); color: var(--area-p-fg); }
+.t-atrio { background: var(--area-a-bg); color: var(--area-a-fg); }
+.t-altro { background: var(--area-x-bg); color: var(--area-x-fg); }
+.t-warn { background: var(--warn-bg); color: var(--warn); }
+.t-soft { background: var(--cloro-soft); color: var(--cloro-ink); }
+
+.ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.icon-btn { width: 44px; height: 44px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--surface); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); text-decoration: none; }
+.icon-btn.plain { border: none; background: none; }
+.link { background: none; border: none; padding: 0; color: var(--cloro); font-weight: 600; font-size: var(--text-base); cursor: pointer; min-height: 44px; text-decoration: none; display: inline-flex; align-items: center; }
+.page { display: flex; flex-direction: column; gap: var(--space-16); }
+.page-title { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
+.muted { color: var(--muted); }
+.small { font-size: var(--text-sm); }
+.msg { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); font-size: var(--text-md); line-height: 1.4; }
+.msg.err { position: relative; padding-left: 38px; background: var(--warn-bg); color: var(--warn); }
+/* Un errore si riconosce anche senza colore: triangolo d'avviso disegnato nel colore del testo */
+.msg.err::before {
+  content: ''; position: absolute; left: 13px; top: 11px; width: 18px; height: 18px; background: currentColor;
+  -webkit-mask: var(--icona-avviso) center / contain no-repeat; mask: var(--icona-avviso) center / contain no-repeat;
+}
+.msg.ok { background: var(--cloro-soft); color: var(--cloro-ink); }
+.switch { width: 50px; height: 30px; border-radius: var(--radius-pill); border: none; background: var(--switch-off); padding: 3px; display: flex; cursor: pointer; flex-shrink: 0; }
+.switch[aria-checked='true'] { background: var(--cloro); justify-content: flex-end; }
+.switch span { width: 24px; height: 24px; border-radius: 50%; background: var(--knob); }
+.switch[aria-checked='true'] span { background: var(--on-cloro); }
+.seg { display: grid; gap: var(--space-4); padding: var(--space-4); background: var(--surface-sunken); border-radius: var(--radius-lg); }
+.seg button { position: relative; min-height: 40px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--seg-fg); font-size: var(--text-sm); font-weight: 600; cursor: pointer; padding: 0 var(--space-6); }
+.seg button[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-seg); }
+.field { display: flex; flex-direction: column; gap: var(--space-6); }
+
+/* Area di tocco da 44px (Apple HIG, WCAG 2.5.5) per i controlli che a vista restano più bassi:
+   chip, pulsanti nei banner, segmenti. L'area è invisibile e centrata sul controllo. */
+.tap44 { position: relative; }
+.tap44::after, .seg button::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+
+/* Chip: pillola da 36px, con l'area di tocco da 44px già inclusa */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-8); } /* 36 + 8: le aree da 44px delle righe si toccano senza sovrapporsi */
+.chip { position: relative; height: 36px; padding: 0 var(--space-14); border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--text-sm); font-weight: 600; white-space: nowrap; cursor: pointer; }
+.chip::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+.chip.vuoto { border-style: dashed; color: var(--muted); background: transparent; font-weight: 500; }
+.chip[aria-pressed='true'] { background: var(--fill); border-color: var(--fill); color: var(--on-fill); }
+
+/* Pulsante che apre la scelta di un file: l'input trasparente copre il pulsante */
+.upload { position: relative; overflow: hidden; }
+.upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Piccole utilità di impaginazione */
+.row { display: flex; gap: var(--space-8); }
+.grow { flex: 1; }
+.nomargin { margin: 0; }
+
+/* Un'azione che non ha ancora niente da fare (Salva senza modifiche, Conferma senza scelte):
+   sbiadita e non toccabile. Vale per pulsanti e link usati come pulsanti. */
+.link:disabled, .link[aria-disabled='true'], .btn[aria-disabled='true'] { opacity: 0.4; pointer-events: none; cursor: default; }
+
+/* Intestazione delle schede principali: titolo grande a sinistra, azioni a destra */
+.hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-12); min-height: 56px; }
+.hdr-txt { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; flex: 1; }
+.hdr-sopra { font-size: var(--text-md); font-weight: 500; color: var(--muted); }
+.hdr h1 { margin: 0; font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
+.hdr-azioni { display: flex; gap: var(--space-8); flex-shrink: 0; }
+
+/* Intestazione delle pagine secondarie: Indietro o Annulla · titolo · Salva o versione */
+.bar { display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr) minmax(72px, auto); align-items: center; gap: var(--space-8); min-height: 44px; }
+.bar h1 { margin: 0; text-align: center; font-size: var(--text-lg); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar > :last-child { justify-self: end; }
+.bar .link :where(.ic) { width: 20px; height: 20px; }
+
+/* Elenchi a gruppi (impostazioni) */
+.gruppo { display: flex; flex-direction: column; gap: var(--space-6); }
+.gruppo > h2 { margin: 0; padding-left: var(--space-4); }
+.voci { overflow: hidden; }
+.voce { display: flex; align-items: center; gap: var(--space-12); min-height: 56px; width: 100%; padding: var(--space-8) var(--space-12) var(--space-8) var(--space-14);
+  border: none; border-top: 1px solid var(--line-soft); background: none; color: var(--ink); text-decoration: none; text-align: left; cursor: pointer; }
+.voci > :first-child, .voci > :first-child > .voce { border-top: none; }
+.voce-ico { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--cloro-soft); color: var(--cloro); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.voce-ico.warn { background: var(--warn-bg); color: var(--warn); }
+.voce-ico .ic { width: 18px; height: 18px; }
+.voce-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.voce-nome { font-weight: 500; }
+.voce-val { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); color: var(--muted); min-width: 0; }
+.voce-val > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voce .chev { color: var(--chevron); width: 18px; height: 18px; transition: transform 0.15s; }
+.voce[aria-expanded='true'] .chev { transform: rotate(180deg); }
+.voce.azione .voce-nome { color: var(--cloro); font-weight: 600; }
+.voce.danger .voce-nome { color: var(--danger); font-weight: 600; }
+.voce-corpo { display: flex; flex-direction: column; gap: var(--space-14); padding: var(--space-4) var(--space-16) var(--space-16); }
+.voce.fissa { cursor: default; }
+
+/* Mese aggiornato: cerchio verde con la spunta, grande quanto il testo */
+.ok-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.15em; height: 1.15em; border-radius: 50%; background: var(--ok); color: #fff; flex-shrink: 0; }
+.ok-badge .ic { width: 0.8em; height: 0.8em; stroke-width: 3.2; }
+/* sul verde chiaro del tema scuro il bianco si leggerebbe poco */
+:root[data-tema='scuro'] .ok-badge { color: var(--hero); }
+
+.riga-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); min-height: 44px; font-weight: 500; cursor: pointer; }
+.hint { display: flex; gap: var(--space-8); align-items: flex-start; background: var(--cloro-soft); color: var(--cloro-ink); border-radius: var(--radius-md); padding: var(--space-10) var(--space-12); font-size: var(--text-sm); line-height: 1.4; }
+.hint .ic { width: 18px; height: 18px; margin-top: 1px; }
+.due { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
+.chev { color: var(--chevron); width: 18px; height: 18px; }
