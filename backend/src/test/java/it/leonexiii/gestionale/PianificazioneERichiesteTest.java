@@ -222,10 +222,12 @@ class PianificazioneERichiesteTest {
     @Test
     void elenchiPerLaPianificazione() throws Exception {
         var coord = come("coordinatore@demo.leone");
-        assertThat(lista(coord.get("/api/staff/postazioni"))).hasSize(5);
+        // altri test aggiungono postazioni e modelli: qui si controllano quelli dei dati demo
+        assertThat(lista(coord.get("/api/staff/postazioni"))).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(coord.get("/api/staff/postazioni").body()).contains(SPOGL_M_1).contains(SPOGL_F_1).contains(ATRIO);
         var persone = coord.get("/api/staff/persone").body();
         assertThat(persone).contains("Luca Bianchi").contains("Giulia Conti").doesNotContain("Chiara Ferri");
-        assertThat(lista(coord.get("/api/modelli"))).hasSize(1);
+        assertThat(coord.get("/api/modelli").body()).contains(MODELLO);
         var staff = come("staff@demo.leone");
         assertThat(staff.get("/api/staff/persone").statusCode()).isEqualTo(403);
         // lo staff vede i colleghi (non sé stesso) e i loro turni, per proporre scambi
