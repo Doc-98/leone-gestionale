@@ -203,6 +203,11 @@ erDiagram
    *(fatto — vedi ADR 0005 e 0006)*
 2. **Piano vasca** – corsi, lezioni, eventi; vista giorno e settimana.
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
+   Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
+   come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice
+   temporaneo, il telefono si abbina, legge il bracciale con la Web NFC e il server inoltra il codice al PC.
+   Il telefono-lettore invia solo il codice e non riceve dati dei clienti (va bene anche un telefono personale);
+   deve restare con la pagina aperta.
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.
 
 ## Domande aperte
