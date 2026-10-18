@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leone Gestionale</title>
+    <style>
+      :root {
+        --ink: #10212b; --cloro: #0b6e78; --carta: #f4f1ea; --surface: #fff; --line: #e2ddd2; --line-strong: #8f8677;
+        --muted: #56636b; --warn-bg: #fdf1dc; --warn: #8a4b05; color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --ink: #e6edf0; --cloro: #4fbcc6; --carta: #0e1a21; --surface: #16252e; --line: #2b3c46; --line-strong: #71848f;
+          --muted: #9eb0ba; --warn-bg: #3a2a12; --warn: #f2b766; color-scheme: dark; }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--carta); color: var(--ink); font: 15px/1.45 'Segoe UI', system-ui, sans-serif; }
+      main { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+      .card { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+      .marchio { display: flex; align-items: center; gap: 12px; }
+      .marchio img { width: 44px; height: 44px; }
+      h1 { margin: 0; font-size: 22px; }
+      .lbl { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+      p { margin: 0; }
+      .muted { color: var(--muted); font-size: 13px; }
+      label { display: flex; flex-direction: column; gap: 6px; }
+      input { height: 44px; border: 1px solid var(--line-strong); border-radius: 12px; padding: 0 12px; font: inherit; background: var(--surface); color: var(--ink); }
+      input:focus-visible, button:focus-visible { outline: 2px solid var(--cloro); outline-offset: 2px; }
+      .azioni { display: flex; gap: 8px; }
+      button { height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+      button.primario { background: var(--ink); color: var(--carta); border-color: var(--ink); flex: 1; }
+      button:disabled { opacity: .5; cursor: default; }
+      .err { background: var(--warn-bg); color: var(--warn); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <div class="marchio">
+          <img src="icona.svg" alt="" />
+          <div><div class="lbl">Leone Gestionale</div><h1 id="titolo">Collegamento al server…</h1></div>
+        </div>
+
+        <p id="stato" class="muted">Controllo il server della società.</p>
+        <p id="errore" class="err" role="alert" hidden></p>
+
+        <form id="modulo" hidden>
+          <label>
+            <span class="lbl">Indirizzo del server</span>
+            <input id="indirizzo" type="url" required placeholder="https://gestionale.leone.local" autocomplete="url" />
+          </label>
+          <p class="muted" style="margin-top: 8px">Te lo dà chi gestisce i computer della società. Si imposta una volta sola.</p>
+          <div class="azioni" style="margin-top: 16px">
+            <button id="riprova" type="button" hidden>Riprova</button>
+            <button class="primario" id="collega">Collega</button>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <script>
+      const { invoke } = window.__TAURI__.core;
+      const $ = (id) => document.getElementById(id);
+
+      /** Il server risponde? (no-cors: basta che la connessione riesca) */
+      async function raggiungibile(url) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 6000);
+        try {
+          await fetch(new URL('actuator/health', url), { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+          return true;
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
+      function chiedi(titolo, errore, indirizzo) {
+        $('titolo').textContent = titolo;
+        $('stato').hidden = true;
+        $('errore').hidden = !errore;
+        $('errore').textContent = errore || '';
+        $('modulo').hidden = false;
+        $('riprova').hidden = !indirizzo;
+        if (indirizzo) $('indirizzo').value = indirizzo;
+        $('indirizzo').focus();
+      }
+
+      async function apri(url) {
+        $('titolo').textContent = 'Collegamento al server…';
+        $('stato').hidden = false;
+        $('stato').textContent = url;
+        $('errore').hidden = true;
+        $('modulo').hidden = true;
+        if (await raggiungibile(url)) location.replace(url);
+        else chiedi('Il server non risponde', `Non riesco a raggiungere ${url}. Controlla la rete o l'indirizzo.`, url);
+      }
+
+      $('modulo').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        $('collega').disabled = true;
+        try {
+          const url = await invoke('imposta_server', { indirizzo: $('indirizzo').value });
+          await apri(url);
+        } catch (err) {
+          chiedi('Imposta il server', String(err), $('indirizzo').value);
+        } finally {
+          $('collega').disabled = false;
+        }
+      });
+      $('riprova').addEventListener('click', () => apri($('indirizzo').value));
+
+      (async () => {
+        const salvato = await invoke('server');
+        const cambia = new URLSearchParams(location.search).has('cambia');
+        if (!salvato) chiedi('Benvenuto', '', '');
+        else if (cambia) chiedi('Cambia server', '', salvato);
+        else apri(salvato);
+      })();
+    </script>
+  </body>
+</html>

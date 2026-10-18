@@ -7,13 +7,15 @@ Architettura e decisioni: [`docs/architettura.md`](docs/architettura.md) · [`do
 
 ## Stato
 
-**Fase 1 – turni dello staff.**
+**Fase 1 – turni dello staff (completa).** Una sola interfaccia in due forme: **programma per Windows** per gli
+uffici (menu laterale, griglie ampie) e **app** sul telefono per lo staff (ADR 0006).
 
 - *Staff*: i propri turni per settimana; da un turno si chiede un cambio orario, una sostituzione (a un collega
   o aperta a tutti) o uno scambio; «Turni da coprire» per offrirsi; ore e compenso del mese.
-- *Coordinatore*: pianificazione della settimana con i turni scoperti in evidenza, creazione e modifica dei
-  turni, generazione del mese dalla settimana tipo, approvazione delle richieste, ore e compensi di tutto lo
-  staff (anche in CSV).
+- *Coordinatore*: pianificazione della settimana a griglia (postazioni × giorni) con i turni scoperti in
+  evidenza e le ore per persona; settimana tipo modificabile (anche copiandola per una nuova stagione) e
+  generazione del mese; approvazione delle richieste; mansioni, postazioni e tariffe orarie; ore e compensi
+  di tutto lo staff, in CSV e come **foglio ore nel modello Excel della società** (uno per persona o tutti in .zip).
 - Garanzie nel database: nessun turno sovrapposto per la stessa persona, una sola richiesta aperta per turno.
 
 ## Struttura
@@ -21,6 +23,7 @@ Architettura e decisioni: [`docs/architettura.md`](docs/architettura.md) · [`do
 ```
 backend/    Java 21 + Spring Boot 4 · un pacchetto per modulo (identita, struttura, staff, …)
 frontend/   Svelte 5 + TypeScript + Vite · design system «Corsia» (da ClockWork)
+desktop/    programma per Windows (Tauri 2): una finestra sul server, con accesso all'hardware
 docs/       architettura e decisioni (ADR)
 infra/      docker-compose per il database di sviluppo
 ```
@@ -42,6 +45,19 @@ cd frontend && npm install && npm run dev
 
 Account demo (password `demo1234`): `admin@demo.leone`, `coordinatore@demo.leone`, `staff@demo.leone`,
 `giulia@demo.leone`, `marta@demo.leone`. Sono persone inventate: nello sviluppo non si usano dati reali.
+
+## Programma per Windows
+
+Il programma (`desktop/`) è una finestra sul server della società: al primo avvio chiede l'indirizzo del
+server, poi apre l'interfaccia servita da lì (sessione e aggiornamenti come sul web). La parte nativa esporrà
+lettore NFC e stampa; per ora dà versione e «Cambia server».
+
+- **Installer**: a ogni modifica di `desktop/` la CI costruisce `.msi` e `.exe` su Windows (workflow
+  «Programma Windows», scheda *Artifacts*); si può anche lanciare a mano.
+- **In locale** (serve Rust): `cd desktop && npm ci && npx tauri build`. Per provarlo con il frontend di
+  sviluppo, come server si indica `http://localhost:5173`.
+- Il server deve offrire interfaccia e `/api` **sullo stesso indirizzo** (in sviluppo lo fa Vite; in
+  produzione un proxy, da definire con il tecnico della società).
 
 ## Test
 
@@ -72,13 +88,18 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | GET | `/api/turni?da=&a=` | coordinatori: tutti i turni, anche scoperti |
 | POST · PUT | `/api/turni` · `/api/turni/{id}` · `/api/turni/{id}/annulla` | coordinatori |
 | GET | `/api/staff/postazioni` · `/api/staff/persone` | coordinatori |
-| GET · POST | `/api/modelli` · `/api/modelli/{id}/genera` `{mese}` · `/api/modelli/{id}/righe` | coordinatori |
+| GET · POST · PUT · DELETE | `/api/modelli` · `/{id}` · `/{id}/righe` · `/{id}/righe/{riga}` · `/{id}/genera` `{mese}` | coordinatori: settimana tipo |
+| GET | `/api/staff/impianti` · `/api/staff/spazi` | coordinatori |
+| GET · POST · PUT | `/api/staff/mansioni` · `/{id}` · `/{id}/postazioni` · `/api/staff/postazioni/{id}` · `/api/staff/postazioni/ordine` | coordinatori |
+| GET · POST · PUT | `/api/staff/tariffe` · `/{id}` | coordinatori: una nuova tariffa chiude la precedente |
 | POST | `/api/richieste` | sui propri turni: `CAMBIO_ORARIO`, `SOSTITUZIONE`, `SCAMBIO` |
 | GET | `/api/richieste/mie` · `/api/richieste/aperte` | le proprie / le sostituzioni aperte |
 | POST | `/api/richieste/{id}/accetta` · `/rifiuta` · `/annulla` | collega / richiedente |
 | GET · POST | `/api/richieste` · `/{id}/approva` · `/{id}/respingi` | coordinatori |
 | GET | `/api/riepilogo/mio?mese=` | ore e compenso propri |
 | GET | `/api/riepilogo?mese=` · `/api/riepilogo/csv?mese=` | coordinatori |
+| GET | `/api/foglio-ore/mio?mese=` | il proprio foglio ore (.xlsx) |
+| GET | `/api/foglio-ore/persone/{id}?mese=` · `/api/foglio-ore/tutti?mese=` · `/api/foglio-ore/voci` | coordinatori (.xlsx, .zip, colonne del modello) |
 
 Le richieste che modificano dati devono rimandare il token CSRF nell'intestazione `X-XSRF-TOKEN`.
 Gli errori seguono il formato «problem details» (RFC 9457): 400 dati non validi, 403 permessi,

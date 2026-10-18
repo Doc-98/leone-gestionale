@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-informazioni"
+description = "Enables the informazioni command without any pre-configured scope."
+commands.allow = ["informazioni"]
+
+[[permission]]
+identifier = "deny-informazioni"
+description = "Denies the informazioni command without any pre-configured scope."
+commands.deny = ["informazioni"]

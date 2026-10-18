@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "avvio",
+  "description": "La pagina di avvio inclusa nel programma: sceglie il server e lo apre.",
+  "windows": ["principale"],
+  "permissions": ["core:default", "allow-server", "allow-imposta-server"]
+}

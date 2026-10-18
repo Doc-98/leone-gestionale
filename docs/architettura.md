@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 18 ottobre 2026 · fase 1 (turni dello staff) completata. Da confrontare con il gestionale attuale prima della fase 3.
+Stato: 18 ottobre 2026 · fase 1 (turni dello staff) completata, con versione PC e programma per Windows. Da confrontare con il gestionale attuale prima della fase 3.
 
 ## Obiettivo
 
@@ -198,8 +198,9 @@ erDiagram
 0. **Fondamenta** – repo, schema iniziale, login e ruoli, dati finti, CI. *(fatto)*
 1. **Turni staff** – modello settimanale → turni del mese, turni scoperti, vista staff e pianificazione,
    richieste (cambio orario, sostituzione anche aperta, scambio) con approvazione, riepilogo ore e
-   compensi con CSV. *(fatto — vedi ADR 0005)* Resta da fare: modifica completa dei modelli dall'app,
-   gestione di mansioni, postazioni e tariffe dall'app, export del foglio ore nel modello della società.
+   compensi con CSV, settimana tipo modificabile dall'app, mansioni, postazioni e tariffe, foglio ore nel
+   modello Excel della società. Versione PC (griglia, menu laterale) e programma per Windows con Tauri.
+   *(fatto — vedi ADR 0005 e 0006)*
 2. **Piano vasca** – corsi, lezioni, eventi; vista giorno e settimana.
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.

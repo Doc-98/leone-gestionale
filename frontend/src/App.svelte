@@ -3,6 +3,7 @@
   import { api } from './lib/api';
   import { sessione } from './lib/sessione.svelte';
   import { schermo } from './lib/schermo.svelte';
+  import { cambiaServer, infoProgramma, type InfoProgramma } from './lib/dispositivi';
   import Login from './routes/Login.svelte';
   import Turni from './routes/Turni.svelte';
   import Richieste from './routes/Richieste.svelte';
@@ -56,9 +57,11 @@
   };
   let scheda = $state<Scheda>(leggiScheda());
   let daApprovare = $state(0);
+  let programma = $state<InfoProgramma | null>(null);
 
   onMount(() => {
     sessione.carica();
+    infoProgramma().then((i) => (programma = i));
     const f = () => (scheda = leggiScheda());
     window.addEventListener('hashchange', f);
     return () => window.removeEventListener('hashchange', f);
@@ -129,6 +132,10 @@
           <div class="io-nome">{sessione.utente.nome} {sessione.utente.cognome}</div>
           <div class="muted small">{ruolo}</div>
           <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+          {#if programma}
+            <div class="programma muted">Programma {programma.versione} · {location.host}</div>
+            <button class="link small" onclick={cambiaServer}>Cambia server</button>
+          {/if}
         </div>
       </aside>
     {/if}
@@ -208,6 +215,7 @@
   .io { border-top: 1px solid var(--line-soft); padding: var(--space-12) var(--space-10) 0; display: flex; flex-direction: column; align-items: flex-start; }
   .io-nome { font-weight: 600; font-size: var(--text-md); }
   .io .link { min-height: 32px; }
+  .programma { font-size: var(--text-2xs); margin-top: var(--space-6); }
 
   /* ── Telefono ─────────────────────────────────────────────── */
   nav.basso {

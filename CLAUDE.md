@@ -11,4 +11,5 @@
 - Dati personali di minori: niente dati reali nel repository, nei test o negli screenshot.
 - Orari «da calendario» come data + ora locale, fuso Europe/Rome.
 - Prima di pubblicare: `mvn verify` nel backend, `npm run check && npm test && npm run build` nel frontend.
+  Se si tocca il programma per Windows: `cargo build` in `desktop/src-tauri` (l'installer lo fa la CI su Windows).
 - Aprire una pull request solo quando l'utente lo chiede.

@@ -45,6 +45,11 @@ Alternative valutate:
   schermate (il client delle API si genera dalla specifica OpenAPI).
 - I PC richiedono un'installazione (concordata con il tecnico). Per non mostrare l'avviso di Windows
   «editore sconosciuto» servirà un certificato di firma del codice.
-- Il programma carica l'interfaccia inclusa nell'installer; gli aggiornamenti arrivano con l'updater di
-  Tauri (da attivare quando ci sarà un server di produzione).
+- Il programma **apre l'interfaccia servita dal server** (indirizzo scelto al primo avvio, in una pagina inclusa
+  nel programma): stesso indirizzo per interfaccia e API, quindi sessione con cookie senza CORS, e
+  l'interfaccia si aggiorna da sola. L'installer va rifatto solo quando cambia la parte nativa (lì servirà
+  l'updater di Tauri).
+- I comandi nativi sono permessi espliciti: li può chiamare solo la pagina di avvio e il server configurato.
+- In produzione il server deve offrire interfaccia e `/api` sullo stesso indirizzo (proxy o backend che serve
+  i file del frontend): da decidere con il tecnico della società.
 - I lettori in «emulazione tastiera» funzionano anche senza Tauri, come ripiego.

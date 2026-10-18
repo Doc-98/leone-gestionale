@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-torna-all-avvio"
+description = "Enables the torna_all_avvio command without any pre-configured scope."
+commands.allow = ["torna_all_avvio"]
+
+[[permission]]
+identifier = "deny-torna-all-avvio"
+description = "Denies the torna_all_avvio command without any pre-configured scope."
+commands.deny = ["torna_all_avvio"]

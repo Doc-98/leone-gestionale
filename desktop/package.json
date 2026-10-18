@@ -1,0 +1,14 @@
+{
+  "name": "leone-gestionale-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Il programma Windows del gestionale: una finestra sul server della società, con accesso a lettore NFC e stampante.",
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build",
+    "dev": "tauri dev"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0"
+  }
+}
