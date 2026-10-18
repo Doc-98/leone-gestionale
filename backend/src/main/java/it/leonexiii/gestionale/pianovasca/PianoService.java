@@ -114,7 +114,7 @@ class PianoService {
                     nota = ecc.getMotivo();
                 } else if (ecc != null) {
                     stato = Stato.SPOSTATA_VIA;
-                    nota = "Spostata a " + ecc.getNuovaData() + " " + ecc.getNuovoInizio() + (ecc.getMotivo() == null ? "" : " · " + ecc.getMotivo());
+                    nota = "Spostata a " + quando(ecc.getNuovaData(), ecc.getNuovoInizio()) + (ecc.getMotivo() == null ? "" : " · " + ecc.getMotivo());
                 } else {
                     Evento ch = chiusuraSu(chiusure, c.getImpiantoId(), g, l.getInizio(), l.getFine(), l.getSpazi(), padre);
                     if (ch != null) {
@@ -129,7 +129,8 @@ class PianoService {
                 if (e.getTipo() != TipoEccezione.SPOSTATA || e.getNuovaData().isBefore(da) || e.getNuovaData().isAfter(a)) continue;
                 Evento ch = chiusuraSu(chiusure, c.getImpiantoId(), e.getNuovaData(), e.getNuovoInizio(), e.getNuovoFine(), l.getSpazi(), padre);
                 out.add(lezione(l, c, e.getNuovaData(), e.getNuovoInizio(), e.getNuovoFine(), spaziLezione, istruttore,
-                    ch != null ? Stato.CHIUSO : Stato.SPOSTATA_QUI, ch != null ? ch.getTitolo() : "Spostata dal " + e.getData(), e.getId(), e.getData()));
+                    ch != null ? Stato.CHIUSO : Stato.SPOSTATA_QUI, ch != null ? ch.getTitolo() : "Spostata da " + quando(e.getData(), l.getInizio()) + (e.getMotivo() == null ? "" : " · " + e.getMotivo()),
+                    e.getId(), e.getData()));
             }
         }
 
@@ -172,6 +173,13 @@ class PianoService {
         String chiave = "L:" + l.getId() + ":" + (originale != null ? originale + ">" : "") + g;
         return new Occorrenza(chiave, "LEZIONE", c.getTipo().name(), c.getNome(), dettaglio, g, inizio, fine, spazi, istruttore, stato, nota,
             l.getId(), c.getId(), null, eccezioneId, originale, List.of());
+    }
+
+    private static final java.time.format.DateTimeFormatter GIORNO = java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM", java.util.Locale.ITALIAN);
+
+    /** «lunedì 19 ottobre alle 19:00» */
+    static String quando(LocalDate data, LocalTime ora) {
+        return data.format(GIORNO) + " alle " + ora;
     }
 
     static String eta(Integer da, Integer a) {

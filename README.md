@@ -18,6 +18,10 @@ uffici (menu laterale, griglie ampie) e **app** sul telefono per lo staff (ADR 0
   di tutto lo staff, in CSV e come **foglio ore nel modello Excel della società** (uno per persona o tutti in .zip).
 - Garanzie nel database: nessun turno sovrapposto per la stessa persona, una sola richiesta aperta per turno.
 
+**Fase 2 – piano vasca (completa).** Vista giorno (corsie e vasche × ore) e settimana, agenda sul telefono.
+Corsi con lezioni settimanali, salti e spostamenti di una singola data, eventi (gare, lezioni private e di prova,
+chiusure anche di più giorni) e sovrapposizioni segnalate. Lo staff lo consulta; coordinatori e admin lo modificano.
+
 ## Struttura
 
 ```
@@ -98,6 +102,10 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | GET · POST | `/api/richieste` · `/{id}/approva` · `/{id}/respingi` | coordinatori |
 | GET | `/api/riepilogo/mio?mese=` | ore e compenso propri |
 | GET | `/api/riepilogo?mese=` · `/api/riepilogo/csv?mese=` | coordinatori |
+| GET | `/api/piano?da=&a=` | tutti: spazi e occorrenze del periodo (max due mesi), con stato e sovrapposizioni |
+| GET · POST · PUT | `/api/corsi` · `/{id}` · `/{id}/lezioni` | lettura per tutti, modifiche coordinatori |
+| PUT · DELETE | `/api/lezioni/{id}` · POST `/api/lezioni/{id}/eccezioni` · DELETE `/api/eccezioni/{id}` | coordinatori: salti e spostamenti |
+| GET · POST · PUT | `/api/eventi/{id}` · `/api/eventi` · `/{id}/annulla` | lettura per tutti, modifiche coordinatori |
 | GET | `/api/foglio-ore/mio?mese=` | il proprio foglio ore (.xlsx) |
 | GET | `/api/foglio-ore/persone/{id}?mese=` · `/api/foglio-ore/tutti?mese=` · `/api/foglio-ore/voci` | coordinatori (.xlsx, .zip, colonne del modello) |
 

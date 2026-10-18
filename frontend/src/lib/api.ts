@@ -133,6 +133,139 @@ export interface ModelloInput {
   copiaDa?: string | null;
 }
 
+// ── Piano vasca ──────────────────────────────────────────────────────────
+
+export type TipoCorso = 'SCUOLA_NUOTO' | 'ACQUATICITA' | 'AGONISMO' | 'MASTER' | 'ACQUAGYM' | 'CURRICOLARE' | 'NUOTO_LIBERO' | 'ALTRO';
+export type TipoEvento = 'GARA' | 'LEZIONE_PRIVATA' | 'LEZIONE_PROVA' | 'CHIUSURA' | 'ALTRO';
+export type StatoOccorrenza = 'REGOLARE' | 'SPOSTATA_QUI' | 'SALTATA' | 'SPOSTATA_VIA' | 'CHIUSO' | 'ANNULLATO';
+
+export interface SpazioPiano {
+  id: string;
+  impiantoId: string;
+  nome: string;
+  tipo: string;
+  padreId: string | null;
+}
+
+export interface Occorrenza {
+  chiave: string;
+  tipo: 'LEZIONE' | 'EVENTO';
+  categoria: TipoCorso | TipoEvento;
+  titolo: string;
+  dettaglio: string | null;
+  data: string;
+  inizio: string;
+  fine: string;
+  spazi: string[];
+  istruttore: PersonaBreve | null;
+  stato: StatoOccorrenza;
+  nota: string | null;
+  lezioneId: string | null;
+  corsoId: string | null;
+  eventoId: string | null;
+  eccezioneId: string | null;
+  dataOriginale: string | null;
+  conflitti: string[];
+}
+
+export interface Piano {
+  da: string;
+  a: string;
+  spazi: SpazioPiano[];
+  occorrenze: Occorrenza[];
+  impiantiGestiti: string[];
+}
+
+export interface Lezione {
+  id: string;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  validaDal: string;
+  validaAl: string | null;
+  spazi: string[];
+  istruttore: PersonaBreve | null;
+}
+
+export interface Corso {
+  id: string;
+  impiantoId: string;
+  nome: string;
+  tipo: TipoCorso;
+  livello: string | null;
+  etaDa: number | null;
+  etaA: number | null;
+  istruttore: PersonaBreve | null;
+  note: string | null;
+  attivo: boolean;
+  lezioni: Lezione[];
+}
+
+export interface CorsoInput {
+  impiantoId: string;
+  nome: string;
+  tipo: TipoCorso;
+  livello: string | null;
+  etaDa: number | null;
+  etaA: number | null;
+  istruttoreId: string | null;
+  note: string | null;
+  attivo: boolean;
+}
+
+export interface LezioneInput {
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  validaDal: string;
+  validaAl: string | null;
+  spazi: string[];
+  istruttoreId: string | null;
+}
+
+export interface Evento {
+  id: string;
+  impiantoId: string;
+  tipo: TipoEvento;
+  titolo: string;
+  data: string;
+  dataFine: string | null;
+  inizio: string;
+  fine: string;
+  spazi: string[];
+  istruttore: PersonaBreve | null;
+  note: string | null;
+  annullato: boolean;
+}
+
+export interface EventoInput {
+  impiantoId: string;
+  tipo: TipoEvento;
+  titolo: string;
+  data: string;
+  dataFine: string | null;
+  inizio: string;
+  fine: string;
+  spazi: string[];
+  istruttoreId: string | null;
+  note: string | null;
+}
+
+export interface EccezioneInput {
+  data: string;
+  tipo: 'SALTATA' | 'SPOSTATA';
+  nuovaData?: string | null;
+  nuovoInizio?: string | null;
+  nuovoFine?: string | null;
+  motivo?: string | null;
+}
+
+/** Dopo una modifica al piano: le sovrapposizioni che si sono create (avvisi, non errori). */
+export interface Esito<T> {
+  valore: T;
+  avvisi: string[];
+}
+
 export type TipoRichiesta = 'CAMBIO_ORARIO' | 'SOSTITUZIONE' | 'SCAMBIO';
 export type StatoRichiesta = 'IN_ATTESA_COLLEGA' | 'IN_ATTESA_APPROVAZIONE' | 'APPROVATA' | 'RESPINTA' | 'ANNULLATA';
 
@@ -263,6 +396,19 @@ export const api = {
   urlFoglioOreMio: (mese: string) => `/api/foglio-ore/mio?mese=${mese}`,
   urlFoglioOrePersona: (personaId: string, mese: string) => `/api/foglio-ore/persone/${personaId}?mese=${mese}`,
   urlFogliOreTutti: (mese: string) => `/api/foglio-ore/tutti?mese=${mese}`,
+  piano: (da: string, a: string) => richiesta<Piano>('GET', `/api/piano?da=${da}&a=${a}`),
+  corsi: () => richiesta<Corso[]>('GET', '/api/corsi'),
+  creaCorso: (c: CorsoInput) => richiesta<Corso>('POST', '/api/corsi', c),
+  modificaCorso: (id: string, c: CorsoInput) => richiesta<Corso>('PUT', `/api/corsi/${id}`, c),
+  aggiungiLezione: (corsoId: string, l: LezioneInput) => richiesta<Esito<Lezione>>('POST', `/api/corsi/${corsoId}/lezioni`, l),
+  modificaLezione: (id: string, l: LezioneInput) => richiesta<Esito<Lezione>>('PUT', `/api/lezioni/${id}`, l),
+  togliLezione: (id: string) => richiesta<void>('DELETE', `/api/lezioni/${id}`),
+  aggiungiEccezione: (lezioneId: string, e: EccezioneInput) => richiesta<Esito<string>>('POST', `/api/lezioni/${lezioneId}/eccezioni`, e),
+  togliEccezione: (id: string) => richiesta<void>('DELETE', `/api/eccezioni/${id}`),
+  evento: (id: string) => richiesta<Evento>('GET', `/api/eventi/${id}`),
+  creaEvento: (e: EventoInput) => richiesta<Esito<Evento>>('POST', '/api/eventi', e),
+  modificaEvento: (id: string, e: EventoInput) => richiesta<Esito<Evento>>('PUT', `/api/eventi/${id}`, e),
+  annullaEvento: (id: string) => richiesta<Evento>('POST', `/api/eventi/${id}/annulla`),
   generaMese: (modelloId: string, mese: string) => richiesta<EsitoGenerazione>('POST', `/api/modelli/${modelloId}/genera`, { mese }),
   creaRichiesta: (r: NuovaRichiesta) => richiesta<Richiesta>('POST', '/api/richieste', r),
   richiesteMie: () => richiesta<Richiesta[]>('GET', '/api/richieste/mie'),

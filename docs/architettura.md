@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 18 ottobre 2026 · fase 1 (turni dello staff) completata, con versione PC e programma per Windows. Da confrontare con il gestionale attuale prima della fase 3.
+Stato: 19 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Da confrontare con il gestionale attuale prima della fase 3.
 
 ## Obiettivo
 
@@ -176,10 +176,15 @@ erDiagram
 - Riepilogo mensile e foglio ore: calcolati dai turni (vista o query), esportabili.
 
 **Piano vasca**
-- `corso`: tipo (scuola nuoto, curricolare scuole, agonismo, acquagym…), livello, fascia d'età, istruttore.
-- `lezione`: ricorrenza (giorni e orario, periodo di validità) su uno spazio, con eccezioni (giorni
-  saltati o spostati).
-- `evento`: gara, lezione privata, lezione di prova, chiusura; occupa spazi per un intervallo.
+- `spazio.padre_id`: le corsie stanno dentro la loro vasca.
+- `corso`: tipo (scuola nuoto, acquaticità, agonismo, master, acquagym, curricolare, nuoto libero), livello,
+  fascia d'età, istruttore, attivo.
+- `lezione` + `lezione_spazio`: ogni settimana nel giorno indicato, con orario e periodo di validità, su uno o
+  più spazi; istruttore facoltativo se diverso da quello del corso.
+- `lezione_eccezione`: in una data la lezione è saltata o spostata (nuovo giorno e orario), con un motivo.
+- `evento` + `evento_spazio`: gara, lezione privata, lezione di prova, chiusura, altro; anche su più giorni;
+  senza spazi vale per tutto l'impianto. Si annulla, non si cancella.
+- Il piano di un periodo si calcola al momento (occorrenze con stato e sovrapposizioni).
 
 **Clienti**
 - `iscrizione`: persona + corso + periodo + stato.
@@ -201,7 +206,8 @@ erDiagram
    compensi con CSV, settimana tipo modificabile dall'app, mansioni, postazioni e tariffe, foglio ore nel
    modello Excel della società. Versione PC (griglia, menu laterale) e programma per Windows con Tauri.
    *(fatto — vedi ADR 0005 e 0006)*
-2. **Piano vasca** – corsi, lezioni, eventi; vista giorno e settimana.
+2. **Piano vasca** – corsi con lezioni ricorrenti (salti e spostamenti), eventi e chiusure, corsie dentro le
+   vasche; vista giorno (spazi × ore) e settimana, agenda sul telefono; sovrapposizioni segnalate. *(fatto — vedi ADR 0007)*
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
    Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice

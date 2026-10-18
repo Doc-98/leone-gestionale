@@ -13,15 +13,17 @@
   import Modelli from './routes/Modelli.svelte';
   import Postazioni from './routes/Postazioni.svelte';
   import Tariffe from './routes/Tariffe.svelte';
+  import PianoVasca from './routes/PianoVasca.svelte';
+  import Corsi from './routes/Corsi.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe';
   interface Sezione {
     id: Scheda;
     nome: string;
     /** Nome nella barra in basso del telefono; senza, la sezione non ci sta (si raggiunge da Pianificazione). */
     breve?: string;
     titolo: string;
-    gruppo: 'Il mio lavoro' | 'Gestione' | 'Impostazioni';
+    gruppo: 'Il mio lavoro' | 'Piscina' | 'Gestione' | 'Impostazioni';
     gestione?: boolean;
     larga?: boolean;
     icona: string;
@@ -36,13 +38,17 @@
     approva: 'm5 12 4 4 10-10',
     modelli: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5',
     postazioni: 'M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5',
+    piano: 'M3 8c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 13c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 18c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0',
+    corsi: 'M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2M8 8h6M8 12h6',
     tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
   };
 
   const SEZIONI: Sezione[] = [
-    { id: 'turni', nome: 'I miei turni', breve: 'I miei turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', icona: I.turni },
+    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', icona: I.turni },
     { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: I.richieste },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: I.ore },
+    { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: I.piano },
+    { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', gestione: true, larga: true, icona: I.corsi },
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', gestione: true, larga: true, icona: I.pianifica },
     { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', gestione: true, icona: I.approva },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', gestione: true, larga: true, icona: I.modelli },
@@ -52,7 +58,7 @@
   const ID = SEZIONI.map((s) => s.id);
 
   const leggiScheda = (): Scheda => {
-    const h = location.hash.replace('#/', '') as Scheda;
+    const h = location.hash.replace('#/', '').split('/')[0] as Scheda;
     return ID.includes(h) ? h : 'turni';
   };
   let scheda = $state<Scheda>(leggiScheda());
@@ -71,7 +77,7 @@
   const visibili = $derived(SEZIONI.filter((s) => !s.gestione || coordinatore));
   const corrente = $derived(visibili.find((s) => s.id === scheda) ?? SEZIONI[0]);
   const gruppi = $derived(
-    (['Il mio lavoro', 'Gestione', 'Impostazioni'] as const)
+    (['Il mio lavoro', 'Piscina', 'Gestione', 'Impostazioni'] as const)
       .map((g) => ({ nome: g, voci: visibili.filter((s) => s.gruppo === g) }))
       .filter((g) => g.voci.length),
   );
@@ -161,7 +167,9 @@
         {:else if corrente.id === 'approva'}<Approva cambiate={(n) => (daApprovare = n)} />
         {:else if corrente.id === 'modelli'}<Modelli />
         {:else if corrente.id === 'postazioni'}<Postazioni />
-        {:else if corrente.id === 'tariffe'}<Tariffe />{/if}
+        {:else if corrente.id === 'tariffe'}<Tariffe />
+        {:else if corrente.id === 'piano'}<PianoVasca />
+        {:else if corrente.id === 'corsi'}<Corsi />{/if}
       {/key}
     </main>
 

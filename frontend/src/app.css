@@ -44,6 +44,7 @@
   --area-p: #d9711c; --area-p-bg: #fbe7d6; --area-p-fg: #8a3a06;
   --area-a: #6b4fbb; --area-a-bg: #ece6f9; --area-a-fg: #4a338c;
   --area-x: #6f7c83; --area-x-bg: #ebe7de; --area-x-fg: #3d4a52;
+  --area-v: #2f7d4f; --area-v-bg: #e0f1e6; --area-v-fg: #1f5c38;
   --font-display: 'Bricolage Grotesque', 'IBM Plex Sans', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
@@ -134,6 +135,9 @@
   --area-x: #94a3aa;
   --area-x-bg: #26333a;
   --area-x-fg: #cdd7dc;
+  --area-v: #4fc283;
+  --area-v-bg: #153826;
+  --area-v-fg: #bfe8cf;
   --shadow-seg: 0 1px 2px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
@@ -288,3 +292,14 @@ label:has(> input[type='file']:focus-visible) { outline: 2px solid var(--cloro);
 .hint .ic { width: 18px; height: 18px; margin-top: 1px; }
 .due { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
 .chev { color: var(--chevron); width: 18px; height: 18px; }
+
+/* Piano vasca: un colore per categoria. Ogni classe imposta sfondo, testo e filo; i componenti li usano. */
+.cat-scuola-nuoto { --c-bg: var(--area-m-bg); --c-fg: var(--area-m-fg); --c-line: var(--area-m); }
+.cat-acquaticita { --c-bg: var(--area-p-bg); --c-fg: var(--area-p-fg); --c-line: var(--area-p); }
+.cat-agonismo { --c-bg: var(--area-f-bg); --c-fg: var(--area-f-fg); --c-line: var(--area-f); }
+.cat-master, .cat-lezione-privata { --c-bg: var(--area-a-bg); --c-fg: var(--area-a-fg); --c-line: var(--area-a); }
+.cat-acquagym { --c-bg: var(--cloro-soft); --c-fg: var(--cloro-ink); --c-line: var(--cloro); }
+.cat-lezione-prova { --c-bg: var(--area-v-bg); --c-fg: var(--area-v-fg); --c-line: var(--area-v); }
+.cat-gara { --c-bg: var(--warn-bg); --c-fg: var(--warn); --c-line: var(--warn); }
+.cat-curricolare, .cat-nuoto-libero, .cat-altro, .cat-chiusura { --c-bg: var(--area-x-bg); --c-fg: var(--area-x-fg); --c-line: var(--area-x); }
+.pallino { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c-line); flex-shrink: 0; }
