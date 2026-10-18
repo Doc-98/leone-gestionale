@@ -179,6 +179,8 @@ class ImpostazioniEFoglioOreTest {
             assertThat(wb.getSheetName(0)).isEqualTo("Maggio 28");
             assertThat(s.getRow(4).getCell(4).getStringCellValue()).isEqualTo("Giulia Conti");
             assertThat(s.getRow(5).getCell(5).getStringCellValue()).isEqualTo("Maggio 2028");
+            assertThat(s.getRow(3).getCell(4).getLocalDateTimeCellValue().toLocalDate()).isEqualTo(java.time.LocalDate.of(2028, 5, 31));
+            assertThat(s.getRow(3).getCell(4).getCellStyle().getDataFormatString()).isEqualTo("dd/mm/yyyy");
             Row voci = s.getRow(10);
             int spogliatoio = colonna(voci, "ASSISTENTE SPOGLIATOIO");
             int atrio = colonna(voci, "Assistente atrio");
@@ -186,6 +188,7 @@ class ImpostazioniEFoglioOreTest {
             assertThat(atrio).isGreaterThan(spogliatoio);
             assertThat(sost).isGreaterThan(atrio);
             assertThat(s.getRow(11 + 2).getCell(spogliatoio).getNumericCellValue()).isEqualTo(3.5);
+            assertThat(s.getRow(11 + 2).getCell(spogliatoio).getCellStyle().getDataFormatString()).isEqualTo("0.00");
             assertThat(s.getRow(11 + 2).getCell(atrio).getNumericCellValue()).isEqualTo(2.0);
             assertThat(s.getRow(11 + 3).getCell(atrio).getNumericCellValue()).isEqualTo(2.0);
             assertThat(s.getRow(11 + 9).getCell(spogliatoio).getNumericCellValue()).isEqualTo(4.0);

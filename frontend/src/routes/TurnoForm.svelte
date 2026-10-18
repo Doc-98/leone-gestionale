@@ -3,17 +3,19 @@
   import { api, messaggioErrore, type PersonaBreve, type Postazione, type Turno } from '../lib/api';
   import { ora } from '../lib/date';
 
-  let { turno, data, postazioni, personale, fatto }: {
+  let { turno, data, postazione = '', postazioni, personale, fatto }: {
     turno: Turno | null;
     data: string;
+    /** Postazione proposta per un turno nuovo (dalla griglia). */
+    postazione?: string;
     postazioni: Postazione[];
     personale: PersonaBreve[];
     fatto: (messaggio: string) => void;
   } = $props();
 
   // Il form parte dai valori del turno (o da quelli di un turno nuovo) e poi vive di vita propria
-  const iniziale = untrack(() => $state.snapshot({ turno, data, postazioni }));
-  let postazioneId = $state(iniziale.turno?.postazioneId ?? iniziale.postazioni[0]?.id ?? '');
+  const iniziale = untrack(() => $state.snapshot({ turno, data, postazione, postazioni }));
+  let postazioneId = $state(iniziale.turno?.postazioneId ?? (iniziale.postazione || iniziale.postazioni[0]?.id) ?? '');
   let giorno = $state(iniziale.turno?.data ?? iniziale.data);
   let inizio = $state(iniziale.turno ? ora(iniziale.turno.inizio) : '15:00');
   let fine = $state(iniziale.turno ? ora(iniziale.turno.fine) : '19:00');

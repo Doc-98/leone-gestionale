@@ -90,6 +90,7 @@ class ModelloFoglioOre {
         try (var wb = new XSSFWorkbook(new java.io.ByteArrayInputStream(modello)); var out = new ByteArrayOutputStream()) {
             Sheet s = wb.getSheetAt(0);
             int giorniNelMese = c.mese().lengthOfMonth();
+            Formati formati = new Formati(wb);
 
             // colonne: le voci del modello, poi le mansioni senza voce, poi le sostituzioni
             Map<String, Integer> colonne = new LinkedHashMap<>();
@@ -110,17 +111,23 @@ class ModelloFoglioOre {
                 int col = colonne.get(voce.getKey());
                 for (var g : voce.getValue().entrySet()) {
                     if (g.getKey() < 1 || g.getKey() > giorniNelMese) throw new IllegalArgumentException("Giorno fuori dal mese: " + g.getKey());
-                    cella(s, RIGA_GIORNO_1 + g.getKey() - 1, col).setCellValue(g.getValue().doubleValue());
+                    Cell ore = cella(s, RIGA_GIORNO_1 + g.getKey() - 1, col);
+                    ore.setCellValue(g.getValue().doubleValue());
+                    formati.applica(ore, "0.00");
                 }
                 String lettera = CellReference.convertNumToColString(col);
-                cella(s, RIGA_TOTALE, col).setCellFormula("SUM(" + lettera + (RIGA_GIORNO_1 + 1) + ":" + lettera + (RIGA_TOTALE) + ")");
+                Cell totale = cella(s, RIGA_TOTALE, col);
+                totale.setCellFormula("SUM(" + lettera + (RIGA_GIORNO_1 + 1) + ":" + lettera + (RIGA_TOTALE) + ")");
+                formati.applica(totale, "0.00");
             }
             if (colonnaNote != null) {
                 for (var n : c.note().entrySet())
                     cella(s, RIGA_GIORNO_1 + n.getKey() - 1, colonnaNote).setCellValue(String.join("; ", n.getValue()));
             }
 
-            imposta(s, CELLA_DATA).setCellValue(c.data());
+            Cell data = imposta(s, CELLA_DATA);
+            data.setCellValue(c.data());
+            formati.applica(data, "dd/mm/yyyy");
             imposta(s, CELLA_NOME).setCellValue(c.nome());
             imposta(s, CELLA_MESE).setCellValue(MESI[c.mese().getMonthValue() - 1] + " " + c.mese().getYear());
             wb.setSheetName(0, MESI[c.mese().getMonthValue() - 1] + " " + String.valueOf(c.mese().getYear()).substring(2));
@@ -129,6 +136,28 @@ class ModelloFoglioOre {
             return out.toByteArray();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Lo stile della cella con un altro formato numerico, senza toccare bordi e colori del modello. */
+    private static final class Formati {
+        private final XSSFWorkbook wb;
+        private final Map<String, CellStyle> cache = new java.util.HashMap<>();
+
+        Formati(XSSFWorkbook wb) {
+            this.wb = wb;
+        }
+
+        void applica(Cell c, String formato) {
+            CellStyle base = c.getCellStyle();
+            String chiave = base.getIndex() + "|" + formato;
+            CellStyle stile = cache.computeIfAbsent(chiave, k -> {
+                CellStyle nuovo = wb.createCellStyle();
+                nuovo.cloneStyleFrom(base);
+                nuovo.setDataFormat(wb.createDataFormat().getFormat(formato));
+                return nuovo;
+            });
+            c.setCellStyle(stile);
         }
     }
 

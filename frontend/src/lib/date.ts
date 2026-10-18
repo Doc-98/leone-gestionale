@@ -62,3 +62,16 @@ export function euro(n: number): string {
 }
 
 export const GIORNI_BREVI = ['', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];
+export const GIORNI_ESTESI = ['', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
+
+/** «2026-01-01» → «1 gennaio 2026» */
+export function dataLunga(s: string): string {
+  const d = daIso(s);
+  return `${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** Ore tra due orari «HH:mm[:ss]» dello stesso giorno. */
+export function oreTra(inizio: string, fine: string): number {
+  const min = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+  return (min(fine) - min(inizio)) / 60;
+}

@@ -26,6 +26,15 @@
     max-width: 640px; margin: 0 auto; background: var(--carta); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     padding: var(--space-16) var(--space-16) calc(env(safe-area-inset-bottom, 0px) + var(--space-20));
   }
+  /* Sul PC: pannello laterale a destra, la pagina resta visibile accanto */
+  @media (min-width: 1024px) {
+    .velo { background: rgba(16, 33, 43, 0.25); }
+    .foglio {
+      left: auto; top: 0; width: 440px; max-width: none; max-height: none; margin: 0;
+      border-radius: 0; border-left: 1px solid var(--line); padding: var(--space-20) var(--space-20) var(--space-20);
+      box-shadow: -12px 0 32px rgba(16, 33, 43, 0.12);
+    }
+  }
   header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-12); margin-bottom: var(--space-12); }
   h2 { margin: 0; font-size: var(--text-xl); }
   .corpo { display: flex; flex-direction: column; gap: var(--space-14); }

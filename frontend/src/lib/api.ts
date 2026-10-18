@@ -77,6 +77,62 @@ export interface EsitoGenerazione {
   avvisi: string[];
 }
 
+export interface Impianto {
+  id: string;
+  nome: string;
+}
+
+export interface Spazio {
+  id: string;
+  impiantoId: string;
+  nome: string;
+  tipo: string;
+}
+
+export interface PostazioneGestione {
+  id: string;
+  mansioneId: string;
+  nome: string;
+  spazioId: string | null;
+  ordine: number;
+  attiva: boolean;
+}
+
+export interface Mansione {
+  id: string;
+  impiantoId: string;
+  codice: string;
+  nome: string;
+  voceFoglioOre: string | null;
+  postazioni: PostazioneGestione[];
+}
+
+export interface Tariffa {
+  id: string;
+  mansioneId: string;
+  mansione: string;
+  persona: PersonaBreve | null;
+  euroOra: number;
+  dal: string;
+  al: string | null;
+}
+
+export interface RigaInput {
+  postazioneId: string;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  personaId: string | null;
+}
+
+export interface ModelloInput {
+  impiantoId: string;
+  nome: string;
+  validoDal: string;
+  validoAl: string | null;
+  copiaDa?: string | null;
+}
+
 export type TipoRichiesta = 'CAMBIO_ORARIO' | 'SOSTITUZIONE' | 'SCAMBIO';
 export type StatoRichiesta = 'IN_ATTESA_COLLEGA' | 'IN_ATTESA_APPROVAZIONE' | 'APPROVATA' | 'RESPINTA' | 'ANNULLATA';
 
@@ -182,6 +238,31 @@ export const api = {
   personale: () => richiesta<PersonaBreve[]>('GET', '/api/staff/persone'),
   colleghi: () => richiesta<PersonaBreve[]>('GET', '/api/staff/colleghi'),
   modelli: () => richiesta<Modello[]>('GET', '/api/modelli'),
+  creaModello: (m: ModelloInput) => richiesta<Modello>('POST', '/api/modelli', m),
+  modificaModello: (id: string, m: ModelloInput) => richiesta<Modello>('PUT', `/api/modelli/${id}`, m),
+  eliminaModello: (id: string) => richiesta<void>('DELETE', `/api/modelli/${id}`),
+  aggiungiRiga: (id: string, r: RigaInput) => richiesta<Modello>('POST', `/api/modelli/${id}/righe`, r),
+  modificaRiga: (id: string, rigaId: string, r: RigaInput) => richiesta<Modello>('PUT', `/api/modelli/${id}/righe/${rigaId}`, r),
+  togliRiga: (id: string, rigaId: string) => richiesta<Modello>('DELETE', `/api/modelli/${id}/righe/${rigaId}`),
+  impianti: () => richiesta<Impianto[]>('GET', '/api/staff/impianti'),
+  spazi: () => richiesta<Spazio[]>('GET', '/api/staff/spazi'),
+  mansioni: () => richiesta<Mansione[]>('GET', '/api/staff/mansioni'),
+  creaMansione: (impiantoId: string, nome: string, voceFoglioOre: string | null) =>
+    richiesta<Mansione>('POST', '/api/staff/mansioni', { impiantoId, nome, voceFoglioOre }),
+  modificaMansione: (id: string, nome: string, voceFoglioOre: string | null) =>
+    richiesta<Mansione>('PUT', `/api/staff/mansioni/${id}`, { nome, voceFoglioOre }),
+  creaPostazione: (mansioneId: string, nome: string, spazioId: string | null) =>
+    richiesta<PostazioneGestione>('POST', `/api/staff/mansioni/${mansioneId}/postazioni`, { nome, spazioId }),
+  modificaPostazione: (id: string, nome: string, spazioId: string | null, attiva: boolean) =>
+    richiesta<{ postazione: PostazioneGestione; turniFuturi: number }>('PUT', `/api/staff/postazioni/${id}`, { nome, spazioId, attiva }),
+  ordinaPostazioni: (ids: string[]) => richiesta<Mansione[]>('PUT', '/api/staff/postazioni/ordine', { ids }),
+  tariffe: () => richiesta<Tariffa[]>('GET', '/api/staff/tariffe'),
+  nuovaTariffa: (t: { mansioneId: string; personaId: string | null; euroOra: number; dal: string }) => richiesta<Tariffa>('POST', '/api/staff/tariffe', t),
+  correggiTariffa: (id: string, euroOra: number, al: string | null) => richiesta<Tariffa>('PUT', `/api/staff/tariffe/${id}`, { euroOra, al }),
+  vociFoglioOre: () => richiesta<string[]>('GET', '/api/foglio-ore/voci'),
+  urlFoglioOreMio: (mese: string) => `/api/foglio-ore/mio?mese=${mese}`,
+  urlFoglioOrePersona: (personaId: string, mese: string) => `/api/foglio-ore/persone/${personaId}?mese=${mese}`,
+  urlFogliOreTutti: (mese: string) => `/api/foglio-ore/tutti?mese=${mese}`,
   generaMese: (modelloId: string, mese: string) => richiesta<EsitoGenerazione>('POST', `/api/modelli/${modelloId}/genera`, { mese }),
   creaRichiesta: (r: NuovaRichiesta) => richiesta<Richiesta>('POST', '/api/richieste', r),
   richiesteMie: () => richiesta<Richiesta[]>('GET', '/api/richieste/mie'),

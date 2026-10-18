@@ -20,9 +20,9 @@
   const mia = $derived(mio?.righe[0]);
 </script>
 
-<section class="page">
-  <Mese bind:mese />
-  {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
+<section class="page ore">
+  <div class="tutta"><Mese bind:mese /></div>
+  {#if errore}<p class="msg err tutta" role="alert">{errore}</p>{/if}
 
   <div class="card box">
     <div class="lbl">Le tue ore</div>
@@ -34,12 +34,17 @@
     {#each mia?.voci ?? [] as v (v.mansione + v.euroOra)}
       <div class="voce small"><span>{v.mansione}</span><span class="m muted">{formatOre(v.ore)} h × {v.euroOra == null ? '—' : euro(v.euroOra)}</span></div>
     {/each}
+    {#if mia}<a class="link small scarica" href={api.urlFoglioOreMio(mese)} download>Scarica il foglio ore (.xlsx)</a>{/if}
   </div>
 
   {#if coordinatore && staff}
+  <div class="staff">
     <div class="intesta">
       <h2 class="lbl">Tutto lo staff</h2>
-      <a class="link small" href={api.urlCsv(mese)} download>Scarica CSV</a>
+      <span class="row scarichi">
+        {#if staff.righe.length}<a class="link small" href={api.urlFogliOreTutti(mese)} download>Tutti i fogli ore (.zip)</a>{/if}
+        <a class="link small" href={api.urlCsv(mese)} download>Riepilogo CSV</a>
+      </span>
     </div>
     {#if staff.turniScoperti}<p class="msg err nomargin">{staff.turniScoperti === 1 ? 'Un turno del mese è ancora da assegnare.' : `${staff.turniScoperti} turni del mese sono ancora da assegnare.`}</p>{/if}
     <div class="card elenco">
@@ -54,6 +59,7 @@
             {#each r.voci as v (v.mansione + v.euroOra)}
               <div class="voce small"><span>{v.mansione}</span><span class="m muted">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euro(v.euroOra)} = {euro(v.compenso)}</span></div>
             {/each}
+            <a class="link small scarica" href={api.urlFoglioOrePersona(r.persona.id, mese)} download>Foglio ore di {r.persona.nome} (.xlsx)</a>
           </div>
         {/if}
       {:else}
@@ -61,10 +67,19 @@
       {/each}
       <div class="riga totale"><span class="nome">Totale</span><span class="m">{formatOre(staff.totaleOre)} h</span><span class="m soldi">{euro(staff.totaleCompenso)}</span></div>
     </div>
+  </div>
   {/if}
 </section>
 
 <style>
+  .staff { display: flex; flex-direction: column; gap: var(--space-12); }
+  /* Sul PC: le mie ore a sinistra, lo staff a destra */
+  @media (min-width: 1024px) {
+    .ore { display: grid; grid-template-columns: 340px minmax(0, 860px); align-items: start; column-gap: var(--space-20); }
+    .tutta { grid-column: 1 / -1; max-width: 420px; }
+    .msg.tutta { max-width: none; }
+    .staff .intesta { margin-top: 0; }
+  }
   .box { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-6); }
   .numeri { display: flex; justify-content: space-between; align-items: baseline; }
   .grande { font-size: var(--text-4xl); font-weight: 800; }
@@ -80,5 +95,7 @@
   .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dettagli { padding: 0 var(--space-14) var(--space-10); display: flex; flex-direction: column; gap: var(--space-4); }
   .manca { margin-left: var(--space-6); height: 20px; }
+  .scarica { min-height: 32px; align-self: flex-start; }
+  .scarichi { gap: var(--space-16); }
   .vuoto { padding: var(--space-12) var(--space-14); margin: 0; }
 </style>

@@ -1,17 +1,58 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { api } from './lib/api';
   import { sessione } from './lib/sessione.svelte';
+  import { schermo } from './lib/schermo.svelte';
   import Login from './routes/Login.svelte';
   import Turni from './routes/Turni.svelte';
   import Richieste from './routes/Richieste.svelte';
   import Ore from './routes/Ore.svelte';
   import Pianifica from './routes/Pianifica.svelte';
   import Approva from './routes/Approva.svelte';
+  import Modelli from './routes/Modelli.svelte';
+  import Postazioni from './routes/Postazioni.svelte';
+  import Tariffe from './routes/Tariffe.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'pianifica' | 'approva';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe';
+  interface Sezione {
+    id: Scheda;
+    nome: string;
+    /** Nome nella barra in basso del telefono; senza, la sezione non ci sta (si raggiunge da Pianificazione). */
+    breve?: string;
+    titolo: string;
+    gruppo: 'Il mio lavoro' | 'Gestione' | 'Impostazioni';
+    gestione?: boolean;
+    larga?: boolean;
+    icona: string;
+  }
+
+  // Icone a tratto, 24×24
+  const I = {
+    turni: 'M4 6h16M4 12h16M4 18h10',
+    richieste: 'M7 7h10l-3-3M17 17H7l3 3',
+    ore: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z',
+    pianifica: 'M4 5h16v15H4zM4 10h16M9 5v15M14 5v15',
+    approva: 'm5 12 4 4 10-10',
+    modelli: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5',
+    postazioni: 'M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5',
+    tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
+  };
+
+  const SEZIONI: Sezione[] = [
+    { id: 'turni', nome: 'I miei turni', breve: 'I miei turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', icona: I.turni },
+    { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: I.richieste },
+    { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: I.ore },
+    { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', gestione: true, larga: true, icona: I.pianifica },
+    { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', gestione: true, icona: I.approva },
+    { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', gestione: true, larga: true, icona: I.modelli },
+    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.postazioni },
+    { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.tariffe },
+  ];
+  const ID = SEZIONI.map((s) => s.id);
+
   const leggiScheda = (): Scheda => {
-    const h = location.hash.replace('#/', '');
-    return (['turni', 'richieste', 'ore', 'pianifica', 'approva'] as const).includes(h as Scheda) ? (h as Scheda) : 'turni';
+    const h = location.hash.replace('#/', '') as Scheda;
+    return ID.includes(h) ? h : 'turni';
   };
   let scheda = $state<Scheda>(leggiScheda());
   let daApprovare = $state(0);
@@ -24,55 +65,114 @@
   });
 
   const coordinatore = $derived(sessione.ha('ADMIN', 'COORDINATORE'));
-  const schede = $derived([
-    { id: 'turni', nome: 'I miei turni' },
-    { id: 'richieste', nome: 'Richieste' },
-    ...(coordinatore ? [{ id: 'pianifica', nome: 'Pianifica' }, { id: 'approva', nome: 'Approva' }] : []),
-    { id: 'ore', nome: 'Ore' },
-  ] as { id: Scheda; nome: string }[]);
-  const titoli: Record<Scheda, string> = { turni: 'I miei turni', richieste: 'Richieste', ore: 'Ore e compensi', pianifica: 'Pianifica', approva: 'Da approvare' };
+  const visibili = $derived(SEZIONI.filter((s) => !s.gestione || coordinatore));
+  const corrente = $derived(visibili.find((s) => s.id === scheda) ?? SEZIONI[0]);
+  const gruppi = $derived(
+    (['Il mio lavoro', 'Gestione', 'Impostazioni'] as const)
+      .map((g) => ({ nome: g, voci: visibili.filter((s) => s.gruppo === g) }))
+      .filter((g) => g.voci.length),
+  );
+  const inBasso = $derived(visibili.filter((s) => s.breve));
+  const ruolo = $derived(sessione.ha('ADMIN') ? 'Admin' : sessione.ha('COORDINATORE') ? 'Coordinatore' : sessione.ha('SEGRETERIA') ? 'Segreteria' : 'Staff');
 
   $effect(() => {
-    if (coordinatore) import('./lib/api').then(({ api }) => api.richiesteDaApprovare().then((r) => (daApprovare = r.length)).catch(() => {}));
+    if (coordinatore) api.richiesteDaApprovare().then((r) => (daApprovare = r.length)).catch(() => {});
   });
+
+  // Sul PC: Alt + numero per passare da una sezione all'altra
+  function tasto(e: KeyboardEvent) {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= visibili.length) {
+      e.preventDefault();
+      location.hash = `#/${visibili[n - 1].id}`;
+    }
+  }
 </script>
+
+<svelte:window onkeydown={tasto} />
+
+{#snippet icona(d: string)}
+  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg>
+{/snippet}
+
+{#snippet badge(s: Sezione)}
+  {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} da approvare">{daApprovare}</span>{/if}
+{/snippet}
 
 {#if !sessione.pronto}
   <p class="muted centro">Caricamento…</p>
 {:else if !sessione.utente}
-  <main><Login /></main>
+  <main class="accesso"><Login /></main>
 {:else}
-  <main class="con-nav">
-    <header class="testa">
-      <div>
-        <div class="lbl">Leone XIII Sport · Piscina</div>
-        <h1 class="page-title">{titoli[scheda]}</h1>
-      </div>
-      <div class="chi">
-        <span class="muted small">{sessione.utente.nome}</span>
-        <button class="link small" onclick={() => sessione.esci()}>Esci</button>
-      </div>
-    </header>
-    {#key scheda}
-      {#if scheda === 'turni'}<Turni />
-      {:else if scheda === 'richieste'}<Richieste />
-      {:else if scheda === 'ore'}<Ore />
-      {:else if scheda === 'pianifica' && coordinatore}<Pianifica />
-      {:else if scheda === 'approva' && coordinatore}<Approva cambiate={(n) => (daApprovare = n)} />
-      {:else}<Turni />{/if}
-    {/key}
-  </main>
-  <nav aria-label="Sezioni" style="--n: {schede.length}">
-    {#each schede as s (s.id)}
-      <a href={`#/${s.id}`} class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}>
-        {s.nome}{#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} da approvare">{daApprovare}</span>{/if}
-      </a>
-    {/each}
-  </nav>
+  <div class="guscio" class:desktop={schermo.larga}>
+    {#if schermo.larga}
+      <aside class="lato">
+        <div class="marchio">
+          <span class="d logo">Leone</span>
+          <span class="lbl">Gestionale · Piscina</span>
+        </div>
+        <nav aria-label="Sezioni">
+          {#each gruppi as g (g.nome)}
+            <div class="gruppo-nav">
+              <div class="lbl">{g.nome}</div>
+              {#each g.voci as s (s.id)}
+                <a href={`#/${s.id}`} class="voce-nav" class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}
+                   title="{s.nome} (Alt+{visibili.indexOf(s) + 1})">
+                  {@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}
+                </a>
+              {/each}
+            </div>
+          {/each}
+        </nav>
+        <div class="io">
+          <div class="io-nome">{sessione.utente.nome} {sessione.utente.cognome}</div>
+          <div class="muted small">{ruolo}</div>
+          <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+        </div>
+      </aside>
+    {/if}
+
+    <main class:larga={schermo.larga && corrente.larga} class:con-nav={!schermo.larga}>
+      <header class="testa">
+        <div>
+          {#if !schermo.larga}<div class="lbl">Leone XIII Sport · Piscina</div>{/if}
+          <h1 class="page-title">{corrente.titolo}</h1>
+        </div>
+        {#if !schermo.larga}
+          <div class="chi">
+            <span class="muted small">{sessione.utente.nome}</span>
+            <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+          </div>
+        {/if}
+      </header>
+      {#key corrente.id}
+        {#if corrente.id === 'turni'}<Turni />
+        {:else if corrente.id === 'richieste'}<Richieste />
+        {:else if corrente.id === 'ore'}<Ore />
+        {:else if corrente.id === 'pianifica'}<Pianifica />
+        {:else if corrente.id === 'approva'}<Approva cambiate={(n) => (daApprovare = n)} />
+        {:else if corrente.id === 'modelli'}<Modelli />
+        {:else if corrente.id === 'postazioni'}<Postazioni />
+        {:else if corrente.id === 'tariffe'}<Tariffe />{/if}
+      {/key}
+    </main>
+
+    {#if !schermo.larga}
+      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length}">
+        {#each inBasso as s (s.id)}
+          <a href={`#/${s.id}`} class:on={scheda === s.id || (s.id === 'pianifica' && !corrente.breve)} aria-current={scheda === s.id ? 'page' : undefined}>
+            {s.breve}{@render badge(s)}
+          </a>
+        {/each}
+      </nav>
+    {/if}
+  </div>
 {/if}
 
 <style>
   main {
+    width: 100%;
     max-width: 640px;
     margin: 0 auto;
     padding: calc(env(safe-area-inset-top, 0px) + var(--space-20)) var(--space-16) calc(env(safe-area-inset-bottom, 0px) + var(--space-20));
@@ -83,13 +183,40 @@
   .testa { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-12); }
   .chi { display: flex; flex-direction: column; align-items: flex-end; }
   .chi .link { min-height: 32px; }
-  nav {
+
+  /* ── Desktop ─────────────────────────────────────────────── */
+  .guscio.desktop { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+  .desktop main { max-width: 760px; padding: 28px 40px 48px; margin: 0; }
+  .desktop main.larga { max-width: 1440px; }
+  .lato {
+    position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: var(--space-20);
+    padding: var(--space-20) var(--space-12); background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto;
+  }
+  .marchio { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-10); }
+  .logo { font-size: 26px; font-weight: 800; color: var(--cloro); line-height: 1; }
+  .lato nav { display: flex; flex-direction: column; gap: var(--space-16); flex: 1; }
+  .gruppo-nav { display: flex; flex-direction: column; gap: var(--space-2); }
+  .gruppo-nav > .lbl { padding: 0 var(--space-10) var(--space-4); font-size: var(--text-2xs); }
+  .voce-nav {
+    display: flex; align-items: center; gap: var(--space-10); min-height: 38px; padding: 0 var(--space-10);
+    border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; font-size: var(--text-md); font-weight: 500;
+  }
+  .voce-nav .ic { width: 18px; height: 18px; color: var(--muted); }
+  .voce-nav:hover { background: var(--carta); }
+  .voce-nav.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; }
+  .voce-nav.on .ic { color: var(--cloro); }
+  .io { border-top: 1px solid var(--line-soft); padding: var(--space-12) var(--space-10) 0; display: flex; flex-direction: column; align-items: flex-start; }
+  .io-nome { font-weight: 600; font-size: var(--text-md); }
+  .io .link { min-height: 32px; }
+
+  /* ── Telefono ─────────────────────────────────────────────── */
+  nav.basso {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr));
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--surface); border-top: 1px solid var(--line);
   }
-  nav a { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px; font-size: var(--text-xs); font-weight: 600; color: var(--muted); text-decoration: none; text-align: center; }
-  nav a.on { color: var(--cloro); box-shadow: inset 0 3px 0 var(--cloro); }
+  nav.basso a { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px; font-size: var(--text-xs); font-weight: 600; color: var(--muted); text-decoration: none; text-align: center; }
+  nav.basso a.on { color: var(--cloro); box-shadow: inset 0 3px 0 var(--cloro); }
   .badge { min-width: 18px; height: 18px; border-radius: 9px; background: var(--cloro); color: var(--on-cloro); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
 </style>
