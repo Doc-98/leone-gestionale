@@ -18,6 +18,11 @@ spring:
     problemdetails:
       enabled: true
 
+# Documentazione delle API (/swagger-ui.html): attiva solo con il profilo demo
+springdoc:
+  api-docs:
+    enabled: false
+
 server:
   servlet:
     session:
@@ -40,3 +45,8 @@ spring:
       on-profile: demo
   flyway:
     locations: classpath:db/migration,classpath:db/demo
+    # I dati demo hanno versioni alte (V1000+): le migrazioni dello schema aggiunte dopo vanno applicate lo stesso
+    out-of-order: true
+springdoc:
+  api-docs:
+    enabled: true

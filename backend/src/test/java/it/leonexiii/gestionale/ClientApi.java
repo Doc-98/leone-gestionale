@@ -25,10 +25,22 @@ final class ClientApi {
         return http.send(HttpRequest.newBuilder(URI.create(base + path)).GET().build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    HttpResponse<String> post(String path, String json) throws IOException, InterruptedException {
+        return invia("POST", path, json, true);
+    }
+
+    HttpResponse<String> put(String path, String json) throws IOException, InterruptedException {
+        return invia("PUT", path, json, true);
+    }
+
     HttpResponse<String> post(String path, String json, boolean conCsrf) throws IOException, InterruptedException {
+        return invia("POST", path, json, conCsrf);
+    }
+
+    private HttpResponse<String> invia(String metodo, String path, String json, boolean conCsrf) throws IOException, InterruptedException {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path))
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(json));
+            .method(metodo, HttpRequest.BodyPublishers.ofString(json));
         if (conCsrf) {
             if (tokenCsrf() == null) get("/api/auth/csrf");
             b.header("X-XSRF-TOKEN", tokenCsrf());

@@ -1,16 +1,45 @@
 package it.leonexiii.gestionale.config;
 
+import it.leonexiii.gestionale.condiviso.Conflitto;
+import it.leonexiii.gestionale.condiviso.NonTrovato;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Errori di validazione dei parametri come risposte 400 leggibili (formato «problem details», RFC 9457). */
+/** Errori di dominio come risposte leggibili, nel formato «problem details» (RFC 9457). */
 @RestControllerAdvice
 class GestioneErrori {
 
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail richiestaNonValida(IllegalArgumentException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(NonTrovato.class)
+    ProblemDetail nonTrovato(NonTrovato e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(Conflitto.class)
+    ProblemDetail conflitto(Conflitto e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ProblemDetail vietato(AccessDeniedException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Non hai i permessi per questa operazione.");
+    }
+
+    /** Ultima difesa: i vincoli del database (es. due turni sovrapposti salvati nello stesso istante). */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail vincolo(DataIntegrityViolationException e) {
+        String m = String.valueOf(e.getMostSpecificCause().getMessage());
+        String testo = m.contains("turno_senza_sovrapposizioni") ? "La persona ha già un turno in quell'orario."
+            : m.contains("richiesta_turno_una_aperta") ? "Per questo turno c'è già una richiesta in corso."
+            : "I dati non rispettano un vincolo del database.";
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, testo);
     }
 }

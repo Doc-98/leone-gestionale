@@ -39,4 +39,6 @@ class Postazione {
     Mansione getMansione() { return mansione; }
     UUID getSpazioId() { return spazioId; }
     String getNome() { return nome; }
+    int getOrdine() { return ordine; }
+    boolean isAttiva() { return attiva; }
 }

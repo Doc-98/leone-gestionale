@@ -39,6 +39,8 @@ class SecurityConfig {
                 // altrimenti un 403 a chi non è collegato diventerebbe 401
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/csrf", "/actuator/health").permitAll()
+                // documentazione delle API: esiste solo se springdoc.api-docs.enabled (profilo demo)
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .logout(l -> l

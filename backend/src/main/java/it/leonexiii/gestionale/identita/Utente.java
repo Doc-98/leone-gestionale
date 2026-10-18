@@ -51,6 +51,12 @@ public final class Utente implements UserDetails, CredentialsContainer, Serializ
         return ruoli.stream().anyMatch(r -> r.ruolo() == ruolo);
     }
 
+    /** Ha il ruolo valido per l'impianto: assegnato su quell'impianto o su tutta la società. ADMIN vale ovunque. */
+    public boolean ha(Ruolo ruolo, java.util.UUID impiantoId) {
+        return ruoli.stream().anyMatch(r -> r.ruolo() == Ruolo.ADMIN
+            || (r.ruolo() == ruolo && (r.impiantoId() == null || r.impiantoId().equals(impiantoId))));
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return ruoli.stream().map(r -> "ROLE_" + r.ruolo().name()).distinct().map(SimpleGrantedAuthority::new).toList();
