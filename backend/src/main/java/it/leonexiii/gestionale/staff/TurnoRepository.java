@@ -37,4 +37,9 @@ interface TurnoRepository extends JpaRepository<Turno, UUID> {
 
     @Query("select count(t) > 0 from Turno t where t.postazione.id = :postazioneId and t.data = :data and t.inizio = :inizio and t.stato = 'PIANIFICATO'")
     boolean esisteGia(UUID postazioneId, LocalDate data, LocalTime inizio);
+
+    @Query("select count(t) from Turno t where t.postazione.id = :postazioneId and t.data >= :da and t.stato = 'PIANIFICATO'")
+    long futuriSuPostazione(UUID postazioneId, LocalDate da);
+
+    boolean existsByModelloRigaIdIn(Collection<UUID> righe);
 }

@@ -23,10 +23,30 @@ class Mansione {
     @Column(nullable = false)
     private String nome;
 
+    /** Colonna del foglio ore della società; null = colonna propria. */
+    @Column(name = "voce_foglio_ore")
+    private String voceFoglioOre;
+
     protected Mansione() {}
+
+    Mansione(UUID impiantoId, String codice, String nome) {
+        this.id = UUID.randomUUID();
+        this.impiantoId = impiantoId;
+        this.codice = codice;
+        rinomina(nome);
+    }
+
+    void rinomina(String nome) {
+        this.nome = Testi.obbligatorio(nome, "il nome della mansione", 120);
+    }
+
+    void voceFoglioOre(String voce) {
+        this.voceFoglioOre = voce == null || voce.isBlank() ? null : voce;
+    }
 
     UUID getId() { return id; }
     UUID getImpiantoId() { return impiantoId; }
     String getCodice() { return codice; }
     String getNome() { return nome; }
+    String getVoceFoglioOre() { return voceFoglioOre; }
 }

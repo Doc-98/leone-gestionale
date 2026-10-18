@@ -41,10 +41,14 @@ class ModelloRiga {
     protected ModelloRiga() {}
 
     ModelloRiga(ModelloSettimanale modello, Postazione postazione, int giornoSettimana, LocalTime inizio, LocalTime fine, UUID personaId) {
-        if (giornoSettimana < 1 || giornoSettimana > 7) throw new IllegalArgumentException("Giorno della settimana tra 1 (lunedì) e 7 (domenica).");
-        if (!fine.isAfter(inizio)) throw new IllegalArgumentException("La fine deve essere dopo l'inizio.");
         this.id = UUID.randomUUID();
         this.modello = modello;
+        modifica(postazione, giornoSettimana, inizio, fine, personaId);
+    }
+
+    void modifica(Postazione postazione, int giornoSettimana, LocalTime inizio, LocalTime fine, UUID personaId) {
+        if (giornoSettimana < 1 || giornoSettimana > 7) throw new IllegalArgumentException("Giorno della settimana tra 1 (lunedì) e 7 (domenica).");
+        if (inizio == null || fine == null || !fine.isAfter(inizio)) throw new IllegalArgumentException("La fine deve essere dopo l'inizio.");
         this.postazione = postazione;
         this.giornoSettimana = (short) giornoSettimana;
         this.inizio = inizio;

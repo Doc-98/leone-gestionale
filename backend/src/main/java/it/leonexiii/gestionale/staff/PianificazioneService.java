@@ -36,6 +36,9 @@ class PianificazioneService {
 
     record RigaInput(UUID postazioneId, int giornoSettimana, LocalTime inizio, LocalTime fine, UUID personaId) {}
 
+    /** Nuovo modello; con copiaDa riprende le righe di un modello esistente (es. la stagione precedente). */
+    record ModelloInput(UUID impiantoId, String nome, LocalDate validoDal, LocalDate validoAl, UUID copiaDa) {}
+
     record EsitoGenerazione(int creati, int scoperti, int giaPresenti, List<String> avvisi) {}
 
     private final TurnoRepository turni;
@@ -162,6 +165,52 @@ class PianificazioneService {
     }
 
     @Transactional
+    ModelloDto creaModello(Utente u, ModelloInput in) {
+        if (in.impiantoId() == null) throw new IllegalArgumentException("Scegli l'impianto.");
+        permessi.richiediGestione(u, in.impiantoId());
+        ModelloSettimanale m = new ModelloSettimanale(in.impiantoId(), in.nome(), in.validoDal(), in.validoAl());
+        if (in.copiaDa() != null) {
+            ModelloSettimanale origine = modello(u, in.copiaDa());
+            if (!origine.getImpiantoId().equals(in.impiantoId())) throw new IllegalArgumentException("Il modello da copiare è di un altro impianto.");
+            for (ModelloRiga r : origine.getRighe())
+                m.aggiungiRiga(r.getPostazione(), r.getGiornoSettimana(), r.getInizio(), r.getFine(), r.getPersonaId());
+        }
+        modelli.saveAndFlush(m);
+        return modelloDto(m, nomiRighe(m));
+    }
+
+    @Transactional
+    ModelloDto modificaModello(Utente u, UUID id, ModelloInput in) {
+        ModelloSettimanale m = modello(u, id);
+        m.modifica(in.nome(), in.validoDal(), in.validoAl());
+        modelli.flush();
+        return modelloDto(m, nomiRighe(m));
+    }
+
+    /** Si elimina solo un modello mai usato per generare turni; altrimenti lo si chiude con una data di fine. */
+    @Transactional
+    void eliminaModello(Utente u, UUID id) {
+        ModelloSettimanale m = modello(u, id);
+        var righe = m.getRighe().stream().map(ModelloRiga::getId).toList();
+        if (!righe.isEmpty() && turni.existsByModelloRigaIdIn(righe))
+            throw new Conflitto("Il modello è già stato usato per generare turni: invece di eliminarlo, indica fino a quando vale.");
+        modelli.delete(m);
+    }
+
+    @Transactional
+    ModelloDto modificaRiga(Utente u, UUID modelloId, UUID rigaId, RigaInput in) {
+        ModelloSettimanale m = modello(u, modelloId);
+        ModelloRiga r = m.getRighe().stream().filter(x -> x.getId().equals(rigaId)).findFirst()
+            .orElseThrow(() -> new NonTrovato("Riga del modello non trovata."));
+        Postazione p = postazione(in.postazioneId());
+        if (!p.getMansione().getImpiantoId().equals(m.getImpiantoId())) throw new IllegalArgumentException("La postazione è di un altro impianto.");
+        controllaPersona(in.personaId(), m.getImpiantoId());
+        r.modifica(p, in.giornoSettimana(), in.inizio(), in.fine(), in.personaId());
+        modelli.flush();
+        return modelloDto(m, nomiRighe(m));
+    }
+
+    @Transactional
     ModelloDto togliRiga(Utente u, UUID modelloId, UUID rigaId) {
         ModelloSettimanale m = modello(u, modelloId);
         if (!m.getRighe().removeIf(r -> r.getId().equals(rigaId))) throw new NonTrovato("Riga del modello non trovata.");
@@ -179,11 +228,17 @@ class PianificazioneService {
         int creati = 0, scoperti = 0, presenti = 0;
         List<String> avvisi = new ArrayList<>();
         var nomi = nomiRighe(m);
+        Set<UUID> disattivate = new java.util.HashSet<>();
         for (LocalDate g = mese.atDay(1); !g.isAfter(mese.atEndOfMonth()); g = g.plusDays(1)) {
             if (!m.validoIl(g)) continue;
             int dow = g.getDayOfWeek().getValue();
             for (ModelloRiga r : m.getRighe()) {
                 if (r.getGiornoSettimana() != dow) continue;
+                if (!r.getPostazione().isAttiva()) {
+                    if (disattivate.add(r.getPostazione().getId()))
+                        avvisi.add(r.getPostazione().getNome() + " è disattivata: le sue righe del modello sono state saltate.");
+                    continue;
+                }
                 if (turni.esisteGia(r.getPostazione().getId(), g, r.getInizio())) { presenti++; continue; }
                 UUID persona = r.getPersonaId();
                 if (persona != null && turni.sovrapposto(persona, g, r.getInizio(), r.getFine(), TurnoRepository.NESSUNO)) {

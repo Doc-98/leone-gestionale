@@ -3,6 +3,7 @@ package it.leonexiii.gestionale.staff;
 import it.leonexiii.gestionale.identita.Ruolo;
 import it.leonexiii.gestionale.identita.RuoloAssegnato;
 import it.leonexiii.gestionale.identita.Utente;
+import it.leonexiii.gestionale.struttura.Impianti;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -16,10 +17,10 @@ import org.springframework.stereotype.Component;
 @Component
 class Permessi {
 
-    private final MansioneRepository mansioni;
+    private final Impianti impianti;
 
-    Permessi(MansioneRepository mansioni) {
-        this.mansioni = mansioni;
+    Permessi(Impianti impianti) {
+        this.impianti = impianti;
     }
 
     /** Impianti in cui l'utente pianifica turni e approva richieste. */
@@ -36,11 +37,17 @@ class Permessi {
         if (!u.ha(Ruolo.COORDINATORE, impiantoId)) throw new AccessDeniedException("Non gestisci questo impianto.");
     }
 
+    private Set<UUID> tuttiGliImpianti() {
+        Set<UUID> out = new HashSet<>();
+        for (Impianti.ImpiantoBreve i : impianti.tutti()) out.add(i.id());
+        return out;
+    }
+
     private Set<UUID> impiantiCon(Utente u, Ruolo ruolo) {
         Set<UUID> out = new HashSet<>();
         for (RuoloAssegnato r : u.ruoli()) {
             if (r.ruolo() != ruolo && r.ruolo() != Ruolo.ADMIN) continue;
-            if (r.ruolo() == Ruolo.ADMIN || r.impiantoId() == null) return new HashSet<>(mansioni.impiantiConMansioni());
+            if (r.ruolo() == Ruolo.ADMIN || r.impiantoId() == null) return tuttiGliImpianti();
             out.add(r.impiantoId());
         }
         return out;

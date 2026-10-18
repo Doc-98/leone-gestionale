@@ -32,6 +32,27 @@ class Tariffa {
 
     protected Tariffa() {}
 
+    Tariffa(UUID mansioneId, UUID personaId, BigDecimal euroOra, LocalDate dal) {
+        this.id = UUID.randomUUID();
+        this.mansioneId = mansioneId;
+        this.personaId = personaId;
+        this.dal = dal;
+        correggi(euroOra, null);
+    }
+
+    /** Corregge l'importo o chiude la tariffa a una data. */
+    void correggi(BigDecimal euroOra, LocalDate al) {
+        if (euroOra == null || euroOra.signum() < 0) throw new IllegalArgumentException("Indica un compenso orario valido.");
+        if (euroOra.scale() > 2) throw new IllegalArgumentException("Il compenso ha al massimo due decimali.");
+        if (al != null && al.isBefore(dal)) throw new IllegalArgumentException("La fine della tariffa è prima dell'inizio.");
+        this.euroOra = euroOra;
+        this.al = al;
+    }
+
+    UUID getId() { return id; }
+    LocalDate getDal() { return dal; }
+    LocalDate getAl() { return al; }
+
     UUID getMansioneId() { return mansioneId; }
     UUID getPersonaId() { return personaId; }
     BigDecimal getEuroOra() { return euroOra; }

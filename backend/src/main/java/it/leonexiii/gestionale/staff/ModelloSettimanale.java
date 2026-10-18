@@ -38,6 +38,20 @@ class ModelloSettimanale {
 
     protected ModelloSettimanale() {}
 
+    ModelloSettimanale(UUID impiantoId, String nome, LocalDate validoDal, LocalDate validoAl) {
+        this.id = UUID.randomUUID();
+        this.impiantoId = impiantoId;
+        modifica(nome, validoDal, validoAl);
+    }
+
+    void modifica(String nome, LocalDate validoDal, LocalDate validoAl) {
+        if (validoDal == null) throw new IllegalArgumentException("Indica da quando vale il modello.");
+        if (validoAl != null && validoAl.isBefore(validoDal)) throw new IllegalArgumentException("La fine della validità è prima dell'inizio.");
+        this.nome = Testi.obbligatorio(nome, "il nome del modello", 120);
+        this.validoDal = validoDal;
+        this.validoAl = validoAl;
+    }
+
     UUID getId() { return id; }
     UUID getImpiantoId() { return impiantoId; }
     String getNome() { return nome; }

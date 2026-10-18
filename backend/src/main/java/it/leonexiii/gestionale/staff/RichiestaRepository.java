@@ -24,4 +24,8 @@ interface RichiestaRepository extends JpaRepository<RichiestaTurno, UUID> {
 
     @Query(CON_TURNI + "where r.id = :id")
     java.util.Optional<RichiestaTurno> conTurni(UUID id);
+
+    /** Sostituzioni approvate sui turni del periodo: nel foglio ore si indica chi è stato sostituito. */
+    @Query("select r from RichiestaTurno r join fetch r.turno t where r.tipo = 'SOSTITUZIONE' and r.stato = 'APPROVATA' and t.data between :da and :a")
+    List<RichiestaTurno> sostituzioniApprovate(java.time.LocalDate da, java.time.LocalDate a);
 }

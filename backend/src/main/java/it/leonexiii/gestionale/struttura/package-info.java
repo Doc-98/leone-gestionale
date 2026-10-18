@@ -1,5 +1,6 @@
 /**
  * Modulo struttura: sedi, impianti, spazi (vasche, corsie, spogliatoi, atrio), discipline.
- * Le tabelle esistono già (V1); le entità e le API arrivano con il piano vasca.
+ * Per ora in sola lettura: gli altri moduli usano {@link it.leonexiii.gestionale.struttura.Impianti}.
+ * La gestione completa arriva con il piano vasca.
  */
 package it.leonexiii.gestionale.struttura;

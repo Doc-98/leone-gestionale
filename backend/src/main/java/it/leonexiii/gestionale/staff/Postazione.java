@@ -35,6 +35,24 @@ class Postazione {
 
     protected Postazione() {}
 
+    Postazione(Mansione mansione, String nome, UUID spazioId, int ordine) {
+        this.id = UUID.randomUUID();
+        this.mansione = mansione;
+        this.ordine = ordine;
+        this.attiva = true;
+        modifica(nome, spazioId, true);
+    }
+
+    void modifica(String nome, UUID spazioId, boolean attiva) {
+        this.nome = Testi.obbligatorio(nome, "il nome della postazione", 120);
+        this.spazioId = spazioId;
+        this.attiva = attiva;
+    }
+
+    void ordina(int ordine) {
+        this.ordine = ordine;
+    }
+
     UUID getId() { return id; }
     Mansione getMansione() { return mansione; }
     UUID getSpazioId() { return spazioId; }

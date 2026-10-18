@@ -10,4 +10,11 @@ interface PostazioneRepository extends JpaRepository<Postazione, UUID> {
 
     @Query("select p from Postazione p join fetch p.mansione m where p.attiva = true and m.impiantoId in :impianti order by p.ordine")
     List<Postazione> attive(Collection<UUID> impianti);
+
+    /** Anche le disattivate, per la gestione. */
+    @Query("select p from Postazione p join fetch p.mansione m where m.impiantoId in :impianti order by p.ordine, p.nome")
+    List<Postazione> diImpianti(Collection<UUID> impianti);
+
+    @Query("select coalesce(max(p.ordine), 0) from Postazione p where p.mansione.impiantoId = :impiantoId")
+    int ultimoOrdine(UUID impiantoId);
 }

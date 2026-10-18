@@ -25,6 +25,16 @@ final class ClientApi {
         return http.send(HttpRequest.newBuilder(URI.create(base + path)).GET().build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    HttpResponse<byte[]> scarica(String path) throws IOException, InterruptedException {
+        return http.send(HttpRequest.newBuilder(URI.create(base + path)).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    HttpResponse<String> delete(String path) throws IOException, InterruptedException {
+        if (tokenCsrf() == null) get("/api/auth/csrf");
+        return http.send(HttpRequest.newBuilder(URI.create(base + path)).DELETE().header("X-XSRF-TOKEN", tokenCsrf()).build(),
+            HttpResponse.BodyHandlers.ofString());
+    }
+
     HttpResponse<String> post(String path, String json) throws IOException, InterruptedException {
         return invia("POST", path, json, true);
     }
