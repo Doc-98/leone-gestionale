@@ -32,13 +32,17 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 ## Architettura
 
 ```
- Telefono / tablet / PC                          Server (UE)
-┌──────────────────────────┐   HTTPS + cookie   ┌───────────────────────────────┐
-│ Frontend Svelte (PWA)     │ ─────────────────▶ │ Backend Spring Boot (Java 21) │
-│ · staff: turni, piano     │   API REST /api    │  moduli: identita · struttura │
-│ · atrio: lettura NFC      │ ◀───────────────── │  staff · pianovasca · clienti │
-│ · admin: pannello         │                    │  accessi                      │
-└──────────────────────────┘                    └──────────────┬────────────────┘
+ PC della società (Windows)                      Server (della società o UE)
+┌──────────────────────────┐
+│ Programma Tauri           │
+│ · interfaccia Svelte      │   HTTPS + cookie   ┌───────────────────────────────┐
+│ · lettore NFC, stampante  │ ─────────────────▶ │ Backend Spring Boot (Java 21) │
+└──────────────────────────┘   API REST /api    │  moduli: identita · struttura │
+ Telefono / tablet                               │  staff · pianovasca · clienti │
+┌──────────────────────────┐ ─────────────────▶ │  accessi                      │
+│ PWA (stessa interfaccia)  │                    └──────────────┬────────────────┘
+│ · staff, atrio (Web NFC)  │
+└──────────────────────────┘
                                                                │ JDBC
                                                        ┌───────▼────────┐
                                                        │ PostgreSQL     │
@@ -49,8 +53,10 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 - **Backend**: Java 21, Spring Boot 4, Spring Security (sessioni lato server), Spring Data JPA,
   Flyway per lo schema, Spring Modulith per tenere separati i moduli, OpenAPI per documentare le API,
   test di integrazione su un Postgres vero (Testcontainers).
-- **Frontend**: Svelte 5 + TypeScript + Vite, PWA, design system "Corsia" ripreso da ClockWork.
-  Mobile-first per lo staff, pannello admin pensato anche per desktop.
+- **Frontend**: Svelte 5 + TypeScript + Vite, design system "Corsia" ripreso da ClockWork. Una sola
+  interfaccia con due disposizioni: **desktop** (menu laterale, tabelle, pianificazione ampia) e
+  **mobile** (schede in basso). Sul PC è impacchettata con **Tauri** in un programma Windows che accede
+  a lettore NFC e stampante; sul telefono è una PWA. Vedi ADR 0006.
 - **Database**: PostgreSQL. Relazionale perché i dati sono fortemente collegati (bracciale → persona →
   iscrizioni → corso → lezioni → certificato → pagamenti) e servono vincoli e transazioni. Le parti
   meno strutturate (impostazioni, dettagli per disciplina) usano colonne JSONB.
@@ -203,4 +209,6 @@ erDiagram
 - Nome e struttura del gestionale attuale; quali dati esporta.
 - Formato del codice bracciale nel gestionale attuale.
 - Regole reali del tornello (quando diventa rosso).
-- Hosting di produzione in UE (da scegliere quando ci sarà qualcosa da mostrare).
+- Hosting di produzione: probabilmente un server della società (da confermare con il loro tecnico),
+  e come raggiungerlo dai telefoni fuori sede.
+- Modello del lettore NFC da scrivania e cosa si stampa (A4, ricevute, tessere).

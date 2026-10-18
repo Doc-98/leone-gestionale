@@ -9,3 +9,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0003](0003-sessioni-e-livelli-di-accesso.md) | Sessioni lato server e tre livelli di accesso ai dati dei clienti | accettata |
 | [0004](0004-nfc-web.md) | Lettura dei bracciali con la Web NFC (Android) | accettata |
 | [0005](0005-turni-e-richieste.md) | Turni scoperti, nessuna sovrapposizione, percorso delle richieste | accettata |
+| [0006](0006-versione-pc-e-app.md) | Versione PC con Tauri e app PWA, un'unica interfaccia | accettata |
