@@ -10,8 +10,8 @@ spring:
     hibernate:
       # Lo schema lo gestisce Flyway: Hibernate controlla solo che le entità corrispondano
       ddl-auto: validate
-    properties:
-      hibernate.jdbc.time_zone: Europe/Rome
+    # Nessuna conversione di fuso: date e orari «da calendario» (LocalDate, LocalTime) restano quelli scritti,
+    # qualunque sia il fuso del server; gli istanti (timestamptz) sono assoluti di loro.
   flyway:
     locations: classpath:db/migration
   mvc:

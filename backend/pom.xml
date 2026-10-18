@@ -115,6 +115,14 @@
 
   <build>
     <plugins>
+      <!-- I test girano in UTC, come quasi tutti i server: gli orari «da calendario» non devono dipendere dal fuso -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-Duser.timezone=UTC</argLine>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
