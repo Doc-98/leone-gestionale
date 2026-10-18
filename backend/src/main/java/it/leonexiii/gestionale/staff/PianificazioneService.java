@@ -69,6 +69,26 @@ class PianificazioneService {
         return elenco.stream().map(t -> TurnoDto.conPersona(t, nomi)).toList();
     }
 
+    /** I turni dello staff degli impianti in cui lavoro: per vedere con chi sono e proporre scambi. */
+    @Transactional(readOnly = true)
+    List<TurnoDto> turniStaff(Utente u, LocalDate da, LocalDate a) {
+        controllaIntervallo(da, a);
+        Set<UUID> impianti = permessi.impiantiStaff(u);
+        if (impianti.isEmpty()) return List.of();
+        List<Turno> elenco = turni.nelPeriodo(da, a, impianti).stream().filter(Turno::pianificato).toList();
+        var nomi = persone.nomiCompleti(elenco.stream().map(Turno::getPersonaId).filter(java.util.Objects::nonNull).distinct().toList());
+        return elenco.stream().map(t -> TurnoDto.conPersona(t, nomi)).toList();
+    }
+
+    /** I colleghi dello staff (escluso me), per chiedere una sostituzione a qualcuno in particolare. */
+    @Transactional(readOnly = true)
+    List<PersonaBreve> colleghi(Utente u) {
+        var unici = new LinkedHashMap<UUID, PersonaBreve>();
+        for (UUID imp : permessi.impiantiStaff(u)) for (PersonaBreve p : persone.conRuolo(Ruolo.STAFF, imp)) unici.putIfAbsent(p.id(), p);
+        unici.remove(u.personaId());
+        return unici.values().stream().sorted(Comparator.comparing(PersonaBreve::nome)).toList();
+    }
+
     @Transactional
     TurnoDto crea(Utente u, TurnoInput in) {
         Postazione p = postazione(in.postazioneId());

@@ -51,6 +51,19 @@ class TurniController {
         return service.tutti(utente, da, a);
     }
 
+    /** I turni dei colleghi negli impianti in cui lavoro (solo pianificati). */
+    @GetMapping("/turni/staff")
+    List<TurnoDto> staff(@AuthenticationPrincipal Utente utente,
+                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate da,
+                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate a) {
+        return service.turniStaff(utente, da, a);
+    }
+
+    @GetMapping("/staff/colleghi")
+    List<PersonaBreve> colleghi(@AuthenticationPrincipal Utente utente) {
+        return service.colleghi(utente);
+    }
+
     @PostMapping("/turni")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")

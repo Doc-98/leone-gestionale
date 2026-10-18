@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggiungiGiorni, lunedi, ora, giornoEsteso, formatOre } from './date';
+import { aggiungiGiorni, lunedi, ora, giornoEsteso, formatOre, nomeMese, spostaMese } from './date';
 
 describe('date', () => {
   it('somma giorni anche a cavallo del mese e dell’ora legale', () => {
@@ -15,5 +15,10 @@ describe('date', () => {
     expect(giornoEsteso('2026-10-19')).toBe('lunedì 19 ottobre');
     expect(formatOre(4.25)).toBe('4,25');
     expect(formatOre(5)).toBe('5');
+  });
+  it('mesi', () => {
+    expect(nomeMese('2026-10')).toBe('ottobre 2026');
+    expect(spostaMese('2026-12', 1)).toBe('2027-01');
+    expect(spostaMese('2026-01', -1)).toBe('2025-12');
   });
 });

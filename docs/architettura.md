@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: bozza, 17 ottobre 2026. Da confrontare con il gestionale attuale (schermate in arrivo).
+Stato: 18 ottobre 2026 · fase 1 (turni dello staff) completata. Da confrontare con il gestionale attuale prima della fase 3.
 
 ## Obiettivo
 
@@ -161,8 +161,11 @@ erDiagram
 - `mansione` (assistente spogliatoio, assistente atrio, istruttore, …) e `postazione` (Spogliatoio M ·
   postazione 2): ciò che oggi sono le sezioni e le righe dell'Excel.
 - `modello_settimanale` + righe: la settimana tipo da cui si generano i turni del mese.
-- `turno`: persona + postazione + giorno + inizio/fine; stato (pianificato, annullato), note.
-- `richiesta_turno`: cambio orario, sostituzione o scambio; stati in attesa → approvata/rifiutata/annullata.
+- `turno`: persona (facoltativa: senza è «scoperto») + postazione + giorno + inizio/fine; stato (pianificato,
+  annullato), note. Nessuna sovrapposizione per la stessa persona, garantita dal database.
+- `richiesta_turno`: cambio orario, sostituzione (anche «aperta» a chiunque) o scambio; stati
+  in attesa del collega → in attesa di approvazione → approvata/respinta, oppure annullata. Gli effetti sui
+  turni si applicano solo all'approvazione.
 - `tariffa`: compenso orario per mansione (ed eventuale eccezione per persona), con validità.
 - Riepilogo mensile e foglio ore: calcolati dai turni (vista o query), esportabili.
 
@@ -186,9 +189,11 @@ erDiagram
 
 ## Fasi
 
-0. **Fondamenta** – repo, schema iniziale, login e ruoli, dati finti, CI. *(in corso)*
-1. **Turni staff** – mansioni e postazioni, modello settimanale → turni del mese, vista staff,
-   richieste, riepilogo ore e compensi, export del foglio ore.
+0. **Fondamenta** – repo, schema iniziale, login e ruoli, dati finti, CI. *(fatto)*
+1. **Turni staff** – modello settimanale → turni del mese, turni scoperti, vista staff e pianificazione,
+   richieste (cambio orario, sostituzione anche aperta, scambio) con approvazione, riepilogo ore e
+   compensi con CSV. *(fatto — vedi ADR 0005)* Resta da fare: modifica completa dei modelli dall'app,
+   gestione di mansioni, postazioni e tariffe dall'app, export del foglio ore nel modello della società.
 2. **Piano vasca** – corsi, lezioni, eventi; vista giorno e settimana.
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.

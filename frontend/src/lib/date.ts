@@ -39,3 +39,26 @@ export function giornoEsteso(s: string): string {
 export function formatOre(n: number): string {
   return String(Math.round(n * 100) / 100).replace('.', ',');
 }
+
+/** «2026-10» */
+export function meseIso(d: Date): string {
+  return iso(d).slice(0, 7);
+}
+
+/** «2026-10» → «ottobre 2026» */
+export function nomeMese(m: string): string {
+  const [y, mm] = m.split('-').map(Number);
+  return `${MESI[mm - 1]} ${y}`;
+}
+
+export function spostaMese(m: string, delta: number): string {
+  const [y, mm] = m.split('-').map(Number);
+  return meseIso(new Date(y, mm - 1 + delta, 1));
+}
+
+/** «9,5» € con due decimali: «9,50 €» */
+export function euro(n: number): string {
+  return n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+}
+
+export const GIORNI_BREVI = ['', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];

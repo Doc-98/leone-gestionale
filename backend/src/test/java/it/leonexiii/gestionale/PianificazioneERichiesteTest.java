@@ -226,6 +226,11 @@ class PianificazioneERichiesteTest {
         var persone = coord.get("/api/staff/persone").body();
         assertThat(persone).contains("Luca Bianchi").contains("Giulia Conti").doesNotContain("Chiara Ferri");
         assertThat(lista(coord.get("/api/modelli"))).hasSize(1);
-        assertThat(come("staff@demo.leone").get("/api/staff/persone").statusCode()).isEqualTo(403);
+        var staff = come("staff@demo.leone");
+        assertThat(staff.get("/api/staff/persone").statusCode()).isEqualTo(403);
+        // lo staff vede i colleghi (non sé stesso) e i loro turni, per proporre scambi
+        assertThat(staff.get("/api/staff/colleghi").body()).contains("Giulia Conti").doesNotContain("Luca Bianchi");
+        String oggi = java.time.LocalDate.now().toString();
+        assertThat(staff.get("/api/turni/staff?da=" + oggi + "&a=" + java.time.LocalDate.now().plusDays(7)).body()).contains("Marta Ricci");
     }
 }
