@@ -26,10 +26,15 @@ class Spazio {
     @Column(nullable = false)
     private int ordine;
 
+    /** La vasca che contiene questa corsia (null per gli spazi di primo livello). */
+    @Column(name = "padre_id")
+    private UUID padreId;
+
     protected Spazio() {}
 
     UUID getId() { return id; }
     UUID getImpiantoId() { return impiantoId; }
     String getNome() { return nome; }
     String getTipo() { return tipo; }
+    UUID getPadreId() { return padreId; }
 }

@@ -12,7 +12,8 @@ public class Impianti {
 
     public record ImpiantoBreve(UUID id, String nome) {}
 
-    public record SpazioBreve(UUID id, UUID impiantoId, String nome, String tipo) {}
+    /** padreId: la vasca che contiene la corsia, null per gli spazi di primo livello. */
+    public record SpazioBreve(UUID id, UUID impiantoId, String nome, String tipo, UUID padreId) {}
 
     private final ImpiantoRepository impianti;
     private final SpazioRepository spazi;
@@ -30,7 +31,7 @@ public class Impianti {
     @Transactional(readOnly = true)
     public List<SpazioBreve> spazi(Collection<UUID> impiantiIds) {
         if (impiantiIds.isEmpty()) return List.of();
-        return spazi.diImpianti(impiantiIds).stream().map(s -> new SpazioBreve(s.getId(), s.getImpiantoId(), s.getNome(), s.getTipo())).toList();
+        return spazi.diImpianti(impiantiIds).stream().map(s -> new SpazioBreve(s.getId(), s.getImpiantoId(), s.getNome(), s.getTipo(), s.getPadreId())).toList();
     }
 
     /** Lo spazio, se esiste e appartiene all'impianto indicato. */
