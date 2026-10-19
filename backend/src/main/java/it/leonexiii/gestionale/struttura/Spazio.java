@@ -30,6 +30,9 @@ class Spazio {
     @Column(name = "padre_id")
     private UUID padreId;
 
+    /** Per le corsie: in quante corsie è divisa la vasca in questo assetto (es. 5 o 6). */
+    private Short assetto;
+
     protected Spazio() {}
 
     UUID getId() { return id; }
@@ -37,4 +40,5 @@ class Spazio {
     String getNome() { return nome; }
     String getTipo() { return tipo; }
     UUID getPadreId() { return padreId; }
+    Integer getAssetto() { return assetto == null ? null : assetto.intValue(); }
 }

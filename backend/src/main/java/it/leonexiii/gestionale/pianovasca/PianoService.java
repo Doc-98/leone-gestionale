@@ -39,9 +39,9 @@ class PianoService {
         ANNULLATO
     }
 
-    record SpazioDto(UUID id, UUID impiantoId, String nome, String tipo, UUID padreId) {}
+    record SpazioDto(UUID id, UUID impiantoId, String nome, String tipo, UUID padreId, Integer assetto) {}
 
-    record Occorrenza(String chiave, String tipo, String categoria, String titolo, String dettaglio,
+    record Occorrenza(String chiave, String tipo, String categoria, String colore, String titolo, String dettaglio,
                       LocalDate data, LocalTime inizio, LocalTime fine, List<UUID> spazi, PersonaBreve istruttore,
                       Stato stato, String nota, UUID lezioneId, UUID corsoId, UUID eventoId, UUID eccezioneId,
                       LocalDate dataOriginale, List<String> conflitti) {
@@ -51,7 +51,7 @@ class PianoService {
         }
 
         Occorrenza conConflitti(List<String> c) {
-            return new Occorrenza(chiave, tipo, categoria, titolo, dettaglio, data, inizio, fine, spazi, istruttore, stato, nota,
+            return new Occorrenza(chiave, tipo, categoria, colore, titolo, dettaglio, data, inizio, fine, spazi, istruttore, stato, nota,
                 lezioneId, corsoId, eventoId, eccezioneId, dataOriginale, c);
         }
     }
@@ -79,17 +79,33 @@ class PianoService {
         Set<UUID> visibili = accesso.visibili(u);
         if (visibili.isEmpty()) return new Piano(da, a, List.of(), List.of(), List.of());
         List<SpazioDto> spazi = impianti.spazi(visibili).stream()
-            .map(s -> new SpazioDto(s.id(), s.impiantoId(), s.nome(), s.tipo(), s.padreId())).toList();
+            .map(PianoService::dto).toList();
         List<Occorrenza> occ = calcola(visibili, spazi, da, a);
         return new Piano(da, a, spazi, occ, List.copyOf(accesso.gestiti(u)));
+    }
+
+    static SpazioDto dto(Impianti.SpazioBreve s) {
+        return new SpazioDto(s.id(), s.impiantoId(), s.nome(), s.tipo(), s.padreId(), s.assetto());
+    }
+
+    /** Come si incastrano gli spazi: la vasca di ogni corsia e l'assetto della corsia. */
+    record Mappa(Map<UUID, UUID> padre, Map<UUID, Integer> assetto) {
+        static Mappa di(List<SpazioDto> spazi) {
+            Map<UUID, UUID> p = new HashMap<>();
+            Map<UUID, Integer> a = new HashMap<>();
+            for (SpazioDto s : spazi) {
+                if (s.padreId() != null) p.put(s.id(), s.padreId());
+                if (s.assetto() != null) a.put(s.id(), s.assetto());
+            }
+            return new Mappa(p, a);
+        }
     }
 
     /** Le occorrenze del periodo, con stato e sovrapposizioni. */
     List<Occorrenza> calcola(Set<UUID> impiantiIds, List<SpazioDto> spazi, LocalDate da, LocalDate a) {
         List<Lezione> tutteLezioni = lezioni.deiCorsiAttivi(impiantiIds);
         List<Evento> tuttiEventi = eventi.nelPeriodo(impiantiIds, da, a);
-        Map<UUID, UUID> padre = new HashMap<>();
-        spazi.forEach(s -> { if (s.padreId() != null) padre.put(s.id(), s.padreId()); });
+        Mappa padre = Mappa.di(spazi);
 
         Map<UUID, String> nomi = persone.nomiCompleti(Stream.concat(
                 tutteLezioni.stream().flatMap(l -> Stream.of(l.getIstruttoreId(), l.getCorso().getIstruttoreId())),
@@ -138,7 +154,7 @@ class PianoService {
             PersonaBreve istruttore = e.getIstruttoreId() == null ? null : new PersonaBreve(e.getIstruttoreId(), nomi.getOrDefault(e.getIstruttoreId(), "?"));
             List<UUID> spaziEvento = e.getSpazi().stream().sorted().toList();
             for (LocalDate g = da.isBefore(e.getData()) ? e.getData() : da; !g.isAfter(a) && e.occupa(g); g = g.plusDays(1)) {
-                out.add(new Occorrenza("E:" + e.getId() + ":" + g, "EVENTO", e.getTipo().name(), e.getTitolo(), e.getNote(), g,
+                out.add(new Occorrenza("E:" + e.getId() + ":" + g, "EVENTO", e.getTipo().name(), null, e.getTitolo(), e.getNote(), g,
                     e.getInizio(), e.getFine(), spaziEvento, istruttore, e.isAnnullato() ? Stato.ANNULLATO : Stato.REGOLARE, null,
                     null, null, e.getId(), null, null, List.of()));
             }
@@ -171,7 +187,7 @@ class PianoService {
                                       PersonaBreve istruttore, Stato stato, String nota, UUID eccezioneId, LocalDate originale) {
         String dettaglio = Stream.of(c.getLivello(), eta(c.getEtaDa(), c.getEtaA())).filter(Objects::nonNull).reduce((x, y) -> x + " · " + y).orElse(null);
         String chiave = "L:" + l.getId() + ":" + (originale != null ? originale + ">" : "") + g;
-        return new Occorrenza(chiave, "LEZIONE", c.getTipo().name(), c.getNome(), dettaglio, g, inizio, fine, spazi, istruttore, stato, nota,
+        return new Occorrenza(chiave, "LEZIONE", c.getTipo().name(), c.getColore(), c.getNome(), dettaglio, g, inizio, fine, spazi, istruttore, stato, nota,
             l.getId(), c.getId(), null, eccezioneId, originale, List.of());
     }
 
@@ -189,15 +205,22 @@ class PianoService {
         return da + "–" + a + " anni";
     }
 
-    /** Due insiemi di spazi si toccano se hanno uno spazio in comune o se uno contiene l'altro (vasca e sua corsia). */
-    static boolean spaziToccati(List<UUID> a, List<UUID> b, Map<UUID, UUID> padre) {
-        for (UUID x : a) for (UUID y : b)
-            if (x.equals(y) || x.equals(padre.get(y)) || y.equals(padre.get(x))) return true;
+    /**
+     * Due insiemi di spazi si toccano se hanno uno spazio in comune, se uno contiene l'altro (vasca e sua corsia),
+     * o se sono corsie della stessa vasca in assetti diversi (a 6 e a 5 corsie insieme non si può).
+     */
+    static boolean spaziToccati(List<UUID> a, List<UUID> b, Mappa m) {
+        for (UUID x : a) for (UUID y : b) {
+            if (x.equals(y) || x.equals(m.padre().get(y)) || y.equals(m.padre().get(x))) return true;
+            UUID px = m.padre().get(x);
+            Integer ax = m.assetto().get(x), ay = m.assetto().get(y);
+            if (px != null && px.equals(m.padre().get(y)) && ax != null && ay != null && !ax.equals(ay)) return true;
+        }
         return false;
     }
 
     /** La chiusura che sospende questa occupazione (tutto l'impianto, oppure gli stessi spazi), se c'è. */
-    private static Evento chiusuraSu(List<Evento> chiusure, UUID impiantoId, LocalDate g, LocalTime inizio, LocalTime fine, Set<UUID> spazi, Map<UUID, UUID> padre) {
+    private static Evento chiusuraSu(List<Evento> chiusure, UUID impiantoId, LocalDate g, LocalTime inizio, LocalTime fine, Set<UUID> spazi, Mappa padre) {
         for (Evento ch : chiusure) {
             if (!ch.getImpiantoId().equals(impiantoId) || !ch.occupa(g) || !ch.getInizio().isBefore(fine) || !inizio.isBefore(ch.getFine())) continue;
             if (ch.getSpazi().isEmpty() || spaziToccati(List.copyOf(ch.getSpazi()), List.copyOf(spazi), padre)) return ch;

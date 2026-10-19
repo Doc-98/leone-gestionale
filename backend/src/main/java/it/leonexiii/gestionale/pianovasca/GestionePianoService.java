@@ -32,10 +32,10 @@ class GestionePianoService {
                       List<UUID> spazi, PersonaBreve istruttore) {}
 
     record CorsoDto(UUID id, UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA,
-                    PersonaBreve istruttore, String note, boolean attivo, List<LezioneDto> lezioni) {}
+                    PersonaBreve istruttore, String note, boolean attivo, String colore, List<LezioneDto> lezioni) {}
 
     record CorsoInput(UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA, UUID istruttoreId,
-                      String note, Boolean attivo) {}
+                      String note, Boolean attivo, String colore) {}
 
     record LezioneInput(int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl,
                         List<UUID> spazi, UUID istruttoreId) {}
@@ -93,7 +93,7 @@ class GestionePianoService {
         accesso.richiediGestione(u, in.impiantoId());
         controllaIstruttore(in.istruttoreId(), in.impiantoId());
         Corso c = new Corso(in.impiantoId());
-        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), in.istruttoreId(), in.note(), in.attivo() == null || in.attivo());
+        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), in.istruttoreId(), in.note(), in.attivo() == null || in.attivo(), in.colore());
         corsi.saveAndFlush(c);
         return dto(c, List.of(), nomi(List.of(c), List.of()));
     }
@@ -102,7 +102,7 @@ class GestionePianoService {
     CorsoDto modificaCorso(Utente u, UUID id, CorsoInput in) {
         Corso c = corso(u, id);
         controllaIstruttore(in.istruttoreId(), c.getImpiantoId());
-        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), in.istruttoreId(), in.note(), in.attivo() == null ? c.isAttivo() : in.attivo());
+        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), in.istruttoreId(), in.note(), in.attivo() == null ? c.isAttivo() : in.attivo(), in.colore());
         corsi.flush();
         List<Lezione> sue = lezioni.deiCorsi(List.of(id));
         return dto(c, sue, nomi(List.of(c), sue));
@@ -226,7 +226,7 @@ class GestionePianoService {
 
     private List<String> avvisi(UUID impiantoId, LocalDate da, LocalDate a, java.util.function.Predicate<PianoService.Occorrenza> mia) {
         List<PianoService.SpazioDto> spazi = impianti.spazi(Set.of(impiantoId)).stream()
-            .map(s -> new PianoService.SpazioDto(s.id(), s.impiantoId(), s.nome(), s.tipo(), s.padreId())).toList();
+            .map(PianoService::dto).toList();
         if (java.time.temporal.ChronoUnit.DAYS.between(da, a) > PianoService.GIORNI_MASSIMI) a = da.plusDays(PianoService.GIORNI_MASSIMI);
         return piano.calcola(Set.of(impiantoId), spazi, da, a).stream()
             .filter(mia).filter(o -> !o.conflitti().isEmpty())
@@ -234,8 +234,20 @@ class GestionePianoService {
             .distinct().limit(10).toList();
     }
 
+    /** Gli spazi sono dell'impianto e, se sono corsie della stessa vasca, dello stesso assetto (tutte a 6 o tutte a 5). */
     private void controllaSpazi(Set<UUID> spazi, UUID impiantoId) {
-        for (UUID s : spazi) if (!impianti.spazioDi(s, impiantoId)) throw new IllegalArgumentException("Uno spazio non appartiene all'impianto.");
+        if (spazi.isEmpty()) return;
+        Map<UUID, Impianti.SpazioBreve> perId = new java.util.HashMap<>();
+        impianti.spazi(Set.of(impiantoId)).forEach(s -> perId.put(s.id(), s));
+        Map<UUID, Integer> assettoPerVasca = new java.util.HashMap<>();
+        for (UUID id : spazi) {
+            Impianti.SpazioBreve s = perId.get(id);
+            if (s == null) throw new IllegalArgumentException("Uno spazio non appartiene all'impianto.");
+            if (s.padreId() == null || s.assetto() == null) continue;
+            Integer prima = assettoPerVasca.putIfAbsent(s.padreId(), s.assetto());
+            if (prima != null && !prima.equals(s.assetto()))
+                throw new IllegalArgumentException("Corsie di assetti diversi: scegli corsie della vasca divisa tutte nello stesso modo (a " + prima + " o a " + s.assetto() + ").");
+        }
     }
 
     private void controllaIstruttore(UUID personaId, UUID impiantoId) {
@@ -273,7 +285,7 @@ class GestionePianoService {
 
     private CorsoDto dto(Corso c, List<Lezione> sue, Map<UUID, String> nomi) {
         return new CorsoDto(c.getId(), c.getImpiantoId(), c.getNome(), c.getTipo(), c.getLivello(), c.getEtaDa(), c.getEtaA(),
-            breve(c.getIstruttoreId(), nomi), c.getNote(), c.isAttivo(),
+            breve(c.getIstruttoreId(), nomi), c.getNote(), c.isAttivo(), c.getColore(),
             sue.stream().sorted(Comparator.comparing(Lezione::getGiornoSettimana).thenComparing(Lezione::getInizio))
                 .map(l -> dto(l, nomi)).toList());
     }

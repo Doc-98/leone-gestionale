@@ -39,6 +39,9 @@ class Corso {
 
     private String note;
 
+    /** «#RRGGBB», facoltativo: il colore del livello (es. Delfino Giallo). */
+    private String colore;
+
     @Column(nullable = false)
     private boolean attivo;
 
@@ -50,7 +53,9 @@ class Corso {
         this.attivo = true;
     }
 
-    void modifica(String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA, UUID istruttoreId, String note, boolean attivo) {
+    void modifica(String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA, UUID istruttoreId, String note, boolean attivo, String colore) {
+        if (colore != null && !colore.isBlank() && !colore.matches("^#[0-9A-Fa-f]{6}$")) throw new IllegalArgumentException("Colore non valido: usa il formato #RRGGBB.");
+        this.colore = colore == null || colore.isBlank() ? null : colore.toUpperCase();
         if (tipo == null) throw new IllegalArgumentException("Scegli il tipo di corso.");
         if (etaDa != null && (etaDa < 0 || etaDa > 120) || etaA != null && (etaA < 0 || etaA > 120))
             throw new IllegalArgumentException("Età non valida.");
@@ -75,4 +80,5 @@ class Corso {
     UUID getIstruttoreId() { return istruttoreId; }
     String getNote() { return note; }
     boolean isAttivo() { return attivo; }
+    String getColore() { return colore; }
 }
