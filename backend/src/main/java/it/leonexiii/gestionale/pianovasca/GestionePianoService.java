@@ -29,7 +29,7 @@ class GestionePianoService {
     private static final ZoneId FUSO = ZoneId.of("Europe/Rome");
 
     record LezioneDto(UUID id, int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl,
-                      List<UUID> spazi, PersonaBreve istruttore) {}
+                      List<UUID> spazi, PersonaBreve istruttore, Integer posti) {}
 
     record CorsoDto(UUID id, UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA,
                     PersonaBreve istruttore, String note, boolean attivo, String colore, List<LezioneDto> lezioni) {}
@@ -38,7 +38,7 @@ class GestionePianoService {
                       String note, Boolean attivo, String colore) {}
 
     record LezioneInput(int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl,
-                        List<UUID> spazi, UUID istruttoreId) {}
+                        List<UUID> spazi, UUID istruttoreId, Integer posti) {}
 
     record EccezioneInput(LocalDate data, TipoEccezione tipo, LocalDate nuovaData, LocalTime nuovoInizio, LocalTime nuovoFine, String motivo) {}
 
@@ -59,9 +59,14 @@ class GestionePianoService {
     private final Impianti impianti;
     private final Persone persone;
     private final AccessoPiano accesso;
+    private final FasceService fasce;
+    private final IscrizioneRepository iscrizioni;
 
     GestionePianoService(CorsoRepository corsi, LezioneRepository lezioni, EccezioneRepository eccezioni, EventoRepository eventi,
-                         PianoService piano, Impianti impianti, Persone persone, AccessoPiano accesso) {
+                         PianoService piano, Impianti impianti, Persone persone, AccessoPiano accesso, FasceService fasce,
+                         IscrizioneRepository iscrizioni) {
+        this.iscrizioni = iscrizioni;
+        this.fasce = fasce;
         this.corsi = corsi;
         this.lezioni = lezioni;
         this.eccezioni = eccezioni;
@@ -128,15 +133,16 @@ class GestionePianoService {
     }
 
     /**
-     * Toglie la lezione dal piano. Se è già iniziata resta nello storico e smette da oggi (non si tiene più
-     * da domani); se non è ancora iniziata si elimina.
+     * Toglie il turno dal piano. Se è già iniziato (o ha degli iscritti) resta nello storico e smette da oggi;
+     * se non è ancora iniziato e nessuno è iscritto si elimina.
      */
     @Transactional
     void togliLezione(Utente u, UUID id) {
         Lezione l = lezione(u, id);
         LocalDate oggi = LocalDate.now(FUSO);
-        if (l.getValidaDal().isAfter(oggi)) lezioni.delete(l);
-        else l.terminaIl(oggi);
+        boolean conIscritti = !iscrizioni.findByLezioneIdOrderByDal(id).isEmpty();
+        if (l.getValidaDal().isAfter(oggi) && !conIscritti) lezioni.delete(l);
+        else l.terminaIl(l.getValidaDal().isAfter(oggi) ? l.getValidaDal() : oggi);
     }
 
     @Transactional
@@ -201,6 +207,8 @@ class GestionePianoService {
         controllaSpazi(spazi, c.getImpiantoId());
         controllaIstruttore(in.istruttoreId(), c.getImpiantoId());
         l.modifica(in.giornoSettimana(), in.inizio(), in.fine(), in.validaDal(), in.validaAl(), spazi, in.istruttoreId());
+        l.posti(in.posti());
+        controllaAssettoFascia(spazi, c.getImpiantoId(), in);
     }
 
     private void applica(Evento e, EventoInput in) {
@@ -250,6 +258,20 @@ class GestionePianoService {
         }
     }
 
+    /** Se la fascia in cui cade il turno ha un assetto (es. 5 corsie), le corsie scelte devono essere di quell'assetto. */
+    private void controllaAssettoFascia(Set<UUID> spazi, UUID impiantoId, LezioneInput in) {
+        Map<UUID, Impianti.SpazioBreve> perId = new java.util.HashMap<>();
+        impianti.spazi(Set.of(impiantoId)).forEach(s -> perId.put(s.id(), s));
+        for (UUID id : spazi) {
+            Impianti.SpazioBreve s = perId.get(id);
+            if (s == null || s.padreId() == null || s.assetto() == null) continue;
+            Integer richiesto = fasce.assettoPer(s.padreId(), in.giornoSettimana(), in.inizio(), in.fine(), in.validaDal(), in.validaAl());
+            if (richiesto != null && !richiesto.equals(s.assetto()))
+                throw new IllegalArgumentException("In quella fascia la vasca è divisa in " + richiesto + " corsie: scegli le corsie a " + richiesto
+                    + " (o cambia prima l'assetto della fascia).");
+        }
+    }
+
     private void controllaIstruttore(UUID personaId, UUID impiantoId) {
         if (personaId == null) return;
         if (!persone.haRuolo(personaId, Ruolo.STAFF, impiantoId) && !persone.haRuolo(personaId, Ruolo.COORDINATORE, impiantoId))
@@ -292,7 +314,7 @@ class GestionePianoService {
 
     private static LezioneDto dto(Lezione l, Map<UUID, String> nomi) {
         return new LezioneDto(l.getId(), l.getGiornoSettimana(), l.getInizio(), l.getFine(), l.getValidaDal(), l.getValidaAl(),
-            l.getSpazi().stream().sorted().toList(), breve(l.getIstruttoreId(), nomi));
+            l.getSpazi().stream().sorted().toList(), breve(l.getIstruttoreId(), nomi), l.getPosti());
     }
 
     private EventoDto dto(Evento e) {

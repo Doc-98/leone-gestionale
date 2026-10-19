@@ -39,6 +39,8 @@ class GestioneErrori {
         String m = String.valueOf(e.getMostSpecificCause().getMessage());
         String testo = m.contains("turno_senza_sovrapposizioni") ? "La persona ha già un turno in quell'orario."
             : m.contains("richiesta_turno_una_aperta") ? "Per questo turno c'è già una richiesta in corso."
+            : m.contains("fascia_senza_sovrapposizioni") ? "In quella vasca e in quel giorno c'è già una fascia che si accavalla con questo orario."
+            : m.contains("iscrizione_senza_doppioni") ? "Questa persona è già iscritta a questo turno nello stesso periodo."
             : "I dati non rispettano un vincolo del database.";
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, testo);
     }

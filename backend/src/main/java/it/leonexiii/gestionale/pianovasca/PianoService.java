@@ -44,7 +44,7 @@ class PianoService {
     record Occorrenza(String chiave, String tipo, String categoria, String colore, String titolo, String dettaglio,
                       LocalDate data, LocalTime inizio, LocalTime fine, List<UUID> spazi, PersonaBreve istruttore,
                       Stato stato, String nota, UUID lezioneId, UUID corsoId, UUID eventoId, UUID eccezioneId,
-                      LocalDate dataOriginale, List<String> conflitti) {
+                      LocalDate dataOriginale, List<String> conflitti, Integer iscritti, Integer posti) {
 
         boolean attiva() {
             return stato == Stato.REGOLARE || stato == Stato.SPOSTATA_QUI;
@@ -52,19 +52,34 @@ class PianoService {
 
         Occorrenza conConflitti(List<String> c) {
             return new Occorrenza(chiave, tipo, categoria, colore, titolo, dettaglio, data, inizio, fine, spazi, istruttore, stato, nota,
-                lezioneId, corsoId, eventoId, eccezioneId, dataOriginale, c);
+                lezioneId, corsoId, eventoId, eccezioneId, dataOriginale, c, iscritti, posti);
+        }
+
+        Occorrenza conIscritti(int n) {
+            return new Occorrenza(chiave, tipo, categoria, colore, titolo, dettaglio, data, inizio, fine, spazi, istruttore, stato, nota,
+                lezioneId, corsoId, eventoId, eccezioneId, dataOriginale, conflitti, n, posti);
         }
     }
 
-    record Piano(LocalDate da, LocalDate a, List<SpazioDto> spazi, List<Occorrenza> occorrenze, List<UUID> impiantiGestiti) {}
+    /**
+     * impiantiGestiti: dove l'utente modifica il piano; impiantiIscrizioni: dove gestisce le iscrizioni (segreteria,
+     * coordinatori); fasce: le fasce orarie definite, valide nel periodo.
+     */
+    record Piano(LocalDate da, LocalDate a, List<SpazioDto> spazi, List<FasceService.FasciaDto> fasce, List<Occorrenza> occorrenze,
+                 List<UUID> impiantiGestiti, List<UUID> impiantiIscrizioni) {}
 
     private final LezioneRepository lezioni;
     private final EventoRepository eventi;
     private final Impianti impianti;
     private final Persone persone;
     private final AccessoPiano accesso;
+    private final IscrizioneRepository iscrizioni;
+    private final FasceService fasce;
 
-    PianoService(LezioneRepository lezioni, EventoRepository eventi, Impianti impianti, Persone persone, AccessoPiano accesso) {
+    PianoService(LezioneRepository lezioni, EventoRepository eventi, Impianti impianti, Persone persone, AccessoPiano accesso,
+                 IscrizioneRepository iscrizioni, FasceService fasce) {
+        this.iscrizioni = iscrizioni;
+        this.fasce = fasce;
         this.lezioni = lezioni;
         this.eventi = eventi;
         this.impianti = impianti;
@@ -77,11 +92,21 @@ class PianoService {
         if (a.isBefore(da)) throw new IllegalArgumentException("La data finale è prima di quella iniziale.");
         if (ChronoUnit.DAYS.between(da, a) > GIORNI_MASSIMI) throw new IllegalArgumentException("Intervallo troppo lungo: al massimo due mesi.");
         Set<UUID> visibili = accesso.visibili(u);
-        if (visibili.isEmpty()) return new Piano(da, a, List.of(), List.of(), List.of());
+        if (visibili.isEmpty()) return new Piano(da, a, List.of(), List.of(), List.of(), List.of(), List.of());
         List<SpazioDto> spazi = impianti.spazi(visibili).stream()
             .map(PianoService::dto).toList();
-        List<Occorrenza> occ = calcola(visibili, spazi, da, a);
-        return new Piano(da, a, spazi, occ, List.copyOf(accesso.gestiti(u)));
+        List<Occorrenza> occ = conIscritti(calcola(visibili, spazi, da, a), da, a);
+        return new Piano(da, a, spazi, fasce.fasce(u, da, a), occ, List.copyOf(accesso.gestiti(u)), List.copyOf(accesso.impiantiIscrizioni(u)));
+    }
+
+    /** Quanti iscritti attivi ha ogni turno di corso nella sua data. */
+    private List<Occorrenza> conIscritti(List<Occorrenza> occ, LocalDate da, LocalDate a) {
+        List<UUID> ids = occ.stream().map(Occorrenza::lezioneId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return occ;
+        Map<UUID, List<Iscrizione>> perLezione = new HashMap<>();
+        iscrizioni.nelPeriodo(ids, da, a).forEach(i -> perLezione.computeIfAbsent(i.getLezioneId(), k -> new ArrayList<>()).add(i));
+        return occ.stream().map(o -> o.lezioneId() == null ? o
+            : o.conIscritti((int) perLezione.getOrDefault(o.lezioneId(), List.of()).stream().filter(i -> i.attivaIl(o.data())).count())).toList();
     }
 
     static SpazioDto dto(Impianti.SpazioBreve s) {
@@ -156,7 +181,7 @@ class PianoService {
             for (LocalDate g = da.isBefore(e.getData()) ? e.getData() : da; !g.isAfter(a) && e.occupa(g); g = g.plusDays(1)) {
                 out.add(new Occorrenza("E:" + e.getId() + ":" + g, "EVENTO", e.getTipo().name(), null, e.getTitolo(), e.getNote(), g,
                     e.getInizio(), e.getFine(), spaziEvento, istruttore, e.isAnnullato() ? Stato.ANNULLATO : Stato.REGOLARE, null,
-                    null, null, e.getId(), null, null, List.of()));
+                    null, null, e.getId(), null, null, List.of(), null, null));
             }
         }
 
@@ -188,7 +213,7 @@ class PianoService {
         String dettaglio = Stream.of(c.getLivello(), eta(c.getEtaDa(), c.getEtaA())).filter(Objects::nonNull).reduce((x, y) -> x + " · " + y).orElse(null);
         String chiave = "L:" + l.getId() + ":" + (originale != null ? originale + ">" : "") + g;
         return new Occorrenza(chiave, "LEZIONE", c.getTipo().name(), c.getColore(), c.getNome(), dettaglio, g, inizio, fine, spazi, istruttore, stato, nota,
-            l.getId(), c.getId(), null, eccezioneId, originale, List.of());
+            l.getId(), c.getId(), null, eccezioneId, originale, List.of(), null, l.getPosti());
     }
 
     private static final java.time.format.DateTimeFormatter GIORNO = java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM", java.util.Locale.ITALIAN);

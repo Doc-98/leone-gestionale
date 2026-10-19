@@ -8,6 +8,14 @@ import org.springframework.data.jpa.repository.Query;
 
 interface PersonaRepository extends JpaRepository<Persona, UUID> {
 
+    /** Ricerca per nome e cognome (anche «cognome nome»), senza distinguere maiuscole e accenti di base. */
+    @Query("""
+        select p from Persona p
+        where lower(concat(p.nome, ' ', p.cognome)) like :testo or lower(concat(p.cognome, ' ', p.nome)) like :testo
+        order by p.cognome, p.nome
+        """)
+    List<Persona> cerca(String testo, org.springframework.data.domain.Pageable pagina);
+
     /** Persone con un account attivo e un ruolo valido oggi, nell'impianto indicato o in tutta la società. */
     @Query("""
         select distinct p from Persona p, Account a, AssegnazioneRuolo r

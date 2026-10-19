@@ -26,10 +26,76 @@ class PianoController {
 
     private final PianoService piano;
     private final GestionePianoService gestione;
+    private final FasceService fasce;
+    private final IscrizioniService iscrizioni;
 
-    PianoController(PianoService piano, GestionePianoService gestione) {
+    PianoController(PianoService piano, GestionePianoService gestione, FasceService fasce, IscrizioniService iscrizioni) {
         this.piano = piano;
         this.gestione = gestione;
+        this.fasce = fasce;
+        this.iscrizioni = iscrizioni;
+    }
+
+    // ── Fasce ───────────────────────────────────────────────────────────────
+
+    @GetMapping("/fasce")
+    List<FasceService.FasciaDto> fasce(@AuthenticationPrincipal Utente u) {
+        return fasce.fasce(u, null, null);
+    }
+
+    /** {"vascaId", "giorni": [1,2,4], "inizio", "fine", "assetto": 6, "validaDal", "validaAl"} */
+    @PostMapping("/fasce")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    List<FasceService.FasciaDto> creaFasce(@AuthenticationPrincipal Utente u, @RequestBody FasceService.NuoveFasce in) {
+        return fasce.crea(u, in);
+    }
+
+    @PutMapping("/fasce/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    FasceService.EsitoFascia modificaFascia(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody FasceService.ModificaFascia in) {
+        return fasce.modifica(u, id, in);
+    }
+
+    /** {"assetto": 5}: i corsi della fascia passano sulle corsie con lo stesso numero. */
+    @PostMapping("/fasce/{id}/assetto")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    FasceService.EsitoFascia cambiaAssetto(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody FasceService.NuovoAssetto in) {
+        return fasce.cambiaAssetto(u, id, in);
+    }
+
+    @DeleteMapping("/fasce/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    void eliminaFascia(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        fasce.elimina(u, id);
+    }
+
+    // ── Iscritti e presenze ─────────────────────────────────────────────────
+
+    @GetMapping("/lezioni/{id}/iscritti")
+    IscrizioniService.ElencoIscritti iscritti(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
+                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
+        return iscrizioni.elenco(u, id, data);
+    }
+
+    /** {"personaId"} oppure {"nuovaPersona": {"nome", "cognome", "dataNascita"}}, con "dal" e "forza" (soprannumero). */
+    @PostMapping("/lezioni/{id}/iscritti")
+    @ResponseStatus(HttpStatus.CREATED)
+    IscrizioniService.IscrittoDto iscrivi(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody IscrizioniService.NuovaIscrizione in) {
+        return iscrizioni.iscrivi(u, id, in);
+    }
+
+    @PostMapping("/iscrizioni/{id}/termina")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void terminaIscrizione(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody IscrizioniService.Termine in) {
+        iscrizioni.termina(u, id, in);
+    }
+
+    /** {"data", "presenze": [{"personaId", "presente"}]} */
+    @PutMapping("/lezioni/{id}/presenze")
+    IscrizioniService.ElencoIscritti presenze(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody IscrizioniService.Presenze in) {
+        return iscrizioni.segnaPresenze(u, id, in);
     }
 
     /** Spazi e occorrenze (lezioni ed eventi) del periodo, al massimo due mesi. */

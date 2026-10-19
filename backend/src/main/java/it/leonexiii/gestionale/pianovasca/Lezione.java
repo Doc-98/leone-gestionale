@@ -48,6 +48,9 @@ class Lezione {
     @Column(name = "istruttore_id")
     private UUID istruttoreId;
 
+    /** Quanti iscritti al massimo (facoltativo). */
+    private Short posti;
+
     @ElementCollection
     @CollectionTable(name = "lezione_spazio", joinColumns = @JoinColumn(name = "lezione_id"))
     @Column(name = "spazio_id")
@@ -109,6 +112,30 @@ class Lezione {
     LocalDate getValidaDal() { return validaDal; }
     LocalDate getValidaAl() { return validaAl; }
     UUID getIstruttoreId() { return istruttoreId; }
+    Integer getPosti() { return posti == null ? null : posti.intValue(); }
+
+    void posti(Integer posti) {
+        if (posti != null && (posti < 1 || posti > 500)) throw new IllegalArgumentException("Posti non validi.");
+        this.posti = posti == null ? null : posti.shortValue();
+    }
+
+    /** Sostituisce gli spazi (es. quando la fascia passa da 6 a 5 corsie e le corsie si riportano per numero). */
+    void spostaSu(Set<UUID> nuovi) {
+        spazi.clear();
+        spazi.addAll(nuovi);
+    }
+
+    /** Nuovo orario (quando la fascia in cui sta cambia orario). */
+    void orario(LocalTime inizio, LocalTime fine) {
+        if (!fine.isAfter(inizio)) throw new IllegalArgumentException("La fine deve essere dopo l'inizio.");
+        this.inizio = inizio;
+        this.fine = fine;
+    }
+
+    /** L'istruttore di questo turno: il suo, oppure quello del corso. */
+    UUID istruttoreEffettivo() {
+        return istruttoreId != null ? istruttoreId : corso.getIstruttoreId();
+    }
     Set<UUID> getSpazi() { return spazi; }
     Set<Eccezione> getEccezioni() { return eccezioni; }
 }

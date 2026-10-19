@@ -148,10 +148,15 @@ class PianoVascaTest {
             {"giornoSettimana":1,"inizio":"17:00","fine":"17:45","validaDal":"2028-04-01","spazi":["%s","%s"]}""".formatted(CORSIA_3, CORSIA_3_DI_5));
         assertThat(misto.statusCode()).isEqualTo(400);
         assertThat(misto.body()).contains("assetti diversi");
-        // corsia 2 della vasca a 5, lunedì alle 17, mentre la vasca è a 6 con un corso per corsia: sovrapposizione
-        var esito = crea(coord, "/api/corsi/" + corsoId + "/lezioni", """
+        // lunedì alle 17 la fascia è a 6 corsie: la corsia 2 della vasca a 5 non si può scegliere
+        var fuoriAssetto = coord.post("/api/corsi/" + corsoId + "/lezioni", """
             {"giornoSettimana":1,"inizio":"17:00","fine":"17:45","validaDal":"2028-04-01","validaAl":"2028-04-30","spazi":["%s"]}""".formatted(CORSIA_2_DI_5));
-        assertThat(esito.get("avvisi").toString()).contains("Delfino Giallo").contains("Stella Marina");
+        assertThat(fuoriAssetto.statusCode()).isEqualTo(400);
+        assertThat(fuoriAssetto.body()).contains("divisa in 6 corsie");
+        // dove non c'è una fascia (lunedì mattina) si può, ma si sovrappone al nuoto libero sulle corsie a 6
+        var esito = crea(coord, "/api/corsi/" + corsoId + "/lezioni", """
+            {"giornoSettimana":1,"inizio":"08:00","fine":"08:45","validaDal":"2028-04-01","validaAl":"2028-04-30","spazi":["%s"]}""".formatted(CORSIA_2_DI_5));
+        assertThat(esito.get("avvisi").toString()).contains("Nuoto libero");
         // il mercoledì la vasca è già a 5: nessun problema
         var mercoledi = crea(coord, "/api/corsi/" + corsoId + "/lezioni", """
             {"giornoSettimana":3,"inizio":"16:10","fine":"16:55","validaDal":"2028-04-01","validaAl":"2028-04-30","spazi":["%s"]}""".formatted(CORSIA_2_DI_5));

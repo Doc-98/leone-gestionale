@@ -34,6 +34,14 @@ public class Persona {
 
     protected Persona() {}
 
+    /** Persona senza account (es. un cliente iscritto a un corso): bastano nome, cognome e data di nascita. */
+    Persona(String nome, String cognome, LocalDate dataNascita) {
+        this.id = UUID.randomUUID();
+        this.nome = nome;
+        this.cognome = cognome;
+        this.dataNascita = dataNascita;
+    }
+
     public UUID getId() { return id; }
     public String getNome() { return nome; }
     public String getCognome() { return cognome; }

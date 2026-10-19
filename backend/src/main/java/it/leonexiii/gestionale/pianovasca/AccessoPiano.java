@@ -39,6 +39,17 @@ class AccessoPiano {
         return out;
     }
 
+    /** Segreteria e coordinatori (e admin) gestiscono le iscrizioni dell'impianto. */
+    boolean gestisceIscrizioni(Utente u, UUID impiantoId) {
+        return u.ha(Ruolo.SEGRETERIA, impiantoId) || u.ha(Ruolo.COORDINATORE, impiantoId);
+    }
+
+    Set<UUID> impiantiIscrizioni(Utente u) {
+        Set<UUID> out = new HashSet<>();
+        for (UUID i : visibili(u)) if (gestisceIscrizioni(u, i)) out.add(i);
+        return out;
+    }
+
     void richiediGestione(Utente u, UUID impiantoId) {
         if (!u.ha(Ruolo.COORDINATORE, impiantoId)) throw new AccessDeniedException("Non gestisci il piano di questo impianto.");
     }
