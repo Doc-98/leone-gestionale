@@ -145,12 +145,16 @@ export interface SpazioPiano {
   nome: string;
   tipo: string;
   padreId: string | null;
+  /** per le corsie: in quante corsie è divisa la vasca in questo assetto (5 o 6) */
+  assetto: number | null;
 }
 
 export interface Occorrenza {
   chiave: string;
   tipo: 'LEZIONE' | 'EVENTO';
   categoria: TipoCorso | TipoEvento;
+  /** colore del corso «#RRGGBB», se ce l'ha */
+  colore: string | null;
   titolo: string;
   dettaglio: string | null;
   data: string;
@@ -198,6 +202,7 @@ export interface Corso {
   istruttore: PersonaBreve | null;
   note: string | null;
   attivo: boolean;
+  colore: string | null;
   lezioni: Lezione[];
 }
 
@@ -211,6 +216,7 @@ export interface CorsoInput {
   istruttoreId: string | null;
   note: string | null;
   attivo: boolean;
+  colore: string | null;
 }
 
 export interface LezioneInput {

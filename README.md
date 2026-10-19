@@ -18,7 +18,9 @@ uffici (menu laterale, griglie ampie) e **app** sul telefono per lo staff (ADR 0
   di tutto lo staff, in CSV e come **foglio ore nel modello Excel della società** (uno per persona o tutti in .zip).
 - Garanzie nel database: nessun turno sovrapposto per la stessa persona, una sola richiesta aperta per turno.
 
-**Fase 2 – piano vasca (completa).** Vista giorno (corsie e vasche × ore) e settimana, agenda sul telefono.
+**Fase 2 – piano vasca (completa).** Il giorno per fasce, con la pianta delle vasche (cosa c'è in ogni corsia, vasca
+grande a 5 o 6 corsie, vasca piccola), la settimana come tabella fasce × giorni con i corsi di ogni fascia, la
+griglia oraria come alternativa.
 Corsi con lezioni settimanali, salti e spostamenti di una singola data, eventi (gare, lezioni private e di prova,
 chiusure anche di più giorni) e sovrapposizioni segnalate. Lo staff lo consulta; coordinatori e admin lo modificano.
 

@@ -15,6 +15,17 @@ chiusure (feste, manutenzione) sospendono tutto. Lo staff lo consulta, i coordin
   **chiusura** senza spazi vale per tutto l'impianto; le lezioni che ci cadono risultano «sospese» senza
   toccarle.
 - **Spazi gerarchici**: le corsie sono spazi con la vasca come padre. Una vasca intera tocca tutte le sue corsie.
+- **Assetti delle corsie**: con i divisori la vasca grande si usa a 6 oppure a 5 corsie. Ogni corsia appartiene a
+  un assetto (`spazio.assetto` = numero di corsie). Corsie di assetti diversi della stessa vasca, nello stesso
+  orario, si sovrappongono; una lezione usa corsie di un solo assetto.
+- **Il piano si legge per fasce** (aggiornato il 19/10/2026 su indicazione di chi lavora in vasca): in ogni fascia
+  da 45 minuti quasi ogni corsia ha un corso diverso, quindi una griglia oraria non basta. Le fasce si calcolano
+  dalle lezioni: orari che si sovrappongono per almeno metà della lezione più corta stanno nella stessa fascia (la
+  vasca piccola, sfalsata di 5 minuti, finisce con la grande); le attività oltre i 60 minuti (nuoto libero,
+  Propaganda) compaiono in tutte le fasce che attraversano. Viste: giorno = elenco delle fasce + **pianta** delle
+  vasche (una striscia per corsia con corso, istruttore, età; corsie libere); settimana = tabella fasce × giorni con
+  i corsi di ogni fascia; la griglia oraria per corsia resta come alternativa sul PC.
+- **Colore del corso** facoltativo (es. i livelli Delfino Giallo, Verde, Azzurro…), mostrato nella pianta.
 - **Le sovrapposizioni sono avvisi, non errori**: due attività sugli stessi spazi (o vasca e sua corsia) nello
   stesso orario vengono segnalate nel piano e restituite come `avvisi` dopo ogni modifica, ma si possono salvare.
   Nella realtà capita di dividere una corsia o di decidere all'ultimo; il turno dello staff invece resta un

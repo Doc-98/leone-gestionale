@@ -2,9 +2,10 @@
   import { api, messaggioErrore, type Evento, type Occorrenza, type PersonaBreve, type Piano } from '../lib/api';
   import { aggiungiGiorni, daIso, giornoEsteso, iso, lunedi, MESI, ora } from '../lib/date';
   import {
-    colonneSpazi, colore, disponi, etichettaSpazi, finestraOraria, inAttivita, intervalliColonne, minuti, nomeCategoria, STATI,
-    type Banda, type Intestazione,
+    colonneSpazi, colore, disponi, etichettaSpazi, finestraOraria, inAttivita, inFascia, intervalliColonne, minuti, nomeCategoria,
+    orarioFascia, raggruppaFasce, STATI, type Banda, type Fascia, type Intestazione,
   } from '../lib/piano';
+  import PiantaVasche from '../components/PiantaVasche.svelte';
   import { colonneGiorni } from '../lib/griglia';
   import { schermo } from '../lib/schermo.svelte';
   import OrarioGriglia from '../components/OrarioGriglia.svelte';
@@ -16,10 +17,14 @@
   type Pannello =
     | { tipo: 'dettaglio'; o: Occorrenza }
     | { tipo: 'eccezione'; o: Occorrenza }
-    | { tipo: 'evento'; evento: Evento | null; data?: string; inizio?: string; spazio?: string };
+    | { tipo: 'evento'; evento: Evento | null; data?: string; inizio?: string; spazio?: string }
+    | { tipo: 'fascia'; data: string; fascia: Fascia };
 
   const oggi = iso(new Date());
   let vista = $state<'giorno' | 'settimana'>('giorno');
+  /** nel giorno, sul PC: le fasce con la pianta della vasca, oppure la griglia oraria per corsia */
+  let modoGiorno = $state<'fasce' | 'orario'>('fasce');
+  let fasciaScelta = $state('');
   let giorno = $state(oggi);
   let piano = $state<Piano | null>(null);
   let caricamento = $state(true);
@@ -92,6 +97,29 @@
       .filter((b) => b.colonna >= 0),
   );
 
+  // ── Fasce ──
+  const fasceGiorno = $derived(raggruppaFasce(delGiorno));
+  const fasceSettimana = $derived(raggruppaFasce(occorrenze));
+  const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  /** La fascia da mostrare: quella scelta, altrimenti quella in corso (o la prossima) se è oggi, altrimenti la prima. */
+  const fasciaCorrente = $derived.by(() => {
+    const lista = fasceGiorno.fasce;
+    const scelta = lista.find((f) => f.chiave === fasciaScelta);
+    if (scelta) return scelta;
+    if (giorno === oggi) {
+      const d = new Date();
+      const ora = d.getHours() * 60 + d.getMinutes();
+      return lista.find((f) => f.fine > ora) ?? lista[lista.length - 1];
+    }
+    return lista[0];
+  });
+  const contaInFascia = (f: Fascia) => inFascia(f, delGiorno, fasceGiorno.fasciaDi).filter((o) => o.categoria !== 'CHIUSURA');
+  const chiusureDelGiorno = $derived(delGiorno.filter((o) => o.categoria === 'CHIUSURA' && o.stato !== 'ANNULLATO'));
+  $effect(() => {
+    void giorno;
+    fasciaScelta = '';
+  });
+
   const finestra = $derived(finestraOraria(vista === 'giorno' ? delGiorno : occorrenze));
   const adesso = $derived.by(() => {
     if (vista !== 'giorno' || giorno !== oggi) return null;
@@ -144,7 +172,21 @@
   }
 
   const sottoGiorno = (o: Occorrenza) => o.istruttore?.nome ?? o.dettaglio ?? '';
-  const sottoSettimana = (o: Occorrenza) => etichettaSpazi(o.spazi, spazi).replace(' · Vasca grande', '').replace('Vasca ', 'V. ');
+  /** Per ordinare: la prima corsia occupata (la vasca piccola e il resto dopo). */
+  function primaCorsia(o: Occorrenza): number {
+    const numeri = o.spazi.map((id) => spazi.find((x) => x.id === id)).filter((x) => x?.padreId).map((x) => Number(/(\d+)\s*$/.exec(x!.nome)?.[1] ?? 99));
+    return numeri.length ? Math.min(...numeri) : o.spazi.length ? 50 : 99;
+  }
+  const perCorsia = (a: Occorrenza, b: Occorrenza) => primaCorsia(a) - primaCorsia(b) || a.titolo.localeCompare(b.titolo);
+
+  /** «C3», «C4–5», «V. piccola», «V. grande» */
+  function etichettaCorta(o: Occorrenza): string {
+    if (!o.spazi.length) return '';
+    return etichettaSpazi(o.spazi, spazi)
+      .replace(/Corsi[ae] ([\d–, ]+) · [^+]+/g, (_m, n: string) => `C${n.trim()}`)
+      .replace(/Vasca (\w+)[^+]*/g, 'V. $1')
+      .replace(/ \+ /g, ' + ');
+  }
   const titoloCap = $derived(titolo.charAt(0).toUpperCase() + titolo.slice(1));
 </script>
 
@@ -162,16 +204,23 @@
         <button class="link small" onclick={() => (giorno = oggi)}>Oggi</button>
       {/if}
     </div>
-    {#if schermo.larga}
-      <div class="legenda" aria-label="Legenda">
-        {#each legenda as [cat, nome] (cat)}<span class="voce-leg {colore(cat)}"><span class="pallino"></span>{nome}</span>{/each}
+    {#if schermo.larga && vista === 'giorno'}
+      <div class="seg modo" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Come mostrare il giorno">
+        <button aria-pressed={modoGiorno === 'fasce'} onclick={() => (modoGiorno = 'fasce')}>Vasca per fasce</button>
+        <button aria-pressed={modoGiorno === 'orario'} onclick={() => (modoGiorno = 'orario')}>Orario</button>
       </div>
     {/if}
+    <span class="grow"></span>
     {#if gestore}
       <button class="btn btn-primary compatto" onclick={() => ((pannello = { tipo: 'evento', evento: null, data: giorno }), (messaggio = ''))}>Nuovo evento…</button>
     {/if}
   </div>
 
+  {#if schermo.larga && (vista === 'settimana' || modoGiorno === 'orario') && legenda.length}
+    <div class="legenda" aria-label="Legenda">
+      {#each legenda as [cat, nome] (cat)}<span class="voce-leg {colore(cat)}"><span class="pallino"></span>{nome}</span>{/each}
+    </div>
+  {/if}
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#each avvisi as av (av)}<p class="msg err nomargin">Attenzione: {av}</p>{/each}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
@@ -180,43 +229,117 @@
   {/if}
 
   {#if piano}
-    {#if schermo.larga}
-      {#if vista === 'giorno'}
-        <OrarioGriglia colonne={colonneGiorno} riquadri={riquadriGiorno} bande={bandeGiorno} {finestra} {adesso}
-          etichetta="Piano vasca del giorno per spazio" sotto={sottoGiorno}
-          apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
-          vuoto={gestore ? (c, m) => {
-            const spazio = colonneGiorno[c]?.chiave;
-            pannello = { tipo: 'evento', evento: null, data: giorno, inizio: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, spazio: spazio === 'altro' ? '' : spazio };
-            messaggio = '';
-          } : undefined} />
+    {#if vista === 'giorno' && (modoGiorno === 'fasce' || !schermo.larga)}
+      {#each chiusureDelGiorno as c (c.chiave)}<p class="chiusura-g">{c.titolo}{c.nota ? ` · ${c.nota}` : ''}</p>{/each}
+      {#if !fasceGiorno.fasce.length}
+        <p class="muted">{caricamento ? '' : 'Niente in programma in questo giorno.'}</p>
+      {:else if schermo.larga}
+        <div class="giorno-fasce">
+          <nav class="fasce card" aria-label="Fasce del giorno">
+            {#each fasceGiorno.fasce as f (f.chiave)}
+              {@const dentro = contaInFascia(f)}
+              <button class="fascia" class:on={fasciaCorrente?.chiave === f.chiave} aria-current={fasciaCorrente?.chiave === f.chiave}
+                      onclick={() => (fasciaScelta = f.chiave)}>
+                <span class="m orario-f">{orarioFascia(f)}</span>
+                <span class="pallini">
+                  {#each dentro.slice(0, 8) as o (o.chiave)}<span class="pallino {colore(o.categoria)}" style={o.colore ? `background: ${o.colore}` : ''}></span>{/each}
+                </span>
+                <span class="muted small">{dentro.length} {dentro.length === 1 ? 'attività' : 'attività'}{dentro.some((o) => o.conflitti.length) ? ' · sovrapposizioni' : ''}</span>
+              </button>
+            {/each}
+          </nav>
+          {#if fasciaCorrente}
+            {@const f = fasciaCorrente}
+            {@const i = fasceGiorno.fasce.indexOf(f)}
+            <div class="dettaglio-fascia">
+              <div class="testa-fascia">
+                <button class="icon-btn" aria-label="Fascia precedente" disabled={i <= 0} onclick={() => (fasciaScelta = fasceGiorno.fasce[i - 1].chiave)}>‹</button>
+                <h2 class="d">{orarioFascia(f)}</h2>
+                <button class="icon-btn" aria-label="Fascia successiva" disabled={i >= fasceGiorno.fasce.length - 1} onclick={() => (fasciaScelta = fasceGiorno.fasce[i + 1].chiave)}>›</button>
+              </div>
+              <PiantaVasche {spazi} occorrenze={inFascia(f, delGiorno, fasceGiorno.fasciaDi)} fascia={f}
+                apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
+                libera={gestore ? (spazio) => ((pannello = { tipo: 'evento', evento: null, data: giorno, inizio: hhmm(f.inizio), spazio }), (messaggio = '')) : undefined} />
+            </div>
+          {/if}
+        </div>
       {:else}
-        <OrarioGriglia colonne={colonneGiorni(giorni).map((c) => ({ chiave: c.chiave, titolo: `${c.etichetta} ${c.numero}`, oggi: c.oggi }))}
-          riquadri={riquadriSettimana} bande={bandeSettimana} {finestra}
-          etichetta="Piano vasca della settimana" sotto={sottoSettimana}
-          apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
-          vuoto={gestore ? (c, m) => {
-            pannello = { tipo: 'evento', evento: null, data: giorni[c], inizio: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` };
-            messaggio = '';
-          } : undefined} />
+        {#each fasceGiorno.fasce as f (f.chiave)}
+          {@const dentro = inFascia(f, delGiorno, fasceGiorno.fasciaDi)}
+          <details class="card fascia-tel" open={fasciaCorrente?.chiave === f.chiave}>
+            <summary>
+              <span class="m orario-f">{orarioFascia(f)}</span>
+              <span class="nomi">{dentro.filter((o) => o.categoria !== 'CHIUSURA').map((o) => o.titolo).join(' · ')}</span>
+            </summary>
+            <PiantaVasche {spazi} occorrenze={dentro} fascia={f} compatta apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))} />
+          </details>
+        {/each}
       {/if}
+    {:else if vista === 'giorno'}
+      <OrarioGriglia colonne={colonneGiorno} riquadri={riquadriGiorno} bande={bandeGiorno} {finestra} {adesso}
+        etichetta="Piano vasca del giorno per spazio" sotto={sottoGiorno}
+        apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
+        vuoto={gestore ? (c, m) => {
+          const spazio = colonneGiorno[c]?.chiave;
+          pannello = { tipo: 'evento', evento: null, data: giorno, inizio: hhmm(m), spazio: spazio === 'altro' ? '' : spazio };
+          messaggio = '';
+        } : undefined} />
+    {:else if schermo.larga}
+      <!-- Settimana: una riga per fascia, una colonna per giorno; in ogni casella i corsi di quella fascia -->
+      <div class="card tabella-sett">
+        <table>
+          <thead>
+            <tr><th class="col-fascia">Fascia</th>
+              {#each giorni as g, n (g)}
+                {@const ch = occorrenze.find((o) => o.data === g && o.categoria === 'CHIUSURA' && o.stato !== 'ANNULLATO')}
+                <th class:oggi={g === oggi}>{colonneGiorni([g])[0].etichetta} {colonneGiorni([g])[0].numero}{#if ch}<span class="tag t-altro chiuso" title={ch.titolo}>chiuso</span>{/if}</th>
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
+            {#each fasceSettimana.fasce as f (f.chiave)}
+              <tr>
+                <th class="col-fascia m">{orarioFascia(f)}</th>
+                {#each giorni as g (g)}
+                  {@const qui = occorrenze.filter((o) => o.data === g && fasceSettimana.fasciaDi.get(o.chiave) === f.chiave).sort(perCorsia)}
+                  <td class:oggi={g === oggi}>
+                    {#if qui.length}
+                      <button class="cella" onclick={() => ((pannello = { tipo: 'fascia', data: g, fascia: f }), (messaggio = ''))}
+                              aria-label="{giornoEsteso(g)}, {orarioFascia(f)}: apri la vasca">
+                        {#each qui as o (o.chiave)}
+                          <span class="corso-cella {colore(o.categoria)}" class:spento={!inAttivita(o)} class:conflitto={o.conflitti.length > 0}>
+                            <span class="pallino" style={o.colore ? `background: ${o.colore}` : ''}></span>
+                            <span class="nome-c">{o.titolo}</span>
+                            <span class="dove-c muted">{etichettaCorta(o)}</span>
+                          </span>
+                        {/each}
+                      </button>
+                    {/if}
+                  </td>
+                {/each}
+              </tr>
+            {:else}
+              <tr><td colspan="8" class="muted">{caricamento ? '' : 'Niente in programma questa settimana.'}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     {:else}
-      {#each vista === 'giorno' ? [giorno] : giorni as g (g)}
-        {@const lista = occorrenze.filter((o) => o.data === g)}
+      {#each giorni as g (g)}
+        {@const delG = occorrenze.filter((o) => o.data === g)}
+        {@const fg = raggruppaFasce(delG)}
         <div class="giorno-ag">
-          {#if vista === 'settimana'}<h2 class="lbl" class:oggi={g === oggi}>{giornoEsteso(g)}{g === oggi ? ' · oggi' : ''}</h2>{/if}
-          {#each lista as o (o.chiave)}
-            <button class="card voce-ag {colore(o.categoria)}" class:spenta={!inAttivita(o)} class:conflitto={o.conflitti.length > 0}
-                    onclick={() => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}>
-              <span class="m orario">{o.categoria === 'CHIUSURA' && ora(o.inizio) === '00:00' ? 'tutto il giorno' : `${ora(o.inizio)}–${ora(o.fine)}`}</span>
-              <span class="corpo">
-                <span class="tit">{o.titolo}</span>
-                <span class="muted small">{STATI[o.stato] || etichettaSpazi(o.spazi, spazi)}{o.istruttore && inAttivita(o) ? ` · ${o.istruttore.nome}` : ''}</span>
+          <h2 class="lbl" class:oggi={g === oggi}>{giornoEsteso(g)}{g === oggi ? ' · oggi' : ''}</h2>
+          {#each fg.fasce as f (f.chiave)}
+            {@const qui = delG.filter((o) => fg.fasciaDi.get(o.chiave) === f.chiave).sort(perCorsia)}
+            <button class="card fascia-sett" onclick={() => (pannello = { tipo: 'fascia', data: g, fascia: f })}>
+              <span class="m orario-f">{orarioFascia(f)}</span>
+              <span class="nomi">
+                {#each qui as o (o.chiave)}<span class="nome-chip {colore(o.categoria)}" class:spento={!inAttivita(o)}><span class="pallino" style={o.colore ? `background: ${o.colore}` : ''}></span>{o.titolo}</span>{/each}
               </span>
-              {#if o.conflitti.length}<span class="avviso-ico" aria-label="si sovrappone"></span>{/if}
             </button>
           {:else}
-            <p class="muted small nomargin">{caricamento ? '' : 'Niente in programma.'}</p>
+            <p class="muted small nomargin">{delG.some((o) => o.categoria === 'CHIUSURA') ? 'Chiuso' : 'Niente in programma.'}</p>
           {/each}
         </div>
       {/each}
@@ -238,6 +361,13 @@
   <Foglio titolo="Salta o sposta · {pannello.o.titolo}" chiudi={() => (pannello = null)}>
     <EccezioneForm occorrenza={pannello.o} {fatto} />
   </Foglio>
+{:else if pannello?.tipo === 'fascia'}
+  {@const p = pannello}
+  {@const delG = occorrenze.filter((o) => o.data === p.data)}
+  <Foglio titolo="{giornoEsteso(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
+    <PiantaVasche {spazi} occorrenze={inFascia(p.fascia, delG, fasceSettimana.fasciaDi)} fascia={p.fascia} compatta
+      apri={(o) => (pannello = { tipo: 'dettaglio', o })} />
+  </Foglio>
 {:else if pannello?.tipo === 'evento' && piano}
   <Foglio titolo={pannello.evento ? 'Modifica evento' : 'Nuovo evento'} chiudi={() => (pannello = null)}>
     <EventoForm evento={pannello.evento} impiantoId={pannello.evento?.impiantoId ?? piano.impiantiGestiti[0]} {spazi} {personale}
@@ -252,7 +382,7 @@
   .nav { display: flex; align-items: center; gap: var(--space-8); }
   .nav .icon-btn { font-size: 22px; }
   .quando { font-size: var(--text-xl); font-weight: 800; min-width: 200px; text-align: center; }
-  .legenda { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); flex: 1; justify-content: flex-end; }
+  .legenda { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-14); margin-top: calc(-1 * var(--space-6)); }
   .voce-leg { display: inline-flex; align-items: center; gap: var(--space-6); font-size: var(--text-xs); color: var(--muted); }
   .compatto { height: 40px; font-size: var(--text-md); padding: 0 var(--space-14); }
   .sovr { display: flex; align-items: center; gap: var(--space-6); }
@@ -264,17 +394,48 @@
     .quando { min-width: 0; font-size: var(--text-lg); }
     .barra .btn { width: 100%; }
   }
+  .modo { width: 260px; }
+  .chiusura-g { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); border: 1px dashed var(--line-dashed); font-weight: 700; color: var(--muted);
+    background: repeating-linear-gradient(135deg, var(--surface-sunken) 0 8px, transparent 8px 16px); }
+  .giorno-fasce { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--space-20); align-items: start; }
+  .fasce { display: flex; flex-direction: column; padding: var(--space-6); position: sticky; top: var(--space-16); max-height: calc(100vh - 200px); overflow-y: auto; }
+  .fascia { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-8) var(--space-10); border: none; border-radius: var(--radius-sm); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .fascia:hover { background: var(--carta); }
+  .fascia.on { background: var(--cloro-soft); color: var(--cloro-ink); }
+  .orario-f { font-weight: 600; font-size: var(--text-md); }
+  .pallini { display: flex; gap: 3px; flex-wrap: wrap; }
+  .pallini .pallino { width: 9px; height: 9px; }
+  .dettaglio-fascia { display: flex; flex-direction: column; gap: var(--space-12); max-width: 980px; }
+  .testa-fascia { display: flex; align-items: center; gap: var(--space-10); }
+  .testa-fascia h2 { margin: 0; font-size: var(--text-2xl); font-weight: 800; min-width: 150px; text-align: center; }
+  .testa-fascia .icon-btn { font-size: 20px; }
+  .fascia-tel { padding: var(--space-10) var(--space-12); }
+  .fascia-tel summary { display: flex; align-items: baseline; gap: var(--space-10); cursor: pointer; list-style: none; }
+  .fascia-tel summary::-webkit-details-marker { display: none; }
+  .fascia-tel[open] summary { margin-bottom: var(--space-12); }
+  .nomi { font-size: var(--text-sm); color: var(--muted); min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-8); }
+  .fascia-tel .nomi { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .fascia-sett { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-6); width: 100%; padding: var(--space-10) var(--space-12); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .nome-chip { display: inline-flex; align-items: center; gap: var(--space-4); color: var(--ink); }
+  .tabella-sett { overflow: auto; max-height: calc(100vh - 200px); }
+  .tabella-sett table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 1000px; }
+  .tabella-sett th { position: sticky; top: 0; z-index: 2; background: var(--surface); text-align: left; font-size: var(--text-sm); padding: var(--space-8) var(--space-10); border-bottom: 1px solid var(--line); }
+  .tabella-sett th.oggi { color: var(--cloro); }
+  .tabella-sett tbody th { position: sticky; left: 0; z-index: 1; font-size: var(--text-sm); vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  .col-fascia { width: 108px; }
+  .tabella-sett td { vertical-align: top; padding: var(--space-4); border-bottom: 1px solid var(--line-soft); border-left: 1px solid var(--line-soft); }
+  .tabella-sett td.oggi { background: color-mix(in srgb, var(--cloro-soft) 30%, transparent); }
+  .chiuso { height: 18px; margin-left: var(--space-6); }
+  .cella { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--space-4); border: 1px solid transparent; border-radius: var(--radius-xs); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .cella:hover { border-color: var(--line-strong); background: var(--surface); }
+  .corso-cella { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: var(--space-6); font-size: var(--text-xs); line-height: 1.3; }
+  .corso-cella .pallino { width: 8px; height: 8px; }
+  .nome-c { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dove-c { font-family: var(--font-mono); font-size: var(--text-2xs); white-space: nowrap; }
+  .corso-cella.spento { opacity: 0.5; }
+  .corso-cella.spento .nome-c { text-decoration: line-through; }
+  .corso-cella.conflitto .nome-c { color: var(--danger); }
   .giorno-ag { display: flex; flex-direction: column; gap: var(--space-6); }
   .giorno-ag h2 { margin: 0; }
   .giorno-ag h2.oggi { color: var(--cloro); }
-  .voce-ag {
-    display: flex; align-items: center; gap: var(--space-12); width: 100%; min-height: 56px; padding: var(--space-8) var(--space-12);
-    border-left: 4px solid var(--c-line); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
-  }
-  .voce-ag .orario { font-size: var(--text-sm); flex-shrink: 0; min-width: 92px; }
-  .corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .tit { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .spenta { opacity: 0.6; }
-  .spenta .tit { text-decoration: line-through; }
-  .conflitto { box-shadow: inset 0 0 0 1px var(--danger); }
 </style>

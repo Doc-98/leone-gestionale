@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Occorrenza, SpazioPiano } from './api';
-import { colonneSpazi, disponi, etichettaSpazi, finestraOraria, intervalliColonne } from './piano';
+import { colonneSpazi, disponi, etichettaSpazi, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce } from './piano';
 
-const sp = (id: string, nome: string, tipo: string, padreId: string | null = null): SpazioPiano => ({ id, impiantoId: 'i', nome, tipo, padreId });
+const sp = (id: string, nome: string, tipo: string, padreId: string | null = null): SpazioPiano => ({ id, impiantoId: 'i', nome, tipo, padreId, assetto: null });
 const SPAZI = [
   sp('vg', 'Vasca grande', 'VASCA'),
   sp('vp', 'Vasca piccola', 'VASCA'),
@@ -13,7 +13,7 @@ const SPAZI = [
 ];
 
 const occ = (inizio: string, fine: string, extra: Partial<Occorrenza> = {}): Occorrenza => ({
-  chiave: inizio + fine, tipo: 'LEZIONE', categoria: 'SCUOLA_NUOTO', titolo: 't', dettaglio: null, data: '2026-10-19', inizio, fine,
+  chiave: inizio + fine, tipo: 'LEZIONE', categoria: 'SCUOLA_NUOTO', colore: null, titolo: 't', dettaglio: null, data: '2026-10-19', inizio, fine,
   spazi: [], istruttore: null, stato: 'REGOLARE', nota: null, lezioneId: null, corsoId: null, eventoId: null, eccezioneId: null,
   dataOriginale: null, conflitti: [], ...extra,
 });
@@ -56,5 +56,61 @@ describe('disposizione', () => {
   it('la finestra oraria si allarga alle ore intere, ignorando le chiusure', () => {
     expect(finestraOraria([occ('07:30', '09:00'), occ('20:00', '21:15'), occ('00:00', '23:59', { categoria: 'CHIUSURA' })])).toEqual([7 * 60, 22 * 60]);
     expect(finestraOraria([])).toEqual([8 * 60, 21 * 60]);
+  });
+});
+
+describe('fasce e pianta', () => {
+  const SP: SpazioPiano[] = [
+    { ...sp('vg', 'Vasca grande', 'VASCA') , assetto: null },
+    { ...sp('vp', 'Vasca piccola', 'VASCA'), assetto: null },
+    ...[1, 2, 3, 4, 5, 6].map((n) => ({ ...sp(`c${n}`, `Corsia ${n}`, 'CORSIA', 'vg'), assetto: 6 })),
+    ...[1, 2, 3, 4, 5].map((n) => ({ ...sp(`q${n}`, `Corsia ${n}`, 'CORSIA', 'vg'), assetto: 5 })),
+  ];
+  const l = (k: string, inizio: string, fine: string, spazi: string[], extra: Partial<Occorrenza> = {}) => occ(inizio, fine, { chiave: k, titolo: k, spazi, ...extra });
+
+  it('vasca piccola sfalsata nella stessa fascia della grande; le attività lunghe nella fascia in cui iniziano', () => {
+    const lista = [
+      l('giallo', '17:00', '17:45', ['c3']), l('verde', '17:00', '17:45', ['c4']), l('amb', '16:55', '17:35', ['vp']),
+      l('amb2', '17:40', '18:20', ['vp']), l('nero', '17:50', '18:35', ['c6']),
+      l('libero', '17:00', '19:00', ['c5', 'c6']),
+    ];
+    const { fasce, fasciaDi } = raggruppaFasce(lista);
+    expect(fasce.map((f) => f.chiave)).toEqual(['17:00–17:45', '17:50–18:35']);
+    expect(fasciaDi.get('amb')).toBe('17:00–17:45');
+    expect(fasciaDi.get('amb2')).toBe('17:50–18:35');
+    expect(fasciaDi.get('libero')).toBe('17:00–17:45');
+    // il nuoto libero si vede anche nella fascia dopo
+    expect(inFascia(fasce[1], lista, fasciaDi).map((o) => o.chiave).sort()).toEqual(['amb2', 'libero', 'nero']);
+  });
+
+  it('un\'attività lunga che inizia fuori dalle fasce ne fa una sua, e si vede anche in quelle che attraversa', () => {
+    const lista = [l('libero', '07:00', '10:20', ['c5']), l('baby', '08:50', '09:20', ['vp']), l('prop', '14:30', '16:00', ['q1']), l('stella', '15:20', '16:05', ['q3'])];
+    const { fasce, fasciaDi } = raggruppaFasce(lista);
+    expect(fasce.map((f) => f.chiave)).toEqual(['07:00–10:20', '08:50–09:20', '14:30–16:00', '15:20–16:05']);
+    expect(inFascia(fasce[1], lista, fasciaDi).map((o) => o.chiave).sort()).toEqual(['baby', 'libero']);
+    expect(inFascia(fasce[3], lista, fasciaDi).map((o) => o.chiave).sort()).toEqual(['prop', 'stella']);
+  });
+
+  it('pianta: assetto in uso, corsie libere, vasca intera, più corsie, assetti misti', () => {
+    const sei = pianta(SP, [l('giallo', '17:00', '17:45', ['c3']), l('master', '18:40', '19:25', ['c4', 'c5']), l('amb', '16:55', '17:35', ['vp'])]);
+    const vg = sei.vasche.find((v) => v.id === 'vg')!;
+    expect(vg.assetto).toBe(6);
+    expect(vg.corsie).toHaveLength(6);
+    expect(vg.pezzi.map((p) => [p.occorrenza.chiave, p.da, p.quante])).toEqual([['giallo', 2, 1], ['master', 3, 2]]);
+    expect(sei.vasche.find((v) => v.id === 'vp')!.pezzi).toHaveLength(1);
+
+    const cinque = pianta(SP, [l('prop', '14:30', '16:00', ['q1', 'q2'])]).vasche.find((v) => v.id === 'vg')!;
+    expect([cinque.assetto, cinque.corsie.length, cinque.assettiMisti]).toEqual([5, 5, false]);
+
+    const intera = pianta(SP, [l('libero', '08:00', '09:00', ['vg'])]).vasche.find((v) => v.id === 'vg')!;
+    expect(intera.pezzi[0]).toMatchObject({ da: 0, quante: 6 });
+
+    const misti = pianta(SP, [l('a', '17:00', '17:45', ['c2']), l('b', '17:00', '17:45', ['q2'])]).vasche.find((v) => v.id === 'vg')!;
+    expect(misti.assettiMisti).toBe(true);
+    expect(misti.pezzi.map((p) => p.colonne)).toEqual([2, 2]);
+  });
+
+  it('senza spazio: «altrove»', () => {
+    expect(pianta(SP, [l('privata', '17:00', '17:45', [])]).altrove.map((o) => o.chiave)).toEqual(['privata']);
   });
 });

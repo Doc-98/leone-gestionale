@@ -190,3 +190,170 @@ export function eta(da: number | null, a: number | null): string | null {
   if (da == null) return `fino a ${a} anni`;
   return `${da}–${a} anni`;
 }
+
+// ── Fasce ──────────────────────────────────────────────────────────────────
+
+/**
+ * Oltre questa durata un'attività (es. nuoto libero 7:00–10:20, Propaganda da 90 minuti) non fa fascia:
+ * compare in tutte le fasce che attraversa.
+ */
+export const DURATA_FASCIA_MAX = 60;
+
+export interface Fascia {
+  chiave: string;
+  /** orario della fascia: quello delle lezioni più numerose del gruppo */
+  inizio: number;
+  fine: number;
+}
+
+const sovrapposizione = (a: [number, number], b: [number, number]) => Math.max(0, Math.min(a[1], b[1]) - Math.max(a[0], b[0]));
+const etichettaFascia = (i: number, f: number) => `${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}–${String(Math.floor(f / 60)).padStart(2, '0')}:${String(f % 60).padStart(2, '0')}`;
+export const orarioFascia = (f: Fascia) => etichettaFascia(f.inizio, f.fine);
+
+/**
+ * Le fasce di un insieme di attività (un giorno o una settimana, le date non contano): orari che si
+ * sovrappongono per almeno metà della lezione più corta finiscono nella stessa fascia (es. vasca piccola
+ * 16:55–17:35 con vasca grande 17:00–17:45). Restituisce le fasce e, per ogni attività, la sua fascia.
+ */
+export function raggruppaFasce(occ: Occorrenza[]): { fasce: Fascia[]; fasciaDi: Map<string, string> } {
+  const attivita = occ.filter((o) => o.categoria !== 'CHIUSURA');
+  const brevi = attivita.filter((o) => minuti(o.fine) - minuti(o.inizio) <= DURATA_FASCIA_MAX);
+  // coppie di orario distinte, con quante attività le usano
+  const coppie = new Map<string, { i: number; f: number; n: number }>();
+  for (const o of brevi) {
+    const k = `${minuti(o.inizio)}-${minuti(o.fine)}`;
+    const c = coppie.get(k) ?? { i: minuti(o.inizio), f: minuti(o.fine), n: 0 };
+    c.n++;
+    coppie.set(k, c);
+  }
+  const ordinate = [...coppie.values()].sort((a, b) => a.i - b.i || a.f - b.f);
+  const gruppi: { ancora: { i: number; f: number; n: number }; membri: Set<string> }[] = [];
+  for (const c of ordinate) {
+    const g = gruppi[gruppi.length - 1];
+    const minima = Math.min(c.f - c.i, g ? g.ancora.f - g.ancora.i : Infinity);
+    if (g && sovrapposizione([c.i, c.f], [g.ancora.i, g.ancora.f]) * 2 >= minima) {
+      g.membri.add(`${c.i}-${c.f}`);
+      // l'orario della fascia è quello più usato; a parità, quello della lezione più lunga (la vasca grande)
+      if (c.n > g.ancora.n || (c.n === g.ancora.n && c.f - c.i > g.ancora.f - g.ancora.i)) g.ancora = c;
+    } else gruppi.push({ ancora: c, membri: new Set([`${c.i}-${c.f}`]) });
+  }
+  const fasce: Fascia[] = gruppi.map((g) => ({ chiave: etichettaFascia(g.ancora.i, g.ancora.f), inizio: g.ancora.i, fine: g.ancora.f }));
+  const perCoppia = new Map<string, string>();
+  gruppi.forEach((g, n) => g.membri.forEach((m) => perCoppia.set(m, fasce[n].chiave)));
+
+  const fasciaDi = new Map<string, string>();
+  for (const o of brevi) fasciaDi.set(o.chiave, perCoppia.get(`${minuti(o.inizio)}-${minuti(o.fine)}`)!);
+  // le attività lunghe stanno nella fascia in cui cominciano; se nessuna, ne fanno una loro
+  for (const o of attivita) {
+    if (fasciaDi.has(o.chiave)) continue;
+    const i = minuti(o.inizio);
+    const f = minuti(o.fine);
+    let dove = fasce.find((x) => i >= x.inizio && i < x.fine);
+    if (!dove) {
+      dove = { chiave: etichettaFascia(i, f), inizio: i, fine: f };
+      if (!fasce.some((x) => x.chiave === dove!.chiave)) fasce.push(dove);
+    }
+    fasciaDi.set(o.chiave, dove.chiave);
+  }
+  fasce.sort((a, b) => a.inizio - b.inizio || a.fine - b.fine);
+  return { fasce, fasciaDi };
+}
+
+/** Cosa c'è in vasca durante la fascia: le attività della fascia e quelle lunghe che la attraversano. */
+export function inFascia(f: Fascia, occ: Occorrenza[], fasciaDi: Map<string, string>): Occorrenza[] {
+  return occ.filter((o) => {
+    if (o.categoria === 'CHIUSURA') return sovrapposizione([minuti(o.inizio), minuti(o.fine)], [f.inizio, f.fine]) > 0;
+    if (fasciaDi.get(o.chiave) === f.chiave) return true;
+    const lunga = minuti(o.fine) - minuti(o.inizio) > DURATA_FASCIA_MAX;
+    return lunga && sovrapposizione([minuti(o.inizio), minuti(o.fine)], [f.inizio, f.fine]) > 0;
+  });
+}
+
+// ── Pianta della vasca ─────────────────────────────────────────────────────
+
+export interface CorsiaPianta {
+  id: string;
+  numero: number;
+  nome: string;
+}
+
+export interface PezzoPianta {
+  occorrenza: Occorrenza;
+  /** prima corsia (0 = corsia 1) e quante corsie occupa */
+  da: number;
+  quante: number;
+  /** colonna, quando più attività si dividono la stessa corsia */
+  colonna: number;
+  colonne: number;
+}
+
+export interface VascaPianta {
+  id: string;
+  nome: string;
+  /** assetto in uso (numero di corsie); null per le vasche senza corsie */
+  assetto: number | null;
+  /** nella fascia ci sono corsie di assetti diversi */
+  assettiMisti: boolean;
+  corsie: CorsiaPianta[];
+  pezzi: PezzoPianta[];
+}
+
+/**
+ * Le vasche come si vedono dall'alto in quella fascia: per ogni vasca l'assetto in uso (quello delle corsie
+ * occupate, altrimenti il più fitto), le corsie e le attività su ciascuna. Una vasca intera occupa tutte le corsie.
+ */
+export function pianta(spazi: SpazioPiano[], occ: Occorrenza[]): { vasche: VascaPianta[]; altrove: Occorrenza[] } {
+  const attivita = occ.filter((o) => o.categoria !== 'CHIUSURA');
+  const vasche = spazi.filter((s) => !s.padreId && (s.tipo === 'VASCA' || s.tipo === 'CORSIA'));
+  const usate = new Set<string>();
+  const out: VascaPianta[] = [];
+  for (const v of vasche) {
+    const corsieTutte = spazi.filter((s) => s.padreId === v.id);
+    const qui = attivita.filter((o) => o.spazi.includes(v.id) || o.spazi.some((id) => corsieTutte.some((c) => c.id === id)));
+    qui.forEach((o) => usate.add(o.chiave));
+    if (!corsieTutte.length) {
+      out.push({ id: v.id, nome: v.nome, assetto: null, assettiMisti: false, corsie: [], pezzi: qui.map((o, i) => ({ occorrenza: o, da: 0, quante: 1, colonna: i, colonne: qui.length })) });
+      continue;
+    }
+    const assettiUsati = new Set(qui.flatMap((o) => o.spazi.map((id) => corsieTutte.find((c) => c.id === id)?.assetto).filter((a): a is number => a != null)));
+    const disponibili = [...new Set(corsieTutte.map((c) => c.assetto ?? 0))].sort((a, b) => b - a);
+    const assetto = assettiUsati.size ? Math.max(...assettiUsati) : disponibili[0];
+    const corsie = corsieTutte
+      .filter((c) => (c.assetto ?? 0) === assetto)
+      .map((c) => ({ id: c.id, nome: c.nome, numero: Number(/(\d+)\s*$/.exec(c.nome)?.[1] ?? 0) }))
+      .sort((a, b) => a.numero - b.numero);
+    // pezzi: tratti contigui di corsie; le corsie dell'altro assetto si riportano per numero
+    const grezzi: { occorrenza: Occorrenza; da: number; quante: number }[] = [];
+    for (const o of qui) {
+      const indici = o.spazi.includes(v.id)
+        ? corsie.map((_, i) => i)
+        : o.spazi.map((id) => {
+            const c = corsieTutte.find((x) => x.id === id);
+            return c ? corsie.findIndex((x) => x.numero === Number(/(\d+)\s*$/.exec(c.nome)?.[1] ?? -1)) : -1;
+          }).filter((i) => i >= 0).sort((a, b) => a - b);
+      let inizio = -1;
+      indici.forEach((x, n) => {
+        if (inizio < 0) inizio = x;
+        if (indici[n + 1] !== x + 1) {
+          grezzi.push({ occorrenza: o, da: inizio, quante: x - inizio + 1 });
+          inizio = -1;
+        }
+      });
+    }
+    // colonne: chi condivide corsie si mette accanto
+    const pezzi: PezzoPianta[] = [];
+    for (const g of grezzi.sort((a, b) => a.da - b.da || minuti(a.occorrenza.inizio) - minuti(b.occorrenza.inizio))) {
+      const tocca = (p: PezzoPianta) => p.da < g.da + g.quante && g.da < p.da + p.quante;
+      const occupate = new Set(pezzi.filter(tocca).map((p) => p.colonna));
+      let colonna = 0;
+      while (occupate.has(colonna)) colonna++;
+      pezzi.push({ ...g, colonna, colonne: 1 });
+    }
+    for (const p of pezzi) {
+      const vicini = pezzi.filter((q) => q.da < p.da + p.quante && p.da < q.da + q.quante);
+      p.colonne = Math.max(...vicini.map((q) => q.colonna)) + 1;
+    }
+    out.push({ id: v.id, nome: v.nome, assetto, assettiMisti: assettiUsati.size > 1, corsie, pezzi });
+  }
+  return { vasche: out, altrove: attivita.filter((o) => !usate.has(o.chiave)) };
+}

@@ -19,6 +19,9 @@
   let istruttoreId = $state(c?.istruttore?.id ?? '');
   let note = $state(c?.note ?? '');
   let attivo = $state(c?.attivo ?? true);
+  let colore = $state(c?.colore ?? '');
+  // Colori dei livelli più comuni (Delfino Giallo, Verde, Azzurro, Rosso, Nero…) e qualche altro
+  const COLORI = ['#E07A5F', '#E6B400', '#2E9E5B', '#2F8FD8', '#D23B3B', '#2B2B2B', '#5B6C7D', '#8E5BB5', '#E57BB0', '#1FA3A3'];
   let errore = $state('');
   let lavoro = $state(false);
 
@@ -29,7 +32,7 @@
     errore = '';
     lavoro = true;
     const dati = { impiantoId: c?.impiantoId ?? impiantoId, nome, tipo, livello: livello || null, etaDa: numero(etaDa), etaA: numero(etaA),
-      istruttoreId: istruttoreId || null, note: note || null, attivo };
+      istruttoreId: istruttoreId || null, note: note || null, attivo, colore: colore || null };
     try {
       const salvato = corso ? await api.modificaCorso(corso.id, dati) : await api.creaCorso(dati);
       fatto(salvato, corso ? 'Corso aggiornato.' : 'Corso creato: ora aggiungi le lezioni.');
@@ -59,6 +62,16 @@
       {#each personale as p (p.id)}<option value={p.id}>{p.nome}</option>{/each}
     </select>
   </label>
+  <div class="field">
+    <span class="lbl">Colore del livello (facoltativo)</span>
+    <div class="colori" role="radiogroup" aria-label="Colore">
+      <button type="button" class="col nessuno" role="radio" aria-checked={!colore} aria-label="Nessun colore" onclick={() => (colore = '')}>—</button>
+      {#each COLORI as c (c)}
+        <button type="button" class="col" role="radio" aria-checked={colore.toUpperCase() === c} aria-label={c} style="background: {c}" onclick={() => (colore = c)}></button>
+      {/each}
+      <input class="inp m hex" bind:value={colore} maxlength="7" placeholder="#RRGGBB" aria-label="Colore in esadecimale" />
+    </div>
+  </div>
   <label class="field"><span class="lbl">Note (facoltative)</span><input class="inp" bind:value={note} maxlength="500" /></label>
   {#if corso}
     <label class="riga-switch">
@@ -73,4 +86,8 @@
 <style>
   .form { display: flex; flex-direction: column; gap: var(--space-14); }
   select.inp { appearance: auto; }
+  .colori { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+  .col { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line-strong); cursor: pointer; padding: 0; color: var(--muted); background: var(--surface); }
+  .col[aria-checked='true'] { box-shadow: 0 0 0 3px var(--cloro); }
+  .hex { width: 110px; height: 36px; font-size: var(--text-sm); }
 </style>

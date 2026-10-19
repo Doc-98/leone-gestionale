@@ -176,9 +176,11 @@ erDiagram
 - Riepilogo mensile e foglio ore: calcolati dai turni (vista o query), esportabili.
 
 **Piano vasca**
-- `spazio.padre_id`: le corsie stanno dentro la loro vasca.
+- `spazio.padre_id`: le corsie stanno dentro la loro vasca; `spazio.assetto`: in quante corsie è divisa la vasca
+  per quella corsia (5 o 6). Vasche: grande da 25 m e piccola calda (da confermare se la «vasca bassa
+  riscaldata» del sito è la stessa).
 - `corso`: tipo (scuola nuoto, acquaticità, agonismo, master, acquagym, curricolare, nuoto libero), livello,
-  fascia d'età, istruttore, attivo.
+  fascia d'età, istruttore, colore del livello, attivo.
 - `lezione` + `lezione_spazio`: ogni settimana nel giorno indicato, con orario e periodo di validità, su uno o
   più spazi; istruttore facoltativo se diverso da quello del corso.
 - `lezione_eccezione`: in una data la lezione è saltata o spostata (nuovo giorno e orario), con un motivo.
@@ -207,7 +209,8 @@ erDiagram
    modello Excel della società. Versione PC (griglia, menu laterale) e programma per Windows con Tauri.
    *(fatto — vedi ADR 0005 e 0006)*
 2. **Piano vasca** – corsi con lezioni ricorrenti (salti e spostamenti), eventi e chiusure, corsie dentro le
-   vasche; vista giorno (spazi × ore) e settimana, agenda sul telefono; sovrapposizioni segnalate. *(fatto — vedi ADR 0007)*
+   vasche con assetto a 5 o 6 corsie; giorno per fasce con la pianta delle vasche, settimana fasce × giorni,
+   griglia oraria come alternativa; sovrapposizioni segnalate. *(fatto — vedi ADR 0007)*
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
    Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice

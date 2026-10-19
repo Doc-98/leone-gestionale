@@ -111,7 +111,7 @@
           {#each visibili as c (c.id)}
             <tr class:spento={!c.attivo} onclick={() => ((pannello = { tipo: 'corso', corso: c }), (messaggio = ''))}>
               <td><div class="nome">{c.nome}</div><div class="muted small">{[c.livello, eta(c.etaDa, c.etaA)].filter(Boolean).join(' · ') || '—'}</div></td>
-              <td><span class="tipo {colore(c.tipo)}"><span class="pallino"></span>{TIPI_CORSO[c.tipo]}</span></td>
+              <td><span class="tipo {colore(c.tipo)}"><span class="pallino" style={c.colore ? `background: ${c.colore}` : ''}></span>{TIPI_CORSO[c.tipo]}</span></td>
               <td>{c.istruttore?.nome ?? '—'}</td>
               <td>
                 <div class="lezioni">
