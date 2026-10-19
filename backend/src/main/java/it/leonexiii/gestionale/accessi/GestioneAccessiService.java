@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class GestioneAccessiService {
 
-    record BraccialettoDto(UUID id, String codice, String stato, Instant statoDal, Instant assegnatoIl, String note, boolean bannato) {}
+    record BraccialettoDto(UUID id, String codice, String decimale, String stato, Instant statoDal, Instant assegnatoIl, String note, boolean bannato) {}
 
     record BloccoDto(UUID id, UUID personaId, UUID braccialettoId, String codice, String motivo, LocalDate dal, LocalDate al, Instant revocatoIl, boolean attivo) {}
 
@@ -82,7 +82,7 @@ class GestioneAccessiService {
         Map<UUID, String> codici = suoi.stream().collect(Collectors.toMap(Braccialetto::getId, Braccialetto::getCodice));
         List<Blocco> ban = blocchi.diPersonaOBraccialetti(personaId, codici.isEmpty() ? List.of(UUID.randomUUID()) : codici.keySet());
         Set<UUID> bannati = ban.stream().filter(b -> b.attivoIl(oggi) && b.getBraccialettoId() != null).map(Blocco::getBraccialettoId).collect(Collectors.toSet());
-        var bdto = suoi.stream().map(b -> new BraccialettoDto(b.getId(), b.getCodice(), b.stato().name(), b.getStatoDal(), b.getAssegnatoIl(), b.getNote(),
+        var bdto = suoi.stream().map(b -> new BraccialettoDto(b.getId(), b.getCodice(), Codici.decimale(b.getCodice()), b.stato().name(), b.getStatoDal(), b.getAssegnatoIl(), b.getNote(),
             bannati.contains(b.getId()))).toList();
         var ldto = ban.stream().map(b -> new BloccoDto(b.getId(), b.getPersonaId(), b.getBraccialettoId(),
             b.getBraccialettoId() == null ? null : codici.get(b.getBraccialettoId()), b.getMotivo(), b.getDal(), b.getAl(), b.getRevocatoIl(), b.attivoIl(oggi))).toList();
@@ -127,7 +127,7 @@ class GestioneAccessiService {
         String note = in.note() == null || in.note().isBlank() ? null : in.note().strip();
         if (note != null && note.length() > 300) throw new IllegalArgumentException("Note troppo lunghe (massimo 300 caratteri).");
         Braccialetto b = braccialetti.saveAndFlush(new Braccialetto(codice, personaId, note, orologio.instant()));
-        return new BraccialettoDto(b.getId(), b.getCodice(), b.stato().name(), b.getStatoDal(), b.getAssegnatoIl(), b.getNote(), false);
+        return new BraccialettoDto(b.getId(), b.getCodice(), Codici.decimale(b.getCodice()), b.stato().name(), b.getStatoDal(), b.getAssegnatoIl(), b.getNote(), false);
     }
 
     /** ATTIVO (anche «ritrovato»), SMARRITO, DISATTIVATO. */

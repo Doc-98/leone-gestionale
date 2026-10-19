@@ -217,12 +217,21 @@ class TornelloTest {
         assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"ATTIVO\"}").statusCode()).isEqualTo(409);
         assertThat(idSecondo).isNotNull();
 
+        // lo stesso seriale in decimale a 10 cifre (gestionale attuale, lettori fissi) e in esadecimale (telefono)
+        String decimale = cliente(segr, "Decimo");
+        var dec = segr.post("/api/accessi/persone/" + decimale + "/braccialetti", "{\"codice\":\"0209345710\"}");
+        assertThat(dec.statusCode()).as(dec.body()).isEqualTo(201);
+        assertThat(json(dec).get("codice")).isEqualTo("0C7A5CAE");
+        @SuppressWarnings("unchecked") var chi = (Map<String, Object>) passa(staff, "2028-01-02T06:00", "0c:7a:5c:ae").get("persona");
+        assertThat(chi.get("nome")).isEqualTo("Decimo");
+        assertThat(segr.get("/api/accessi/persone/" + decimale).body()).contains("\"decimale\":\"0209345710\"");
+
         // sconosciuto; la scheda accessi non è per lo staff; lo storico dei passaggi sì
         assertThat(codici(passa(staff, "2028-01-02T06:00", "FFFF0000FFFF"))).containsExactly("BRACCIALETTO_SCONOSCIUTO");
         assertThat(staff.post("/api/accessi/passaggi", "{\"codice\":\"x\"}").statusCode()).isEqualTo(400);
         assertThat(staff.get("/api/accessi/persone/" + persona).statusCode()).isEqualTo(403);
         assertThat(staff.get("/api/clienti/" + persona).statusCode()).isEqualTo(403);
-        assertThat(staff.get("/api/accessi/passaggi").body()).contains("FFFF0000FFFF").contains("Bruna");
+        assertThat(staff.get("/api/accessi/passaggi?quanti=100").body()).contains("FFFF0000FFFF").contains("Bruna");
         var acc = segr.get("/api/accessi/persone/" + persona);
         assertThat(acc.statusCode()).isEqualTo(200);
         assertThat(acc.body()).contains("\"stato\":\"DISATTIVATO\"").contains("Comportamento scorretto").contains("\"adesso\"");

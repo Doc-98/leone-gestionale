@@ -3,9 +3,19 @@
  * più comuni «scrivono» il codice come una tastiera seguito da Invio, quindi basta un campo di testo.
  */
 
-/** Il codice come lo salva il server: maiuscolo, senza separatori («04:a1:b2:c3» → «04A1B2C3»). */
+/**
+ * Il codice come lo salva il server: esadecimale maiuscolo senza separatori («04:a1:b2:c3» → «04A1B2C3»). Dieci
+ * cifre sono il formato decimale del gestionale attuale e dei lettori fissi: «0209345710» → «0C7A5CAE».
+ */
 export function normalizzaCodice(grezzo: string): string {
-  return grezzo.replace(/[^0-9a-z]/gi, '').toUpperCase();
+  const c = grezzo.replace(/[^0-9a-z]/gi, '').toUpperCase();
+  if (/^[0-9]{10}$/.test(c) && Number(c) <= 0xffffffff) return Number(c).toString(16).toUpperCase().padStart(8, '0');
+  return c;
+}
+
+/** Lo stesso codice in decimale a 10 cifre, come nel gestionale attuale (solo per i seriali di 4 byte). */
+export function codiceDecimale(codice: string): string | null {
+  return /^[0-9A-F]{8}$/.test(codice) ? String(parseInt(codice, 16)).padStart(10, '0') : null;
 }
 
 export function codiceValido(codice: string): boolean {

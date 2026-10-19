@@ -601,6 +601,8 @@ export type StatoBraccialetto = 'ATTIVO' | 'SMARRITO' | 'DISATTIVATO';
 export interface Braccialetto {
   id: string;
   codice: string;
+  /** come nel gestionale attuale (decimale a 10 cifre), per i seriali di 4 byte */
+  decimale: string | null;
   stato: StatoBraccialetto;
   statoDal: string;
   assegnatoIl: string;

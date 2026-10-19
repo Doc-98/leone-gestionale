@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { codiceValido, normalizzaCodice } from './nfc';
+import { codiceDecimale, codiceValido, normalizzaCodice } from './nfc';
 
 describe('codici dei braccialetti', () => {
   it('toglie i separatori e mette in maiuscolo', () => {
@@ -10,5 +10,11 @@ describe('codici dei braccialetti', () => {
     expect(codiceValido('D0000001')).toBe(true);
     expect(codiceValido('ABC')).toBe(false);
     expect(codiceValido('')).toBe(false);
+  });
+  it('converte il decimale a 10 cifre del gestionale attuale', () => {
+    expect(normalizzaCodice('0209345710')).toBe('0C7A5CAE');
+    expect(normalizzaCodice('0c:7a:5c:ae')).toBe('0C7A5CAE');
+    expect(codiceDecimale('0C7A5CAE')).toBe('0209345710');
+    expect(normalizzaCodice('12345678')).toBe('12345678'); // otto cifre: già esadecimale
   });
 });

@@ -154,6 +154,7 @@
           <li class="riga-b" class:spento={b.stato === 'DISATTIVATO'}>
             <div class="riga-testa">
               <span class="m codice">{b.codice}</span>
+              {#if b.decimale}<span class="m muted small" title="Lo stesso codice in decimale, come nel gestionale attuale">{b.decimale}</span>{/if}
               <span class="tag {STATI[b.stato].classe}">{STATI[b.stato].nome}</span>
               {#if b.bannato}<span class="tag bannato">Bannato</span>{/if}
               <span class="muted small">dal {dataBreve(dataDi(b.statoDal))}</span>

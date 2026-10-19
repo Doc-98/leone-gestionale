@@ -13,3 +13,8 @@ il gestionale attuale salva lo stesso codice, per importare i bracciali esistent
 
 **Aggiornamento (19/10/2026).** Al tornello e in segreteria ci sono già lettori NFC fissi: restano lo strumento
 principale. La lettura dal telefono serve per comodità, lontano dalle postazioni (ADR 0009).
+
+**Formato confermato (19/10/2026).** Il gestionale attuale salva il seriale in **decimale a 10 cifre** nell'ordine di
+lettura: `0c:7a:5c:ae` → `0209345710`. Il nuovo gestionale salva l'esadecimale (`0C7A5CAE`) e converte in automatico
+un codice di dieci cifre, quindi funzionano sia il telefono sia i lettori che scrivono il decimale, e i braccialetti
+esistenti si importano senza ricodificarli. La scheda mostra anche il decimale.

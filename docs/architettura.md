@@ -240,8 +240,7 @@ erDiagram
 
 ## Domande aperte
 
-- Nome e struttura del gestionale attuale; quali dati esporta.
-- Formato del codice bracciale nel gestionale attuale.
+- Il gestionale attuale è TeamSystem Wellness (vedi `docs/gestionale-attuale.md`): quali dati esporta.
 - Altri casi in cui il tornello dà rosso (si aggiungono come nuovi controlli).
 - Cosa può mostrare il tornello fisico (verde, blu, rosso; il giallo?).
 - Hosting di produzione: probabilmente un server della società (da confermare con il loro tecnico),
