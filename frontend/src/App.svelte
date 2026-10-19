@@ -18,9 +18,10 @@
   import Tornello from './routes/Tornello.svelte';
   import Clienti from './routes/Clienti.svelte';
   import Regole from './routes/Regole.svelte';
-  import type { Ruolo } from './lib/api';
+  import Ruoli from './routes/Ruoli.svelte';
+  import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli';
   interface Sezione {
     id: Scheda;
     nome: string;
@@ -28,9 +29,8 @@
     breve?: string;
     titolo: string;
     gruppo: 'Il mio lavoro' | 'Piscina' | 'Accessi' | 'Gestione' | 'Impostazioni';
-    gestione?: boolean;
-    /** Solo per questi ruoli (al posto di «gestione»). */
-    ruoli?: Ruolo[];
+    /** Visibile a chi ha almeno uno di questi permessi; senza, a tutti. */
+    permessi?: Permesso[];
     larga?: boolean;
     icona: string;
   }
@@ -48,6 +48,7 @@
     corsi: 'M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2M8 8h6M8 12h6',
     tornello: 'M5 4h4v16H5zM15 4h4v16h-4zM9 12h6M12 9l3 3-3 3',
     clienti: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6',
+    ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
     regole: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
     tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
   };
@@ -57,15 +58,16 @@
     { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: I.richieste },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: I.ore },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: I.piano },
-    { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', gestione: true, larga: true, icona: I.corsi },
+    { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: I.corsi },
     { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: I.tornello },
-    { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', ruoli: ['ADMIN', 'COORDINATORE', 'SEGRETERIA'], larga: true, icona: I.clienti },
-    { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', gestione: true, larga: true, icona: I.pianifica },
-    { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', gestione: true, icona: I.approva },
-    { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', gestione: true, larga: true, icona: I.modelli },
-    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.postazioni },
-    { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.tariffe },
-    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.regole },
+    { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: I.clienti },
+    { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.pianifica },
+    { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: I.approva },
+    { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.modelli },
+    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.postazioni },
+    { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.tariffe },
+    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole },
+    { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', permessi: ['RUOLI'], larga: true, icona: I.ruoli },
   ];
   const ID = SEZIONI.map((s) => s.id);
 
@@ -85,8 +87,7 @@
     return () => window.removeEventListener('hashchange', f);
   });
 
-  const coordinatore = $derived(sessione.ha('ADMIN', 'COORDINATORE'));
-  const visibili = $derived(SEZIONI.filter((s) => (s.ruoli ? sessione.ha(...s.ruoli) : !s.gestione || coordinatore)));
+  const visibili = $derived(SEZIONI.filter((s) => !s.permessi || sessione.puo(...s.permessi)));
   const corrente = $derived(visibili.find((s) => s.id === scheda) ?? SEZIONI[0]);
   const gruppi = $derived(
     (['Il mio lavoro', 'Piscina', 'Accessi', 'Gestione', 'Impostazioni'] as const)
@@ -94,12 +95,13 @@
       .filter((g) => g.voci.length),
   );
   // Telefono: al massimo cinque voci in basso, le prime per il ruolo; il resto in «Altro»
-  const PRIME: Record<string, Scheda[]> = {
-    gestione: ['turni', 'piano', 'tornello', 'pianifica', 'approva'],
-    segreteria: ['turni', 'piano', 'tornello', 'clienti', 'richieste'],
-    staff: ['turni', 'richieste', 'ore', 'piano', 'tornello'],
-  };
-  const prime = $derived(PRIME[coordinatore ? 'gestione' : sessione.ha('SEGRETERIA') ? 'segreteria' : 'staff']);
+  // in ordine di importanza; lo staff senza gestione ha richieste e ore in basso
+  const ORDINE_BASSO: Scheda[] = ['turni', 'piano', 'tornello', 'clienti', 'approva', 'pianifica', 'richieste', 'ore'];
+  const prime = $derived(
+    sessione.puo('CLIENTI', 'APPROVAZIONI', 'PIANIFICAZIONE')
+      ? ORDINE_BASSO.filter((id) => visibili.some((s) => s.id === id)).slice(0, 5)
+      : (['turni', 'richieste', 'ore', 'piano', 'tornello'] as Scheda[]),
+  );
   const altre = $derived(visibili.filter((s) => !prime.includes(s.id)));
   const inBasso = $derived(
     prime.map((id) => visibili.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, altre.length ? 4 : 5),
@@ -110,10 +112,13 @@
     void scheda;
     menuAltro = false;
   });
-  const ruolo = $derived(sessione.ha('ADMIN') ? 'Admin' : sessione.ha('COORDINATORE') ? 'Coordinatore' : sessione.ha('SEGRETERIA') ? 'Segreteria' : 'Staff');
+  const NOMI_RUOLI: Record<string, string> = { ADMIN: 'Admin', COORDINATORE: 'Coordinatore', SEGRETERIA: 'Segreteria', STAFF: 'Staff' };
+  const ruolo = $derived(
+    [...new Set((sessione.utente?.ruoli ?? []).map((r) => NOMI_RUOLI[r.ruolo] ?? r.ruolo.charAt(0) + r.ruolo.slice(1).toLowerCase().replaceAll('_', ' ')))].join(' · ') || 'Nessun ruolo',
+  );
 
   $effect(() => {
-    if (coordinatore) api.richiesteDaApprovare().then((r) => (daApprovare = r.length)).catch(() => {});
+    if (sessione.puo('APPROVAZIONI')) api.richiesteDaApprovare().then((r) => (daApprovare = r.length)).catch(() => {});
   });
 
   // Sul PC: Alt + numero per passare da una sezione all'altra
@@ -200,7 +205,8 @@
         {:else if corrente.id === 'corsi'}<Corsi />
         {:else if corrente.id === 'tornello'}<Tornello />
         {:else if corrente.id === 'clienti'}<Clienti />
-        {:else if corrente.id === 'regole'}<Regole />{/if}
+        {:else if corrente.id === 'regole'}<Regole />
+        {:else if corrente.id === 'ruoli'}<Ruoli />{/if}
       {/key}
     </main>
 

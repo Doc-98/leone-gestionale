@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Impostazioni dello staff: impianti e spazi (lettura), mansioni, postazioni, tariffe. */
 @RestController
 @RequestMapping("/api/staff")
-@PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+@PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE', 'ANAGRAFICHE_STAFF')")
 class AnagraficheController {
 
     record Ordine(List<UUID> ids) {}

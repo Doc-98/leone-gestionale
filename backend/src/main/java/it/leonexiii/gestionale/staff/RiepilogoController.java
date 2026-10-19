@@ -26,7 +26,7 @@ class RiepilogoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
     RiepilogoService.Riepilogo impianti(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) String mese) {
         return service.diImpianti(utente, mese(mese));
     }
@@ -37,7 +37,7 @@ class RiepilogoController {
     }
 
     @GetMapping(value = "/csv")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
     ResponseEntity<byte[]> csv(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) String mese) {
         YearMonth m = mese(mese);
         byte[] corpo = RiepilogoService.csv(service.diImpianti(utente, m)).getBytes(StandardCharsets.UTF_8);

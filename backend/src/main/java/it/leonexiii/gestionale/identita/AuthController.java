@@ -30,17 +30,22 @@ class AuthController {
 
     record LoginRequest(@NotBlank String email, @NotBlank String password) {}
 
-    record Me(UUID accountId, UUID personaId, String email, String nome, String cognome, List<RuoloAssegnato> ruoli) {
-        static Me da(Utente u) {
-            return new Me(u.accountId(), u.personaId(), u.email(), u.nome(), u.cognome(), u.ruoli());
-        }
+    /** Chi è collegato, con i ruoli e l'unione dei permessi (l'ambito per impianto lo controlla il server). */
+    record Me(UUID accountId, UUID personaId, String email, String nome, String cognome, List<RuoloAssegnato> ruoli,
+              java.util.Set<Permesso> permessi, boolean admin) {}
+
+    private Me descrivi(Utente u) {
+        return new Me(u.accountId(), u.personaId(), u.email(), u.nome(), u.cognome(), autorizzazioni.ruoli(u), autorizzazioni.permessi(u),
+            autorizzazioni.admin(u));
     }
 
+    private final Autorizzazioni autorizzazioni;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
 
-    AuthController(AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository) {
+    AuthController(Autorizzazioni autorizzazioni, AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository) {
+        this.autorizzazioni = autorizzazioni;
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
     }
@@ -67,11 +72,11 @@ class AuthController {
         ctx.setAuthentication(auth);
         holder.setContext(ctx);
         securityContextRepository.saveContext(ctx, request, response);
-        return ResponseEntity.ok(Me.da((Utente) auth.getPrincipal()));
+        return ResponseEntity.ok(descrivi((Utente) auth.getPrincipal()));
     }
 
     @GetMapping("/me")
     Me me(@AuthenticationPrincipal Utente utente) {
-        return Me.da(utente);
+        return descrivi(utente);
     }
 }

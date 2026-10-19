@@ -21,7 +21,7 @@
   let fermaNfc: AbortController | null = null;
 
   const nfc = nfcDisponibile();
-  const vedeSchede = $derived(sessione.ha('ADMIN', 'COORDINATORE', 'SEGRETERIA'));
+  const vedeSchede = $derived(sessione.puo('CLIENTI', 'BRACCIALETTI'));
 
   async function caricaStorico() {
     try {

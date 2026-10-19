@@ -4,7 +4,7 @@ import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.PersonaBreve;
 import it.leonexiii.gestionale.identita.Persone;
-import it.leonexiii.gestionale.identita.Ruolo;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -65,7 +65,7 @@ class PianificazioneService {
     @Transactional(readOnly = true)
     List<TurnoDto> tutti(Utente u, LocalDate da, LocalDate a) {
         controllaIntervallo(da, a);
-        Set<UUID> impianti = permessi.impiantiGestiti(u);
+        Set<UUID> impianti = permessi.impianti(u, Permesso.PIANIFICAZIONE);
         if (impianti.isEmpty()) return List.of();
         List<Turno> elenco = turni.nelPeriodo(da, a, impianti);
         var nomi = persone.nomiCompleti(elenco.stream().map(Turno::getPersonaId).filter(java.util.Objects::nonNull).distinct().toList());
@@ -87,7 +87,7 @@ class PianificazioneService {
     @Transactional(readOnly = true)
     List<PersonaBreve> colleghi(Utente u) {
         var unici = new LinkedHashMap<UUID, PersonaBreve>();
-        for (UUID imp : permessi.impiantiStaff(u)) for (PersonaBreve p : persone.conRuolo(Ruolo.STAFF, imp)) unici.putIfAbsent(p.id(), p);
+        for (UUID imp : permessi.impiantiStaff(u)) for (PersonaBreve p : persone.conPermesso(Permesso.TURNI, imp)) unici.putIfAbsent(p.id(), p);
         unici.remove(u.personaId());
         return unici.values().stream().sorted(Comparator.comparing(PersonaBreve::nome)).toList();
     }
@@ -95,7 +95,7 @@ class PianificazioneService {
     @Transactional
     TurnoDto crea(Utente u, TurnoInput in) {
         Postazione p = postazione(in.postazioneId());
-        permessi.richiediGestione(u, p.getMansione().getImpiantoId());
+        permessi.richiedi(u, Permesso.PIANIFICAZIONE, p.getMansione().getImpiantoId());
         controllaPersona(in.personaId(), p.getMansione().getImpiantoId());
         controllaSovrapposizione(in.personaId(), in.data(), in.inizio(), in.fine(), TurnoRepository.NESSUNO);
         Turno t = turni.saveAndFlush(new Turno(p, in.data(), in.inizio(), in.fine(), in.personaId(), in.note(), null));
@@ -105,10 +105,10 @@ class PianificazioneService {
     @Transactional
     TurnoDto modifica(Utente u, UUID id, TurnoInput in) {
         Turno t = turno(id);
-        permessi.richiediGestione(u, t.impiantoId());
+        permessi.richiedi(u, Permesso.PIANIFICAZIONE, t.impiantoId());
         if (!t.pianificato()) throw new Conflitto("Il turno è annullato: non si può modificare.");
         Postazione p = in.postazioneId() == null ? t.getPostazione() : postazione(in.postazioneId());
-        permessi.richiediGestione(u, p.getMansione().getImpiantoId());
+        permessi.richiedi(u, Permesso.PIANIFICAZIONE, p.getMansione().getImpiantoId());
         controllaPersona(in.personaId(), p.getMansione().getImpiantoId());
         controllaSovrapposizione(in.personaId(), in.data(), in.inizio(), in.fine(), t.getId());
         t.modifica(p, in.data(), in.inizio(), in.fine(), in.personaId(), in.note());
@@ -119,14 +119,14 @@ class PianificazioneService {
     @Transactional
     TurnoDto annulla(Utente u, UUID id) {
         Turno t = turno(id);
-        permessi.richiediGestione(u, t.impiantoId());
+        permessi.richiedi(u, Permesso.PIANIFICAZIONE, t.impiantoId());
         t.annulla();
         return conNome(t);
     }
 
     @Transactional(readOnly = true)
     List<PostazioneDto> postazioni(Utente u) {
-        Set<UUID> impianti = permessi.impiantiGestiti(u);
+        Set<UUID> impianti = permessi.impianti(u, Permesso.PIANIFICAZIONE);
         if (impianti.isEmpty()) return List.of();
         return postazioni.attive(impianti).stream()
             .map(p -> new PostazioneDto(p.getId(), p.getNome(), p.getMansione().getNome(), p.getMansione().getImpiantoId()))
@@ -137,7 +137,7 @@ class PianificazioneService {
     @Transactional(readOnly = true)
     List<PersonaBreve> personale(Utente u) {
         var unici = new LinkedHashMap<UUID, PersonaBreve>();
-        for (UUID imp : permessi.impiantiGestiti(u)) for (PersonaBreve p : persone.conRuolo(Ruolo.STAFF, imp)) unici.putIfAbsent(p.id(), p);
+        for (UUID imp : permessi.impianti(u, Permesso.PIANIFICAZIONE)) for (PersonaBreve p : persone.conPermesso(Permesso.TURNI, imp)) unici.putIfAbsent(p.id(), p);
         return unici.values().stream().sorted(Comparator.comparing(PersonaBreve::nome)).toList();
     }
 
@@ -145,7 +145,7 @@ class PianificazioneService {
 
     @Transactional(readOnly = true)
     List<ModelloDto> modelli(Utente u) {
-        Set<UUID> impianti = permessi.impiantiGestiti(u);
+        Set<UUID> impianti = permessi.impianti(u, Permesso.PIANIFICAZIONE);
         if (impianti.isEmpty()) return List.of();
         List<ModelloSettimanale> elenco = modelli.diImpianti(impianti);
         var nomi = persone.nomiCompleti(elenco.stream().flatMap(m -> m.getRighe().stream()).map(ModelloRiga::getPersonaId)
@@ -167,7 +167,7 @@ class PianificazioneService {
     @Transactional
     ModelloDto creaModello(Utente u, ModelloInput in) {
         if (in.impiantoId() == null) throw new IllegalArgumentException("Scegli l'impianto.");
-        permessi.richiediGestione(u, in.impiantoId());
+        permessi.richiedi(u, Permesso.PIANIFICAZIONE, in.impiantoId());
         ModelloSettimanale m = new ModelloSettimanale(in.impiantoId(), in.nome(), in.validoDal(), in.validoAl());
         if (in.copiaDa() != null) {
             ModelloSettimanale origine = modello(u, in.copiaDa());
@@ -262,7 +262,7 @@ class PianificazioneService {
     }
 
     private void controllaPersona(UUID personaId, UUID impiantoId) {
-        if (personaId != null && !persone.haRuolo(personaId, Ruolo.STAFF, impiantoId))
+        if (personaId != null && !persone.haPermesso(personaId, Permesso.TURNI, impiantoId))
             throw new IllegalArgumentException("Questa persona non fa parte dello staff dell'impianto.");
     }
 
@@ -283,7 +283,7 @@ class PianificazioneService {
 
     private ModelloSettimanale modello(Utente u, UUID id) {
         ModelloSettimanale m = modelli.findById(id).orElseThrow(() -> new NonTrovato("Modello non trovato."));
-        permessi.richiediGestione(u, m.getImpiantoId());
+        permessi.richiedi(u, Permesso.PIANIFICAZIONE, m.getImpiantoId());
         return m;
     }
 

@@ -118,9 +118,10 @@ class SchedaClientiService {
         persona(personaId);
         LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(orologio);
         Abbonamento a;
-        if (Abbonamento.CARNET.equals(in.tipo())) a = Abbonamento.carnet(personaId, in.ingressi(), dal, in.al(), in.importo(), in.note(), u.personaId(), orologio.instant());
+        if (in.corsoId() != null && frequenze.corsi().stream().noneMatch(c -> c.id().equals(in.corsoId()))) throw new NonTrovato("Corso non trovato.");
+        if (Abbonamento.CARNET.equals(in.tipo()))
+            a = Abbonamento.carnet(personaId, in.ingressi(), in.corsoId(), dal, in.al(), in.importo(), in.note(), u.personaId(), orologio.instant());
         else if (Abbonamento.CORSO.equals(in.tipo())) {
-            if (in.corsoId() != null && frequenze.corsi().stream().noneMatch(c -> c.id().equals(in.corsoId()))) throw new NonTrovato("Corso non trovato.");
             a = Abbonamento.corso(personaId, in.corsoId(), in.volteASettimana(), dal, in.al(), in.importo(), in.note(), u.personaId(), orologio.instant());
         } else throw new IllegalArgumentException("Scegli il tipo: abbonamento al corso o carnet.");
         return abbonamenti.saveAndFlush(a).getId();

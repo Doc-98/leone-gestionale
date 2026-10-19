@@ -29,6 +29,9 @@ public class Clienti {
                                    int usati, Instant ultimoIngresso, LocalDate dal, LocalDate al) {
         public boolean carnet() { return Abbonamento.CARNET.equals(tipo); }
 
+        /** Un carnet con un corso vale solo negli orari dei turni di quel corso; senza, a entrata libera. */
+        public boolean aOrario() { return carnet() && corsoId != null; }
+
         public boolean validoIl(LocalDate g) { return !g.isBefore(dal) && (al == null || !g.isAfter(al)); }
 
         public Integer residui() { return ingressi == null ? null : Math.max(0, ingressi - usati); }

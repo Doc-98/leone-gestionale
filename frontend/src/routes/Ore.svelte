@@ -9,7 +9,7 @@
   let staff = $state<Riepilogo | null>(null);
   let errore = $state('');
   let aperto = $state<string | null>(null);
-  const coordinatore = $derived(sessione.ha('ADMIN', 'COORDINATORE'));
+  const coordinatore = $derived(sessione.puo('ORE_STAFF'));
 
   $effect(() => {
     const m = mese;

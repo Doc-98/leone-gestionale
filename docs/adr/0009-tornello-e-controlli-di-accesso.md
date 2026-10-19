@@ -31,16 +31,22 @@ trisettimanale) oppure un *carnet* di ingressi. *Iscrizione* resta solo l'iscriz
 - **Fascia oraria**: dai turni a cui la persona è iscritta (ADR 0008) che si tengono quel giorno, compresi quelli
   spostati; di base da 10 minuti prima dell'inizio fino alla fine.
 - **Carnet**: scala un ingresso al primo passaggio; nei 90 minuti successivi (parametro) i passaggi non scalano, così
-  chi esce e rientra non perde ingressi. Chi ha un carnet utilizzabile non ha il vincolo della fascia oraria. Chi ha un
-  abbonamento al corso ed è nella fascia del suo turno non consuma il carnet.
+  chi esce e rientra non perde ingressi. Un carnet è **a entrata libera** oppure **legato agli orari di un corso**
+  (es. «Nuoto libero»): in quel caso vale solo nella fascia dei turni di quel corso, con gli stessi parametri della
+  fascia oraria. Chi ha un abbonamento al corso ed è nella fascia del suo turno non consuma il carnet.
 - **Certificato**: valido fino al giorno di scadenza compreso, poi blocca. Nessuna tolleranza.
 - Ogni passaggio si registra (verde o rosso, motivi, carnet scalato, chi ha letto). Ogni apertura della scheda cliente
   si registra (ADR 0003).
 - Moduli: `clienti` (certificati, tesseramenti, abbonamenti, scheda) e `accessi` (braccialetti, ban, golden pass,
   regole, controlli, passaggi). `accessi` usa le API pubbliche di `clienti`, `pianovasca` e `identita`.
 
+**Lettori.** Al tornello e in segreteria ci sono già lettori NFC fissi; il telefono Android (Web NFC) è una comodità in
+più, per leggere un braccialetto lontano dalla postazione. Il campo del codice accetta i lettori da scrivania che
+scrivono come una tastiera.
+
 **Conseguenze.**
 
+- Chi può fare cosa (braccialetti e ban, golden pass, regole) è deciso dai permessi dei ruoli (ADR 0010).
 - Il giallo («passa ma avvisa», es. certificato in scadenza) è rimandato: dipende da cosa può mostrare il tornello
   fisico. Un motivo ha già il campo «blocca»: un controllo potrà restituire avvisi che non bloccano.
 - Un codice sconosciuto è sempre rosso, qualunque regola sia attiva.

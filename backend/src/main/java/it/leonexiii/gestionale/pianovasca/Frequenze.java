@@ -67,6 +67,22 @@ public class Frequenze {
         return out;
     }
 
+    /** Tutti i turni di un corso che si tengono in quella data (es. gli orari del nuoto libero), con l'orario effettivo. */
+    @Transactional(readOnly = true)
+    public List<TurnoDelGiorno> turniDelCorsoIl(UUID corsoId, LocalDate data) {
+        List<TurnoDelGiorno> out = new ArrayList<>();
+        for (Lezione l : lezioni.deiCorsi(List.of(corsoId))) {
+            Lezione c = lezioni.completa(l.getId()).orElse(l);
+            for (Eccezione e : c.getEccezioni())
+                if (e.getTipo() == TipoEccezione.SPOSTATA && data.equals(e.getNuovaData()))
+                    out.add(new TurnoDelGiorno(c.getId(), c.getCorso().getId(), c.getCorso().getNome(), e.getNuovoInizio(), e.getNuovoFine()));
+            if (c.cadeIl(data) && c.eccezioneIl(data).isEmpty())
+                out.add(new TurnoDelGiorno(c.getId(), c.getCorso().getId(), c.getCorso().getNome(), c.getInizio(), c.getFine()));
+        }
+        out.sort(Comparator.comparing(TurnoDelGiorno::inizio));
+        return out;
+    }
+
     @Transactional(readOnly = true)
     public List<CorsoBreve> corsi() {
         return corsi.findAll().stream().map(c -> new CorsoBreve(c.getId(), c.getNome(), c.getImpiantoId(), c.isAttivo()))

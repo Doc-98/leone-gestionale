@@ -4,7 +4,7 @@ import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.PersonaBreve;
 import it.leonexiii.gestionale.identita.Persone;
-import it.leonexiii.gestionale.identita.Ruolo;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import it.leonexiii.gestionale.struttura.Impianti;
 import java.math.BigDecimal;
@@ -75,13 +75,13 @@ class AnagraficheService {
 
     @Transactional(readOnly = true)
     List<ImpiantoDto> impianti(Utente u) {
-        Set<UUID> gestiti = permessi.impiantiGestiti(u);
+        Set<UUID> gestiti = permessi.impianti(u, Permesso.PIANIFICAZIONE, Permesso.ANAGRAFICHE_STAFF);
         return impianti.tutti().stream().filter(i -> gestiti.contains(i.id())).map(i -> new ImpiantoDto(i.id(), i.nome())).toList();
     }
 
     @Transactional(readOnly = true)
     List<SpazioDto> spazi(Utente u) {
-        return impianti.spazi(permessi.impiantiGestiti(u)).stream()
+        return impianti.spazi(permessi.impianti(u, Permesso.PIANIFICAZIONE, Permesso.ANAGRAFICHE_STAFF)).stream()
             .map(s -> new SpazioDto(s.id(), s.impiantoId(), s.nome(), s.tipo())).toList();
     }
 
@@ -89,7 +89,7 @@ class AnagraficheService {
 
     @Transactional(readOnly = true)
     List<MansioneDto> mansioni(Utente u) {
-        Set<UUID> gestiti = permessi.impiantiGestiti(u);
+        Set<UUID> gestiti = permessi.impianti(u, Permesso.PIANIFICAZIONE, Permesso.ANAGRAFICHE_STAFF);
         if (gestiti.isEmpty()) return List.of();
         var perMansione = postazioni.diImpianti(gestiti).stream()
             .collect(java.util.stream.Collectors.groupingBy(p -> p.getMansione().getId()));
@@ -102,7 +102,7 @@ class AnagraficheService {
     @Transactional
     MansioneDto creaMansione(Utente u, MansioneInput in) {
         if (in.impiantoId() == null) throw new IllegalArgumentException("Scegli l'impianto.");
-        permessi.richiediGestione(u, in.impiantoId());
+        permessi.richiedi(u, Permesso.ANAGRAFICHE_STAFF, in.impiantoId());
         String nome = Testi.obbligatorio(in.nome(), "il nome della mansione", 120);
         String codice = codiceLibero(in.impiantoId(), codice(nome));
         Mansione nuova = new Mansione(in.impiantoId(), codice, nome);
@@ -131,7 +131,7 @@ class AnagraficheService {
     @Transactional
     EsitoPostazione modificaPostazione(Utente u, UUID id, PostazioneInput in) {
         Postazione p = postazioni.findById(id).orElseThrow(() -> new NonTrovato("Postazione non trovata."));
-        permessi.richiediGestione(u, p.getMansione().getImpiantoId());
+        permessi.richiedi(u, Permesso.ANAGRAFICHE_STAFF, p.getMansione().getImpiantoId());
         controllaSpazio(in.spazioId(), p.getMansione().getImpiantoId());
         boolean attiva = in.attiva() == null ? p.isAttiva() : in.attiva();
         p.modifica(in.nome(), in.spazioId(), attiva);
@@ -145,7 +145,7 @@ class AnagraficheService {
         if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("Nessuna postazione da ordinare.");
         List<Postazione> elenco = postazioni.findAllById(ids);
         if (elenco.size() != Set.copyOf(ids).size()) throw new NonTrovato("Postazione non trovata.");
-        for (Postazione p : elenco) permessi.richiediGestione(u, p.getMansione().getImpiantoId());
+        for (Postazione p : elenco) permessi.richiedi(u, Permesso.ANAGRAFICHE_STAFF, p.getMansione().getImpiantoId());
         Map<UUID, Postazione> perId = new java.util.HashMap<>();
         elenco.forEach(p -> perId.put(p.getId(), p));
         for (int i = 0; i < ids.size(); i++) perId.get(ids.get(i)).ordina(i + 1);
@@ -157,7 +157,7 @@ class AnagraficheService {
 
     @Transactional(readOnly = true)
     List<TariffaDto> tariffe(Utente u) {
-        Set<UUID> gestiti = permessi.impiantiGestiti(u);
+        Set<UUID> gestiti = permessi.impianti(u, Permesso.PIANIFICAZIONE, Permesso.ANAGRAFICHE_STAFF);
         if (gestiti.isEmpty()) return List.of();
         Map<UUID, Mansione> perId = new java.util.HashMap<>();
         mansioni.findByImpiantoIdInOrderByNome(gestiti).forEach(m -> perId.put(m.getId(), m));
@@ -182,7 +182,7 @@ class AnagraficheService {
         if (in.mansioneId() == null) throw new IllegalArgumentException("Scegli la mansione.");
         if (in.dal() == null) throw new IllegalArgumentException("Indica da quando vale la tariffa.");
         Mansione m = mansione(u, in.mansioneId());
-        if (in.personaId() != null && !persone.haRuolo(in.personaId(), Ruolo.STAFF, m.getImpiantoId()))
+        if (in.personaId() != null && !persone.haPermesso(in.personaId(), Permesso.TURNI, m.getImpiantoId()))
             throw new IllegalArgumentException("Questa persona non fa parte dello staff dell'impianto.");
 
         List<Tariffa> stesse = tariffe.findByMansioneIdIn(List.of(m.getId())).stream()
@@ -215,7 +215,7 @@ class AnagraficheService {
 
     private Mansione mansione(Utente u, UUID id) {
         Mansione m = mansioni.findById(id).orElseThrow(() -> new NonTrovato("Mansione non trovata."));
-        permessi.richiediGestione(u, m.getImpiantoId());
+        permessi.richiedi(u, Permesso.ANAGRAFICHE_STAFF, m.getImpiantoId());
         return m;
     }
 

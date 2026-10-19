@@ -2,6 +2,7 @@ package it.leonexiii.gestionale.staff;
 
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Persone;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -88,7 +89,7 @@ class FoglioOreService {
     }
 
     private List<Turno> turniGestiti(Utente u, YearMonth mese) {
-        Set<UUID> impianti = permessi.impiantiGestiti(u);
+        Set<UUID> impianti = permessi.impianti(u, Permesso.ORE_STAFF);
         if (impianti.isEmpty()) return List.of();
         return turni.nelPeriodo(mese.atDay(1), mese.atEndOfMonth(), impianti);
     }

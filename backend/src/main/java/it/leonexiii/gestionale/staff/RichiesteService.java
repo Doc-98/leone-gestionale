@@ -3,7 +3,7 @@ package it.leonexiii.gestionale.staff;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Persone;
-import it.leonexiii.gestionale.identita.Ruolo;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -84,7 +84,7 @@ class RichiesteService {
     /** Per coordinatori: le richieste negli stati indicati (default: da approvare) degli impianti gestiti. */
     @Transactional(readOnly = true)
     List<RichiestaDto> perStato(Utente u, Collection<StatoRichiesta> stati) {
-        Set<UUID> impianti = permessi.impiantiGestiti(u);
+        Set<UUID> impianti = permessi.impianti(u, Permesso.APPROVAZIONI);
         if (impianti.isEmpty()) return List.of();
         return dto(richieste.perStato(stati, impianti));
     }
@@ -129,7 +129,7 @@ class RichiesteService {
     @Transactional
     RichiestaDto approva(Utente u, UUID id, String nota) {
         RichiestaTurno r = richiesta(id);
-        permessi.richiediGestione(u, r.getTurno().impiantoId());
+        permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
         if (r.getStato() != StatoRichiesta.IN_ATTESA_APPROVAZIONE) throw new Conflitto("La richiesta non è in attesa di approvazione.");
         Turno t = r.getTurno();
         if (!t.pianificato() || !r.getRichiedenteId().equals(t.getPersonaId()))
@@ -168,7 +168,7 @@ class RichiesteService {
     @Transactional
     RichiestaDto respingi(Utente u, UUID id, String nota) {
         RichiestaTurno r = richiesta(id);
-        permessi.richiediGestione(u, r.getTurno().impiantoId());
+        permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
         r.respingi(u.personaId(), nota);
         return dto(r);
     }
@@ -177,7 +177,7 @@ class RichiesteService {
 
     private void controllaCollega(UUID collega, UUID richiedente, Turno t) {
         if (collega.equals(richiedente)) throw new IllegalArgumentException("Scegli un collega diverso da te.");
-        if (!persone.haRuolo(collega, Ruolo.STAFF, t.impiantoId())) throw new IllegalArgumentException("Il collega non fa parte dello staff dell'impianto.");
+        if (!persone.haPermesso(collega, Permesso.TURNI, t.impiantoId())) throw new IllegalArgumentException("Il collega non fa parte dello staff dell'impianto.");
     }
 
     private static void controllaFuturo(Turno t) {

@@ -198,7 +198,7 @@ class TornelloTest {
         assertThat(passa(staff, "2028-01-02T06:00", secondo).get("verde")).isEqualTo(true);
 
         // golden pass: verde anche fuori orario e senza certificato valido, ma il braccialetto smarrito resta rosso
-        assertThat(segr.post("/api/accessi/persone/" + persona + "/golden-pass", "{}").statusCode()).isEqualTo(403);
+        assertThat(staff.post("/api/accessi/persone/" + persona + "/golden-pass", "{}").statusCode()).isEqualTo(403);
         String gp = crea(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova\"}");
         var dorato = passa(staff, "2028-01-03T21:00", secondo);
         assertThat(dorato.get("verde")).isEqualTo(true);
@@ -258,5 +258,42 @@ class TornelloTest {
         assertThat(codici(fine)).containsExactly("CARNET_ESAURITO");
         assertThat(motivi(fine).getFirst().get("messaggio").toString()).contains("2 ingressi su 2");
         assertThat(segr.get("/api/clienti/" + persona).body()).contains("\"usati\":2").contains("\"residui\":0");
+    }
+
+    @Test
+    void ilCarnetAOrarioValeSoloNegliOrariDelSuoCorso() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var coord = come("coordinatore@demo.leone");
+        var staff = come("marta@demo.leone");
+        orologio.alle("2028-01-02T09:00");
+        // un «nuoto libero» della domenica 12:00-14:00
+        String corso = crea(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Libero domenicale\",\"tipo\":\"NUOTO_LIBERO\"}");
+        var l = coord.post("/api/corsi/" + corso + "/lezioni", """
+            {"giornoSettimana":7,"inizio":"12:00","fine":"14:00","validaDal":"2028-01-01","spazi":["%s"]}""".formatted(VASCA_PICCOLA));
+        assertThat(l.statusCode()).as(l.body()).isEqualTo(201);
+
+        String persona = cliente(segr, "Dario");
+        String codice = nuovoCodice();
+        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"corsoId\":\"" + corso + "\",\"dal\":\"2028-01-01\"}");
+
+        // prima delle 11:50 no; nella fascia sì e scala; il lunedì il corso non c'è
+        var presto = passa(staff, "2028-01-02T11:00", codice);
+        assertThat(codici(presto)).containsExactly("FUORI_ORARIO");
+        assertThat(motivi(presto).getFirst().get("messaggio").toString()).contains("Libero domenicale 12:00–14:00").contains("dalle 11:50");
+        var dentro = passa(staff, "2028-01-02T11:50", codice);
+        assertThat(dentro.get("verde")).isEqualTo(true);
+        assertThat(dentro.get("carnet").toString()).contains("scalato=true");
+        assertThat(motivi(passa(staff, "2028-01-03T12:30", codice)).getFirst().get("messaggio").toString()).contains("che oggi non c'è");
+        // a entrata libera, invece, a qualsiasi ora
+        String altro = cliente(segr, "Elio");
+        String codice2 = nuovoCodice();
+        crea(segr, "/api/accessi/persone/" + altro + "/braccialetti", "{\"codice\":\"" + codice2 + "\"}");
+        crea(segr, "/api/clienti/" + altro + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        crea(segr, "/api/clienti/" + altro + "/tesseramenti", "{}");
+        crea(segr, "/api/clienti/" + altro + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"dal\":\"2028-01-01\"}");
+        assertThat(passa(staff, "2028-01-03T21:00", codice2).get("verde")).isEqualTo(true);
     }
 }

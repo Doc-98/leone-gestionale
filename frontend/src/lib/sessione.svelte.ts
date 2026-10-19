@@ -1,4 +1,4 @@
-import { api, NonAutenticato, type Me, type Ruolo } from './api';
+import { api, NonAutenticato, type Me, type Permesso, type Ruolo } from './api';
 
 /** Chi è collegato. «pronto» diventa vero dopo il primo controllo della sessione. */
 class Sessione {
@@ -30,6 +30,20 @@ class Sessione {
 
   ha(...ruoli: Ruolo[]): boolean {
     return !!this.utente?.ruoli.some((r) => ruoli.includes(r.ruolo));
+  }
+
+  /** Ha almeno uno dei permessi (in almeno un impianto; il server controlla l'impianto). */
+  puo(...permessi: Permesso[]): boolean {
+    return !!this.utente?.permessi?.some((p) => permessi.includes(p));
+  }
+
+  /** Aggiorna ruoli e permessi senza rifare il login (es. dopo averli cambiati). */
+  async aggiorna() {
+    try {
+      this.utente = await api.me();
+    } catch {
+      /* resta com'è */
+    }
   }
 }
 

@@ -14,4 +14,9 @@ interface AssegnazioneRuoloRepository extends JpaRepository<AssegnazioneRuolo, U
         where r.accountId = :accountId and r.dal <= :giorno and (r.al is null or r.al >= :giorno)
         """)
     List<AssegnazioneRuolo> validi(UUID accountId, LocalDate giorno);
+
+    @Query("select r from AssegnazioneRuolo r where r.dal <= :giorno and (r.al is null or r.al >= :giorno)")
+    List<AssegnazioneRuolo> tuttiValidi(LocalDate giorno);
+
+    long countByRuolo(String ruolo);
 }

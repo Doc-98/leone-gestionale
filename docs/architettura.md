@@ -77,14 +77,18 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 
 ## Permessi e accesso ai dati
 
-Ruoli assegnati **con un ambito** (es. "coordinatore · Piscina"):
+Ruoli assegnati **con un ambito** (es. "coordinatore · Piscina"). I ruoli sono dati e si modificano dalla pagina
+«Ruoli e permessi»; ognuno ha un insieme di **permessi** fissi (ADR 0010). Di partenza:
 
-| Ruolo | Cosa fa |
+| Ruolo | Permessi |
 |---|---|
-| `ADMIN` | tutto, compresa la gestione degli account |
-| `COORDINATORE` | crea orari e piano vasca del suo impianto, approva le richieste, vede ore e compensi |
-| `SEGRETERIA` | clienti, iscrizioni, pagamenti, certificati |
-| `STAFF` | i propri turni, le richieste, il piano vasca, l'esito al tornello |
+| `ADMIN` | tutti, sempre (compresi ruoli e permessi, regole del tornello) |
+| `COORDINATORE` | tutta la gestione: pianificazione, approvazioni, ore dello staff, mansioni e tariffe, piano vasca, iscrizioni, presenze, clienti, braccialetti e ban, golden pass |
+| `SEGRETERIA` | come il coordinatore |
+| `STAFF` | fa i turni |
+
+Per tutti, con qualsiasi ruolo: i propri turni e le richieste, il piano vasca, il tornello, lista e presenze dei
+turni in cui si è istruttori.
 
 Per i dati dei clienti, tre livelli:
 
@@ -201,6 +205,7 @@ erDiagram
 
 **Accessi** (ADR 0009)
 - `braccialetto`: codice normalizzato → persona; attivo, smarrito o disattivato; più di uno per persona.
+- `abbonamento` carnet: a entrata libera o legato agli orari di un corso (es. nuoto libero).
 - `blocco`: ban della persona o di un braccialetto, con motivo e periodo. `golden_pass`: sempre verde, con periodo.
 - `regola_accesso`: per ogni controllo, attivo sì/no e parametri.
 - `passaggio`: ogni lettura al tornello, verde o rosso, con tutti i motivi, il carnet scalato e chi ha letto.
@@ -229,7 +234,8 @@ erDiagram
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice
    temporaneo, il telefono si abbina, legge il bracciale con la Web NFC e il server inoltra il codice al PC.
    Il telefono-lettore invia solo il codice e non riceve dati dei clienti (va bene anche un telefono personale);
-   deve restare con la pagina aperta.
+   deve restare con la pagina aperta. (Al tornello e in segreteria ci sono già lettori fissi: il telefono è una comodità.)
+   Ruoli modificabili con permessi, pagina «Ruoli e permessi». *(fatto — ADR 0010)*
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.
 
 ## Domande aperte

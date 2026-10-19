@@ -2,8 +2,6 @@ package it.leonexiii.gestionale.identita;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
@@ -20,9 +18,8 @@ class AssegnazioneRuolo {
     @Column(name = "account_id", nullable = false)
     private UUID accountId;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Ruolo ruolo;
+    private String ruolo;
 
     @Column(name = "impianto_id")
     private UUID impiantoId;
@@ -34,6 +31,27 @@ class AssegnazioneRuolo {
 
     protected AssegnazioneRuolo() {}
 
-    Ruolo getRuolo() { return ruolo; }
+    AssegnazioneRuolo(UUID accountId, String ruolo, UUID impiantoId, LocalDate dal) {
+        this.id = UUID.randomUUID();
+        this.accountId = accountId;
+        this.ruolo = ruolo;
+        this.impiantoId = impiantoId;
+        this.dal = dal;
+    }
+
+    /** Toglie il ruolo da oggi; se non era ancora iniziato, la riga non serve più (lo dice il servizio). */
+    void chiudi(LocalDate oggi) {
+        this.al = oggi.minusDays(1);
+    }
+
+    boolean validoIl(LocalDate g) {
+        return !g.isBefore(dal) && (al == null || !g.isAfter(al));
+    }
+
+    UUID getId() { return id; }
+    UUID getAccountId() { return accountId; }
+    String getRuolo() { return ruolo; }
     UUID getImpiantoId() { return impiantoId; }
+    LocalDate getDal() { return dal; }
+    LocalDate getAl() { return al; }
 }

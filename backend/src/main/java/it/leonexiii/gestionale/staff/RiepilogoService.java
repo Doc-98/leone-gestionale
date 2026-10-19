@@ -2,6 +2,7 @@ package it.leonexiii.gestionale.staff;
 
 import it.leonexiii.gestionale.identita.PersonaBreve;
 import it.leonexiii.gestionale.identita.Persone;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -43,7 +44,7 @@ class RiepilogoService {
     /** Tutto lo staff degli impianti gestiti. */
     @Transactional(readOnly = true)
     Riepilogo diImpianti(Utente u, YearMonth mese) {
-        Set<UUID> impianti = permessi.impiantiGestiti(u);
+        Set<UUID> impianti = permessi.impianti(u, Permesso.ORE_STAFF);
         List<Turno> elenco = impianti.isEmpty() ? List.of() : turni.nelPeriodo(mese.atDay(1), mese.atEndOfMonth(), impianti);
         return calcola(mese, elenco);
     }

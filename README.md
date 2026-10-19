@@ -32,7 +32,8 @@ con cosa fare: braccialetto sconosciuto, smarrito, disattivato o bannato, person
 scaduto, tesseramento annuale mancante o scaduto, abbonamento mancante, scaduto o non iniziato, carnet esaurito, fuori
 dalla fascia del proprio turno (ADR 0009). Ogni caso è un controllo indipendente, attivabile e con i suoi parametri
 nella pagina «Regole del tornello». Golden pass per dipendenti e tornellisti. Carnet che scala al primo passaggio e non
-nei 90 minuti di rientro. La segreteria ha la scheda cliente: braccialetti (più di uno per persona), ban, golden pass,
+nei 90 minuti di rientro, a entrata libera o legato agli orari di un corso (es. nuoto libero). Ruoli modificabili con i
+loro permessi (ADR 0010). La segreteria ha la scheda cliente: braccialetti (più di uno per persona), ban, golden pass,
 certificato, tesseramento, abbonamenti, turni frequentati, ultimi passaggi e come andrebbe adesso al tornello.
 
 ## Struttura
@@ -67,7 +68,9 @@ Braccialetti demo da provare al tornello (si scrivono nel campo): `D0000001` car
 Giallo bisettimanale (verde solo nella fascia), `D0000003` certificato scaduto e tesseramento mancante, `D0000004`
 smarrito (`D0000014` è il suo nuovo), `D0000005` braccialetto bannato, `D0000006` persona bannata, `D0000007` carnet
 esaurito, `D0000008` abbonamento scaduto, `D0000009` nessun abbonamento, `D0000104` Giulia con golden pass,
-`FFFFFFFF` sconosciuto.
+`D0000010` carnet negli orari del nuoto libero, `FFFFFFFF` sconosciuto.
+
+La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Programma per Windows
 
@@ -135,6 +138,7 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | POST | `/api/accessi/ban` `{personaId \| braccialettoId, motivo, al}` · `/ban/{id}/revoca` | segreteria |
 | POST | `/api/accessi/persone/{id}/golden-pass` · `/golden-pass/{id}/revoca` | coordinatori |
 | GET · PUT | `/api/accessi/regole` · `/{codice}` `{attiva, parametri}` | lettura coordinatori, modifica admin |
+| GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |
 | GET | `/api/foglio-ore/mio?mese=` | il proprio foglio ore (.xlsx) |

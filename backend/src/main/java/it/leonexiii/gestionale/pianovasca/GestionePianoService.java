@@ -3,7 +3,7 @@ package it.leonexiii.gestionale.pianovasca;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.PersonaBreve;
 import it.leonexiii.gestionale.identita.Persone;
-import it.leonexiii.gestionale.identita.Ruolo;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import it.leonexiii.gestionale.struttura.Impianti;
 import java.time.LocalDate;
@@ -274,7 +274,7 @@ class GestionePianoService {
 
     private void controllaIstruttore(UUID personaId, UUID impiantoId) {
         if (personaId == null) return;
-        if (!persone.haRuolo(personaId, Ruolo.STAFF, impiantoId) && !persone.haRuolo(personaId, Ruolo.COORDINATORE, impiantoId))
+        if (!persone.haPermesso(personaId, Permesso.TURNI, impiantoId) && !persone.haPermesso(personaId, Permesso.PIANO_MODIFICA, impiantoId))
             throw new IllegalArgumentException("L'istruttore deve far parte dello staff dell'impianto.");
     }
 

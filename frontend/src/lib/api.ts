@@ -3,7 +3,15 @@
  * per le richieste che modificano dati si rimanda il token CSRF letto dal cookie XSRF-TOKEN.
  */
 
-export type Ruolo = 'ADMIN' | 'COORDINATORE' | 'SEGRETERIA' | 'STAFF';
+/** Codice di un ruolo: i quattro di sistema o uno creato dagli admin. */
+export type Ruolo = string;
+
+/** Cosa può fare un ruolo (ADR 0010). L'ambito per impianto lo controlla il server. */
+export type Permesso =
+  | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
+  | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
+  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS'
+  | 'REGOLE_TORNELLO' | 'RUOLI';
 
 export interface Me {
   accountId: string;
@@ -12,6 +20,23 @@ export interface Me {
   nome: string;
   cognome: string;
   ruoli: { ruolo: Ruolo; impiantoId: string | null }[];
+  permessi: Permesso[];
+  admin: boolean;
+}
+
+export interface PaginaRuoli {
+  permessi: { codice: Permesso; gruppo: string; nome: string; descrizione: string; potere: boolean }[];
+  ruoli: {
+    codice: string;
+    nome: string;
+    descrizione: string | null;
+    diSistema: boolean;
+    modificabile: boolean;
+    permessi: Permesso[];
+    persone: { assegnazioneId: string; accountId: string; personaId: string; nome: string; cognome: string; email: string; impiantoId: string | null; dal: string }[];
+  }[];
+  account: { accountId: string; personaId: string; nome: string; cognome: string; email: string; attivo: boolean }[];
+  impianti: { id: string; nome: string }[];
 }
 
 export interface PersonaBreve {
@@ -483,6 +508,13 @@ export const api = {
   segnaPresenze: (lezioneId: string, data: string, presenze: { personaId: string; presente: boolean }[]) =>
     richiesta<ElencoIscritti>('PUT', `/api/lezioni/${lezioneId}/presenze`, { data, presenze }),
   cercaPersone: (q: string) => richiesta<PersonaScheda[]>('GET', `/api/persone?q=${encodeURIComponent(q)}`),
+  ruoli: () => richiesta<PaginaRuoli>('GET', '/api/ruoli'),
+  creaRuolo: (r: { nome: string; descrizione: string | null; copiaDa: string | null }) => richiesta<{ codice: string }>('POST', '/api/ruoli', r),
+  modificaRuolo: (codice: string, r: { nome: string; descrizione: string | null; permessi: Permesso[] }) => richiesta<void>('PUT', `/api/ruoli/${codice}`, r),
+  eliminaRuolo: (codice: string) => richiesta<void>('DELETE', `/api/ruoli/${codice}`),
+  assegnaRuolo: (codice: string, accountId: string, impiantoId: string | null) =>
+    richiesta<{ id: string }>('POST', `/api/ruoli/${codice}/assegnazioni`, { accountId, impiantoId }),
+  togliRuolo: (assegnazioneId: string) => richiesta<void>('DELETE', `/api/assegnazioni/${assegnazioneId}`),
   passa: (codice: string) => richiesta<EsitoTornello>('POST', '/api/accessi/passaggi', { codice }),
   passaggi: (quanti = 20) => richiesta<Passaggio[]>('GET', `/api/accessi/passaggi?quanti=${quanti}`),
   schedaAccessi: (personaId: string) => richiesta<SchedaAccessi>('GET', `/api/accessi/persone/${personaId}`),

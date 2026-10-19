@@ -1,60 +1,58 @@
 package it.leonexiii.gestionale.pianovasca;
 
-import it.leonexiii.gestionale.identita.Ruolo;
-import it.leonexiii.gestionale.identita.RuoloAssegnato;
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import it.leonexiii.gestionale.struttura.Impianti;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-/** Il piano lo vede chiunque abbia un ruolo nell'impianto; lo modificano coordinatori e admin. */
+/**
+ * Il piano lo vede chiunque abbia un ruolo nell'impianto; lo modifica chi ha «Modifica del piano»; iscrive chi ha
+ * «Iscrizioni»; segna le presenze di tutti chi ha «Presenze di tutti» (ADR 0010).
+ */
 @Component
 class AccessoPiano {
 
     private final Impianti impianti;
+    private final Autorizzazioni autorizzazioni;
 
-    AccessoPiano(Impianti impianti) {
+    AccessoPiano(Impianti impianti, Autorizzazioni autorizzazioni) {
         this.impianti = impianti;
+        this.autorizzazioni = autorizzazioni;
     }
 
     Set<UUID> visibili(Utente u) {
-        Set<UUID> out = new HashSet<>();
-        for (RuoloAssegnato r : u.ruoli()) {
-            if (r.ruolo() == Ruolo.ADMIN || r.impiantoId() == null) return tutti();
-            out.add(r.impiantoId());
-        }
-        return out;
+        return espandi(autorizzazioni.ambitoDeiRuoli(u));
     }
 
     Set<UUID> gestiti(Utente u) {
-        Set<UUID> out = new HashSet<>();
-        for (RuoloAssegnato r : u.ruoli()) {
-            if (r.ruolo() != Ruolo.COORDINATORE && r.ruolo() != Ruolo.ADMIN) continue;
-            if (r.ruolo() == Ruolo.ADMIN || r.impiantoId() == null) return tutti();
-            out.add(r.impiantoId());
-        }
-        return out;
+        return espandi(autorizzazioni.ambito(u, Permesso.PIANO_MODIFICA));
     }
 
-    /** Segreteria e coordinatori (e admin) gestiscono le iscrizioni dell'impianto. */
     boolean gestisceIscrizioni(Utente u, UUID impiantoId) {
-        return u.ha(Ruolo.SEGRETERIA, impiantoId) || u.ha(Ruolo.COORDINATORE, impiantoId);
+        return autorizzazioni.puo(u, Permesso.ISCRIZIONI, impiantoId);
     }
 
+    boolean segnaTutteLePresenze(Utente u, UUID impiantoId) {
+        return autorizzazioni.puo(u, Permesso.PRESENZE, impiantoId);
+    }
+
+    /** Dove l'utente vede le liste di tutti i turni (per iscrivere o per le presenze). */
     Set<UUID> impiantiIscrizioni(Utente u) {
-        Set<UUID> out = new HashSet<>();
-        for (UUID i : visibili(u)) if (gestisceIscrizioni(u, i)) out.add(i);
+        Set<UUID> out = new HashSet<>(espandi(autorizzazioni.ambito(u, Permesso.ISCRIZIONI)));
+        out.addAll(espandi(autorizzazioni.ambito(u, Permesso.PRESENZE)));
         return out;
     }
 
     void richiediGestione(Utente u, UUID impiantoId) {
-        if (!u.ha(Ruolo.COORDINATORE, impiantoId)) throw new AccessDeniedException("Non gestisci il piano di questo impianto.");
+        autorizzazioni.richiedi(u, Permesso.PIANO_MODIFICA, impiantoId);
     }
 
-    private Set<UUID> tutti() {
+    private Set<UUID> espandi(Autorizzazioni.Ambito a) {
+        if (!a.tutti()) return a.impianti();
         Set<UUID> out = new HashSet<>();
         impianti.tutti().forEach(i -> out.add(i.id()));
         return out;

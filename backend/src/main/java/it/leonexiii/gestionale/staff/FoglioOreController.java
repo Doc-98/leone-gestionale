@@ -33,7 +33,7 @@ class FoglioOreController {
 
     /** Le colonne del modello, da associare alle mansioni. */
     @GetMapping("/voci")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
     List<String> voci() {
         return service.voci();
     }
@@ -44,13 +44,13 @@ class FoglioOreController {
     }
 
     @GetMapping("/persone/{personaId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
     ResponseEntity<byte[]> diPersona(@AuthenticationPrincipal Utente u, @PathVariable UUID personaId, @RequestParam(required = false) String mese) {
         return scarica(service.diPersona(u, personaId, mese(mese)), XLSX);
     }
 
     @GetMapping("/tutti")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
     ResponseEntity<byte[]> tutti(@AuthenticationPrincipal Utente u, @RequestParam(required = false) String mese) {
         return scarica(service.tutti(u, mese(mese)), MediaType.parseMediaType("application/zip"));
     }

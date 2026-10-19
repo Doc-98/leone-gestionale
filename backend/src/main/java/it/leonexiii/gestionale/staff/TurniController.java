@@ -44,7 +44,7 @@ class TurniController {
 
     /** Tutti i turni del periodo negli impianti gestiti, con chi li fa (persona null = scoperto). */
     @GetMapping("/turni")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
     List<TurnoDto> tutti(@AuthenticationPrincipal Utente utente,
                          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate da,
                          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate a) {
@@ -66,32 +66,32 @@ class TurniController {
 
     @PostMapping("/turni")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
     TurnoDto crea(@AuthenticationPrincipal Utente utente, @RequestBody PianificazioneService.TurnoInput in) {
         return service.crea(utente, in);
     }
 
     @PutMapping("/turni/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
     TurnoDto modifica(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody PianificazioneService.TurnoInput in) {
         return service.modifica(utente, id, in);
     }
 
     @PostMapping("/turni/{id}/annulla")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
     TurnoDto annulla(@AuthenticationPrincipal Utente utente, @PathVariable UUID id) {
         return service.annulla(utente, id);
     }
 
     @GetMapping("/staff/postazioni")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
     List<PianificazioneService.PostazioneDto> postazioni(@AuthenticationPrincipal Utente utente) {
         return service.postazioni(utente);
     }
 
     /** Lo staff degli impianti gestiti, per assegnare i turni. */
     @GetMapping("/staff/persone")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
     List<PersonaBreve> personale(@AuthenticationPrincipal Utente utente) {
         return service.personale(utente);
     }

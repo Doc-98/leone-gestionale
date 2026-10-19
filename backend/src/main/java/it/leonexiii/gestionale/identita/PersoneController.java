@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Ricerca di persone per nome (per iscrivere qualcuno già presente nell'anagrafica). */
 @RestController
 @RequestMapping("/api/persone")
-@PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+@PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'ISCRIZIONI', 'RUOLI')")
 class PersoneController {
 
     private final Persone persone;

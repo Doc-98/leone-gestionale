@@ -11,8 +11,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /**
- * L'utente autenticato, salvato nella sessione. Le authority sono i ruoli («ROLE_STAFF»…);
- * l'ambito di ogni ruolo resta in {@link #ruoli()} per i controlli per impianto.
+ * L'utente autenticato, salvato nella sessione. Ruoli e permessi non stanno qui: si leggono dal vivo con
+ * {@link Autorizzazioni}, così un cambio di ruolo o di permessi vale subito, senza rifare il login.
  */
 public final class Utente implements UserDetails, CredentialsContainer, Serializable {
 
@@ -26,10 +26,9 @@ public final class Utente implements UserDetails, CredentialsContainer, Serializ
     private final String nome;
     private final String cognome;
     private final boolean attivo;
-    private final List<RuoloAssegnato> ruoli;
 
     Utente(UUID accountId, UUID personaId, String email, String passwordHash, String nome, String cognome,
-           boolean attivo, List<RuoloAssegnato> ruoli) {
+           boolean attivo) {
         this.accountId = accountId;
         this.personaId = personaId;
         this.email = email;
@@ -37,7 +36,6 @@ public final class Utente implements UserDetails, CredentialsContainer, Serializ
         this.nome = nome;
         this.cognome = cognome;
         this.attivo = attivo;
-        this.ruoli = List.copyOf(ruoli);
     }
 
     public UUID accountId() { return accountId; }
@@ -45,21 +43,9 @@ public final class Utente implements UserDetails, CredentialsContainer, Serializ
     public String email() { return email; }
     public String nome() { return nome; }
     public String cognome() { return cognome; }
-    public List<RuoloAssegnato> ruoli() { return ruoli; }
-
-    public boolean ha(Ruolo ruolo) {
-        return ruoli.stream().anyMatch(r -> r.ruolo() == ruolo);
-    }
-
-    /** Ha il ruolo valido per l'impianto: assegnato su quell'impianto o su tutta la società. ADMIN vale ovunque. */
-    public boolean ha(Ruolo ruolo, java.util.UUID impiantoId) {
-        return ruoli.stream().anyMatch(r -> r.ruolo() == Ruolo.ADMIN
-            || (r.ruolo() == ruolo && (r.impiantoId() == null || r.impiantoId().equals(impiantoId))));
-    }
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return ruoli.stream().map(r -> "ROLE_" + r.ruolo().name()).distinct().map(SimpleGrantedAuthority::new).toList();
+        return List.of(new SimpleGrantedAuthority("ROLE_UTENTE"));
     }
 
     @Override

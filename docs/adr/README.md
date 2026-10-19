@@ -13,3 +13,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0007](0007-piano-vasca.md) | Piano vasca: lezioni ricorrenti calcolate, eccezioni, assetti delle corsie, vista per fasce | accettata |
 | [0008](0008-fasce-iscrizioni-presenze.md) | Fasce definite con assetto 5/6, iscrizioni ai turni dei corsi, presenze | accettata |
 | [0009](0009-tornello-e-controlli-di-accesso.md) | Tornello: braccialetti, controlli di accesso modulari, tesseramento e abbonamenti | accettata |
+| [0010](0010-ruoli-e-permessi.md) | Ruoli modificabili con permessi, validi subito | accettata |

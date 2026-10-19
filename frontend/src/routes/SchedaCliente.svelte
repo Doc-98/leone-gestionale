@@ -24,7 +24,7 @@
   let messaggio = $state('');
   let conferma = $state('');
 
-  const daiGolden = $derived(sessione.ha('ADMIN', 'COORDINATORE'));
+  const daiGolden = $derived(sessione.puo('GOLDEN_PASS'));
 
   async function carica() {
     try {
@@ -98,10 +98,10 @@
   let certificato = $state<{ tipo: 'NON_AGONISTICO' | 'AGONISTICO'; rilasciatoIl: string; scadenza: string } | null>(null);
 
   // ── Abbonamenti ───────────────────────────────────────────────────────
-  let abbonamento = $state<{ tipo: 'CORSO' | 'CARNET'; corsoId: string; volte: number; ingressi: number | string; dal: string; al: string; importo: number | string | null } | null>(null);
+  let abbonamento = $state<{ tipo: 'CORSO' | 'CARNET'; corsoId: string; volte: number; ingressi: number | string; aOrario: boolean; dal: string; al: string; importo: number | string | null } | null>(null);
 
   function nuovoAbbonamento() {
-    abbonamento = { tipo: 'CORSO', corsoId: cliente?.turni[0]?.corsoId ?? '', volte: Math.max(1, Math.min(3, cliente?.turni.length ?? 1)), ingressi: 10,
+    abbonamento = { tipo: 'CORSO', corsoId: cliente?.turni[0]?.corsoId ?? '', volte: Math.max(1, Math.min(3, cliente?.turni.length ?? 1)), ingressi: 10, aOrario: false,
       dal: oggi, al: cliente?.stagioneProposta.al ?? '', importo: null };
   }
 
@@ -111,7 +111,7 @@
     const a = abbonamento!;
     const ok = await esegui(() => api.nuovoAbbonamento(id, a.tipo === 'CORSO'
       ? { tipo: 'CORSO', corsoId: a.corsoId, volteASettimana: a.volte, dal: a.dal, al: a.al || null, importo: numero(a.importo) }
-      : { tipo: 'CARNET', ingressi: numero(a.ingressi), dal: a.dal, al: a.al || null, importo: numero(a.importo) }), 'Abbonamento registrato.');
+      : { tipo: 'CARNET', ingressi: numero(a.ingressi), corsoId: a.aOrario ? a.corsoId : null, dal: a.dal, al: a.al || null, importo: numero(a.importo) }), 'Abbonamento registrato.');
     if (ok) abbonamento = null;
   };
 
@@ -307,7 +307,7 @@
           <li class="voce-l">
             <span class="grow">
               {#if a.tipo === 'CORSO'}<strong>{a.corso}</strong> · {a.volteASettimana === 1 ? 'una volta' : `${a.volteASettimana} volte`} a settimana
-              {:else}<strong>Carnet {a.ingressi} ingressi</strong> · {a.residui} rimasti{a.ultimoIngresso ? `, ultimo il ${dataBreve(dataDi(a.ultimoIngresso))}` : ''}{/if}
+              {:else}<strong>Carnet {a.ingressi} ingressi</strong> · {a.corso ? `negli orari di ${a.corso}` : 'entrata libera'} · {a.residui} rimasti{a.ultimoIngresso ? `, ultimo il ${dataBreve(dataDi(a.ultimoIngresso))}` : ''}{/if}
               <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.al)}` : ''}</span>
             </span>
             <span class="tag {st.classe}">{st.nome}</span>
@@ -341,6 +341,22 @@
             </div>
           {:else}
             <label class="field"><span class="lbl">Ingressi</span><input class="inp" type="number" min="1" max="500" bind:value={abbonamento.ingressi} /></label>
+            <div class="field">
+              <span class="lbl">Quando si entra</span>
+              <div class="seg" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Quando si entra">
+                <button type="button" aria-pressed={!abbonamento.aOrario} onclick={() => (abbonamento!.aOrario = false)}>Entrata libera</button>
+                <button type="button" aria-pressed={abbonamento.aOrario} onclick={() => (abbonamento!.aOrario = true)}>Negli orari di un corso</button>
+              </div>
+            </div>
+            {#if abbonamento.aOrario}
+              <label class="field"><span class="lbl">Corso (es. Nuoto libero)</span>
+                <select class="inp" bind:value={abbonamento.corsoId}>
+                  <option value="" disabled>Scegli il corso</option>
+                  {#each corsi as c (c.id)}<option value={c.id}>{c.nome}</option>{/each}
+                </select>
+              </label>
+              <p class="muted small nomargin">Al tornello vale solo nella fascia dei turni di quel corso, come un abbonamento.</p>
+            {/if}
           {/if}
           <div class="due">
             <label class="field"><span class="lbl">Dal</span><input class="inp" type="date" bind:value={abbonamento.dal} /></label>
@@ -349,7 +365,7 @@
           <label class="field"><span class="lbl">Importo (€, facoltativo)</span><input class="inp" type="number" min="0" step="0.01" bind:value={abbonamento.importo} /></label>
           <div class="row">
             <button type="button" class="btn btn-secondary grow" onclick={() => (abbonamento = null)}>Annulla</button>
-            <button class="btn btn-primary grow" disabled={abbonamento.tipo === 'CORSO' ? !abbonamento.corsoId : !numero(abbonamento.ingressi)}>Registra</button>
+            <button class="btn btn-primary grow" disabled={abbonamento.tipo === 'CORSO' || abbonamento.aOrario ? !abbonamento.corsoId : !numero(abbonamento.ingressi)}>Registra</button>
           </div>
         </form>
       {:else}

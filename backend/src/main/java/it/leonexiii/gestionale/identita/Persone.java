@@ -25,10 +25,10 @@ public class Persone {
         return repo.findAllById(ids).stream().collect(Collectors.toMap(Persona::getId, Persona::nomeCompleto));
     }
 
-    /** Chi ha il ruolo nell'impianto oggi (es. lo staff della piscina, per assegnare i turni). */
+    /** Chi ha il permesso nell'impianto oggi (es. «Fa i turni»: lo staff della piscina, per assegnare i turni). */
     @Transactional(readOnly = true)
-    public List<PersonaBreve> conRuolo(Ruolo ruolo, UUID impiantoId) {
-        return repo.conRuolo(ruolo, impiantoId, LocalDate.now(UtenteService.FUSO)).stream()
+    public List<PersonaBreve> conPermesso(Permesso permesso, UUID impiantoId) {
+        return repo.conPermesso(permesso.name(), impiantoId, LocalDate.now(UtenteService.FUSO)).stream()
             .map(p -> new PersonaBreve(p.getId(), p.nomeCompleto()))
             .toList();
     }
@@ -68,7 +68,7 @@ public class Persone {
     }
 
     @Transactional(readOnly = true)
-    public boolean haRuolo(UUID personaId, Ruolo ruolo, UUID impiantoId) {
-        return conRuolo(ruolo, impiantoId).stream().anyMatch(p -> p.id().equals(personaId));
+    public boolean haPermesso(UUID personaId, Permesso permesso, UUID impiantoId) {
+        return conPermesso(permesso, impiantoId).stream().anyMatch(p -> p.id().equals(personaId));
     }
 }

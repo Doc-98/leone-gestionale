@@ -66,8 +66,9 @@ class IscrizioniService {
         Lezione l = lezione(lezioneId);
         boolean iscrive = accesso.gestisceIscrizioni(u, impianto(l));
         boolean istruttore = u.personaId().equals(l.istruttoreEffettivo());
-        boolean coordinatore = u.ha(it.leonexiii.gestionale.identita.Ruolo.COORDINATORE, impianto(l));
-        if (!iscrive && !istruttore) throw new AccessDeniedException("La lista degli iscritti la vedono l'istruttore, i coordinatori e la segreteria.");
+        boolean coordinatore = accesso.segnaTutteLePresenze(u, impianto(l));
+        if (!iscrive && !istruttore && !coordinatore)
+            throw new AccessDeniedException("La lista degli iscritti la vedono l'istruttore del turno e chi gestisce iscrizioni o presenze.");
         LocalDate giorno = data != null ? data : LocalDate.now(FUSO);
 
         List<Iscrizione> attive = iscrizioni.findByLezioneIdOrderByDal(lezioneId).stream().filter(i -> i.attivaIl(giorno)).toList();
@@ -89,7 +90,7 @@ class IscrizioniService {
     @Transactional
     IscrittoDto iscrivi(Utente u, UUID lezioneId, NuovaIscrizione in) {
         Lezione l = lezione(lezioneId);
-        if (!accesso.gestisceIscrizioni(u, impianto(l))) throw new AccessDeniedException("Le iscrizioni le gestiscono la segreteria e i coordinatori.");
+        if (!accesso.gestisceIscrizioni(u, impianto(l))) throw new AccessDeniedException("Per iscrivere serve il permesso «Iscrizioni».");
         LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(FUSO);
         if (l.getValidaAl() != null && dal.isAfter(l.getValidaAl())) throw new IllegalArgumentException("Il turno finisce prima di quella data.");
         if (l.getPosti() != null && !Boolean.TRUE.equals(in.forza())) {
@@ -114,7 +115,7 @@ class IscrizioniService {
     void termina(Utente u, UUID iscrizioneId, Termine in) {
         Iscrizione i = iscrizioni.findById(iscrizioneId).orElseThrow(() -> new NonTrovato("Iscrizione non trovata."));
         Lezione l = lezione(i.getLezioneId());
-        if (!accesso.gestisceIscrizioni(u, impianto(l))) throw new AccessDeniedException("Le iscrizioni le gestiscono la segreteria e i coordinatori.");
+        if (!accesso.gestisceIscrizioni(u, impianto(l))) throw new AccessDeniedException("Per iscrivere serve il permesso «Iscrizioni».");
         i.termina(in.al() != null ? in.al() : LocalDate.now(FUSO));
     }
 
@@ -122,8 +123,8 @@ class IscrizioniService {
     ElencoIscritti segnaPresenze(Utente u, UUID lezioneId, Presenze in) {
         Lezione l = lezione(lezioneId);
         boolean istruttore = u.personaId().equals(l.istruttoreEffettivo());
-        if (!istruttore && !u.ha(it.leonexiii.gestionale.identita.Ruolo.COORDINATORE, impianto(l)))
-            throw new AccessDeniedException("Le presenze le segna l'istruttore del turno (o un coordinatore).");
+        if (!istruttore && !accesso.segnaTutteLePresenze(u, impianto(l)))
+            throw new AccessDeniedException("Le presenze le segna l'istruttore del turno (o chi ha «Presenze di tutti»).");
         LocalDate g = in.data();
         if (g == null) throw new IllegalArgumentException("Indica la data.");
         if (g.isAfter(LocalDate.now(FUSO))) throw new IllegalArgumentException("Le presenze si segnano il giorno della lezione o dopo, non prima.");

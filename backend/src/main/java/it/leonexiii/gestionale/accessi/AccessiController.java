@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Tornello (tutto lo staff: esito con nome e motivi, livello 1 dell'ADR 0003), braccialetti e ban (segreteria,
- * coordinatori, admin), golden pass (coordinatori, admin), regole (le modificano gli admin).
+ * Tornello (chiunque abbia un ruolo: esito con nome e motivi, livello 1 dell'ADR 0003); braccialetti e ban, golden
+ * pass, regole: ognuno con il suo permesso (ADR 0010).
  */
 @RestController
 @RequestMapping("/api/accessi")
@@ -47,14 +47,14 @@ class AccessiController {
     }
 
     @GetMapping("/persone/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'BRACCIALETTI')")
     GestioneAccessiService.SchedaAccessi scheda(@PathVariable UUID id) {
         return gestione.scheda(id);
     }
 
     @PostMapping("/persone/{id}/braccialetti")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
     GestioneAccessiService.BraccialettoDto assegna(@PathVariable UUID id, @RequestBody GestioneAccessiService.NuovoBraccialetto in) {
         return gestione.assegna(id, in);
     }
@@ -62,7 +62,7 @@ class AccessiController {
     /** {"stato": "SMARRITO"} · "ATTIVO" (ritrovato) · "DISATTIVATO" */
     @PutMapping("/braccialetti/{id}/stato")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
     void stato(@PathVariable UUID id, @RequestBody GestioneAccessiService.NuovoStato in) {
         gestione.cambiaStato(id, in);
     }
@@ -70,34 +70,34 @@ class AccessiController {
     /** {"personaId"} oppure {"braccialettoId"}, con "motivo" e facoltativi "dal", "al". */
     @PostMapping("/ban")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
     Map<String, UUID> banna(@AuthenticationPrincipal Utente u, @RequestBody GestioneAccessiService.NuovoBlocco in) {
         return Map.of("id", gestione.banna(u, in));
     }
 
     @PostMapping("/ban/{id}/revoca")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
     void revocaBan(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         gestione.revocaBan(u, id);
     }
 
     @PostMapping("/persone/{id}/golden-pass")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'GOLDEN_PASS')")
     Map<String, UUID> goldenPass(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody GestioneAccessiService.NuovoGoldenPass in) {
         return Map.of("id", gestione.goldenPass(u, id, in));
     }
 
     @PostMapping("/golden-pass/{id}/revoca")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'GOLDEN_PASS')")
     void revocaGoldenPass(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         gestione.revocaGoldenPass(u, id);
     }
 
     @GetMapping("/regole")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'REGOLE_TORNELLO', 'BRACCIALETTI')")
     List<GestioneAccessiService.RegolaDto> regole() {
         return gestione.regole();
     }
@@ -105,7 +105,7 @@ class AccessiController {
     /** {"attiva": true, "parametri": {"minutiPrima": 15, "minutiDopoInizio": null}} */
     @PutMapping("/regole/{codice}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'REGOLE_TORNELLO')")
     void modificaRegola(@AuthenticationPrincipal Utente u, @PathVariable String codice, @RequestBody GestioneAccessiService.ModificaRegola in) {
         gestione.modificaRegola(u, codice, in);
     }

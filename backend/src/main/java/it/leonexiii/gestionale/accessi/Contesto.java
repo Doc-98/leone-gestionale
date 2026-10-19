@@ -9,6 +9,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.Optional;
 
 /**
@@ -17,7 +19,8 @@ import java.util.Optional;
  */
 record Contesto(Braccialetto braccialetto, List<Braccialetto> braccialettiPersona, Persone.PersonaScheda persona,
                 Instant istante, LocalDate oggi, LocalTime ora, List<Blocco> blocchiAttivi, boolean goldenPass,
-                Clienti.Situazione cliente, List<Frequenze.TurnoDelGiorno> turniOggi, int minutiRientro) {
+                Clienti.Situazione cliente, List<Frequenze.TurnoDelGiorno> turniOggi, int minutiRientro,
+                Map<UUID, List<Frequenze.TurnoDelGiorno>> turniCarnetOggi) {
 
     static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final DateTimeFormatter ORA = DateTimeFormatter.ofPattern("HH:mm");
@@ -30,11 +33,29 @@ record Contesto(Braccialetto braccialetto, List<Braccialetto> braccialettiPerson
         return cliente.abbonamenti().stream().anyMatch(a -> !a.carnet() && a.validoIl(oggi));
     }
 
-    /** Il carnet da usare: valido oggi e con ingressi residui, o appena usato (rientro). Prima quello in rientro, poi il più vecchio. */
-    Optional<Clienti.AbbonamentoBreve> carnetUtilizzabile() {
-        List<Clienti.AbbonamentoBreve> validi = cliente.abbonamenti().stream().filter(a -> a.carnet() && a.validoIl(oggi)).toList();
+    /** Un carnet valido oggi, con ingressi residui o appena usato (rientro), a qualsiasi ora. */
+    Optional<Clienti.AbbonamentoBreve> carnetValido() {
+        return carnetValidi().stream().filter(a -> a.rientroAlle(istante, minutiRientro) || a.residui() > 0).findFirst();
+    }
+
+    private List<Clienti.AbbonamentoBreve> carnetValidi() {
+        return cliente.abbonamenti().stream().filter(a -> a.carnet() && a.validoIl(oggi)).toList();
+    }
+
+    /**
+     * Il carnet da usare adesso: prima quello in rientro, poi il più vecchio con ingressi residui che vale a
+     * quest'ora (a entrata libera, oppure a orario e nella fascia di un turno del suo corso). Se la fascia oraria
+     * non si controlla, l'orario del carnet non conta.
+     */
+    Optional<Clienti.AbbonamentoBreve> carnetUtilizzabileOra(Parametri fascia, boolean fasciaControllata) {
+        List<Clienti.AbbonamentoBreve> validi = carnetValidi();
         return validi.stream().filter(a -> a.rientroAlle(istante, minutiRientro)).findFirst()
-            .or(() -> validi.stream().filter(a -> a.residui() > 0).min(Comparator.comparing(Clienti.AbbonamentoBreve::dal)));
+            .or(() -> validi.stream().filter(a -> a.residui() > 0 && (!a.aOrario() || !fasciaControllata || inOrarioDelCarnet(a, fascia)))
+                .min(Comparator.comparing(Clienti.AbbonamentoBreve::dal)));
+    }
+
+    boolean inOrarioDelCarnet(Clienti.AbbonamentoBreve a, Parametri fascia) {
+        return turniCarnetOggi.getOrDefault(a.corsoId(), List.of()).stream().anyMatch(t -> inFinestra(t, fascia));
     }
 
     /** Da quando a quando si entra per un turno: N minuti prima dell'inizio, fino alla fine o fino a M minuti dopo l'inizio. */

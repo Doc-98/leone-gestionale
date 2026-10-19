@@ -10,7 +10,7 @@
   let bozze = $state<Record<string, { attiva: boolean; valori: Record<string, number | string | null>; vuoti: Record<string, boolean> }>>({});
   let errore = $state('');
   let messaggio = $state('');
-  const admin = $derived(sessione.ha('ADMIN'));
+  const admin = $derived(sessione.puo('REGOLE_TORNELLO'));
 
   async function carica() {
     try {
@@ -49,7 +49,7 @@
 </script>
 
 <p class="muted nomargin">Al tornello si controllano tutte le regole attive e si mostrano tutti i motivi del rosso. Un braccialetto sconosciuto dà sempre rosso.</p>
-{#if !admin}<p class="hint nomargin">Le regole le può cambiare solo un admin.</p>{/if}
+{#if !admin}<p class="hint nomargin">Per cambiare le regole serve il permesso «Regole del tornello» (di base, gli admin).</p>{/if}
 {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
 {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
 

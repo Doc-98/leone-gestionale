@@ -27,7 +27,7 @@ class ControlloAbbonamento implements ControlloAccesso {
 
     @Override
     public List<Motivo> verifica(Contesto c, Parametri p) {
-        if (c.corsoValido() || c.carnetUtilizzabile().isPresent()) return List.of();
+        if (c.corsoValido() || c.carnetValido().isPresent()) return List.of();
         List<Clienti.AbbonamentoBreve> tutti = c.cliente().abbonamenti();
         String rimedio = "Rinnovare l'abbonamento in segreteria.";
         var futuro = tutti.stream().filter(a -> a.dal().isAfter(c.oggi())).min(Comparator.comparing(Clienti.AbbonamentoBreve::dal));

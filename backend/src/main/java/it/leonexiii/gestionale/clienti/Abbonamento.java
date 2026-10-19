@@ -66,10 +66,12 @@ class Abbonamento {
         return a;
     }
 
-    static Abbonamento carnet(UUID personaId, Integer ingressi, LocalDate dal, LocalDate al, BigDecimal importo, String note, UUID da, Instant ora) {
+    /** Carnet a entrata libera (corsoId null) o valido solo negli orari dei turni di un corso (es. nuoto libero). */
+    static Abbonamento carnet(UUID personaId, Integer ingressi, UUID corsoId, LocalDate dal, LocalDate al, BigDecimal importo, String note, UUID da, Instant ora) {
         if (ingressi == null || ingressi < 1 || ingressi > 500) throw new IllegalArgumentException("Indica quanti ingressi ha il carnet.");
         Abbonamento a = new Abbonamento(personaId, CARNET, dal, al, importo, note, da, ora);
         a.ingressi = ingressi.shortValue();
+        a.corsoId = corsoId;
         return a;
     }
 

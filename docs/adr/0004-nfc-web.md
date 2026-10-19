@@ -10,3 +10,6 @@ esadecimale maiuscolo nell'ordine di lettura e associato a una persona tramite l
 **Conseguenze.** Funziona solo su Android con Chrome: la postazione atrio usa un dispositivo Android.
 Su iPhone la lettura richiederebbe un'app nativa (fuori dallo scopo per ora). Va verificato in che formato
 il gestionale attuale salva lo stesso codice, per importare i bracciali esistenti.
+
+**Aggiornamento (19/10/2026).** Al tornello e in segreteria ci sono già lettori NFC fissi: restano lo strumento
+principale. La lettura dal telefono serve per comodità, lontano dalle postazioni (ADR 0009).

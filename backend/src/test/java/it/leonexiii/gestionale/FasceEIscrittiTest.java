@@ -170,7 +170,7 @@ class FasceEIscrittiTest {
         @SuppressWarnings("unchecked")
         var giallo = ((List<Object>) json(luca.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(FasceEIscrittiTest::mappa)
             .filter(o -> "Delfino Giallo".equals(o.get("titolo")) && "17:00:00".equals(o.get("inizio"))).findFirst().orElseThrow();
-        assertThat(((Number) giallo.get("iscritti")).intValue()).isBetween(5, 8);
+        assertThat(((Number) giallo.get("iscritti")).intValue()).isBetween(5, 9); // 5-8 inventati, più Tommaso (casi del tornello)
         String turnoGiallo = (String) giallo.get("lezioneId");
         var lista = json(luca.get("/api/lezioni/" + turnoGiallo + "/iscritti?data=" + lunedi));
         assertThat(lista).containsEntry("puoSegnarePresenze", true);

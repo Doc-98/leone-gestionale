@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Scheda cliente: segreteria, coordinatori e admin. La ricerca delle persone è in /api/persone. */
 @RestController
 @RequestMapping("/api/clienti")
-@PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE', 'SEGRETERIA')")
+@PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI')")
 class ClientiController {
 
     private final SchedaClientiService schede;

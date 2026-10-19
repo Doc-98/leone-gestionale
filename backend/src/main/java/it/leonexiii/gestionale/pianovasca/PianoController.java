@@ -46,27 +46,27 @@ class PianoController {
     /** {"vascaId", "giorni": [1,2,4], "inizio", "fine", "assetto": 6, "validaDal", "validaAl"} */
     @PostMapping("/fasce")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     List<FasceService.FasciaDto> creaFasce(@AuthenticationPrincipal Utente u, @RequestBody FasceService.NuoveFasce in) {
         return fasce.crea(u, in);
     }
 
     @PutMapping("/fasce/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     FasceService.EsitoFascia modificaFascia(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody FasceService.ModificaFascia in) {
         return fasce.modifica(u, id, in);
     }
 
     /** {"assetto": 5}: i corsi della fascia passano sulle corsie con lo stesso numero. */
     @PostMapping("/fasce/{id}/assetto")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     FasceService.EsitoFascia cambiaAssetto(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody FasceService.NuovoAssetto in) {
         return fasce.cambiaAssetto(u, id, in);
     }
 
     @DeleteMapping("/fasce/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     void eliminaFascia(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         fasce.elimina(u, id);
     }
@@ -113,27 +113,27 @@ class PianoController {
 
     @PostMapping("/corsi")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.CorsoDto creaCorso(@AuthenticationPrincipal Utente u, @RequestBody GestionePianoService.CorsoInput in) {
         return gestione.creaCorso(u, in);
     }
 
     @PutMapping("/corsi/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.CorsoDto modificaCorso(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody GestionePianoService.CorsoInput in) {
         return gestione.modificaCorso(u, id, in);
     }
 
     @PostMapping("/corsi/{id}/lezioni")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.Esito<GestionePianoService.LezioneDto> aggiungiLezione(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
                                                                                @RequestBody GestionePianoService.LezioneInput in) {
         return gestione.aggiungiLezione(u, id, in);
     }
 
     @PutMapping("/lezioni/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.Esito<GestionePianoService.LezioneDto> modificaLezione(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
                                                                                @RequestBody GestionePianoService.LezioneInput in) {
         return gestione.modificaLezione(u, id, in);
@@ -141,7 +141,7 @@ class PianoController {
 
     @DeleteMapping("/lezioni/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     void togliLezione(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         gestione.togliLezione(u, id);
     }
@@ -149,7 +149,7 @@ class PianoController {
     /** {"data", "tipo": "SALTATA" | "SPOSTATA", "nuovaData", "nuovoInizio", "nuovoFine", "motivo"} */
     @PostMapping("/lezioni/{id}/eccezioni")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.Esito<UUID> aggiungiEccezione(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
                                                       @RequestBody GestionePianoService.EccezioneInput in) {
         return gestione.aggiungiEccezione(u, id, in);
@@ -157,7 +157,7 @@ class PianoController {
 
     @DeleteMapping("/eccezioni/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     void togliEccezione(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         gestione.togliEccezione(u, id);
     }
@@ -169,20 +169,20 @@ class PianoController {
 
     @PostMapping("/eventi")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.Esito<GestionePianoService.EventoDto> creaEvento(@AuthenticationPrincipal Utente u, @RequestBody GestionePianoService.EventoInput in) {
         return gestione.creaEvento(u, in);
     }
 
     @PutMapping("/eventi/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.Esito<GestionePianoService.EventoDto> modificaEvento(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
                                                                              @RequestBody GestionePianoService.EventoInput in) {
         return gestione.modificaEvento(u, id, in);
     }
 
     @PostMapping("/eventi/{id}/annulla")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANO_MODIFICA')")
     GestionePianoService.EventoDto annullaEvento(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         return gestione.annullaEvento(u, id);
     }

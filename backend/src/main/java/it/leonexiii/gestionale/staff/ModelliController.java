@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** La settimana tipo e la generazione dei turni del mese. */
 @RestController
 @RequestMapping("/api/modelli")
-@PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+@PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
 class ModelliController {
 
     record Generazione(String mese) {}

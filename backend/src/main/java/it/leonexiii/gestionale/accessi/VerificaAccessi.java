@@ -145,8 +145,12 @@ class VerificaAccessi {
         boolean goldenPass = golden.findByPersonaIdOrderByDalDesc(personaId).stream().anyMatch(g -> g.attivoIl(oggi));
         ControlloAccesso abbonamento = controlli.stream().filter(c -> c.regola().equals("ABBONAMENTO")).findFirst().orElse(null);
         int rientro = abbonamento == null ? 90 : parametriDi(abbonamento, salvate).intero("minutiRientro", 90);
-        Contesto c = new Contesto(b, suoi, persona, istante, oggi, locale.toLocalTime(), attivi, goldenPass, clienti.situazione(personaId),
-            frequenze.turniIl(personaId, oggi), rientro);
+        Clienti.Situazione situazione = clienti.situazione(personaId);
+        Map<UUID, List<Frequenze.TurnoDelGiorno>> turniCarnet = new HashMap<>();
+        situazione.abbonamenti().stream().filter(x -> x.aOrario() && x.validoIl(oggi)).map(Clienti.AbbonamentoBreve::corsoId).distinct()
+            .forEach(corso -> turniCarnet.put(corso, frequenze.turniDelCorsoIl(corso, oggi)));
+        Contesto c = new Contesto(b, suoi, persona, istante, oggi, locale.toLocalTime(), attivi, goldenPass, situazione,
+            frequenze.turniIl(personaId, oggi), rientro, turniCarnet);
 
         List<Motivo> motivi = new ArrayList<>();
         for (ControlloAccesso k : controlli) {
@@ -161,8 +165,9 @@ class VerificaAccessi {
         if (abbonamento != null && attivo(abbonamento, salvate) && !goldenPass) {
             ControlloAccesso fascia = controlli.stream().filter(k -> k.regola().equals("FASCIA_ORARIA")).findFirst().orElse(null);
             boolean fasciaControllata = fascia != null && attivo(fascia, salvate);
-            boolean copertoDalCorso = c.corsoValido() && (!fasciaControllata || c.turniOggi().stream().anyMatch(t -> c.inFinestra(t, parametriDi(fascia, salvate))));
-            if (!copertoDalCorso) carnet = c.carnetUtilizzabile().orElse(null);
+            Parametri pf = fascia == null ? new Parametri(Map.of()) : parametriDi(fascia, salvate);
+            boolean copertoDalCorso = c.corsoValido() && (!fasciaControllata || c.turniOggi().stream().anyMatch(t -> c.inFinestra(t, pf)));
+            if (!copertoDalCorso) carnet = c.carnetUtilizzabileOra(pf, fasciaControllata).orElse(null);
         }
         return new Valutazione(c, motivi, verde, carnet);
     }

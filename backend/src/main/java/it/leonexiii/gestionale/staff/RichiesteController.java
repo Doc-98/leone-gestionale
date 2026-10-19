@@ -47,7 +47,7 @@ class RichiesteController {
 
     /** Per coordinatori: richieste negli stati indicati (default: in attesa di approvazione). */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
     List<RichiestaDto> perStato(@AuthenticationPrincipal Utente utente,
                                 @RequestParam(defaultValue = "IN_ATTESA_APPROVAZIONE") List<StatoRichiesta> stato) {
         return service.perStato(utente, stato);
@@ -69,13 +69,13 @@ class RichiesteController {
     }
 
     @PostMapping("/{id}/approva")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
     RichiestaDto approva(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody(required = false) Decisione d) {
         return service.approva(utente, id, d == null ? null : d.nota());
     }
 
     @PostMapping("/{id}/respingi")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATORE')")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
     RichiestaDto respingi(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody(required = false) Decisione d) {
         return service.respingi(utente, id, d == null ? null : d.nota());
     }
