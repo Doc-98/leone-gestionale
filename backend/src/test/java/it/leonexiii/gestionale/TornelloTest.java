@@ -1,0 +1,262 @@
+package it.leonexiii.gestionale;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.net.http.HttpResponse;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.json.JsonParserFactory;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.test.context.ActiveProfiles;
+
+/**
+ * Il tornello: tutti i motivi del rosso insieme, con il nome della persona; fascia oraria configurabile; più
+ * braccialetti; ban del braccialetto o della persona; smarrito; golden pass; carnet con rientro. Il tempo è fermato
+ * su domenica 2 gennaio 2028 (la domenica è libera nei dati demo).
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import({TestcontainersConfiguration.class, TornelloTest.Tempo.class})
+@ActiveProfiles("demo")
+class TornelloTest {
+
+    static final ZoneId ROMA = ZoneId.of("Europe/Rome");
+    static final String IMPIANTO = "00000000-0000-0000-0000-0000000000b1";
+    static final String VASCA_PICCOLA = "00000000-0000-0000-0000-0000000000c2";
+
+    /** Un orologio che i test spostano a piacere. */
+    static final class OrologioDiProva extends Clock {
+        private volatile Instant adesso = Instant.now();
+
+        void alle(String quando) {
+            adesso = LocalDateTime.parse(quando).atZone(ROMA).toInstant();
+        }
+
+        @Override public ZoneId getZone() { return ROMA; }
+        @Override public Clock withZone(ZoneId zone) { return this; }
+        @Override public Instant instant() { return adesso; }
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class Tempo {
+        @Bean
+        @Primary
+        OrologioDiProva orologioDiProva() {
+            return new OrologioDiProva();
+        }
+    }
+
+    @LocalServerPort
+    int porta;
+
+    @Autowired
+    OrologioDiProva orologio;
+
+    private ClientApi come(String email) throws Exception {
+        var c = new ClientApi(porta);
+        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
+        return c;
+    }
+
+    private static Map<String, Object> json(HttpResponse<String> r) {
+        return JsonParserFactory.getJsonParser().parseMap(r.body());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> motivi(Map<String, Object> esito) {
+        return (List<Map<String, Object>>) esito.get("motivi");
+    }
+
+    private static List<Object> codici(Map<String, Object> esito) {
+        return motivi(esito).stream().map(m -> m.get("codice")).toList();
+    }
+
+    private static String nuovoCodice() {
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+    }
+
+    private Map<String, Object> passa(ClientApi c, String quando, String codice) throws Exception {
+        orologio.alle(quando);
+        var r = c.post("/api/accessi/passaggi", "{\"codice\":\"" + codice + "\"}");
+        assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+        return json(r);
+    }
+
+    private String crea(ClientApi c, String path, String corpo) throws Exception {
+        var r = c.post(path, corpo);
+        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
+        return (String) json(r).get("id");
+    }
+
+    private String cliente(ClientApi segr, String nome) throws Exception {
+        return crea(segr, "/api/clienti", "{\"nome\":\"" + nome + "\",\"cognome\":\"Prova\",\"dataNascita\":\"2019-03-10\"}");
+    }
+
+    @Test
+    void ilTornelloMostraTuttiIMotiviEIlNome() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var staff = come("staff@demo.leone");
+        var coord = come("coordinatore@demo.leone");
+        var admin = come("admin@demo.leone");
+        orologio.alle("2028-01-02T06:00");
+
+        String persona = cliente(segr, "Arturo");
+        String primo = nuovoCodice();
+        String secondo = nuovoCodice();
+        // il codice si normalizza: «ab:cd:…» diventa «ABCD…»
+        var b1 = segr.post("/api/accessi/persone/" + persona + "/braccialetti",
+            "{\"codice\":\"" + primo.substring(0, 2).toLowerCase() + ":" + primo.substring(2) + "\"}");
+        assertThat(b1.statusCode()).as(b1.body()).isEqualTo(201);
+        String idPrimo = (String) json(b1).get("id");
+        assertThat(json(b1).get("codice")).isEqualTo(primo);
+        String idSecondo = crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + secondo + "\"}");
+        assertThat(segr.post("/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + secondo + "\"}").statusCode()).isEqualTo(409);
+
+        // niente certificato, tesseramento, abbonamento: tre motivi insieme, e il nome di chi porta il braccialetto
+        var e = passa(staff, "2028-01-02T06:00", primo);
+        assertThat(e.get("verde")).isEqualTo(false);
+        assertThat(codici(e)).containsExactly("CERTIFICATO_MANCANTE", "TESSERAMENTO_MANCANTE", "ABBONAMENTO_MANCANTE");
+        @SuppressWarnings("unchecked") var p = (Map<String, Object>) e.get("persona");
+        assertThat(p.get("nome")).isEqualTo("Arturo");
+        assertThat(p.get("eta")).isEqualTo(8);
+        assertThat(p.get("braccialettiAttivi")).isEqualTo(2);
+
+        // certificato scaduto ieri: blocca; poi quello nuovo
+        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-01\"}");
+        assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).contains("CERTIFICATO_SCADUTO");
+        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-02\"}");
+        assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).doesNotContain("CERTIFICATO_SCADUTO", "CERTIFICATO_MANCANTE");
+
+        // tesseramento senza dati: la stagione in corso, 2027/28 da settembre a luglio
+        crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        assertThat(segr.post("/api/clienti/" + persona + "/tesseramenti", "{}").statusCode()).isEqualTo(409);
+        var scheda = json(segr.get("/api/clienti/" + persona));
+        assertThat(scheda.toString()).contains("stagione=2027/28").contains("dal=2027-09-01").contains("al=2028-07-31");
+
+        // un turno la domenica alle 06:00-06:45, iscrizione e abbonamento al corso
+        String corso = crea(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Corso del tornello\",\"tipo\":\"ALTRO\"}");
+        var l = coord.post("/api/corsi/" + corso + "/lezioni", """
+            {"giornoSettimana":7,"inizio":"06:00","fine":"06:45","validaDal":"2028-01-01","spazi":["%s"]}""".formatted(VASCA_PICCOLA));
+        assertThat(l.statusCode()).as(l.body()).isEqualTo(201);
+        @SuppressWarnings("unchecked") String lezione = (String) ((Map<String, Object>) json(l).get("valore")).get("id");
+        assertThat(segr.post("/api/lezioni/" + lezione + "/iscritti", "{\"personaId\":\"" + persona + "\",\"dal\":\"2028-01-01\"}").statusCode()).isEqualTo(201);
+        crea(segr, "/api/clienti/" + persona + "/abbonamenti",
+            "{\"tipo\":\"CORSO\",\"corsoId\":\"" + corso + "\",\"volteASettimana\":1,\"dal\":\"2027-09-01\",\"al\":\"2028-06-30\"}");
+
+        // fascia: da 10 minuti prima dell'inizio fino alla fine
+        var presto = passa(staff, "2028-01-02T05:49", primo);
+        assertThat(codici(presto)).containsExactly("FUORI_ORARIO");
+        assertThat(motivi(presto).getFirst().get("messaggio").toString()).contains("si entra dalle 05:50");
+        assertThat(passa(staff, "2028-01-02T05:50", primo).get("verde")).isEqualTo(true);
+        assertThat(passa(staff, "2028-01-02T06:45", primo).get("verde")).isEqualTo(true);
+        assertThat(motivi(passa(staff, "2028-01-02T06:46", primo)).getFirst().get("messaggio").toString()).contains("fino alle 06:45");
+
+        // la chiusura si cambia dalle regole (solo admin): fino a 15 minuti dopo l'inizio
+        assertThat(coord.put("/api/accessi/regole/FASCIA_ORARIA", "{\"attiva\":true,\"parametri\":{\"minutiDopoInizio\":15}}").statusCode()).isEqualTo(403);
+        assertThat(admin.put("/api/accessi/regole/FASCIA_ORARIA", "{\"attiva\":true,\"parametri\":{\"minutiPrima\":10,\"minutiDopoInizio\":15}}").statusCode()).isEqualTo(204);
+        assertThat(codici(passa(staff, "2028-01-02T06:20", primo))).containsExactly("FUORI_ORARIO");
+        assertThat(admin.put("/api/accessi/regole/FASCIA_ORARIA", "{\"attiva\":true,\"parametri\":{\"minutiDopoInizio\":null}}").statusCode()).isEqualTo(204);
+        assertThat(passa(staff, "2028-01-02T06:20", primo).get("verde")).isEqualTo(true);
+        assertThat(admin.put("/api/accessi/regole/FASCIA_ORARIA", "{\"attiva\":true,\"parametri\":{\"minutiPrima\":-1}}").statusCode()).isEqualTo(400);
+        // una regola spenta non conta
+        assertThat(admin.put("/api/accessi/regole/FASCIA_ORARIA", "{\"attiva\":false}").statusCode()).isEqualTo(204);
+        assertThat(passa(staff, "2028-01-02T12:00", primo).get("verde")).isEqualTo(true);
+        assertThat(admin.put("/api/accessi/regole/FASCIA_ORARIA", "{\"attiva\":true}").statusCode()).isEqualTo(204);
+        assertThat(coord.get("/api/accessi/regole").body()).contains("\"codice\":\"FASCIA_ORARIA\"").contains("\"minutiPrima\"");
+
+        // ban del singolo braccialetto: l'altro funziona
+        String banB = crea(segr, "/api/accessi/ban", "{\"braccialettoId\":\"" + idPrimo + "\",\"motivo\":\"Ceduto a un'altra persona\"}");
+        var bannato = passa(staff, "2028-01-02T06:00", primo);
+        assertThat(codici(bannato)).containsExactly("BRACCIALETTO_BANNATO");
+        assertThat(motivi(bannato).getFirst().get("messaggio").toString()).contains("Ceduto a un'altra persona");
+        assertThat(passa(staff, "2028-01-02T06:00", secondo).get("verde")).isEqualTo(true);
+        // ban della persona: tutti i suoi braccialetti
+        String banP = crea(segr, "/api/accessi/ban", "{\"personaId\":\"" + persona + "\",\"motivo\":\"Comportamento scorretto\",\"al\":\"2028-01-31\"}");
+        assertThat(codici(passa(staff, "2028-01-02T06:00", secondo))).containsExactly("PERSONA_BANNATA");
+        assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).containsExactly("BRACCIALETTO_BANNATO", "PERSONA_BANNATA");
+        assertThat(segr.post("/api/accessi/ban/" + banB + "/revoca", "{}").statusCode()).isEqualTo(204);
+        assertThat(segr.post("/api/accessi/ban/" + banP + "/revoca", "{}").statusCode()).isEqualTo(204);
+        assertThat(passa(staff, "2028-01-02T06:00", primo).get("verde")).isEqualTo(true);
+
+        // smarrito: rosso con il nome; l'altro braccialetto va; ritrovato torna verde
+        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"SMARRITO\"}").statusCode()).isEqualTo(204);
+        var smarrito = passa(staff, "2028-01-02T06:00", primo);
+        assertThat(codici(smarrito)).containsExactly("BRACCIALETTO_SMARRITO");
+        assertThat(smarrito.get("statoBraccialetto")).isEqualTo("SMARRITO");
+        assertThat(motivi(smarrito).getFirst().get("rimedio").toString()).contains("un altro braccialetto attivo");
+        assertThat(passa(staff, "2028-01-02T06:00", secondo).get("verde")).isEqualTo(true);
+
+        // golden pass: verde anche fuori orario e senza certificato valido, ma il braccialetto smarrito resta rosso
+        assertThat(segr.post("/api/accessi/persone/" + persona + "/golden-pass", "{}").statusCode()).isEqualTo(403);
+        String gp = crea(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova\"}");
+        var dorato = passa(staff, "2028-01-03T21:00", secondo);
+        assertThat(dorato.get("verde")).isEqualTo(true);
+        assertThat(dorato.get("goldenPass")).isEqualTo(true);
+        assertThat(codici(passa(staff, "2028-01-02T21:00", primo))).containsExactly("BRACCIALETTO_SMARRITO");
+        assertThat(coord.post("/api/accessi/golden-pass/" + gp + "/revoca", "{}").statusCode()).isEqualTo(204);
+        assertThat(codici(passa(staff, "2028-01-03T21:00", secondo))).containsExactly("CERTIFICATO_SCADUTO", "NESSUN_TURNO_OGGI");
+
+        // disattivato: il codice si può dare a un'altra persona
+        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"DISATTIVATO\"}").statusCode()).isEqualTo(204);
+        assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).containsExactly("BRACCIALETTO_DISATTIVATO");
+        String altra = cliente(segr, "Bruna");
+        assertThat(segr.post("/api/accessi/persone/" + altra + "/braccialetti", "{\"codice\":\"" + primo + "\"}").statusCode()).isEqualTo(201);
+        @SuppressWarnings("unchecked") var ora = (Map<String, Object>) passa(staff, "2028-01-02T06:00", primo).get("persona");
+        assertThat(ora.get("nome")).isEqualTo("Bruna");
+        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"ATTIVO\"}").statusCode()).isEqualTo(409);
+        assertThat(idSecondo).isNotNull();
+
+        // sconosciuto; la scheda accessi non è per lo staff; lo storico dei passaggi sì
+        assertThat(codici(passa(staff, "2028-01-02T06:00", "FFFF0000FFFF"))).containsExactly("BRACCIALETTO_SCONOSCIUTO");
+        assertThat(staff.post("/api/accessi/passaggi", "{\"codice\":\"x\"}").statusCode()).isEqualTo(400);
+        assertThat(staff.get("/api/accessi/persone/" + persona).statusCode()).isEqualTo(403);
+        assertThat(staff.get("/api/clienti/" + persona).statusCode()).isEqualTo(403);
+        assertThat(staff.get("/api/accessi/passaggi").body()).contains("FFFF0000FFFF").contains("Bruna");
+        var acc = segr.get("/api/accessi/persone/" + persona);
+        assertThat(acc.statusCode()).isEqualTo(200);
+        assertThat(acc.body()).contains("\"stato\":\"DISATTIVATO\"").contains("Comportamento scorretto").contains("\"adesso\"");
+        assertThat(segr.get("/api/clienti/" + persona).body()).contains("Corso del tornello").contains("\"volteASettimana\":1");
+    }
+
+    @Test
+    void ilCarnetScalaUnaVoltaEPerdonaIlRientro() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var staff = come("giulia@demo.leone");
+        orologio.alle("2028-01-02T11:00");
+        String persona = cliente(segr, "Carla");
+        String codice = nuovoCodice();
+        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":2,\"dal\":\"2028-01-01\"}");
+
+        // il carnet non ha fascia oraria: primo passaggio, scala
+        var e1 = passa(staff, "2028-01-02T12:00", codice);
+        assertThat(e1.get("verde")).isEqualTo(true);
+        assertThat(e1.get("carnet").toString()).contains("usati=1").contains("scalato=true");
+        // esce e rientra entro 90 minuti: non scala
+        var e2 = passa(staff, "2028-01-02T13:29", codice);
+        assertThat(e2.get("carnet").toString()).contains("usati=1").contains("rientro=true").contains("scalato=false");
+        // dopo 90 minuti dal primo: secondo ingresso
+        assertThat(passa(staff, "2028-01-02T13:30", codice).get("carnet").toString()).contains("usati=2").contains("scalato=true");
+        // rientro dopo l'ultimo ingresso: passa anche se il carnet ora è finito
+        assertThat(passa(staff, "2028-01-02T14:00", codice).get("verde")).isEqualTo(true);
+        // più tardi: esaurito
+        var fine = passa(staff, "2028-01-02T17:00", codice);
+        assertThat(fine.get("verde")).isEqualTo(false);
+        assertThat(codici(fine)).containsExactly("CARNET_ESAURITO");
+        assertThat(motivi(fine).getFirst().get("messaggio").toString()).contains("2 ingressi su 2");
+        assertThat(segr.get("/api/clienti/" + persona).body()).contains("\"usati\":2").contains("\"residui\":0");
+    }
+}

@@ -14,4 +14,6 @@ interface IscrizioneRepository extends JpaRepository<Iscrizione, UUID> {
     List<Iscrizione> nelPeriodo(Collection<UUID> lezioni, LocalDate da, LocalDate a);
 
     List<Iscrizione> findByLezioneIdOrderByDal(UUID lezioneId);
+
+    List<Iscrizione> findByPersonaIdOrderByDal(UUID personaId);
 }
