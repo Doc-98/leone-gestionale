@@ -153,7 +153,7 @@
           <div class="card lezione" class:spento={finita}>
             <div class="grow">
               <div class="m">{lezioneBreve(l)}</div>
-              <div class="muted small">{etichettaSpazi(l.spazi, spazi)}{l.istruttore ? ` · ${l.istruttore.nome}` : ''}</div>
+              <div class="muted small">{etichettaSpazi(l.spazi, spazi)}{l.istruttore ? ` · ${l.istruttore.nome}` : ''}{l.posti ? ` · ${l.posti} posti` : ''}</div>
               <div class="muted small">dal {dataLunga(l.validaDal)}{l.validaAl ? ` al ${dataLunga(l.validaAl)}` : ''}</div>
             </div>
             {#if !finita}

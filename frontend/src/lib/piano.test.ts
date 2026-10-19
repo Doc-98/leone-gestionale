@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Occorrenza, SpazioPiano } from './api';
-import { colonneSpazi, disponi, etichettaSpazi, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce } from './piano';
+import { colonneSpazi, definitePerVasca, disponi, etichettaSpazi, fasceDefiniteIl, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce } from './piano';
 
 const sp = (id: string, nome: string, tipo: string, padreId: string | null = null): SpazioPiano => ({ id, impiantoId: 'i', nome, tipo, padreId, assetto: null });
 const SPAZI = [
@@ -15,7 +15,7 @@ const SPAZI = [
 const occ = (inizio: string, fine: string, extra: Partial<Occorrenza> = {}): Occorrenza => ({
   chiave: inizio + fine, tipo: 'LEZIONE', categoria: 'SCUOLA_NUOTO', colore: null, titolo: 't', dettaglio: null, data: '2026-10-19', inizio, fine,
   spazi: [], istruttore: null, stato: 'REGOLARE', nota: null, lezioneId: null, corsoId: null, eventoId: null, eccezioneId: null,
-  dataOriginale: null, conflitti: [], ...extra,
+  dataOriginale: null, conflitti: [], iscritti: null, posti: null, ...extra,
 });
 
 describe('spazi del piano', () => {
@@ -112,5 +112,31 @@ describe('fasce e pianta', () => {
 
   it('senza spazio: «altrove»', () => {
     expect(pianta(SP, [l('privata', '17:00', '17:45', [])]).altrove.map((o) => o.chiave)).toEqual(['privata']);
+  });
+});
+
+describe('fasce definite', () => {
+  const l = (k: string, inizio: string, fine: string, spazi: string[]) => occ(inizio, fine, { chiave: k, titolo: k, spazi });
+
+  it('danno l\'orario alla fascia e compaiono anche vuote', () => {
+    const { fasce, fasciaDi } = raggruppaFasce(
+      [l('a', '17:02', '17:44', ['c1']), l('b', '16:55', '17:35', ['vp'])],
+      [{ inizio: '17:00:00', fine: '17:45:00' }, { inizio: '18:40:00', fine: '19:25:00' }],
+    );
+    expect(fasce.map((f) => f.chiave)).toEqual(['17:00–17:45', '18:40–19:25']);
+    expect(fasciaDi.get('a')).toBe('17:00–17:45');
+    expect(fasciaDi.get('b')).toBe('17:00–17:45');
+  });
+
+  it('valgono nel loro giorno e periodo; per vasca si sceglie quella che si sovrappone di più', () => {
+    const f = (id: string, vascaId: string, g: number, inizio: string, fine: string, validaAl: string | null = null) =>
+      ({ id, vascaId, giornoSettimana: g, inizio, fine, assetto: 6, validaDal: '2026-01-01', validaAl });
+    const tutte = [f('lun', 'vg', 1, '17:00', '17:45'), f('mar', 'vg', 2, '17:00', '17:45'), f('vecchia', 'vg', 1, '18:00', '18:45', '2026-03-01'),
+      f('p1', 'vp', 1, '16:55', '17:35'), f('p2', 'vp', 1, '17:40', '18:20')];
+    const lunedi = fasceDefiniteIl(tutte, '2026-10-19');
+    expect(lunedi.map((x) => x.id)).toEqual(['lun', 'p1', 'p2']);
+    const per = definitePerVasca(lunedi, { chiave: 'x', inizio: 17 * 60, fine: 17 * 60 + 45 });
+    expect(per.get('vg')?.id).toBe('lun');
+    expect(per.get('vp')?.id).toBe('p1');
   });
 });

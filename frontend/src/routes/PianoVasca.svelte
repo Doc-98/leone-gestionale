@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { api, messaggioErrore, type Evento, type Occorrenza, type PersonaBreve, type Piano } from '../lib/api';
-  import { aggiungiGiorni, daIso, giornoEsteso, iso, lunedi, MESI, ora } from '../lib/date';
+  import { api, messaggioErrore, type Corso, type Evento, type FasciaOraria, type Occorrenza, type PersonaBreve, type Piano } from '../lib/api';
+  import { sessione } from '../lib/sessione.svelte';
+  import Iscritti from './Iscritti.svelte';
+  import GestioneFasce from './GestioneFasce.svelte';
+  import LezioneForm from './LezioneForm.svelte';
+  import { aggiungiGiorni, daIso, GIORNI_ESTESI, giornoEsteso, iso, lunedi, MESI, ora } from '../lib/date';
   import {
     colonneSpazi, colore, disponi, etichettaSpazi, finestraOraria, inAttivita, inFascia, intervalliColonne, minuti, nomeCategoria,
-    orarioFascia, raggruppaFasce, STATI, type Banda, type Fascia, type Intestazione,
+    orarioFascia, raggruppaFasce, STATI, fasceDefiniteIl, definitePerVasca, type Banda, type Fascia, type Intestazione,
   } from '../lib/piano';
   import PiantaVasche from '../components/PiantaVasche.svelte';
   import { colonneGiorni } from '../lib/griglia';
@@ -18,7 +22,10 @@
     | { tipo: 'dettaglio'; o: Occorrenza }
     | { tipo: 'eccezione'; o: Occorrenza }
     | { tipo: 'evento'; evento: Evento | null; data?: string; inizio?: string; spazio?: string }
-    | { tipo: 'fascia'; data: string; fascia: Fascia };
+    | { tipo: 'fascia'; data: string; fascia: Fascia }
+    | { tipo: 'iscritti'; o: Occorrenza }
+    | { tipo: 'fasce' }
+    | { tipo: 'inCorsia'; data: string; fascia: Fascia; spazio: string; cosa: 'turno' | 'evento' };
 
   const oggi = iso(new Date());
   let vista = $state<'giorno' | 'settimana'>('giorno');
@@ -33,6 +40,7 @@
   let avvisi = $state<string[]>([]);
   let pannello = $state<Pannello | null>(null);
   let personale = $state<PersonaBreve[]>([]);
+  let corsi = $state<Corso[]>([]);
 
   const da = $derived(vista === 'giorno' ? giorno : lunedi(giorno));
   const a = $derived(vista === 'giorno' ? giorno : aggiungiGiorni(lunedi(giorno), 6));
@@ -98,8 +106,29 @@
   );
 
   // ── Fasce ──
-  const fasceGiorno = $derived(raggruppaFasce(delGiorno));
-  const fasceSettimana = $derived(raggruppaFasce(occorrenze));
+  const definiteGiorno = $derived(fasceDefiniteIl(piano?.fasce ?? [], giorno));
+  const definiteSettimana = $derived(giorni.flatMap((g) => fasceDefiniteIl(piano?.fasce ?? [], g)));
+  const fasceGiorno = $derived(raggruppaFasce(delGiorno, definiteGiorno));
+  const fasceSettimana = $derived(raggruppaFasce(occorrenze, definiteSettimana));
+  const dow = (g: string) => ((new Date(`${g}T12:00:00`).getDay() + 6) % 7) + 1;
+  /** La lista degli iscritti la vedono segreteria e coordinatori, e l'istruttore del turno. */
+  const vediIscritti = (o: Occorrenza) => !!o.lezioneId && (!!piano?.impiantiIscrizioni.length || o.istruttore?.id === sessione.utente?.personaId);
+  const apriIscritti = (o: Occorrenza) => ((pannello = { tipo: 'iscritti', o }), (messaggio = ''));
+
+  async function cambiaAssetto(f: FasciaOraria, assetto: number) {
+    try {
+      const r = await api.cambiaAssetto(f.id, assetto);
+      fatto(`Fascia ${ora(f.inizio)}–${ora(f.fine)} a ${assetto} corsie${r.turniAggiornati ? `: ${r.turniAggiornati} corsi riportati sulle corsie con lo stesso numero` : ''}.`);
+    } catch (e) {
+      errore = messaggioErrore(e);
+    }
+  }
+
+  function inCorsia(data: string, fascia: Fascia, spazio: string) {
+    messaggio = '';
+    if (!corsi.length) api.corsi().then((c) => (corsi = c)).catch(() => {});
+    pannello = { tipo: 'inCorsia', data, fascia, spazio, cosa: 'turno' };
+  }
   const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   /** La fascia da mostrare: quella scelta, altrimenti quella in corso (o la prossima) se è oggi, altrimenti la prima. */
   const fasciaCorrente = $derived.by(() => {
@@ -211,6 +240,9 @@
       </div>
     {/if}
     <span class="grow"></span>
+    {#if gestore && schermo.larga}
+      <button class="btn btn-secondary compatto" onclick={() => ((pannello = { tipo: 'fasce' }), (messaggio = ''))}>Fasce…</button>
+    {/if}
     {#if gestore}
       <button class="btn btn-primary compatto" onclick={() => ((pannello = { tipo: 'evento', evento: null, data: giorno }), (messaggio = ''))}>Nuovo evento…</button>
     {/if}
@@ -258,8 +290,11 @@
                 <button class="icon-btn" aria-label="Fascia successiva" disabled={i >= fasceGiorno.fasce.length - 1} onclick={() => (fasciaScelta = fasceGiorno.fasce[i + 1].chiave)}>›</button>
               </div>
               <PiantaVasche {spazi} occorrenze={inFascia(f, delGiorno, fasceGiorno.fasciaDi)} fascia={f}
+                definite={definitePerVasca(definiteGiorno, f)}
                 apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
-                libera={gestore ? (spazio) => ((pannello = { tipo: 'evento', evento: null, data: giorno, inizio: hhmm(f.inizio), spazio }), (messaggio = '')) : undefined} />
+                iscritti={apriIscritti} vedeIscritti={vediIscritti}
+                cambiaAssetto={gestore ? cambiaAssetto : undefined}
+                libera={gestore ? (spazio) => inCorsia(giorno, f, spazio) : undefined} />
             </div>
           {/if}
         </div>
@@ -271,7 +306,9 @@
               <span class="m orario-f">{orarioFascia(f)}</span>
               <span class="nomi">{dentro.filter((o) => o.categoria !== 'CHIUSURA').map((o) => o.titolo).join(' · ')}</span>
             </summary>
-            <PiantaVasche {spazi} occorrenze={dentro} fascia={f} compatta apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))} />
+            <PiantaVasche {spazi} occorrenze={dentro} fascia={f} compatta definite={definitePerVasca(definiteGiorno, f)}
+              iscritti={apriIscritti} vedeIscritti={vediIscritti}
+              apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))} />
           </details>
         {/each}
       {/if}
@@ -310,7 +347,7 @@
                           <span class="corso-cella {colore(o.categoria)}" class:spento={!inAttivita(o)} class:conflitto={o.conflitti.length > 0}>
                             <span class="pallino" style={o.colore ? `background: ${o.colore}` : ''}></span>
                             <span class="nome-c">{o.titolo}</span>
-                            <span class="dove-c muted">{etichettaCorta(o)}</span>
+                            <span class="dove-c muted">{etichettaCorta(o)}{o.iscritti != null ? ` · ${o.iscritti}${o.posti != null ? '/' + o.posti : ''}` : ''}</span>
                           </span>
                         {/each}
                       </button>
@@ -350,7 +387,8 @@
 {#if pannello?.tipo === 'dettaglio'}
   {@const o = pannello.o}
   <Foglio titolo={o.tipo === 'LEZIONE' ? 'Lezione' : 'Evento'} chiudi={() => (pannello = null)}>
-    <DettaglioOccorrenza occorrenza={o} {spazi} {gestore} azioni={{
+    <DettaglioOccorrenza occorrenza={o} {spazi} {gestore} vediIscritti={vediIscritti(o)} azioni={{
+      iscritti: () => apriIscritti(o),
       saltaOSposta: () => (pannello = { tipo: 'eccezione', o }),
       ripristina: () => ripristina(o),
       modificaEvento: () => apriEvento(o),
@@ -366,7 +404,35 @@
   {@const delG = occorrenze.filter((o) => o.data === p.data)}
   <Foglio titolo="{giornoEsteso(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
     <PiantaVasche {spazi} occorrenze={inFascia(p.fascia, delG, fasceSettimana.fasciaDi)} fascia={p.fascia} compatta
+      definite={definitePerVasca(fasceDefiniteIl(piano?.fasce ?? [], p.data), p.fascia)}
+      iscritti={apriIscritti} vedeIscritti={vediIscritti}
       apri={(o) => (pannello = { tipo: 'dettaglio', o })} />
+  </Foglio>
+{:else if pannello?.tipo === 'iscritti'}
+  {@const o = pannello.o}
+  <Foglio titolo="Iscritti · {o.titolo}" chiudi={() => (pannello = null)}>
+    <Iscritti lezioneId={o.lezioneId!} data={o.data} cambiato={carica} />
+  </Foglio>
+{:else if pannello?.tipo === 'fasce' && piano}
+  <Foglio titolo="Fasce · {GIORNI_ESTESI[dow(giorno)]}" chiudi={() => (pannello = null)}>
+    <GestioneFasce giornoSettimana={dow(giorno)} fasce={piano.fasce} {spazi} cambiato={(m) => { messaggio = m; avvisi = []; carica(); }} />
+  </Foglio>
+{:else if pannello?.tipo === 'inCorsia' && piano}
+  {@const p = pannello}
+  <Foglio titolo="{giornoEsteso(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
+    <div class="seg" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Cosa aggiungere">
+      <button aria-pressed={p.cosa === 'turno'} onclick={() => (pannello = { ...p, cosa: 'turno' })}>Turno di un corso</button>
+      <button aria-pressed={p.cosa === 'evento'} onclick={() => (pannello = { ...p, cosa: 'evento' })}>Evento</button>
+    </div>
+    {#if p.cosa === 'turno'}
+      {#key corsi.length}
+        <LezioneForm corso={null} {corsi} lezione={null} {spazi} {personale} {fatto}
+          proposta={{ giornoSettimana: dow(p.data), inizio: hhmm(p.fascia.inizio), fine: hhmm(p.fascia.fine), spazio: p.spazio, dal: p.data }} />
+      {/key}
+    {:else}
+      <EventoForm evento={null} impiantoId={piano.impiantiGestiti[0]} {spazi} {personale} data={p.data} inizio={hhmm(p.fascia.inizio)} spazio={p.spazio}
+        {fatto} annullato={() => fatto('Evento annullato.')} />
+    {/if}
   </Foglio>
 {:else if pannello?.tipo === 'evento' && piano}
   <Foglio titolo={pannello.evento ? 'Modifica evento' : 'Nuovo evento'} chiudi={() => (pannello = null)}>

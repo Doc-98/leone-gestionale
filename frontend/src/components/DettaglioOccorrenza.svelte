@@ -3,11 +3,13 @@
   import { giornoEsteso, ora } from '../lib/date';
   import { colore, etichettaSpazi, nomeCategoria, STATI } from '../lib/piano';
 
-  let { occorrenza: o, spazi, gestore, azioni }: {
+  let { occorrenza: o, spazi, gestore, vediIscritti = false, azioni }: {
     occorrenza: Occorrenza;
     spazi: SpazioPiano[];
     gestore: boolean;
+    vediIscritti?: boolean;
     azioni: {
+      iscritti: () => void;
       saltaOSposta: () => void;
       ripristina: () => void;
       modificaEvento: () => void;
@@ -33,6 +35,7 @@
     <dt>Dove</dt>
     <dd>{etichettaSpazi(o.spazi, spazi)}</dd>
     {#if o.istruttore}<dt>Istruttore</dt><dd>{o.istruttore.nome}</dd>{/if}
+    {#if o.iscritti != null}<dt>Iscritti</dt><dd>{o.iscritti}{o.posti != null ? ` su ${o.posti} posti` : ''}</dd>{/if}
     {#if o.nota}<dt>Nota</dt><dd>{o.nota}</dd>{/if}
   </dl>
 
@@ -43,6 +46,9 @@
     </div>
   {/if}
 
+  {#if vediIscritti}
+    <div class="azioni"><button class="btn btn-primary" onclick={azioni.iscritti}>Iscritti e presenze</button></div>
+  {/if}
   {#if gestore}
     <div class="azioni">
       {#if lezione}

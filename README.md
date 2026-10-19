@@ -20,7 +20,9 @@ uffici (menu laterale, griglie ampie) e **app** sul telefono per lo staff (ADR 0
 
 **Fase 2 – piano vasca (completa).** Il giorno per fasce, con la pianta delle vasche (cosa c'è in ogni corsia, vasca
 grande a 5 o 6 corsie, vasca piccola), la settimana come tabella fasce × giorni con i corsi di ogni fascia, la
-griglia oraria come alternativa.
+griglia oraria come alternativa. Fasce definite dai coordinatori con interruttore 5/6 corsie; iscrizioni ai turni dei
+corsi con posti (conteggio «7/8» nel piano), lista degli iscritti con le presenze per l'istruttore, iscrizioni e
+ritiri per la segreteria.
 Corsi con lezioni settimanali, salti e spostamenti di una singola data, eventi (gare, lezioni private e di prova,
 chiusure anche di più giorni) e sovrapposizioni segnalate. Lo staff lo consulta; coordinatori e admin lo modificano.
 
@@ -49,8 +51,8 @@ cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=demo
 cd frontend && npm install && npm run dev
 ```
 
-Account demo (password `demo1234`): `admin@demo.leone`, `coordinatore@demo.leone`, `staff@demo.leone`,
-`giulia@demo.leone`, `marta@demo.leone`. Sono persone inventate: nello sviluppo non si usano dati reali.
+Account demo (password `demo1234`): `admin@demo.leone`, `coordinatore@demo.leone`, `segreteria@demo.leone`,
+`staff@demo.leone` (Luca, istruttore di Delfino Giallo), `giulia@demo.leone`, `marta@demo.leone`. Sono persone inventate: nello sviluppo non si usano dati reali.
 
 ## Programma per Windows
 
@@ -108,6 +110,10 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | GET · POST · PUT | `/api/corsi` · `/{id}` · `/{id}/lezioni` | lettura per tutti, modifiche coordinatori |
 | PUT · DELETE | `/api/lezioni/{id}` · POST `/api/lezioni/{id}/eccezioni` · DELETE `/api/eccezioni/{id}` | coordinatori: salti e spostamenti |
 | GET · POST · PUT | `/api/eventi/{id}` · `/api/eventi` · `/{id}/annulla` | lettura per tutti, modifiche coordinatori |
+| GET · POST · PUT · DELETE | `/api/fasce` · `/{id}` · POST `/{id}/assetto` `{assetto}` | lettura per tutti, modifiche coordinatori |
+| GET · POST | `/api/lezioni/{id}/iscritti?data=` | lista: istruttore del turno, coordinatori, segreteria; iscrive la segreteria |
+| POST · PUT | `/api/iscrizioni/{id}/termina` · `/api/lezioni/{id}/presenze` `{data, presenze}` | ritiro (segreteria); presenze (istruttore) |
+| GET | `/api/persone?q=` | ricerca nell'anagrafica (segreteria, coordinatori) |
 | GET | `/api/foglio-ore/mio?mese=` | il proprio foglio ore (.xlsx) |
 | GET | `/api/foglio-ore/persone/{id}?mese=` · `/api/foglio-ore/tutti?mese=` · `/api/foglio-ore/voci` | coordinatori (.xlsx, .zip, colonne del modello) |
 

@@ -170,14 +170,66 @@ export interface Occorrenza {
   eccezioneId: string | null;
   dataOriginale: string | null;
   conflitti: string[];
+  /** turni dei corsi: iscritti attivi in quella data e posti (null = senza limite) */
+  iscritti: number | null;
+  posti: number | null;
+}
+
+/** Una fascia della giornata in una vasca, con l'assetto delle corsie (5 o 6). */
+export interface FasciaOraria {
+  id: string;
+  vascaId: string;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  assetto: number | null;
+  validaDal: string;
+  validaAl: string | null;
+}
+
+export interface Iscritto {
+  iscrizioneId: string;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
+  eta: number | null;
+  dal: string;
+  al: string | null;
+  presente: boolean | null;
+}
+
+export interface ElencoIscritti {
+  lezioneId: string;
+  corsoId: string;
+  corso: string;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  data: string;
+  siTiene: boolean;
+  posti: number | null;
+  iscritti: Iscritto[];
+  puoSegnarePresenze: boolean;
+  puoIscrivere: boolean;
+}
+
+export interface PersonaScheda {
+  id: string;
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
 }
 
 export interface Piano {
   da: string;
   a: string;
   spazi: SpazioPiano[];
+  fasce: FasciaOraria[];
   occorrenze: Occorrenza[];
   impiantiGestiti: string[];
+  /** dove si gestiscono le iscrizioni (segreteria, coordinatori) */
+  impiantiIscrizioni: string[];
 }
 
 export interface Lezione {
@@ -189,6 +241,7 @@ export interface Lezione {
   validaAl: string | null;
   spazi: string[];
   istruttore: PersonaBreve | null;
+  posti: number | null;
 }
 
 export interface Corso {
@@ -227,6 +280,7 @@ export interface LezioneInput {
   validaAl: string | null;
   spazi: string[];
   istruttoreId: string | null;
+  posti: number | null;
 }
 
 export interface Evento {
@@ -415,6 +469,20 @@ export const api = {
   creaEvento: (e: EventoInput) => richiesta<Esito<Evento>>('POST', '/api/eventi', e),
   modificaEvento: (id: string, e: EventoInput) => richiesta<Esito<Evento>>('PUT', `/api/eventi/${id}`, e),
   annullaEvento: (id: string) => richiesta<Evento>('POST', `/api/eventi/${id}/annulla`),
+  fasce: () => richiesta<FasciaOraria[]>('GET', '/api/fasce'),
+  creaFasce: (f: { vascaId: string; giorni: number[]; inizio: string; fine: string; assetto: number | null; validaDal: string; validaAl: string | null }) =>
+    richiesta<FasciaOraria[]>('POST', '/api/fasce', f),
+  modificaFascia: (id: string, f: { inizio: string; fine: string; validaDal: string; validaAl: string | null }) =>
+    richiesta<{ fascia: FasciaOraria; turniAggiornati: number }>('PUT', `/api/fasce/${id}`, f),
+  cambiaAssetto: (id: string, assetto: number) => richiesta<{ fascia: FasciaOraria; turniAggiornati: number }>('POST', `/api/fasce/${id}/assetto`, { assetto }),
+  eliminaFascia: (id: string) => richiesta<void>('DELETE', `/api/fasce/${id}`),
+  iscritti: (lezioneId: string, data: string) => richiesta<ElencoIscritti>('GET', `/api/lezioni/${lezioneId}/iscritti?data=${data}`),
+  iscrivi: (lezioneId: string, i: { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null }; dal: string; forza?: boolean }) =>
+    richiesta<Iscritto>('POST', `/api/lezioni/${lezioneId}/iscritti`, i),
+  terminaIscrizione: (id: string, al: string) => richiesta<void>('POST', `/api/iscrizioni/${id}/termina`, { al }),
+  segnaPresenze: (lezioneId: string, data: string, presenze: { personaId: string; presente: boolean }[]) =>
+    richiesta<ElencoIscritti>('PUT', `/api/lezioni/${lezioneId}/presenze`, { data, presenze }),
+  cercaPersone: (q: string) => richiesta<PersonaScheda[]>('GET', `/api/persone?q=${encodeURIComponent(q)}`),
   generaMese: (modelloId: string, mese: string) => richiesta<EsitoGenerazione>('POST', `/api/modelli/${modelloId}/genera`, { mese }),
   creaRichiesta: (r: NuovaRichiesta) => richiesta<Richiesta>('POST', '/api/richieste', r),
   richiesteMie: () => richiesta<Richiesta[]>('GET', '/api/richieste/mie'),

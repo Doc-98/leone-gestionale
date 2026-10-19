@@ -14,8 +14,8 @@
   let nome = $state(c?.nome ?? '');
   let tipo = $state<TipoCorso>(c?.tipo ?? 'SCUOLA_NUOTO');
   let livello = $state(c?.livello ?? '');
-  let etaDa = $state(c?.etaDa?.toString() ?? '');
-  let etaA = $state(c?.etaA?.toString() ?? '');
+  let etaDa = $state<number | string | null>(c?.etaDa ?? null);
+  let etaA = $state<number | string | null>(c?.etaA ?? null);
   let istruttoreId = $state(c?.istruttore?.id ?? '');
   let note = $state(c?.note ?? '');
   let attivo = $state(c?.attivo ?? true);
@@ -25,7 +25,8 @@
   let errore = $state('');
   let lavoro = $state(false);
 
-  const numero = (s: string) => (s.trim() === '' ? null : Number(s));
+  // i campi numerici danno un numero (o null/vuoto se cancellati)
+  const numero = (v: number | string | null) => (v === '' || v == null ? null : Number(v));
 
   async function salva(e: SubmitEvent) {
     e.preventDefault();

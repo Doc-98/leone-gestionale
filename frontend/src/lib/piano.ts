@@ -215,11 +215,18 @@ export const orarioFascia = (f: Fascia) => etichettaFascia(f.inizio, f.fine);
  * sovrappongono per almeno metà della lezione più corta finiscono nella stessa fascia (es. vasca piccola
  * 16:55–17:35 con vasca grande 17:00–17:45). Restituisce le fasce e, per ogni attività, la sua fascia.
  */
-export function raggruppaFasce(occ: Occorrenza[]): { fasce: Fascia[]; fasciaDi: Map<string, string> } {
+export function raggruppaFasce(occ: Occorrenza[], definite: { inizio: string; fine: string }[] = []): { fasce: Fascia[]; fasciaDi: Map<string, string> } {
   const attivita = occ.filter((o) => o.categoria !== 'CHIUSURA');
   const brevi = attivita.filter((o) => minuti(o.fine) - minuti(o.inizio) <= DURATA_FASCIA_MAX);
-  // coppie di orario distinte, con quante attività le usano
+  // coppie di orario distinte, con quante attività le usano; le fasce definite dai coordinatori pesano di più
+  // (danno l'orario alla fascia) e compaiono anche se ancora vuote
   const coppie = new Map<string, { i: number; f: number; n: number }>();
+  for (const d of definite) {
+    const k = `${minuti(d.inizio)}-${minuti(d.fine)}`;
+    const c = coppie.get(k) ?? { i: minuti(d.inizio), f: minuti(d.fine), n: 0 };
+    c.n += 1000;
+    coppie.set(k, c);
+  }
   for (const o of brevi) {
     const k = `${minuti(o.inizio)}-${minuti(o.fine)}`;
     const c = coppie.get(k) ?? { i: minuti(o.inizio), f: minuti(o.fine), n: 0 };
@@ -302,7 +309,7 @@ export interface VascaPianta {
  * Le vasche come si vedono dall'alto in quella fascia: per ogni vasca l'assetto in uso (quello delle corsie
  * occupate, altrimenti il più fitto), le corsie e le attività su ciascuna. Una vasca intera occupa tutte le corsie.
  */
-export function pianta(spazi: SpazioPiano[], occ: Occorrenza[]): { vasche: VascaPianta[]; altrove: Occorrenza[] } {
+export function pianta(spazi: SpazioPiano[], occ: Occorrenza[], assettiDefiniti: Map<string, number> = new Map()): { vasche: VascaPianta[]; altrove: Occorrenza[] } {
   const attivita = occ.filter((o) => o.categoria !== 'CHIUSURA');
   const vasche = spazi.filter((s) => !s.padreId && (s.tipo === 'VASCA' || s.tipo === 'CORSIA'));
   const usate = new Set<string>();
@@ -317,7 +324,7 @@ export function pianta(spazi: SpazioPiano[], occ: Occorrenza[]): { vasche: Vasca
     }
     const assettiUsati = new Set(qui.flatMap((o) => o.spazi.map((id) => corsieTutte.find((c) => c.id === id)?.assetto).filter((a): a is number => a != null)));
     const disponibili = [...new Set(corsieTutte.map((c) => c.assetto ?? 0))].sort((a, b) => b - a);
-    const assetto = assettiUsati.size ? Math.max(...assettiUsati) : disponibili[0];
+    const assetto = assettiDefiniti.get(v.id) ?? (assettiUsati.size ? Math.max(...assettiUsati) : disponibili[0]);
     const corsie = corsieTutte
       .filter((c) => (c.assetto ?? 0) === assetto)
       .map((c) => ({ id: c.id, nome: c.nome, numero: Number(/(\d+)\s*$/.exec(c.nome)?.[1] ?? 0) }))
@@ -353,7 +360,30 @@ export function pianta(spazi: SpazioPiano[], occ: Occorrenza[]): { vasche: Vasca
       const vicini = pezzi.filter((q) => q.da < p.da + p.quante && p.da < q.da + q.quante);
       p.colonne = Math.max(...vicini.map((q) => q.colonna)) + 1;
     }
-    out.push({ id: v.id, nome: v.nome, assetto, assettiMisti: assettiUsati.size > 1, corsie, pezzi });
+    out.push({ id: v.id, nome: v.nome, assetto, assettiMisti: assettiUsati.size > 1 || [...assettiUsati].some((a) => a !== assetto), corsie, pezzi });
   }
   return { vasche: out, altrove: attivita.filter((o) => !usate.has(o.chiave)) };
+}
+
+// ── Fasce definite ─────────────────────────────────────────────────────────
+
+/** Le fasce definite che valgono in quella data (giorno della settimana e validità). */
+export function fasceDefiniteIl<T extends { giornoSettimana: number; validaDal: string; validaAl: string | null }>(fasce: T[], data: string): T[] {
+  const d = new Date(`${data}T12:00:00`);
+  const dow = ((d.getDay() + 6) % 7) + 1;
+  return fasce.filter((f) => f.giornoSettimana === dow && f.validaDal <= data && (!f.validaAl || f.validaAl >= data));
+}
+
+/** Per ogni vasca, la fascia definita che si sovrappone di più alla fascia mostrata. */
+export function definitePerVasca<T extends { vascaId: string; inizio: string; fine: string }>(definite: T[], f: Fascia): Map<string, T> {
+  const out = new Map<string, T>();
+  const migliore = new Map<string, number>();
+  for (const d of definite) {
+    const s = sovrapposizione([minuti(d.inizio), minuti(d.fine)], [f.inizio, f.fine]);
+    if (s > 0 && s > (migliore.get(d.vascaId) ?? 0)) {
+      out.set(d.vascaId, d);
+      migliore.set(d.vascaId, s);
+    }
+  }
+  return out;
 }

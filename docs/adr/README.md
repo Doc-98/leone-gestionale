@@ -11,3 +11,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0005](0005-turni-e-richieste.md) | Turni scoperti, nessuna sovrapposizione, percorso delle richieste | accettata |
 | [0006](0006-versione-pc-e-app.md) | Versione PC con Tauri e app PWA, un'unica interfaccia | accettata |
 | [0007](0007-piano-vasca.md) | Piano vasca: lezioni ricorrenti calcolate, eccezioni, assetti delle corsie, vista per fasce | accettata |
+| [0008](0008-fasce-iscrizioni-presenze.md) | Fasce definite con assetto 5/6, iscrizioni ai turni dei corsi, presenze | accettata |

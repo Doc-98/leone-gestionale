@@ -186,10 +186,13 @@ erDiagram
 - `lezione_eccezione`: in una data la lezione è saltata o spostata (nuovo giorno e orario), con un motivo.
 - `evento` + `evento_spazio`: gara, lezione privata, lezione di prova, chiusura, altro; anche su più giorni;
   senza spazi vale per tutto l'impianto. Si annulla, non si cancella.
-- Il piano di un periodo si calcola al momento (occorrenze con stato e sovrapposizioni).
+- `fascia_oraria`: per vasca e giorno della settimana, orario libero e assetto delle corsie (5/6), validità; niente
+  fasce accavallate (vincolo nel database).
+- `lezione.posti`; `iscrizione` (persona ↔ turno del corso, dal/al, senza doppioni); `presenza` (turno + data + persona).
+- Il piano di un periodo si calcola al momento (occorrenze con stato, sovrapposizioni, iscritti/posti).
 
 **Clienti**
-- `iscrizione`: persona + corso + periodo + stato.
+- `iscrizione`: già presente dalla fase 2 (persona + turno del corso + periodo); qui si aggiungono quote e stato.
 - `abbonamento`: pacchetto ingressi o periodo, con ingressi residui.
 - `pagamento`: quota, importo, scadenza, stato.
 - `certificato`: tipo (non agonistico/agonistico), data di scadenza (non serve conservare il documento).
@@ -211,6 +214,8 @@ erDiagram
 2. **Piano vasca** – corsi con lezioni ricorrenti (salti e spostamenti), eventi e chiusure, corsie dentro le
    vasche con assetto a 5 o 6 corsie; giorno per fasce con la pianta delle vasche, settimana fasce × giorni,
    griglia oraria come alternativa; sovrapposizioni segnalate. *(fatto — vedi ADR 0007)*
+   Fasce definite dai coordinatori con interruttore 5/6 corsie, iscrizioni ai turni dei corsi (trittico corso +
+   giorno + orario) con posti, conteggio nel piano, lista per istruttori e segreteria, presenze. *(fatto — ADR 0008)*
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
    Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice
