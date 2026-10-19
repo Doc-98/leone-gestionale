@@ -11,7 +11,7 @@ class ControlloBan implements ControlloAccesso {
     @Override public String regola() { return "BAN"; }
     @Override public String nome() { return "Ban"; }
     @Override public String descrizione() {
-        return "Rosso se è bannato il braccialetto oppure la persona (vale per tutti i suoi braccialetti). Vale anche con il golden pass.";
+        return "Rosso se è bannato il braccialetto oppure la persona (vale per tutti i suoi braccialetti).";
     }
     @Override public int ordine() { return 20; }
     @Override public boolean valeConGoldenPass() { return true; }

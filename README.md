@@ -26,6 +26,15 @@ ritiri per la segreteria.
 Corsi con lezioni settimanali, salti e spostamenti di una singola data, eventi (gare, lezioni private e di prova,
 chiusure anche di più giorni) e sovrapposizioni segnalate. Lo staff lo consulta; coordinatori e admin lo modificano.
 
+**Fase 3 – clienti e tornello (in corso).** Al tornello si legge il braccialetto (NFC dal telefono Android, lettore
+da scrivania o codice scritto) e si vede subito **nome ed età** di chi lo porta e **tutti i motivi** del rosso, ognuno
+con cosa fare: braccialetto sconosciuto, smarrito, disattivato o bannato, persona bannata, certificato medico mancante o
+scaduto, tesseramento annuale mancante o scaduto, abbonamento mancante, scaduto o non iniziato, carnet esaurito, fuori
+dalla fascia del proprio turno (ADR 0009). Ogni caso è un controllo indipendente, attivabile e con i suoi parametri
+nella pagina «Regole del tornello». Golden pass per dipendenti e tornellisti. Carnet che scala al primo passaggio e non
+nei 90 minuti di rientro. La segreteria ha la scheda cliente: braccialetti (più di uno per persona), ban, golden pass,
+certificato, tesseramento, abbonamenti, turni frequentati, ultimi passaggi e come andrebbe adesso al tornello.
+
 ## Struttura
 
 ```
@@ -53,6 +62,12 @@ cd frontend && npm install && npm run dev
 
 Account demo (password `demo1234`): `admin@demo.leone`, `coordinatore@demo.leone`, `segreteria@demo.leone`,
 `staff@demo.leone` (Luca, istruttore di Delfino Giallo), `giulia@demo.leone`, `marta@demo.leone`. Sono persone inventate: nello sviluppo non si usano dati reali.
+
+Braccialetti demo da provare al tornello (si scrivono nel campo): `D0000001` carnet (verde, scala), `D0000002` Delfino
+Giallo bisettimanale (verde solo nella fascia), `D0000003` certificato scaduto e tesseramento mancante, `D0000004`
+smarrito (`D0000014` è il suo nuovo), `D0000005` braccialetto bannato, `D0000006` persona bannata, `D0000007` carnet
+esaurito, `D0000008` abbonamento scaduto, `D0000009` nessun abbonamento, `D0000104` Giulia con golden pass,
+`FFFFFFFF` sconosciuto.
 
 ## Programma per Windows
 
@@ -114,6 +129,14 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | GET · POST | `/api/lezioni/{id}/iscritti?data=` | lista: istruttore del turno, coordinatori, segreteria; iscrive la segreteria |
 | POST · PUT | `/api/iscrizioni/{id}/termina` · `/api/lezioni/{id}/presenze` `{data, presenze}` | ritiro (segreteria); presenze (istruttore) |
 | GET | `/api/persone?q=` | ricerca nell'anagrafica (segreteria, coordinatori) |
+| POST · GET | `/api/accessi/passaggi` `{codice}` · `?quanti=` | tutti: passaggio al tornello (esito, persona, motivi); passaggi di oggi |
+| GET | `/api/accessi/persone/{id}` | segreteria: braccialetti, ban, golden pass, passaggi, esito «adesso» |
+| POST · PUT | `/api/accessi/persone/{id}/braccialetti` · `/api/accessi/braccialetti/{id}/stato` | segreteria: assegna; ATTIVO, SMARRITO, DISATTIVATO |
+| POST | `/api/accessi/ban` `{personaId \| braccialettoId, motivo, al}` · `/ban/{id}/revoca` | segreteria |
+| POST | `/api/accessi/persone/{id}/golden-pass` · `/golden-pass/{id}/revoca` | coordinatori |
+| GET · PUT | `/api/accessi/regole` · `/{codice}` `{attiva, parametri}` | lettura coordinatori, modifica admin |
+| POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
+| POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |
 | GET | `/api/foglio-ore/mio?mese=` | il proprio foglio ore (.xlsx) |
 | GET | `/api/foglio-ore/persone/{id}?mese=` · `/api/foglio-ore/tutti?mese=` · `/api/foglio-ore/voci` | coordinatori (.xlsx, .zip, colonne del modello) |
 

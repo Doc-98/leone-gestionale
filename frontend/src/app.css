@@ -45,6 +45,10 @@
   --area-a: #6b4fbb; --area-a-bg: #ece6f9; --area-a-fg: #4a338c;
   --area-x: #6f7c83; --area-x-bg: #ebe7de; --area-x-fg: #3d4a52;
   --area-v: #2f7d4f; --area-v-bg: #e0f1e6; --area-v-fg: #1f5c38;
+  /* esito del tornello */
+  --passa: #1f7a46; --passa-bg: #e2f3e8; --passa-fg: #134a2b;
+  --ferma: #b42318; --ferma-bg: #fbe4e1; --ferma-fg: #7f1710;
+  --oro: #9a6400; --oro-bg: #fbefd2; --oro-fg: #6b4500;
   --font-display: 'Bricolage Grotesque', 'IBM Plex Sans', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
@@ -138,6 +142,9 @@
   --area-v: #4fc283;
   --area-v-bg: #153826;
   --area-v-fg: #bfe8cf;
+  --passa: #4fc283; --passa-bg: #123524; --passa-fg: #c4ecd4;
+  --ferma: #f07a6c; --ferma-bg: #3d1714; --ferma-fg: #f8cdc7;
+  --oro: #e0b44a; --oro-bg: #3a2c0c; --oro-fg: #f3dea6;
   --shadow-seg: 0 1px 2px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }

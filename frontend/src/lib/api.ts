@@ -483,6 +483,29 @@ export const api = {
   segnaPresenze: (lezioneId: string, data: string, presenze: { personaId: string; presente: boolean }[]) =>
     richiesta<ElencoIscritti>('PUT', `/api/lezioni/${lezioneId}/presenze`, { data, presenze }),
   cercaPersone: (q: string) => richiesta<PersonaScheda[]>('GET', `/api/persone?q=${encodeURIComponent(q)}`),
+  passa: (codice: string) => richiesta<EsitoTornello>('POST', '/api/accessi/passaggi', { codice }),
+  passaggi: (quanti = 20) => richiesta<Passaggio[]>('GET', `/api/accessi/passaggi?quanti=${quanti}`),
+  schedaAccessi: (personaId: string) => richiesta<SchedaAccessi>('GET', `/api/accessi/persone/${personaId}`),
+  assegnaBraccialetto: (personaId: string, codice: string, note?: string) =>
+    richiesta<Braccialetto>('POST', `/api/accessi/persone/${personaId}/braccialetti`, { codice, note: note ?? null }),
+  statoBraccialetto: (id: string, stato: StatoBraccialetto) => richiesta<void>('PUT', `/api/accessi/braccialetti/${id}/stato`, { stato }),
+  banna: (b: { personaId?: string; braccialettoId?: string; motivo: string; al: string | null }) => richiesta<{ id: string }>('POST', '/api/accessi/ban', b),
+  revocaBan: (id: string) => richiesta<void>('POST', `/api/accessi/ban/${id}/revoca`, {}),
+  goldenPass: (personaId: string, motivo: string, al: string | null) =>
+    richiesta<{ id: string }>('POST', `/api/accessi/persone/${personaId}/golden-pass`, { motivo, al }),
+  revocaGoldenPass: (id: string) => richiesta<void>('POST', `/api/accessi/golden-pass/${id}/revoca`, {}),
+  regole: () => richiesta<RegolaAccesso[]>('GET', '/api/accessi/regole'),
+  modificaRegola: (codice: string, attiva: boolean, parametri: Record<string, number | null>) =>
+    richiesta<void>('PUT', `/api/accessi/regole/${codice}`, { attiva, parametri }),
+  schedaCliente: (personaId: string) => richiesta<SchedaCliente>('GET', `/api/clienti/${personaId}`),
+  nuovoCliente: (c: { nome: string; cognome: string; dataNascita: string | null }) => richiesta<SchedaCliente['persona']>('POST', '/api/clienti', c),
+  nuovoCertificato: (personaId: string, c: { tipo: string; rilasciatoIl: string | null; scadenza: string; note?: string | null }) =>
+    richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/certificati`, c),
+  nuovoTesseramento: (personaId: string, t: { stagione?: string; dal?: string; al?: string; importo?: number | null; pagatoIl?: string | null }) =>
+    richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/tesseramenti`, t),
+  nuovoAbbonamento: (personaId: string, a: AbbonamentoInput) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/abbonamenti`, a),
+  terminaAbbonamento: (id: string, al: string) => richiesta<void>('POST', `/api/clienti/abbonamenti/${id}/termina`, { al }),
+  annullaVoce: (cosa: 'certificati' | 'tesseramenti' | 'abbonamenti', id: string) => richiesta<void>('POST', `/api/clienti/${cosa}/${id}/annulla`, {}),
   generaMese: (modelloId: string, mese: string) => richiesta<EsitoGenerazione>('POST', `/api/modelli/${modelloId}/genera`, { mese }),
   creaRichiesta: (r: NuovaRichiesta) => richiesta<Richiesta>('POST', '/api/richieste', r),
   richiesteMie: () => richiesta<Richiesta[]>('GET', '/api/richieste/mie'),
@@ -497,6 +520,180 @@ export const api = {
   riepilogo: (mese: string) => richiesta<Riepilogo>('GET', `/api/riepilogo?mese=${mese}`),
   urlCsv: (mese: string) => `/api/riepilogo/csv?mese=${mese}`,
 };
+
+// ── Clienti e tornello ─────────────────────────────────────────────────────
+
+/** Perché il tornello dà rosso: codice stabile, messaggio per il tornellista, cosa fare. */
+export interface Motivo {
+  codice: string;
+  regola: string;
+  messaggio: string;
+  rimedio: string;
+  blocca: boolean;
+}
+
+export interface PersonaEsito {
+  id: string;
+  nome: string;
+  cognome: string;
+  eta: number | null;
+  braccialettiAttivi: number;
+}
+
+export interface EsitoTornello {
+  /** null quando è una simulazione (stato «adesso» nella scheda) */
+  passaggioId: string | null;
+  istante: string;
+  codice: string | null;
+  verde: boolean;
+  persona: PersonaEsito | null;
+  statoBraccialetto: StatoBraccialetto | null;
+  goldenPass: boolean;
+  motivi: Motivo[];
+  carnet: { abbonamentoId: string; ingressi: number; usati: number; scalato: boolean; rientro: boolean } | null;
+}
+
+export interface Passaggio {
+  id: string;
+  istante: string;
+  codice: string;
+  verde: boolean;
+  goldenPass: boolean;
+  persona: PersonaEsito | null;
+  motivi: Motivo[];
+  carnetScalato: boolean;
+}
+
+export type StatoBraccialetto = 'ATTIVO' | 'SMARRITO' | 'DISATTIVATO';
+
+export interface Braccialetto {
+  id: string;
+  codice: string;
+  stato: StatoBraccialetto;
+  statoDal: string;
+  assegnatoIl: string;
+  note: string | null;
+  bannato: boolean;
+}
+
+export interface Ban {
+  id: string;
+  personaId: string | null;
+  braccialettoId: string | null;
+  codice: string | null;
+  motivo: string;
+  dal: string;
+  al: string | null;
+  revocatoIl: string | null;
+  attivo: boolean;
+}
+
+export interface GoldenPass {
+  id: string;
+  motivo: string | null;
+  dal: string;
+  al: string | null;
+  revocatoIl: string | null;
+  attivo: boolean;
+}
+
+export interface SchedaAccessi {
+  braccialetti: Braccialetto[];
+  blocchi: Ban[];
+  goldenPass: GoldenPass[];
+  passaggi: Passaggio[];
+  adesso: EsitoTornello;
+}
+
+export interface Certificato {
+  id: string;
+  tipo: 'NON_AGONISTICO' | 'AGONISTICO';
+  rilasciatoIl: string | null;
+  scadenza: string;
+  note: string | null;
+  valido: boolean;
+}
+
+export interface Tesseramento {
+  id: string;
+  stagione: string;
+  dal: string;
+  al: string;
+  importo: number | null;
+  pagatoIl: string | null;
+  valido: boolean;
+}
+
+export interface Abbonamento {
+  id: string;
+  tipo: 'CORSO' | 'CARNET';
+  corsoId: string | null;
+  corso: string | null;
+  volteASettimana: number | null;
+  ingressi: number | null;
+  usati: number;
+  residui: number | null;
+  ultimoIngresso: string | null;
+  dal: string;
+  al: string | null;
+  importo: number | null;
+  note: string | null;
+  valido: boolean;
+}
+
+export interface TurnoFrequentato {
+  iscrizioneId: string;
+  lezioneId: string;
+  corsoId: string;
+  corso: string;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  dal: string;
+  al: string | null;
+}
+
+export interface SchedaCliente {
+  persona: { id: string; nome: string; cognome: string; dataNascita: string | null; eta: number | null };
+  certificati: Certificato[];
+  tesseramenti: Tesseramento[];
+  abbonamenti: Abbonamento[];
+  turni: TurnoFrequentato[];
+  stagioneProposta: { stagione: string; dal: string; al: string; importo: number };
+}
+
+export interface ParametroRegola {
+  nome: string;
+  etichetta: string;
+  unita: string;
+  valore: number | null;
+  predefinito: number | null;
+  facoltativo: boolean;
+  seVuoto: string | null;
+  max: number;
+}
+
+export interface RegolaAccesso {
+  codice: string;
+  nome: string;
+  descrizione: string;
+  ordine: number;
+  valeConGoldenPass: boolean;
+  attiva: boolean;
+  parametri: ParametroRegola[];
+  modificataIl: string | null;
+}
+
+export interface AbbonamentoInput {
+  tipo: 'CORSO' | 'CARNET';
+  corsoId?: string | null;
+  volteASettimana?: number | null;
+  ingressi?: number | null;
+  dal: string;
+  al: string | null;
+  importo?: number | null;
+  note?: string | null;
+}
 
 /** Messaggio leggibile per un errore qualsiasi delle API. */
 export function messaggioErrore(e: unknown, predefinito = 'Operazione non riuscita.'): string {

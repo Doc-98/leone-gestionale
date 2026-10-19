@@ -15,16 +15,22 @@
   import Tariffe from './routes/Tariffe.svelte';
   import PianoVasca from './routes/PianoVasca.svelte';
   import Corsi from './routes/Corsi.svelte';
+  import Tornello from './routes/Tornello.svelte';
+  import Clienti from './routes/Clienti.svelte';
+  import Regole from './routes/Regole.svelte';
+  import type { Ruolo } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole';
   interface Sezione {
     id: Scheda;
     nome: string;
     /** Nome nella barra in basso del telefono; senza, la sezione non ci sta (si raggiunge da Pianificazione). */
     breve?: string;
     titolo: string;
-    gruppo: 'Il mio lavoro' | 'Piscina' | 'Gestione' | 'Impostazioni';
+    gruppo: 'Il mio lavoro' | 'Piscina' | 'Accessi' | 'Gestione' | 'Impostazioni';
     gestione?: boolean;
+    /** Solo per questi ruoli (al posto di «gestione»). */
+    ruoli?: Ruolo[];
     larga?: boolean;
     icona: string;
   }
@@ -40,6 +46,9 @@
     postazioni: 'M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5',
     piano: 'M3 8c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 13c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 18c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0',
     corsi: 'M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2M8 8h6M8 12h6',
+    tornello: 'M5 4h4v16H5zM15 4h4v16h-4zM9 12h6M12 9l3 3-3 3',
+    clienti: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6',
+    regole: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
     tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
   };
 
@@ -49,11 +58,14 @@
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: I.ore },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: I.piano },
     { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', gestione: true, larga: true, icona: I.corsi },
+    { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: I.tornello },
+    { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', ruoli: ['ADMIN', 'COORDINATORE', 'SEGRETERIA'], larga: true, icona: I.clienti },
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', gestione: true, larga: true, icona: I.pianifica },
     { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', gestione: true, icona: I.approva },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', gestione: true, larga: true, icona: I.modelli },
     { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.postazioni },
     { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.tariffe },
+    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', gestione: true, larga: true, icona: I.regole },
   ];
   const ID = SEZIONI.map((s) => s.id);
 
@@ -74,14 +86,30 @@
   });
 
   const coordinatore = $derived(sessione.ha('ADMIN', 'COORDINATORE'));
-  const visibili = $derived(SEZIONI.filter((s) => !s.gestione || coordinatore));
+  const visibili = $derived(SEZIONI.filter((s) => (s.ruoli ? sessione.ha(...s.ruoli) : !s.gestione || coordinatore)));
   const corrente = $derived(visibili.find((s) => s.id === scheda) ?? SEZIONI[0]);
   const gruppi = $derived(
-    (['Il mio lavoro', 'Piscina', 'Gestione', 'Impostazioni'] as const)
+    (['Il mio lavoro', 'Piscina', 'Accessi', 'Gestione', 'Impostazioni'] as const)
       .map((g) => ({ nome: g, voci: visibili.filter((s) => s.gruppo === g) }))
       .filter((g) => g.voci.length),
   );
-  const inBasso = $derived(visibili.filter((s) => s.breve));
+  // Telefono: al massimo cinque voci in basso, le prime per il ruolo; il resto in «Altro»
+  const PRIME: Record<string, Scheda[]> = {
+    gestione: ['turni', 'piano', 'tornello', 'pianifica', 'approva'],
+    segreteria: ['turni', 'piano', 'tornello', 'clienti', 'richieste'],
+    staff: ['turni', 'richieste', 'ore', 'piano', 'tornello'],
+  };
+  const prime = $derived(PRIME[coordinatore ? 'gestione' : sessione.ha('SEGRETERIA') ? 'segreteria' : 'staff']);
+  const altre = $derived(visibili.filter((s) => !prime.includes(s.id)));
+  const inBasso = $derived(
+    prime.map((id) => visibili.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, altre.length ? 4 : 5),
+  );
+  const nelMenu = $derived(visibili.filter((s) => !inBasso.includes(s)));
+  let menuAltro = $state(false);
+  $effect(() => {
+    void scheda;
+    menuAltro = false;
+  });
   const ruolo = $derived(sessione.ha('ADMIN') ? 'Admin' : sessione.ha('COORDINATORE') ? 'Coordinatore' : sessione.ha('SEGRETERIA') ? 'Segreteria' : 'Staff');
 
   $effect(() => {
@@ -169,17 +197,31 @@
         {:else if corrente.id === 'postazioni'}<Postazioni />
         {:else if corrente.id === 'tariffe'}<Tariffe />
         {:else if corrente.id === 'piano'}<PianoVasca />
-        {:else if corrente.id === 'corsi'}<Corsi />{/if}
+        {:else if corrente.id === 'corsi'}<Corsi />
+        {:else if corrente.id === 'tornello'}<Tornello />
+        {:else if corrente.id === 'clienti'}<Clienti />
+        {:else if corrente.id === 'regole'}<Regole />{/if}
       {/key}
     </main>
 
     {#if !schermo.larga}
-      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length}">
+      {#if menuAltro}
+        <div class="altro card" id="menu-altro">
+          {#each nelMenu as s (s.id)}
+            <a href={`#/${s.id}`} class:on={scheda === s.id}>{@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}</a>
+          {/each}
+        </div>
+      {/if}
+      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length + (nelMenu.length ? 1 : 0)}">
         {#each inBasso as s (s.id)}
-          <a href={`#/${s.id}`} class:on={scheda === s.id || (s.id === 'pianifica' && !corrente.breve)} aria-current={scheda === s.id ? 'page' : undefined}>
-            {s.breve}{@render badge(s)}
+          <a href={`#/${s.id}`} class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}>
+            {s.breve ?? s.nome}{@render badge(s)}
           </a>
         {/each}
+        {#if nelMenu.length}
+          <button class:on={menuAltro || nelMenu.some((s) => s.id === scheda)} aria-expanded={menuAltro} aria-controls="menu-altro"
+                  onclick={() => (menuAltro = !menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}</button>
+        {/if}
       </nav>
     {/if}
   </div>
@@ -233,6 +275,14 @@
     background: var(--surface); border-top: 1px solid var(--line);
   }
   nav.basso a { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px; font-size: var(--text-xs); font-weight: 600; color: var(--muted); text-decoration: none; text-align: center; }
-  nav.basso a.on { color: var(--cloro); box-shadow: inset 0 3px 0 var(--cloro); }
+  nav.basso a.on, nav.basso button.on { color: var(--cloro); box-shadow: inset 0 3px 0 var(--cloro); }
+  nav.basso button { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px;
+    border: none; background: none; font: inherit; font-size: var(--text-xs); font-weight: 600; color: var(--muted); cursor: pointer; }
+  .altro { position: fixed; right: var(--space-12); bottom: calc(env(safe-area-inset-bottom, 0px) + 68px); z-index: 21; width: min(300px, calc(100vw - 24px));
+    display: flex; flex-direction: column; padding: var(--space-6); box-shadow: 0 8px 28px rgba(16, 33, 43, 0.18); }
+  .altro a { display: flex; align-items: center; gap: var(--space-10); min-height: 46px; padding: 0 var(--space-10); border-radius: var(--radius-sm);
+    color: var(--ink); text-decoration: none; font-weight: 500; }
+  .altro a .ic { width: 18px; height: 18px; color: var(--muted); }
+  .altro a.on { background: var(--cloro-soft); color: var(--cloro-ink); }
   .badge { min-width: 18px; height: 18px; border-radius: 9px; background: var(--cloro); color: var(--on-cloro); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
 </style>

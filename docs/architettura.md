@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 19 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Da confrontare con il gestionale attuale prima della fase 3.
+Stato: 19 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello e scheda cliente (ADR 0009).
 
 ## Obiettivo
 
@@ -72,8 +72,8 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 | `struttura` | Sede, Impianto, Spazio (vasche, corsie, spogliatoi, atrio), Disciplina |
 | `staff` | Mansioni, postazioni, modello settimanale, turni, richieste di cambio, tariffe, riepilogo mensile |
 | `pianovasca` | Corsi, lezioni ricorrenti con eccezioni, eventi |
-| `clienti` | Iscrizioni, abbonamenti/pacchetti, pagamenti, certificati, tutori |
-| `accessi` | Credenziali (bracciali), registro ingressi, stato di accesso calcolato |
+| `clienti` | Certificati, tesseramento annuale, abbonamenti (corso o carnet), scheda cliente con registro delle consultazioni; poi pagamenti e tutori |
+| `accessi` | Braccialetti, ban, golden pass, regole del tornello (controlli indipendenti), passaggi |
 
 ## Permessi e accesso ai dati
 
@@ -192,16 +192,21 @@ erDiagram
 - Il piano di un periodo si calcola al momento (occorrenze con stato, sovrapposizioni, iscritti/posti).
 
 **Clienti**
-- `iscrizione`: già presente dalla fase 2 (persona + turno del corso + periodo); qui si aggiungono quote e stato.
-- `abbonamento`: pacchetto ingressi o periodo, con ingressi residui.
-- `pagamento`: quota, importo, scadenza, stato.
-- `certificato`: tipo (non agonistico/agonistico), data di scadenza (non serve conservare il documento).
+- `iscrizione`: dalla fase 2, persona ↔ turno del corso (corso + giorno + orario), con periodo.
+- `tesseramento`: quota annuale per stagione (settembre–luglio, 35 €), una per stagione.
+- `abbonamento`: al corso (mono, bi, trisettimanale) o carnet di ingressi; `ingresso_carnet` per gli ingressi scalati.
+- `certificato_medico`: tipo (non agonistico/agonistico) e scadenza (non serve conservare il documento).
+- `consultazione_scheda`: chi ha aperto quale scheda e quando.
+- `pagamento`: da fare (quote, ricevute).
 
-**Accessi**
-- `credenziale`: seriale del bracciale (normalizzato) → persona, attiva/revocata.
-- `accesso`: registro degli ingressi (consentito/negato, motivo, varco).
-- **Stato di accesso**: calcolato al momento, restituisce l'esito e l'elenco dei motivi
-  (`CERTIFICATO_SCADUTO`, `QUOTA_NON_PAGATA`, `FUORI_ORARIO`, `INGRESSI_ESAURITI`, `CREDENZIALE_SCONOSCIUTA`, …).
+**Accessi** (ADR 0009)
+- `braccialetto`: codice normalizzato → persona; attivo, smarrito o disattivato; più di uno per persona.
+- `blocco`: ban della persona o di un braccialetto, con motivo e periodo. `golden_pass`: sempre verde, con periodo.
+- `regola_accesso`: per ogni controllo, attivo sì/no e parametri.
+- `passaggio`: ogni lettura al tornello, verde o rosso, con tutti i motivi, il carnet scalato e chi ha letto.
+- **Esito**: calcolato al momento da controlli indipendenti; restituisce nome ed età della persona e tutti i motivi
+  (`BRACCIALETTO_SMARRITO`, `PERSONA_BANNATA`, `CERTIFICATO_SCADUTO`, `TESSERAMENTO_MANCANTE`, `CARNET_ESAURITO`,
+  `FUORI_ORARIO`, …).
 
 ## Fasi
 
@@ -217,6 +222,9 @@ erDiagram
    Fasce definite dai coordinatori con interruttore 5/6 corsie, iscrizioni ai turni dei corsi (trittico corso +
    giorno + orario) con posti, conteggio nel piano, lista per istruttori e segreteria, presenze. *(fatto — ADR 0008)*
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
+   Tornello con tutti i motivi del rosso e il nome della persona, regole modulari, golden pass, carnet, scheda per
+   la segreteria. *(fatto — ADR 0009)* Da fare: pagamenti e ricevute, tutori e contatti, dispositivi registrati
+   (livello 2), lettore da scrivania nel programma per Windows, telefono come lettore per il PC.
    Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice
    temporaneo, il telefono si abbina, legge il bracciale con la Web NFC e il server inoltra il codice al PC.
@@ -228,7 +236,8 @@ erDiagram
 
 - Nome e struttura del gestionale attuale; quali dati esporta.
 - Formato del codice bracciale nel gestionale attuale.
-- Regole reali del tornello (quando diventa rosso).
+- Altri casi in cui il tornello dà rosso (si aggiungono come nuovi controlli).
+- Cosa può mostrare il tornello fisico (verde, blu, rosso; il giallo?).
 - Hosting di produzione: probabilmente un server della società (da confermare con il loro tecnico),
   e come raggiungerlo dai telefoni fuori sede.
 - Modello del lettore NFC da scrivania e cosa si stampa (A4, ricevute, tessere).

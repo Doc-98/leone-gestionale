@@ -75,3 +75,19 @@ export function oreTra(inizio: string, fine: string): number {
   const min = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
   return (min(fine) - min(inizio)) / 60;
 }
+
+/** «2026-10-12» → «12/10/2026» */
+export function dataBreve(s: string): string {
+  const [a, m, g] = s.slice(0, 10).split('-');
+  return `${g}/${m}/${a}`;
+}
+
+/** Ora locale di un istante ISO («2026-10-19T15:04:00Z» → «17:04» a Roma). */
+export function oraDi(istante: string): string {
+  return new Date(istante).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+}
+
+/** Data locale di un istante ISO, come «YYYY-MM-DD». */
+export function dataDi(istante: string): string {
+  return new Date(istante).toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
+}

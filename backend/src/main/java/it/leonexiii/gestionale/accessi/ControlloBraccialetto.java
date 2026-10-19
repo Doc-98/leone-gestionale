@@ -12,7 +12,7 @@ class ControlloBraccialetto implements ControlloAccesso {
     @Override public String regola() { return "BRACCIALETTO"; }
     @Override public String nome() { return "Braccialetto smarrito o disattivato"; }
     @Override public String descrizione() {
-        return "Rosso se il braccialetto è segnato come smarrito o è stato disattivato (restituito, rotto). Vale anche con il golden pass.";
+        return "Rosso se il braccialetto è segnato come smarrito o è stato disattivato (restituito, rotto).";
     }
     @Override public int ordine() { return 10; }
     @Override public boolean valeConGoldenPass() { return true; }
