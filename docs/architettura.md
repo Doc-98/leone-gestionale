@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 19 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello e scheda cliente (ADR 0009).
+Stato: 20 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello, scheda cliente completa, scadenze e promemoria fatti (ADR 0009–0014); mancano i pagamenti.
 
 ## Obiettivo
 
@@ -146,7 +146,8 @@ erDiagram
   PERSONA ||--o{ ABBONAMENTO : possiede
   PERSONA ||--o{ PAGAMENTO : effettua
   PERSONA ||--o{ CERTIFICATO : presenta
-  PERSONA ||--o{ TUTELA : "è tutore / è tutelato"
+  PERSONA ||--o{ LEGAME : "è tutore / ha un tutore"
+  PERSONA ||--o{ CONSENSO : firma
 
   PERSONA ||--o{ CREDENZIALE : "porta"
   CREDENZIALE ||--o{ ACCESSO : registra
