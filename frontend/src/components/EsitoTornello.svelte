@@ -8,17 +8,26 @@
   let { esito, schedaHref = null, simulato = false }: { esito: EsitoTornello; schedaHref?: string | null; simulato?: boolean } = $props();
 
   const p = $derived(esito.persona);
+  const uscita = $derived(esito.verso === 'USCITA');
+  const avvisi = $derived(esito.verde && esito.motivi.some((m) => !m.blocca));
+  const parola = $derived(
+    simulato ? (esito.verde ? 'Passerebbe' : 'Non passerebbe')
+      : uscita ? (esito.verde ? 'Può uscire' : 'Non può uscire')
+      : esito.verde ? 'Può entrare' : 'Non può entrare',
+  );
   const eta = $derived(p?.eta == null ? '' : p.eta === 1 ? '1 anno' : `${p.eta} anni`);
 </script>
 
-<section class="esito" class:verde={esito.verde} class:rosso={!esito.verde} class:simulato aria-live="polite">
+<section class="esito" class:verde={esito.verde} class:rosso={!esito.verde} class:avvisi class:simulato aria-live="polite">
   <div class="stato">
     <span class="segno" aria-hidden="true">
       {#if esito.verde}<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
       {:else}<svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17" /></svg>{/if}
     </span>
-    <span class="parola">{esito.verde ? (simulato ? 'Passerebbe' : 'Può entrare') : simulato ? 'Non passerebbe' : 'Non può entrare'}</span>
+    <span class="parola">{parola}</span>
+    {#if uscita}<span class="tag lato">Uscita</span>{/if}
     {#if esito.goldenPass}<span class="tag oro">Golden pass</span>{/if}
+    {#if esito.motivi.some((m) => m.codice.endsWith('SOTTO_CONTROLLO'))}<span class="tag oro">Sotto controllo</span>{/if}
   </div>
 
   {#if p}
@@ -57,6 +66,8 @@
   }
   .verde { --b: var(--passa); --bg: var(--passa-bg); --fg: var(--passa-fg); }
   .rosso { --b: var(--ferma); --bg: var(--ferma-bg); --fg: var(--ferma-fg); }
+  .verde.avvisi { border-color: var(--oro); }
+  .lato { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
   .simulato { border-width: 1px; border-radius: var(--radius); }
   .stato { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
   .segno { width: 40px; height: 40px; border-radius: 50%; background: var(--b); display: grid; place-items: center; flex-shrink: 0; }

@@ -20,19 +20,49 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class Clienti {
 
-    public record Certificato(UUID id, String tipo, LocalDate scadenza) {}
+    /** Per i provvisori conta anche quando è stata firmata la dichiarazione (vale al massimo N giorni). */
+    public record Certificato(UUID id, String tipo, LocalDate rilasciatoIl, LocalDate scadenza) {
+        public boolean provvisorio() { return "PROVVISORIO".equals(tipo); }
+
+        /** Ultimo giorno di validità: la scadenza, e per un provvisorio non oltre N giorni dalla firma. */
+        public LocalDate validoFino(int giorniMaxProvvisorio) {
+            if (!provvisorio() || rilasciatoIl == null) return scadenza;
+            LocalDate limite = rilasciatoIl.plusDays(giorniMaxProvvisorio - 1L);
+            return limite.isBefore(scadenza) ? limite : scadenza;
+        }
+    }
+
+    public record Periodo(UUID id, LocalDate dal, LocalDate al, String motivo) {}
 
     public record TesseramentoBreve(UUID id, String stagione, LocalDate dal, LocalDate al) {}
 
     /** Abbonamento non annullato; per i carnet gli ingressi usati e l'ultimo scalato. */
     public record AbbonamentoBreve(UUID id, String tipo, UUID corsoId, String corso, Integer volteASettimana, Integer ingressi,
-                                   int usati, Instant ultimoIngresso, LocalDate dal, LocalDate al) {
+                                   int usati, Instant ultimoIngresso, LocalDate dal, LocalDate al, List<Periodo> sospensioni) {
+
+        /** La fine allungata dei giorni di sospensione (null = senza fine). */
+        public LocalDate alEffettivo() {
+            if (al == null) return null;
+            long giorni = sospensioni.stream().mapToLong(s -> java.time.temporal.ChronoUnit.DAYS.between(s.dal(), s.al()) + 1).sum();
+            return al.plusDays(giorni);
+        }
+
+        public java.util.Optional<Periodo> sospesoIl(LocalDate g) {
+            return sospensioni.stream().filter(s -> !g.isBefore(s.dal()) && !g.isAfter(s.al())).findFirst();
+        }
+
         public boolean carnet() { return Abbonamento.CARNET.equals(tipo); }
 
         /** Un carnet con un corso vale solo negli orari dei turni di quel corso; senza, a entrata libera. */
         public boolean aOrario() { return carnet() && corsoId != null; }
 
-        public boolean validoIl(LocalDate g) { return !g.isBefore(dal) && (al == null || !g.isAfter(al)); }
+        /** Nel periodo (allungato delle sospensioni) e non sospeso quel giorno. */
+        public boolean validoIl(LocalDate g) { return nelPeriodo(g) && sospesoIl(g).isEmpty(); }
+
+        public boolean nelPeriodo(LocalDate g) {
+            LocalDate fine = alEffettivo();
+            return !g.isBefore(dal) && (fine == null || !g.isAfter(fine));
+        }
 
         public Integer residui() { return ingressi == null ? null : Math.max(0, ingressi - usati); }
 
@@ -53,10 +83,12 @@ public class Clienti {
     private final TesseramentoRepository tesseramenti;
     private final AbbonamentoRepository abbonamenti;
     private final IngressoCarnetRepository ingressi;
+    private final SospensioneRepository sospensioni;
     private final Frequenze frequenze;
 
     Clienti(CertificatoRepository certificati, TesseramentoRepository tesseramenti, AbbonamentoRepository abbonamenti,
-            IngressoCarnetRepository ingressi, Frequenze frequenze) {
+            IngressoCarnetRepository ingressi, SospensioneRepository sospensioni, Frequenze frequenze) {
+        this.sospensioni = sospensioni;
         this.certificati = certificati;
         this.tesseramenti = tesseramenti;
         this.abbonamenti = abbonamenti;
@@ -67,7 +99,7 @@ public class Clienti {
     @Transactional(readOnly = true)
     public Situazione situazione(UUID personaId) {
         var cert = certificati.findByPersonaIdOrderByScadenzaDesc(personaId).stream().filter(c -> c.getAnnullatoIl() == null)
-            .map(c -> new Certificato(c.getId(), c.getTipo(), c.getScadenza())).toList();
+            .map(c -> new Certificato(c.getId(), c.getTipo(), c.getRilasciatoIl(), c.getScadenza())).toList();
         var tess = tesseramenti.findByPersonaIdOrderByDalDesc(personaId).stream().filter(t -> t.getAnnullatoIl() == null)
             .map(t -> new TesseramentoBreve(t.getId(), t.getStagione(), t.getDal(), t.getAl())).toList();
         return new Situazione(personaId, cert, tess, abbonamentiDi(personaId));
@@ -80,11 +112,15 @@ public class Clienti {
             : ingressi.findByAbbonamentoIdInOrderByIstanteDesc(carnet).stream().collect(Collectors.groupingBy(IngressoCarnet::getAbbonamentoId));
         Map<UUID, String> nomiCorsi = suoi.stream().anyMatch(a -> a.getCorsoId() != null)
             ? frequenze.corsi().stream().collect(Collectors.toMap(Frequenze.CorsoBreve::id, Frequenze.CorsoBreve::nome)) : Map.of();
+        Map<UUID, List<Periodo>> sospesi = suoi.isEmpty() ? Map.of()
+            : sospensioni.findByAbbonamentoIdInOrderByDal(suoi.stream().map(Abbonamento::getId).toList()).stream().filter(s -> s.getAnnullataIl() == null)
+                .collect(Collectors.groupingBy(Sospensione::getAbbonamentoId, Collectors.mapping(s -> new Periodo(s.getId(), s.getDal(), s.getAl(), s.getMotivo()), Collectors.toList())));
         List<AbbonamentoBreve> out = new ArrayList<>();
         for (Abbonamento a : suoi) {
             List<IngressoCarnet> u = usati.getOrDefault(a.getId(), List.of());
             out.add(new AbbonamentoBreve(a.getId(), a.getTipo(), a.getCorsoId(), a.getCorsoId() == null ? null : nomiCorsi.get(a.getCorsoId()),
-                a.getVolteASettimana(), a.getIngressi(), u.size(), u.isEmpty() ? null : u.getFirst().getIstante(), a.getDal(), a.getAl()));
+                a.getVolteASettimana(), a.getIngressi(), u.size(), u.isEmpty() ? null : u.getFirst().getIstante(), a.getDal(), a.getAl(),
+                sospesi.getOrDefault(a.getId(), List.of())));
         }
         return out;
     }

@@ -33,12 +33,34 @@ class AccessiController {
         this.gestione = gestione;
     }
 
-    record Lettura(String codice) {}
+    record Lettura(String codice, Verso verso) {}
 
-    /** Un braccialetto passato al tornello: {"codice": "04:A1:B2:C3"}. Si registra sempre. */
+    /** Un braccialetto passato al tornello: {"codice": "04:A1:B2:C3", "verso": "ENTRATA" | "USCITA"}. Si registra sempre. */
     @PostMapping("/passaggi")
     VerificaAccessi.Esito passa(@AuthenticationPrincipal Utente u, @RequestBody Lettura in) {
-        return verifica.passa(u, in.codice());
+        return verifica.passa(u, in.codice(), in.verso() == null ? Verso.ENTRATA : in.verso());
+    }
+
+    /** Passaggi di persone sotto controllo dopo un istante: la segreteria li riceve come avvisi. */
+    @GetMapping("/segnalazioni")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'BRACCIALETTI')")
+    List<GestioneAccessiService.PassaggioDto> segnalazioni(@RequestParam(required = false) java.time.Instant dopo) {
+        return gestione.segnalazioni(dopo);
+    }
+
+    /** {"tipo": "USCITA_AUTONOMA" | "ACCOMPAGNATORE", "firmataDa", "firmataIl", "dal", "al", "note"} */
+    @PostMapping("/persone/{id}/autorizzazioni")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'BRACCIALETTI')")
+    Map<String, UUID> autorizza(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody GestioneAccessiService.NuovaAutorizzazione in) {
+        return Map.of("id", gestione.autorizza(u, id, in));
+    }
+
+    @PostMapping("/autorizzazioni/{id}/revoca")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'BRACCIALETTI')")
+    void revocaAutorizzazione(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        gestione.revocaAutorizzazione(u, id);
     }
 
     @GetMapping("/passaggi")

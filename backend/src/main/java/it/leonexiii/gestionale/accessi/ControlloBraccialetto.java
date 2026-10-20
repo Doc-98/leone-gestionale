@@ -16,6 +16,7 @@ class ControlloBraccialetto implements ControlloAccesso {
     }
     @Override public int ordine() { return 10; }
     @Override public boolean valeConGoldenPass() { return true; }
+    @Override public boolean valeInUscita() { return true; }
 
     @Override
     public List<Motivo> verifica(Contesto c, Parametri p) {

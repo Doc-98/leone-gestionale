@@ -63,6 +63,19 @@ class ClientiController {
         schede.terminaAbbonamento(id, in);
     }
 
+    /** {"dal", "al", "motivo"}: l'abbonamento non vale in quei giorni e la scadenza si allunga. */
+    @PostMapping("/abbonamenti/{id}/sospensioni")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, UUID> sospendi(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody SchedaClientiService.NuovaSospensione in) {
+        return Map.of("id", schede.sospendi(u, id, in));
+    }
+
+    @PostMapping("/sospensioni/{id}/annulla")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void annullaSospensione(@PathVariable UUID id) {
+        schede.annullaSospensione(id);
+    }
+
     /** cosa: certificati, tesseramenti, abbonamenti */
     @PostMapping("/{cosa}/{id}/annulla")
     @ResponseStatus(HttpStatus.NO_CONTENT)

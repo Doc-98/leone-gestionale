@@ -515,13 +515,19 @@ export const api = {
   assegnaRuolo: (codice: string, accountId: string, impiantoId: string | null) =>
     richiesta<{ id: string }>('POST', `/api/ruoli/${codice}/assegnazioni`, { accountId, impiantoId }),
   togliRuolo: (assegnazioneId: string) => richiesta<void>('DELETE', `/api/assegnazioni/${assegnazioneId}`),
-  passa: (codice: string) => richiesta<EsitoTornello>('POST', '/api/accessi/passaggi', { codice }),
+  passa: (codice: string, verso: Verso = 'ENTRATA') => richiesta<EsitoTornello>('POST', '/api/accessi/passaggi', { codice, verso }),
+  segnalazioni: (dopo: string) => richiesta<Passaggio[]>('GET', `/api/accessi/segnalazioni?dopo=${encodeURIComponent(dopo)}`),
+  autorizza: (personaId: string, a: { tipo: Autorizzazione['tipo']; firmataDa: string | null; firmataIl: string | null; dal: string | null; al: string | null; note: string | null }) =>
+    richiesta<{ id: string }>('POST', `/api/accessi/persone/${personaId}/autorizzazioni`, a),
+  revocaAutorizzazione: (id: string) => richiesta<void>('POST', `/api/accessi/autorizzazioni/${id}/revoca`, {}),
+  sospendi: (abbonamentoId: string, s: { dal: string; al: string; motivo: string | null }) => richiesta<{ id: string }>('POST', `/api/clienti/abbonamenti/${abbonamentoId}/sospensioni`, s),
+  annullaSospensione: (id: string) => richiesta<void>('POST', `/api/clienti/sospensioni/${id}/annulla`, {}),
   passaggi: (quanti = 20) => richiesta<Passaggio[]>('GET', `/api/accessi/passaggi?quanti=${quanti}`),
   schedaAccessi: (personaId: string) => richiesta<SchedaAccessi>('GET', `/api/accessi/persone/${personaId}`),
   assegnaBraccialetto: (personaId: string, codice: string, note?: string) =>
     richiesta<Braccialetto>('POST', `/api/accessi/persone/${personaId}/braccialetti`, { codice, note: note ?? null }),
   statoBraccialetto: (id: string, stato: StatoBraccialetto) => richiesta<void>('PUT', `/api/accessi/braccialetti/${id}/stato`, { stato }),
-  banna: (b: { personaId?: string; braccialettoId?: string; motivo: string; al: string | null }) => richiesta<{ id: string }>('POST', '/api/accessi/ban', b),
+  banna: (b: { tipo?: 'BAN' | 'SORVEGLIANZA'; personaId?: string; braccialettoId?: string; motivo: string; al: string | null }) => richiesta<{ id: string }>('POST', '/api/accessi/ban', b),
   revocaBan: (id: string) => richiesta<void>('POST', `/api/accessi/ban/${id}/revoca`, {}),
   goldenPass: (personaId: string, motivo: string, al: string | null) =>
     richiesta<{ id: string }>('POST', `/api/accessi/persone/${personaId}/golden-pass`, { motivo, al }),
@@ -531,7 +537,7 @@ export const api = {
     richiesta<void>('PUT', `/api/accessi/regole/${codice}`, { attiva, parametri }),
   schedaCliente: (personaId: string) => richiesta<SchedaCliente>('GET', `/api/clienti/${personaId}`),
   nuovoCliente: (c: { nome: string; cognome: string; dataNascita: string | null }) => richiesta<SchedaCliente['persona']>('POST', '/api/clienti', c),
-  nuovoCertificato: (personaId: string, c: { tipo: string; rilasciatoIl: string | null; scadenza: string; note?: string | null }) =>
+  nuovoCertificato: (personaId: string, c: { tipo: string; rilasciatoIl: string | null; scadenza: string; note?: string | null; firmatoDa?: string | null }) =>
     richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/certificati`, c),
   nuovoTesseramento: (personaId: string, t: { stagione?: string; dal?: string; al?: string; importo?: number | null; pagatoIl?: string | null }) =>
     richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/tesseramenti`, t),
@@ -577,6 +583,7 @@ export interface EsitoTornello {
   passaggioId: string | null;
   istante: string;
   codice: string | null;
+  verso: Verso;
   verde: boolean;
   persona: PersonaEsito | null;
   statoBraccialetto: StatoBraccialetto | null;
@@ -585,12 +592,17 @@ export interface EsitoTornello {
   carnet: { abbonamentoId: string; ingressi: number; usati: number; scalato: boolean; rientro: boolean } | null;
 }
 
+export type Verso = 'ENTRATA' | 'USCITA';
+
 export interface Passaggio {
   id: string;
   istante: string;
   codice: string;
+  verso: Verso;
   verde: boolean;
   goldenPass: boolean;
+  /** persona sotto controllo: la segreteria riceve un avviso */
+  segnalato: boolean;
   persona: PersonaEsito | null;
   motivi: Motivo[];
   carnetScalato: boolean;
@@ -612,6 +624,8 @@ export interface Braccialetto {
 
 export interface Ban {
   id: string;
+  /** BAN blocca; SORVEGLIANZA («sotto controllo») fa passare e avvisa la segreteria */
+  tipo: 'BAN' | 'SORVEGLIANZA';
   personaId: string | null;
   braccialettoId: string | null;
   codice: string | null;
@@ -631,20 +645,34 @@ export interface GoldenPass {
   attivo: boolean;
 }
 
+export interface Autorizzazione {
+  id: string;
+  tipo: 'USCITA_AUTONOMA' | 'ACCOMPAGNATORE';
+  firmataDa: string | null;
+  firmataIl: string | null;
+  dal: string;
+  al: string | null;
+  note: string | null;
+  revocataIl: string | null;
+  attiva: boolean;
+}
+
 export interface SchedaAccessi {
   braccialetti: Braccialetto[];
   blocchi: Ban[];
   goldenPass: GoldenPass[];
+  autorizzazioni: Autorizzazione[];
   passaggi: Passaggio[];
   adesso: EsitoTornello;
 }
 
 export interface Certificato {
   id: string;
-  tipo: 'NON_AGONISTICO' | 'AGONISTICO';
+  tipo: 'NON_AGONISTICO' | 'AGONISTICO' | 'PROVVISORIO';
   rilasciatoIl: string | null;
   scadenza: string;
   note: string | null;
+  firmatoDa: string | null;
   valido: boolean;
 }
 
@@ -670,6 +698,10 @@ export interface Abbonamento {
   ultimoIngresso: string | null;
   dal: string;
   al: string | null;
+  /** la fine allungata dei giorni di sospensione */
+  alEffettivo: string | null;
+  sospensioni: { id: string; dal: string; al: string; motivo: string | null }[];
+  sospesoOggi: boolean;
   importo: number | null;
   note: string | null;
   valido: boolean;

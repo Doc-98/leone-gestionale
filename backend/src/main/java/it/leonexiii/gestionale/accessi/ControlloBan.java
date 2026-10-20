@@ -20,6 +20,7 @@ class ControlloBan implements ControlloAccesso {
     public List<Motivo> verifica(Contesto c, Parametri p) {
         List<Motivo> out = new ArrayList<>();
         for (Blocco b : c.blocchiAttivi()) {
+            if (!b.ban()) continue;
             String fino = b.getAl() == null ? "" : " (fino al " + Contesto.data(b.getAl()) + ")";
             if (b.getBraccialettoId() != null && c.braccialetto() != null && b.getBraccialettoId().equals(c.braccialetto().getId()))
                 out.add(Motivo.blocca("BRACCIALETTO_BANNATO", regola(), "Braccialetto bannato" + fino + ": " + b.getMotivo(), "Rivolgersi alla segreteria."));

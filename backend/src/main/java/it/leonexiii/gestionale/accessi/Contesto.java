@@ -20,7 +20,17 @@ import java.util.Optional;
 record Contesto(Braccialetto braccialetto, List<Braccialetto> braccialettiPersona, Persone.PersonaScheda persona,
                 Instant istante, LocalDate oggi, LocalTime ora, List<Blocco> blocchiAttivi, boolean goldenPass,
                 Clienti.Situazione cliente, List<Frequenze.TurnoDelGiorno> turniOggi, int minutiRientro,
-                Map<UUID, List<Frequenze.TurnoDelGiorno>> turniCarnetOggi) {
+                Map<UUID, List<Frequenze.TurnoDelGiorno>> turniCarnetOggi, Verso verso, List<Autorizzazione> autorizzazioniAttive,
+                Instant ultimoVerdeInEntrata) {
+
+    boolean haAutorizzazione(Autorizzazione.Tipo tipo) {
+        return autorizzazioniAttive.stream().anyMatch(a -> a.tipo() == tipo);
+    }
+
+    /** Età compiuta oggi, o null se manca la data di nascita. */
+    Integer eta() {
+        return persona.dataNascita() == null ? null : java.time.Period.between(persona.dataNascita(), oggi).getYears();
+    }
 
     static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final DateTimeFormatter ORA = DateTimeFormatter.ofPattern("HH:mm");

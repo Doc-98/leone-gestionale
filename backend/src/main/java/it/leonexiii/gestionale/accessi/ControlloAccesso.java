@@ -19,6 +19,16 @@ interface ControlloAccesso {
     /** Ordine di valutazione e di presentazione dei motivi: prima il braccialetto, poi la persona, poi il momento. */
     int ordine();
 
+    /** Si controlla quando si entra (di base sì). */
+    default boolean valeInEntrata() {
+        return true;
+    }
+
+    /** Si controlla quando si esce, dal lettore sul lato d'uscita (di base no). */
+    default boolean valeInUscita() {
+        return false;
+    }
+
     /** Vale anche per chi ha il golden pass (es. braccialetto smarrito o ban)? */
     default boolean valeConGoldenPass() {
         return false;

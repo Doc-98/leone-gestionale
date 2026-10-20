@@ -26,21 +26,26 @@ class GestioneAccessiService {
 
     record BraccialettoDto(UUID id, String codice, String decimale, String stato, Instant statoDal, Instant assegnatoIl, String note, boolean bannato) {}
 
-    record BloccoDto(UUID id, UUID personaId, UUID braccialettoId, String codice, String motivo, LocalDate dal, LocalDate al, Instant revocatoIl, boolean attivo) {}
+    record BloccoDto(UUID id, String tipo, UUID personaId, UUID braccialettoId, String codice, String motivo, LocalDate dal, LocalDate al, Instant revocatoIl, boolean attivo) {}
 
     record GoldenPassDto(UUID id, String motivo, LocalDate dal, LocalDate al, Instant revocatoIl, boolean attivo) {}
 
-    record PassaggioDto(UUID id, Instant istante, String codice, boolean verde, boolean goldenPass, VerificaAccessi.PersonaEsito persona,
-                        List<Motivo> motivi, boolean carnetScalato) {}
+    record PassaggioDto(UUID id, Instant istante, String codice, Verso verso, boolean verde, boolean goldenPass, boolean segnalato,
+                        VerificaAccessi.PersonaEsito persona, List<Motivo> motivi, boolean carnetScalato) {}
+
+    record AutorizzazioneDto(UUID id, String tipo, String firmataDa, LocalDate firmataIl, LocalDate dal, LocalDate al, String note, Instant revocataIl, boolean attiva) {}
+
+    record NuovaAutorizzazione(String tipo, String firmataDa, LocalDate firmataIl, LocalDate dal, LocalDate al, String note) {}
 
     record SchedaAccessi(List<BraccialettoDto> braccialetti, List<BloccoDto> blocchi, List<GoldenPassDto> goldenPass,
-                         List<PassaggioDto> passaggi, VerificaAccessi.Esito adesso) {}
+                         List<AutorizzazioneDto> autorizzazioni, List<PassaggioDto> passaggi, VerificaAccessi.Esito adesso) {}
 
     record NuovoBraccialetto(String codice, String note) {}
 
     record NuovoStato(String stato) {}
 
-    record NuovoBlocco(UUID personaId, UUID braccialettoId, String motivo, LocalDate dal, LocalDate al) {}
+    /** tipo: BAN (blocca) o SORVEGLIANZA (sotto controllo: non blocca, avvisa la segreteria). */
+    record NuovoBlocco(String tipo, UUID personaId, UUID braccialettoId, String motivo, LocalDate dal, LocalDate al) {}
 
     record NuovoGoldenPass(String motivo, LocalDate dal, LocalDate al) {}
 
@@ -57,17 +62,19 @@ class GestioneAccessiService {
     private final GoldenPassRepository golden;
     private final RegolaRepository regole;
     private final PassaggioRepository passaggi;
+    private final AutorizzazioneRepository autorizzazioni;
     private final Persone persone;
     private final Clock orologio;
 
     GestioneAccessiService(VerificaAccessi verifica, BraccialettoRepository braccialetti, BloccoRepository blocchi, GoldenPassRepository golden,
-                           RegolaRepository regole, PassaggioRepository passaggi, Persone persone, Clock orologio) {
+                           RegolaRepository regole, PassaggioRepository passaggi, AutorizzazioneRepository autorizzazioni, Persone persone, Clock orologio) {
         this.verifica = verifica;
         this.braccialetti = braccialetti;
         this.blocchi = blocchi;
         this.golden = golden;
         this.regole = regole;
         this.passaggi = passaggi;
+        this.autorizzazioni = autorizzazioni;
         this.persone = persone;
         this.orologio = orologio;
     }
@@ -81,14 +88,16 @@ class GestioneAccessiService {
         List<Braccialetto> suoi = braccialetti.findByPersonaIdOrderByAssegnatoIlDesc(personaId);
         Map<UUID, String> codici = suoi.stream().collect(Collectors.toMap(Braccialetto::getId, Braccialetto::getCodice));
         List<Blocco> ban = blocchi.diPersonaOBraccialetti(personaId, codici.isEmpty() ? List.of(UUID.randomUUID()) : codici.keySet());
-        Set<UUID> bannati = ban.stream().filter(b -> b.attivoIl(oggi) && b.getBraccialettoId() != null).map(Blocco::getBraccialettoId).collect(Collectors.toSet());
+        Set<UUID> bannati = ban.stream().filter(b -> b.ban() && b.attivoIl(oggi) && b.getBraccialettoId() != null).map(Blocco::getBraccialettoId).collect(Collectors.toSet());
         var bdto = suoi.stream().map(b -> new BraccialettoDto(b.getId(), b.getCodice(), Codici.decimale(b.getCodice()), b.stato().name(), b.getStatoDal(), b.getAssegnatoIl(), b.getNote(),
             bannati.contains(b.getId()))).toList();
-        var ldto = ban.stream().map(b -> new BloccoDto(b.getId(), b.getPersonaId(), b.getBraccialettoId(),
+        var ldto = ban.stream().map(b -> new BloccoDto(b.getId(), b.tipo().name(), b.getPersonaId(), b.getBraccialettoId(),
             b.getBraccialettoId() == null ? null : codici.get(b.getBraccialettoId()), b.getMotivo(), b.getDal(), b.getAl(), b.getRevocatoIl(), b.attivoIl(oggi))).toList();
         var gdto = golden.findByPersonaIdOrderByDalDesc(personaId).stream()
             .map(g -> new GoldenPassDto(g.getId(), g.getMotivo(), g.getDal(), g.getAl(), g.getRevocatoIl(), g.attivoIl(oggi))).toList();
-        return new SchedaAccessi(bdto, ldto, gdto, dto(passaggi.findByPersonaIdOrderByIstanteDesc(personaId, PageRequest.of(0, 15))), verifica.adesso(personaId));
+        var adto = autorizzazioni.findByPersonaIdOrderByDalDesc(personaId).stream()
+            .map(a -> new AutorizzazioneDto(a.getId(), a.tipo().name(), a.getFirmataDa(), a.getFirmataIl(), a.getDal(), a.getAl(), a.getNote(), a.getRevocataIl(), a.attivaIl(oggi))).toList();
+        return new SchedaAccessi(bdto, ldto, gdto, adto, dto(passaggi.findByPersonaIdOrderByIstanteDesc(personaId, PageRequest.of(0, 15))), verifica.adesso(personaId));
     }
 
     /** Gli ultimi passaggi di oggi (per lo storico accanto al tornello). */
@@ -108,7 +117,7 @@ class GestioneAccessiService {
             Persone.PersonaScheda s = p.getPersonaId() == null ? null : schede.get(p.getPersonaId());
             var pe = s == null ? null : new VerificaAccessi.PersonaEsito(s.id(), s.nome(), s.cognome(),
                 s.dataNascita() == null ? null : Period.between(s.dataNascita(), oggi).getYears(), 0);
-            return new PassaggioDto(p.getId(), p.getIstante(), p.getCodice(), p.isVerde(), p.isGoldenPass(), pe, p.getMotivi(), p.getCarnetId() != null);
+            return new PassaggioDto(p.getId(), p.getIstante(), p.getCodice(), p.verso(), p.isVerde(), p.isGoldenPass(), p.isSegnalato(), pe, p.getMotivi(), p.getCarnetId() != null);
         }).toList();
     }
 
@@ -151,7 +160,13 @@ class GestioneAccessiService {
         if (in.braccialettoId() != null) braccialetti.findById(in.braccialettoId()).orElseThrow(() -> new NonTrovato("Braccialetto non trovato."));
         else if (in.personaId() != null) persona(in.personaId());
         LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(orologio);
-        return blocchi.saveAndFlush(new Blocco(in.braccialettoId() != null ? null : in.personaId(), in.braccialettoId(), in.motivo(), dal, in.al(),
+        Blocco.Tipo tipo;
+        try {
+            tipo = in.tipo() == null ? Blocco.Tipo.BAN : Blocco.Tipo.valueOf(in.tipo());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Tipo non valido: BAN o SORVEGLIANZA.");
+        }
+        return blocchi.saveAndFlush(new Blocco(tipo, in.braccialettoId() != null ? null : in.personaId(), in.braccialettoId(), in.motivo(), dal, in.al(),
             u.personaId(), orologio.instant())).getId();
     }
 
@@ -172,6 +187,33 @@ class GestioneAccessiService {
     @Transactional
     void revocaGoldenPass(Utente u, UUID id) {
         golden.findById(id).orElseThrow(() -> new NonTrovato("Golden pass non trovato.")).revoca(u.personaId(), orologio.instant());
+    }
+
+    // ── Permessi firmati (uscita autonoma, accompagnatore) ───────────────
+
+    @Transactional
+    UUID autorizza(Utente u, UUID personaId, NuovaAutorizzazione in) {
+        persona(personaId);
+        Autorizzazione.Tipo tipo;
+        try {
+            tipo = Autorizzazione.Tipo.valueOf(String.valueOf(in.tipo()));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Tipo non valido: USCITA_AUTONOMA o ACCOMPAGNATORE.");
+        }
+        LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(orologio);
+        return autorizzazioni.saveAndFlush(new Autorizzazione(personaId, tipo, in.firmataDa(), in.firmataIl(), dal, in.al(), in.note(), u.personaId(), orologio.instant())).getId();
+    }
+
+    @Transactional
+    void revocaAutorizzazione(Utente u, UUID id) {
+        autorizzazioni.findById(id).orElseThrow(() -> new NonTrovato("Permesso non trovato.")).revoca(u.personaId(), orologio.instant());
+    }
+
+    /** I passaggi di persone sotto controllo dopo un istante (per gli avvisi in segreteria), al massimo di oggi. */
+    @Transactional(readOnly = true)
+    List<PassaggioDto> segnalazioni(Instant dopo) {
+        Instant inizio = LocalDate.now(orologio).atStartOfDay(VerificaAccessi.FUSO).toInstant();
+        return dto(passaggi.segnalatiDopo(dopo == null || dopo.isBefore(inizio) ? inizio : dopo));
     }
 
     // ── Regole ──────────────────────────────────────────────────────────────

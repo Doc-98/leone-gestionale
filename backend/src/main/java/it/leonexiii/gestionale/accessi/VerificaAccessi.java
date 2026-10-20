@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +36,7 @@ class VerificaAccessi {
     record CarnetEsito(UUID abbonamentoId, int ingressi, int usati, boolean scalato, boolean rientro) {}
 
     /** L'esito da mostrare al tornellista: sempre il nome della persona e tutti i motivi. */
-    record Esito(UUID passaggioId, Instant istante, String codice, boolean verde, PersonaEsito persona, String statoBraccialetto,
+    record Esito(UUID passaggioId, Instant istante, String codice, Verso verso, boolean verde, PersonaEsito persona, String statoBraccialetto,
                  boolean goldenPass, List<Motivo> motivi, CarnetEsito carnet) {}
 
     /** Il risultato dei controlli, prima di registrare il passaggio. */
@@ -47,19 +48,21 @@ class VerificaAccessi {
     private final BloccoRepository blocchi;
     private final GoldenPassRepository golden;
     private final PassaggioRepository passaggi;
+    private final AutorizzazioneRepository autorizzazioni;
     private final Persone persone;
     private final Clienti clienti;
     private final Frequenze frequenze;
     private final Clock orologio;
 
     VerificaAccessi(List<ControlloAccesso> controlli, RegolaRepository regole, BraccialettoRepository braccialetti, BloccoRepository blocchi,
-                    GoldenPassRepository golden, PassaggioRepository passaggi, Persone persone, Clienti clienti, Frequenze frequenze, Clock orologio) {
+                    GoldenPassRepository golden, PassaggioRepository passaggi, AutorizzazioneRepository autorizzazioni, Persone persone, Clienti clienti, Frequenze frequenze, Clock orologio) {
         this.controlli = controlli.stream().sorted(Comparator.comparingInt(ControlloAccesso::ordine)).toList();
         this.regole = regole;
         this.braccialetti = braccialetti;
         this.blocchi = blocchi;
         this.golden = golden;
         this.passaggi = passaggi;
+        this.autorizzazioni = autorizzazioni;
         this.persone = persone;
         this.clienti = clienti;
         this.frequenze = frequenze;
@@ -90,7 +93,7 @@ class VerificaAccessi {
     }
 
     @Transactional
-    Esito passa(Utente u, String codiceLetto) {
+    Esito passa(Utente u, String codiceLetto, Verso verso) {
         String codice = Codici.normalizza(codiceLetto);
         Instant istante = orologio.instant();
         List<Braccialetto> conCodice = braccialetti.findByCodiceOrderByAssegnatoIlDesc(codice);
@@ -100,11 +103,11 @@ class VerificaAccessi {
             // un codice sconosciuto è sempre rosso, qualunque regola sia attiva
             List<Motivo> m = List.of(Motivo.blocca("BRACCIALETTO_SCONOSCIUTO", "BRACCIALETTO", "Braccialetto non registrato.",
                 "Assegnarlo a una persona dalla scheda cliente."));
-            Passaggio p = passaggi.saveAndFlush(new Passaggio(istante, codice, null, null, false, false, m, u.personaId()));
-            return new Esito(p.getId(), istante, codice, false, null, null, false, m, null);
+            Passaggio p = passaggi.saveAndFlush(new Passaggio(istante, codice, verso, null, null, false, false, m, u.personaId()));
+            return new Esito(p.getId(), istante, codice, verso, false, null, null, false, m, null);
         }
-        Valutazione v = valuta(b.getPersonaId(), b, istante);
-        Passaggio p = passaggi.save(new Passaggio(istante, codice, b.getId(), b.getPersonaId(), v.verde(), v.contesto().goldenPass(), v.motivi(), u.personaId()));
+        Valutazione v = valuta(b.getPersonaId(), b, istante, verso);
+        Passaggio p = passaggi.save(new Passaggio(istante, codice, verso, b.getId(), b.getPersonaId(), v.verde(), v.contesto().goldenPass(), v.motivi(), u.personaId()));
         CarnetEsito carnet = null;
         if (v.verde() && v.carnetDaUsare() != null) {
             Clienti.IngressoScalato r = clienti.usaCarnet(v.carnetDaUsare().id(), istante, v.contesto().minutiRientro(), p.getId());
@@ -115,7 +118,7 @@ class VerificaAccessi {
             carnet = new CarnetEsito(v.carnetDaUsare().id(), r.ingressi(), r.usati(), r.esito() == Clienti.EsitoCarnet.SCALATO, r.esito() == Clienti.EsitoCarnet.RIENTRO);
         }
         passaggi.flush();
-        return new Esito(p.getId(), istante, codice, p.isVerde(), personaEsito(v.contesto()), b.stato().name(), v.contesto().goldenPass(),
+        return new Esito(p.getId(), istante, codice, verso, p.isVerde(), personaEsito(v.contesto()), b.stato().name(), v.contesto().goldenPass(),
             List.copyOf(p.getMotivi()), carnet);
     }
 
@@ -124,17 +127,17 @@ class VerificaAccessi {
     Esito adesso(UUID personaId) {
         Instant istante = orologio.instant();
         Braccialetto b = braccialetti.findByPersonaIdOrderByAssegnatoIlDesc(personaId).stream().filter(Braccialetto::attivo).findFirst().orElse(null);
-        Valutazione v = valuta(personaId, b, istante);
+        Valutazione v = valuta(personaId, b, istante, Verso.ENTRATA);
         List<Motivo> motivi = new ArrayList<>();
         if (b == null) motivi.add(Motivo.blocca("NESSUN_BRACCIALETTO", "BRACCIALETTO", "Nessun braccialetto attivo.", "Assegnare un braccialetto dalla scheda."));
         motivi.addAll(v.motivi());
         CarnetEsito carnet = v.carnetDaUsare() == null ? null : new CarnetEsito(v.carnetDaUsare().id(), v.carnetDaUsare().ingressi(), v.carnetDaUsare().usati(),
             false, v.carnetDaUsare().rientroAlle(istante, v.contesto().minutiRientro()));
-        return new Esito(null, istante, b == null ? null : b.getCodice(), motivi.stream().noneMatch(Motivo::blocca), personaEsito(v.contesto()),
+        return new Esito(null, istante, b == null ? null : b.getCodice(), Verso.ENTRATA, motivi.stream().noneMatch(Motivo::blocca), personaEsito(v.contesto()),
             b == null ? null : b.stato().name(), v.contesto().goldenPass(), motivi, carnet);
     }
 
-    Valutazione valuta(UUID personaId, Braccialetto b, Instant istante) {
+    Valutazione valuta(UUID personaId, Braccialetto b, Instant istante, Verso verso) {
         LocalDateTime locale = LocalDateTime.ofInstant(istante, FUSO);
         LocalDate oggi = locale.toLocalDate();
         Map<String, RegolaAccesso> salvate = regoleSalvate();
@@ -150,11 +153,14 @@ class VerificaAccessi {
         situazione.abbonamenti().stream().filter(x -> x.aOrario() && x.validoIl(oggi)).map(Clienti.AbbonamentoBreve::corsoId).distinct()
             .forEach(corso -> turniCarnet.put(corso, frequenze.turniDelCorsoIl(corso, oggi)));
         Contesto c = new Contesto(b, suoi, persona, istante, oggi, locale.toLocalTime(), attivi, goldenPass, situazione,
-            frequenze.turniIl(personaId, oggi), rientro, turniCarnet);
+            frequenze.turniIl(personaId, oggi), rientro, turniCarnet, verso,
+            autorizzazioni.findByPersonaIdOrderByDalDesc(personaId).stream().filter(a -> a.attivaIl(oggi)).toList(),
+            b == null ? null : passaggi.ultimiVerdiInEntrata(b.getId(), istante, PageRequest.of(0, 1)).stream().findFirst().map(Passaggio::getIstante).orElse(null));
 
         List<Motivo> motivi = new ArrayList<>();
         for (ControlloAccesso k : controlli) {
             if (!attivo(k, salvate) || (goldenPass && !k.valeConGoldenPass())) continue;
+            if (verso == Verso.ENTRATA ? !k.valeInEntrata() : !k.valeInUscita()) continue;
             motivi.addAll(k.verifica(c, parametriDi(k, salvate)));
         }
         boolean verde = motivi.stream().noneMatch(Motivo::blocca);
@@ -162,7 +168,7 @@ class VerificaAccessi {
         // Il carnet si scala solo se è lui a far entrare: non con il golden pass, non se c'è un abbonamento al corso
         // valido e si è nella fascia di un turno (o la fascia non si controlla).
         Clienti.AbbonamentoBreve carnet = null;
-        if (abbonamento != null && attivo(abbonamento, salvate) && !goldenPass) {
+        if (verso == Verso.ENTRATA && abbonamento != null && attivo(abbonamento, salvate) && !goldenPass) {
             ControlloAccesso fascia = controlli.stream().filter(k -> k.regola().equals("FASCIA_ORARIA")).findFirst().orElse(null);
             boolean fasciaControllata = fascia != null && attivo(fascia, salvate);
             Parametri pf = fascia == null ? new Parametri(Map.of()) : parametriDi(fascia, salvate);

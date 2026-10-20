@@ -20,12 +20,13 @@ class SchedaClientiService {
 
     record PersonaDto(UUID id, String nome, String cognome, LocalDate dataNascita, Integer eta) {}
 
-    record CertificatoDto(UUID id, String tipo, LocalDate rilasciatoIl, LocalDate scadenza, String note, boolean valido) {}
+    record CertificatoDto(UUID id, String tipo, LocalDate rilasciatoIl, LocalDate scadenza, String note, String firmatoDa, boolean valido) {}
 
     record TesseramentoDto(UUID id, String stagione, LocalDate dal, LocalDate al, BigDecimal importo, LocalDate pagatoIl, boolean valido) {}
 
     record AbbonamentoDto(UUID id, String tipo, UUID corsoId, String corso, Integer volteASettimana, Integer ingressi, int usati,
-                          Integer residui, Instant ultimoIngresso, LocalDate dal, LocalDate al, BigDecimal importo, String note, boolean valido) {}
+                          Integer residui, Instant ultimoIngresso, LocalDate dal, LocalDate al, LocalDate alEffettivo, List<Clienti.Periodo> sospensioni,
+                          boolean sospesoOggi, BigDecimal importo, String note, boolean valido) {}
 
     record StagioneDto(String stagione, LocalDate dal, LocalDate al, BigDecimal importo) {}
 
@@ -34,7 +35,9 @@ class SchedaClientiService {
 
     record NuovoCliente(String nome, String cognome, LocalDate dataNascita) {}
 
-    record NuovoCertificato(String tipo, LocalDate rilasciatoIl, LocalDate scadenza, String note) {}
+    record NuovoCertificato(String tipo, LocalDate rilasciatoIl, LocalDate scadenza, String note, String firmatoDa) {}
+
+    record NuovaSospensione(LocalDate dal, LocalDate al, String motivo) {}
 
     record NuovoTesseramento(String stagione, LocalDate dal, LocalDate al, BigDecimal importo, LocalDate pagatoIl) {}
 
@@ -49,10 +52,12 @@ class SchedaClientiService {
     private final TesseramentoRepository tesseramenti;
     private final AbbonamentoRepository abbonamenti;
     private final ConsultazioneRepository consultazioni;
+    private final SospensioneRepository sospensioni;
     private final Clock orologio;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
-                         AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, Clock orologio) {
+                         AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni, Clock orologio) {
+        this.sospensioni = sospensioni;
         this.persone = persone;
         this.clienti = clienti;
         this.frequenze = frequenze;
@@ -70,7 +75,7 @@ class SchedaClientiService {
         LocalDate oggi = LocalDate.now(orologio);
         consultazioni.save(new ConsultazioneScheda(personaId, u.personaId(), orologio.instant()));
         var cert = certificati.findByPersonaIdOrderByScadenzaDesc(personaId).stream().filter(c -> c.getAnnullatoIl() == null)
-            .map(c -> new CertificatoDto(c.getId(), c.getTipo(), c.getRilasciatoIl(), c.getScadenza(), c.getNote(), c.validoIl(oggi))).toList();
+            .map(c -> new CertificatoDto(c.getId(), c.getTipo(), c.getRilasciatoIl(), c.getScadenza(), c.getNote(), c.getFirmatoDa(), c.validoIl(oggi))).toList();
         var tess = tesseramenti.findByPersonaIdOrderByDalDesc(personaId).stream().filter(t -> t.getAnnullatoIl() == null)
             .map(t -> new TesseramentoDto(t.getId(), t.getStagione(), t.getDal(), t.getAl(), t.getImporto(), t.getPagatoIl(), t.validoIl(oggi))).toList();
         var note = abbonamenti.findByPersonaIdOrderByDalDesc(personaId).stream().filter(a -> a.getAnnullatoIl() == null).toList();
@@ -78,7 +83,7 @@ class SchedaClientiService {
             Abbonamento e = note.stream().filter(x -> x.getId().equals(a.id())).findFirst().orElseThrow();
             boolean valido = a.validoIl(oggi) && (!a.carnet() || a.residui() > 0);
             return new AbbonamentoDto(a.id(), a.tipo(), a.corsoId(), a.corso(), a.volteASettimana(), a.ingressi(), a.usati(), a.residui(), a.ultimoIngresso(),
-                a.dal(), a.al(), e.getImporto(), e.getNote(), valido);
+                a.dal(), a.al(), a.alEffettivo(), a.sospensioni(), a.sospesoIl(oggi).isPresent(), e.getImporto(), e.getNote(), valido);
         }).toList();
         Stagione s = Stagione.di(oggi);
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), oggi).getYears();
@@ -97,7 +102,7 @@ class SchedaClientiService {
     UUID nuovoCertificato(Utente u, UUID personaId, NuovoCertificato in) {
         persona(personaId);
         return certificati.saveAndFlush(new CertificatoMedico(personaId, in.tipo() == null ? "NON_AGONISTICO" : in.tipo(), in.rilasciatoIl(), in.scadenza(),
-            in.note(), u.personaId(), orologio.instant())).getId();
+            in.note(), in.firmatoDa(), u.personaId(), orologio.instant())).getId();
     }
 
     /** Senza date si usa la stagione in corso (settembre–luglio) con la quota di base. */
@@ -130,6 +135,24 @@ class SchedaClientiService {
     @Transactional
     void terminaAbbonamento(UUID id, Termine in) {
         abbonamenti.findById(id).orElseThrow(() -> new NonTrovato("Abbonamento non trovato.")).termina(in.al() != null ? in.al() : LocalDate.now(orologio));
+    }
+
+    /** Sospende l'abbonamento (es. infortunio): non vale in quei giorni e la scadenza si allunga di altrettanti. */
+    @Transactional
+    UUID sospendi(Utente u, UUID abbonamentoId, NuovaSospensione in) {
+        Abbonamento a = abbonamenti.findById(abbonamentoId).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
+        if (a.getAnnullatoIl() != null) throw new IllegalArgumentException("L'abbonamento è annullato.");
+        Sospensione s = new Sospensione(abbonamentoId, in.dal(), in.al(), in.motivo(), u.personaId(), orologio.instant());
+        if (in.dal().isBefore(a.getDal())) throw new IllegalArgumentException("La sospensione inizia prima dell'abbonamento.");
+        boolean accavallata = sospensioni.findByAbbonamentoIdInOrderByDal(List.of(abbonamentoId)).stream()
+            .anyMatch(x -> x.getAnnullataIl() == null && x.siAccavallaCon(in.dal(), in.al()));
+        if (accavallata) throw new it.leonexiii.gestionale.condiviso.Conflitto("C'è già una sospensione in quei giorni.");
+        return sospensioni.saveAndFlush(s).getId();
+    }
+
+    @Transactional
+    void annullaSospensione(UUID id) {
+        sospensioni.findById(id).orElseThrow(() -> new NonTrovato("Sospensione non trovata.")).annulla(orologio.instant());
     }
 
     /** Per gli errori di inserimento: la riga resta nello storico ma non conta più. */

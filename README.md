@@ -68,7 +68,9 @@ Braccialetti demo da provare al tornello (si scrivono nel campo): `D0000001` car
 Giallo bisettimanale (verde solo nella fascia), `D0000003` certificato scaduto e tesseramento mancante, `D0000004`
 smarrito (`D0000014` è il suo nuovo), `D0000005` braccialetto bannato, `D0000006` persona bannata, `D0000007` carnet
 esaurito, `D0000008` abbonamento scaduto, `D0000009` nessun abbonamento, `D0000104` Giulia con golden pass,
-`D0000010` carnet negli orari del nuoto libero, `FFFFFFFF` sconosciuto.
+`D0000010` carnet negli orari del nuoto libero, `D0000012` 14 anni con certificato provvisorio e permesso di
+uscita autonoma (prova il lato «Uscita»), `FFFFFFFF` sconosciuto. Sofia (`D0000001`) è «sotto controllo»: la segreteria
+riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. `3489660929` = `D0000001`).
 
 La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
@@ -135,7 +137,10 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | POST · GET | `/api/accessi/passaggi` `{codice}` · `?quanti=` | tutti: passaggio al tornello (esito, persona, motivi); passaggi di oggi |
 | GET | `/api/accessi/persone/{id}` | segreteria: braccialetti, ban, golden pass, passaggi, esito «adesso» |
 | POST · PUT | `/api/accessi/persone/{id}/braccialetti` · `/api/accessi/braccialetti/{id}/stato` | segreteria: assegna; ATTIVO, SMARRITO, DISATTIVATO |
-| POST | `/api/accessi/ban` `{personaId \| braccialettoId, motivo, al}` · `/ban/{id}/revoca` | segreteria |
+| POST | `/api/accessi/ban` `{tipo: BAN \| SORVEGLIANZA, personaId \| braccialettoId, motivo, al}` · `/ban/{id}/revoca` | segreteria |
+| POST | `/api/accessi/persone/{id}/autorizzazioni` · `/autorizzazioni/{id}/revoca` | permessi firmati: uscita autonoma, accompagnatore |
+| GET | `/api/accessi/segnalazioni?dopo=` | passaggi di chi è sotto controllo (avvisi in segreteria) |
+| POST | `/api/clienti/abbonamenti/{id}/sospensioni` · `/api/clienti/sospensioni/{id}/annulla` | sospensione di un abbonamento |
 | POST | `/api/accessi/persone/{id}/golden-pass` · `/golden-pass/{id}/revoca` | coordinatori |
 | GET · PUT | `/api/accessi/regole` · `/{codice}` `{attiva, parametri}` | lettura coordinatori, modifica admin |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |

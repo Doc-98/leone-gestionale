@@ -305,4 +305,102 @@ class TornelloTest {
         crea(segr, "/api/clienti/" + altro + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"dal\":\"2028-01-01\"}");
         assertThat(passa(staff, "2028-01-03T21:00", codice2).get("verde")).isEqualTo(true);
     }
+
+    private String clienteInRegola(ClientiDemo d, String nome, String nascita) throws Exception {
+        String persona = crea(d.segr, "/api/clienti", "{\"nome\":\"" + nome + "\",\"cognome\":\"Prova\",\"dataNascita\":\"" + nascita + "\"}");
+        crea(d.segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        crea(d.segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        return persona;
+    }
+
+    private record ClientiDemo(ClientApi segr, ClientApi staff, ClientApi admin) {}
+
+    private String braccialetto(ClientApi segr, String persona) throws Exception {
+        String codice = nuovoCodice();
+        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        return codice;
+    }
+
+    private Map<String, Object> esci(ClientApi c, String quando, String codice) throws Exception {
+        orologio.alle(quando);
+        var r = c.post("/api/accessi/passaggi", "{\"codice\":\"" + codice + "\",\"verso\":\"USCITA\"}");
+        assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+        return json(r);
+    }
+
+    @Test
+    void sottoControlloCooldownUscitaProvvisorioESospensioni() throws Exception {
+        var d = new ClientiDemo(come("segreteria@demo.leone"), come("staff@demo.leone"), come("admin@demo.leone"));
+        orologio.alle("2028-01-02T09:00");
+
+        // sotto controllo: entra, ma con un avviso, e la segreteria lo vede tra le segnalazioni
+        String adulto = clienteInRegola(d, "Guido", "1980-05-05");
+        crea(d.segr, "/api/clienti/" + adulto + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":20,\"dal\":\"2028-01-01\"}");
+        String cod = braccialetto(d.segr, adulto);
+        crea(d.segr, "/api/accessi/ban", "{\"tipo\":\"SORVEGLIANZA\",\"personaId\":\"" + adulto + "\",\"motivo\":\"Verificare con chi entra\"}");
+        var e = passa(d.staff, "2028-01-02T10:00", cod);
+        assertThat(e.get("verde")).isEqualTo(true);
+        assertThat(codici(e)).containsExactly("PERSONA_SOTTO_CONTROLLO");
+        assertThat(motivi(e).getFirst().get("blocca")).isEqualTo(false);
+        assertThat(d.segr.get("/api/accessi/segnalazioni?dopo=2028-01-02T08:00:00Z").body()).contains("Guido").contains("\"segnalato\":true");
+        assertThat(d.staff.get("/api/accessi/segnalazioni").statusCode()).isEqualTo(403);
+
+        // cooldown (spento di base): acceso a 5 minuti, il braccialetto non ripassa subito; l'accompagnatore sì
+        assertThat(d.admin.put("/api/accessi/regole/RIPASSAGGIO", "{\"attiva\":true,\"parametri\":{\"minuti\":5}}").statusCode()).isEqualTo(204);
+        try {
+            var subito = passa(d.staff, "2028-01-02T10:02", cod);
+            assertThat(codici(subito)).contains("PASSAGGIO_RIPETUTO");
+            assertThat(motivi(subito).stream().filter(m -> m.get("codice").equals("PASSAGGIO_RIPETUTO")).findFirst().orElseThrow().get("messaggio").toString())
+                .contains("alle 10:00").contains("dalle 10:05");
+            assertThat(passa(d.staff, "2028-01-02T10:05", cod).get("verde")).isEqualTo(true);
+            crea(d.segr, "/api/accessi/persone/" + adulto + "/autorizzazioni", "{\"tipo\":\"ACCOMPAGNATORE\"}");
+            assertThat(passa(d.staff, "2028-01-02T10:06", cod).get("verde")).isEqualTo(true);
+        } finally {
+            assertThat(d.admin.put("/api/accessi/regole/RIPASSAGGIO", "{\"attiva\":false}").statusCode()).isEqualTo(204);
+        }
+
+        // uscita (spenta di base): acceso, il minorenne esce solo con il permesso firmato; l'adulto sempre
+        String bambino = crea(d.segr, "/api/clienti", "{\"nome\":\"Ivo\",\"cognome\":\"Prova\",\"dataNascita\":\"2016-04-04\"}");
+        String codB = braccialetto(d.segr, bambino);
+        assertThat(esci(d.staff, "2028-01-02T11:00", codB).get("verde")).isEqualTo(true); // regola spenta
+        assertThat(d.admin.put("/api/accessi/regole/USCITA", "{\"attiva\":true}").statusCode()).isEqualTo(204);
+        try {
+            var fuori = esci(d.staff, "2028-01-02T11:00", codB);
+            assertThat(codici(fuori)).containsExactly("USCITA_NON_AUTORIZZATA"); // all'uscita non contano certificato e abbonamento
+            assertThat(fuori.get("verso")).isEqualTo("USCITA");
+            assertThat(d.segr.post("/api/accessi/persone/" + bambino + "/autorizzazioni", "{\"tipo\":\"USCITA_AUTONOMA\"}").statusCode()).isEqualTo(400);
+            crea(d.segr, "/api/accessi/persone/" + bambino + "/autorizzazioni",
+                "{\"tipo\":\"USCITA_AUTONOMA\",\"firmataDa\":\"Un genitore\",\"firmataIl\":\"2028-01-01\"}");
+            assertThat(esci(d.staff, "2028-01-02T11:01", codB).get("verde")).isEqualTo(true);
+            assertThat(esci(d.staff, "2028-01-02T11:01", cod).get("verde")).isEqualTo(true);
+        } finally {
+            assertThat(d.admin.put("/api/accessi/regole/USCITA", "{\"attiva\":false}").statusCode()).isEqualTo(204);
+        }
+
+        // certificato provvisorio: firmato il 1/1, vale al massimo 30 giorni (fino al 30/1), con un avviso
+        String nuovo = crea(d.segr, "/api/clienti", "{\"nome\":\"Lia\",\"cognome\":\"Prova\",\"dataNascita\":\"1990-01-01\"}");
+        crea(d.segr, "/api/clienti/" + nuovo + "/tesseramenti", "{}");
+        String abb = crea(d.segr, "/api/clienti/" + nuovo + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":20,\"dal\":\"2028-01-01\",\"al\":\"2028-02-29\"}");
+        String codL = braccialetto(d.segr, nuovo);
+        assertThat(d.segr.post("/api/clienti/" + nuovo + "/certificati", "{\"tipo\":\"PROVVISORIO\",\"rilasciatoIl\":\"2028-01-01\",\"scadenza\":\"2028-03-01\"}").statusCode())
+            .isEqualTo(400); // manca chi l'ha firmato
+        crea(d.segr, "/api/clienti/" + nuovo + "/certificati",
+            "{\"tipo\":\"PROVVISORIO\",\"rilasciatoIl\":\"2028-01-01\",\"scadenza\":\"2028-03-01\",\"firmatoDa\":\"Lia Prova\"}");
+        var prov = passa(d.staff, "2028-01-02T12:00", codL);
+        assertThat(prov.get("verde")).isEqualTo(true);
+        assertThat(codici(prov)).containsExactly("CERTIFICATO_PROVVISORIO");
+        assertThat(motivi(prov).getFirst().get("messaggio").toString()).contains("30/01/2028");
+        assertThat(codici(passa(d.staff, "2028-01-31T12:00", codL))).containsExactly("CERTIFICATO_SCADUTO");
+
+        // sospensione: nei giorni sospesi non vale, la scadenza si allunga di altrettanti giorni
+        crea(d.segr, "/api/clienti/" + nuovo + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        crea(d.segr, "/api/clienti/abbonamenti/" + abb + "/sospensioni", "{\"dal\":\"2028-01-10\",\"al\":\"2028-01-19\",\"motivo\":\"Infortunio\"}");
+        assertThat(d.segr.post("/api/clienti/abbonamenti/" + abb + "/sospensioni", "{\"dal\":\"2028-01-15\",\"al\":\"2028-01-20\"}").statusCode()).isEqualTo(409);
+        var sospeso = passa(d.staff, "2028-01-12T12:00", codL);
+        assertThat(codici(sospeso)).containsExactly("ABBONAMENTO_SOSPESO");
+        assertThat(motivi(sospeso).getFirst().get("messaggio").toString()).contains("Infortunio");
+        assertThat(passa(d.staff, "2028-03-05T12:00", codL).get("verde")).isEqualTo(true); // 29/2 + 10 giorni = 10/3
+        assertThat(codici(passa(d.staff, "2028-03-11T12:00", codL))).containsExactly("ABBONAMENTO_SCADUTO");
+        assertThat(d.segr.get("/api/clienti/" + nuovo).body()).contains("\"alEffettivo\":\"2028-03-10\"");
+    }
 }

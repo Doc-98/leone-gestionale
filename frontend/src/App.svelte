@@ -19,6 +19,7 @@
   import Clienti from './routes/Clienti.svelte';
   import Regole from './routes/Regole.svelte';
   import Ruoli from './routes/Ruoli.svelte';
+  import Segnalazioni from './components/Segnalazioni.svelte';
   import type { Permesso } from './lib/api';
 
   type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli';
@@ -209,6 +210,8 @@
         {:else if corrente.id === 'ruoli'}<Ruoli />{/if}
       {/key}
     </main>
+
+    {#if sessione.puo('CLIENTI', 'BRACCIALETTI')}<Segnalazioni />{/if}
 
     {#if !schermo.larga}
       {#if menuAltro}

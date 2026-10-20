@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
-  import { api, messaggioErrore, type EsitoTornello, type Passaggio } from '../lib/api';
+  import { api, messaggioErrore, type EsitoTornello, type Passaggio, type Verso } from '../lib/api';
   import { oraDi } from '../lib/date';
   import { codiceValido, leggiConNfc, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { schermo } from '../lib/schermo.svelte';
@@ -19,6 +19,25 @@
   let nfcAttivo = $state(false);
   let campo = $state<HTMLInputElement | null>(null);
   let fermaNfc: AbortController | null = null;
+
+  // Il lato del tornello di questa postazione (il lettore d'uscita è un secondo lettore): si ricorda sul dispositivo
+  let lato = $state<Verso>(leggiLato());
+  function leggiLato(): Verso {
+    try {
+      return localStorage.getItem('tornello.lato') === 'USCITA' ? 'USCITA' : 'ENTRATA';
+    } catch {
+      return 'ENTRATA';
+    }
+  }
+  function cambiaLato(v: Verso) {
+    lato = v;
+    esito = null;
+    try {
+      localStorage.setItem('tornello.lato', v);
+    } catch {
+      /* resta per questa sessione */
+    }
+  }
 
   const nfc = nfcDisponibile();
   const vedeSchede = $derived(sessione.puo('CLIENTI', 'BRACCIALETTI'));
@@ -40,7 +59,7 @@
     errore = '';
     inCorso = true;
     try {
-      esito = await api.passa(c);
+      esito = await api.passa(c, lato);
       if (navigator.vibrate) navigator.vibrate(esito.verde ? 60 : [80, 60, 80]);
       caricaStorico();
     } catch (e) {
@@ -85,6 +104,10 @@
 <div class="tornello" class:largo={schermo.larga}>
   <div class="principale">
     <form class="card lettore" onsubmit={(e) => { e.preventDefault(); leggi(codice); }}>
+      <div class="seg lati" role="group" aria-label="Lato del tornello">
+        <button type="button" aria-pressed={lato === 'ENTRATA'} onclick={() => cambiaLato('ENTRATA')}>Entrata</button>
+        <button type="button" aria-pressed={lato === 'USCITA'} onclick={() => cambiaLato('USCITA')}>Uscita</button>
+      </div>
       {#if nfc}
         {#if nfcAttivo}
           <div class="nfc on" role="status"><span class="onda" aria-hidden="true"></span>Avvicina il braccialetto al telefono</div>
@@ -131,7 +154,9 @@
             {#if p.persona}
               {#if href(p.persona.id)}<a href={href(p.persona.id)}>{p.persona.cognome} {p.persona.nome}</a>{:else}{p.persona.cognome} {p.persona.nome}{/if}
             {:else}<span class="m">{p.codice}</span>{/if}
-            {#if !p.verde && p.motivi.length}<span class="perche">{p.motivi.map((m) => m.messaggio).join(' · ')}</span>{/if}
+            {#if p.verso === 'USCITA'}<span class="perche">Uscita</span>{/if}
+            {#if !p.verde && p.motivi.length}<span class="perche">{p.motivi.filter((m) => m.blocca).map((m) => m.messaggio).join(' · ')}</span>{/if}
+            {#if p.segnalato}<span class="perche oro">Sotto controllo: segnalato alla segreteria</span>{/if}
             {#if p.goldenPass}<span class="perche">Golden pass</span>{/if}
             {#if p.carnetScalato}<span class="perche">Carnet: scalato un ingresso</span>{/if}
           </span>
@@ -170,5 +195,7 @@
   .chi { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-weight: 500; }
   .chi a { color: var(--ink); text-decoration: none; }
   .chi a:hover { text-decoration: underline; }
+  .lati { grid-template-columns: 1fr 1fr; }
+  .perche.oro { color: var(--oro-fg); font-weight: 600; }
   .perche { font-size: var(--text-sm); color: var(--muted); font-weight: 400; }
 </style>

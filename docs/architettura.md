@@ -206,9 +206,11 @@ erDiagram
 **Accessi** (ADR 0009)
 - `braccialetto`: codice normalizzato → persona; attivo, smarrito o disattivato; più di uno per persona.
 - `abbonamento` carnet: a entrata libera o legato agli orari di un corso (es. nuoto libero).
-- `blocco`: ban della persona o di un braccialetto, con motivo e periodo. `golden_pass`: sempre verde, con periodo.
+- `blocco`: ban (blocca) o «sotto controllo» (avvisa), della persona o di un braccialetto, con motivo e periodo.
+- `autorizzazione`: permessi firmati (uscita autonoma dei minorenni, accompagnatore).
+- `sospensione`: giorni in cui un abbonamento non vale; la scadenza si allunga. `golden_pass`: sempre verde, con periodo.
 - `regola_accesso`: per ogni controllo, attivo sì/no e parametri.
-- `passaggio`: ogni lettura al tornello, verde o rosso, con tutti i motivi, il carnet scalato e chi ha letto.
+- `passaggio`: ogni lettura al tornello (entrata o uscita), verde o rosso, segnalata se sotto controllo, con tutti i motivi, il carnet scalato e chi ha letto.
 - **Esito**: calcolato al momento da controlli indipendenti; restituisce nome ed età della persona e tutti i motivi
   (`BRACCIALETTO_SMARRITO`, `PERSONA_BANNATA`, `CERTIFICATO_SCADUTO`, `TESSERAMENTO_MANCANTE`, `CARNET_ESAURITO`,
   `FUORI_ORARIO`, …).
@@ -236,6 +238,8 @@ erDiagram
    Il telefono-lettore invia solo il codice e non riceve dati dei clienti (va bene anche un telefono personale);
    deve restare con la pagina aperta. (Al tornello e in segreteria ci sono già lettori fissi: il telefono è una comodità.)
    Ruoli modificabili con permessi, pagina «Ruoli e permessi». *(fatto — ADR 0010)*
+   Sotto controllo con avvisi in segreteria, cooldown, lato d'uscita con permesso di uscita autonoma, certificato
+   provvisorio, sospensione degli abbonamenti. *(fatto — ADR 0011)*
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.
 
 ## Domande aperte

@@ -37,10 +37,16 @@ class Passaggio {
     private UUID carnetId;
     @Column(name = "letto_da")
     private UUID lettoDa;
+    @Column(nullable = false)
+    private String verso = "ENTRATA";
+    @Column(nullable = false)
+    private boolean segnalato;
 
     protected Passaggio() {}
 
-    Passaggio(Instant istante, String codice, UUID braccialettoId, UUID personaId, boolean verde, boolean goldenPass, List<Motivo> motivi, UUID lettoDa) {
+    Passaggio(Instant istante, String codice, Verso verso, UUID braccialettoId, UUID personaId, boolean verde, boolean goldenPass, List<Motivo> motivi, UUID lettoDa) {
+        this.verso = verso.name();
+        this.segnalato = motivi.stream().anyMatch(m -> ControlloSorveglianza.REGOLA.equals(m.regola()));
         this.id = UUID.randomUUID();
         this.istante = istante;
         this.codice = codice;
@@ -70,4 +76,7 @@ class Passaggio {
     boolean isGoldenPass() { return goldenPass; }
     List<Motivo> getMotivi() { return motivi; }
     UUID getCarnetId() { return carnetId; }
+    UUID getBraccialettoId() { return braccialettoId; }
+    Verso verso() { return Verso.valueOf(verso); }
+    boolean isSegnalato() { return segnalato; }
 }

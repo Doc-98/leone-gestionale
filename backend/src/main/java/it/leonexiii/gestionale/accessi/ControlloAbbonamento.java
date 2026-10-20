@@ -30,17 +30,24 @@ class ControlloAbbonamento implements ControlloAccesso {
         if (c.corsoValido() || c.carnetValido().isPresent()) return List.of();
         List<Clienti.AbbonamentoBreve> tutti = c.cliente().abbonamenti();
         String rimedio = "Rinnovare l'abbonamento in segreteria.";
+        var sospeso = tutti.stream().filter(a -> a.nelPeriodo(c.oggi()) && a.sospesoIl(c.oggi()).isPresent()).findFirst();
+        if (sospeso.isPresent()) {
+            var s = sospeso.get().sospesoIl(c.oggi()).orElseThrow();
+            return List.of(Motivo.blocca("ABBONAMENTO_SOSPESO", regola(), descrivi(sospeso.get()) + " è sospeso dal " + Contesto.data(s.dal()) + " al "
+                + Contesto.data(s.al()) + (s.motivo() == null ? "." : ": " + s.motivo() + "."), "Se è tornato prima, accorciare la sospensione nella scheda."));
+        }
         var futuro = tutti.stream().filter(a -> a.dal().isAfter(c.oggi())).min(Comparator.comparing(Clienti.AbbonamentoBreve::dal));
         if (futuro.isPresent())
             return List.of(Motivo.blocca("ABBONAMENTO_NON_INIZIATO", regola(), descrivi(futuro.get()) + " inizia il " + Contesto.data(futuro.get().dal()) + ".",
                 "Controllare le date dell'abbonamento nella scheda."));
         var esaurito = tutti.stream().filter(a -> a.carnet() && a.validoIl(c.oggi())).findFirst();
+        // (un carnet valido ma senza ingressi)
         if (esaurito.isPresent())
             return List.of(Motivo.blocca("CARNET_ESAURITO", regola(), "Carnet esaurito: usati " + esaurito.get().usati() + " ingressi su " + esaurito.get().ingressi() + ".",
                 "Acquistare un nuovo carnet in segreteria."));
-        var scaduto = tutti.stream().filter(a -> a.al() != null && a.al().isBefore(c.oggi())).max(Comparator.comparing(Clienti.AbbonamentoBreve::al));
+        var scaduto = tutti.stream().filter(a -> a.alEffettivo() != null && a.alEffettivo().isBefore(c.oggi())).max(Comparator.comparing(Clienti.AbbonamentoBreve::alEffettivo));
         if (scaduto.isPresent())
-            return List.of(Motivo.blocca("ABBONAMENTO_SCADUTO", regola(), descrivi(scaduto.get()) + " scaduto il " + Contesto.data(scaduto.get().al()) + ".", rimedio));
+            return List.of(Motivo.blocca("ABBONAMENTO_SCADUTO", regola(), descrivi(scaduto.get()) + " scaduto il " + Contesto.data(scaduto.get().alEffettivo()) + ".", rimedio));
         return List.of(Motivo.blocca("ABBONAMENTO_MANCANTE", regola(), "Nessun abbonamento.", "Fare l'abbonamento in segreteria."));
     }
 

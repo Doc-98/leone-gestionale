@@ -44,10 +44,24 @@ Schede: Anagrafica · Tessera · Certificati · Abbonamenti · Prenotazioni · B
 Anagrafica di base, tesseramento, certificato con tipo e scadenza, abbonamenti e carnet, braccialetti (più di uno per
 persona, smarrito, disattivato), golden pass, ban, controlli al tornello con tutti i motivi, registro dei passaggi.
 
+## Decisioni (20/10/2026, ADR 0011)
+
+- Alert list → **sotto controllo**: verde con avviso al tornello e avviso in segreteria.
+- Tempo di disabilitazione → **cooldown** dopo un passaggio, spento di base, con il permesso di **accompagnatore**.
+- Uscita: oggi non si controlla; previsto il **lato d'uscita** (c'è un secondo lettore) con il permesso di **uscita
+  autonoma** firmato dai genitori per i minorenni.
+- Certificato provvisorio → dichiarazione firmata di breve durata (al massimo N giorni), con avviso.
+- Sospensione → l'abbonamento non vale in quei giorni e la scadenza si allunga.
+- Foto: oggi non ci sono foto di bambini nel gestionale; resta un'idea per il futuro.
+
+## Borsellino (per i pagamenti)
+
+Credito prepagato sul profilo, caricato e pagato in segreteria. In piscina serve per **docce e phon**. Oggi un credito
+vale 0,20 € (da rendere configurabile). Da capire con i pagamenti: come docce e phon scalano i crediti (leggono il
+braccialetto?) e se il borsellino paga anche altro (es. la tessera da 10 €).
+
 ## Da decidere
 
-- Alert list («sotto controllo») e tempo di disabilitazione dopo un passaggio, con l'eccezione per l'accompagnatore.
-- Certificato provvisorio, sospensione degli abbonamenti, blocco dell'uscita.
-- Nucleo famiglia e tutori, consensi GDPR, foto, categoria.
-- Borsellino e pagamenti della tessera (con i pagamenti).
+- Nucleo famiglia e tutori, consensi GDPR, categoria (con la scheda cliente completa).
+- Pagamenti: tessera, borsellino, ricevute (in attesa delle informazioni dalla segreteria).
 - Come esportare i dati da TeamSystem per l'importazione.
