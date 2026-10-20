@@ -34,7 +34,53 @@ class Account {
     @Column(name = "creato_il", nullable = false, insertable = false, updatable = false)
     private Instant creatoIl;
 
+    @Column(name = "deve_cambiare_password", nullable = false)
+    private boolean deveCambiarePassword;
+
+    @Column(name = "ultimo_accesso")
+    private Instant ultimoAccesso;
+
+    @Column(name = "disattivato_il")
+    private Instant disattivatoIl;
+
     protected Account() {}
+
+    /** Nuovo account con una password temporanea, da cambiare al primo accesso. */
+    Account(Persona persona, String email, String hashTemporaneo) {
+        this.id = UUID.randomUUID();
+        this.persona = persona;
+        this.email = email;
+        this.passwordHash = hashTemporaneo;
+        this.attivo = true;
+        this.deveCambiarePassword = true;
+    }
+
+    void impostaPassword(String hash, boolean temporanea) {
+        this.passwordHash = hash;
+        this.deveCambiarePassword = temporanea;
+    }
+
+    void disattiva(Instant ora) {
+        this.attivo = false;
+        this.disattivatoIl = ora;
+    }
+
+    void riattiva() {
+        this.attivo = true;
+        this.disattivatoIl = null;
+    }
+
+    void cambiaEmail(String email) {
+        this.email = email;
+    }
+
+    void registraAccesso(Instant ora) {
+        this.ultimoAccesso = ora;
+    }
+
+    boolean isDeveCambiarePassword() { return deveCambiarePassword; }
+    Instant getUltimoAccesso() { return ultimoAccesso; }
+    Instant getCreatoIl() { return creatoIl; }
 
     UUID getId() { return id; }
     Persona getPersona() { return persona; }

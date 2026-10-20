@@ -28,8 +28,10 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityContextRepository repo) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityContextRepository repo,
+                                            it.leonexiii.gestionale.identita.Autorizzazioni autorizzazioni) throws Exception {
         http
+            .addFilterAfter(new AccountAttivoFilter(autorizzazioni), org.springframework.security.web.context.SecurityContextHolderFilter.class)
             .securityContext(c -> c.securityContextRepository(repo))
             .csrf(c -> c
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())

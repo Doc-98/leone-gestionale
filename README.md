@@ -72,6 +72,10 @@ esaurito, `D0000008` abbonamento scaduto, `D0000009` nessun abbonamento, `D00001
 uscita autonoma (prova il lato «Uscita»), `FFFFFFFF` sconosciuto. Sofia (`D0000001`) è «sotto controllo»: la segreteria
 riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. `3489660929` = `D0000001`).
 
+Pagina «Scadenze» (certificati, abbonamenti, tesseramento mancante) e promemoria email automatici con testi
+modificabili; senza server di posta le email si registrano ma non partono. Account dello staff con password temporanea
+(ADR 0012, 0013).
+
 La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Programma per Windows
@@ -143,6 +147,11 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | POST | `/api/clienti/abbonamenti/{id}/sospensioni` · `/api/clienti/sospensioni/{id}/annulla` | sospensione di un abbonamento |
 | POST | `/api/accessi/persone/{id}/golden-pass` · `/golden-pass/{id}/revoca` | coordinatori |
 | GET · PUT | `/api/accessi/regole` · `/{codice}` `{attiva, parametri}` | lettura coordinatori, modifica admin |
+| GET · POST · PUT | `/api/account` · `/{id}/password` · `/{id}/disattiva` · `/{id}/riattiva` · `/{id}/email` | account dello staff (permesso ACCOUNT) |
+| PUT | `/api/me/password` `{attuale, nuova}` | la propria password |
+| GET · POST | `/api/scadenze?entro=` · `/api/scadenze/promemoria` | scadenze; promemoria a mano (permesso CLIENTI) |
+| GET · POST · PUT · DELETE | `/api/promemoria` · `/{id}` · `/esegui` | regole e testi dei promemoria, giro adesso |
+| PUT | `/api/clienti/{id}/contatti` `{email, telefono}` | contatti del cliente |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |
@@ -152,3 +161,10 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 Le richieste che modificano dati devono rimandare il token CSRF nell'intestazione `X-XSRF-TOKEN`.
 Gli errori seguono il formato «problem details» (RFC 9457): 400 dati non validi, 403 permessi,
 404 non trovato, 409 conflitto (es. turni sovrapposti).
+
+## Posta (promemoria)
+
+Il server di posta si configura con le variabili standard di Spring: `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`,
+`SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true`; il mittente con
+`GESTIONALE_POSTA_MITTENTE`, l'orario del giro con `GESTIONALE_PROMEMORIA_CRON` (di base `0 0 9 * * *`, «-» per
+spegnerlo). Senza `SPRING_MAIL_HOST` le email si registrano come «non partite».

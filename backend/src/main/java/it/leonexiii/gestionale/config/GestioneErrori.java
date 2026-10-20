@@ -41,6 +41,7 @@ class GestioneErrori {
             : m.contains("richiesta_turno_una_aperta") ? "Per questo turno c'è già una richiesta in corso."
             : m.contains("fascia_senza_sovrapposizioni") ? "In quella vasca e in quel giorno c'è già una fascia che si accavalla con questo orario."
             : m.contains("iscrizione_senza_doppioni") ? "Questa persona è già iscritta a questo turno nello stesso periodo."
+            : m.contains("account_email_unica") ? "C'è già un account con questa email."
             : m.contains("braccialetto_codice_in_uso") ? "Questo braccialetto è già assegnato a una persona: va prima disattivato."
             : m.contains("tesseramento_uno_per_stagione") ? "Per questa stagione il tesseramento è già registrato."
             : "I dati non rispettano un vincolo del database.";

@@ -37,16 +37,21 @@ public class Autorizzazioni {
         }
     }
 
-    private record Assegnazioni(LocalDate giorno, List<RuoloAssegnato> ruoli) {}
+    private record Assegnazioni(LocalDate giorno, List<RuoloAssegnato> ruoli, boolean attivo, boolean deveCambiarePassword) {}
+
+    /** Lo stato dell'account, letto dal vivo: disattivato = fuori subito; password temporanea = solo il cambio password. */
+    public record StatoAccount(boolean attivo, boolean deveCambiarePassword) {}
 
     private final AssegnazioneRuoloRepository assegnazioni;
     private final RuoloPermessoRepository permessiRuoli;
+    private final AccountRepository account;
     private final Map<UUID, Assegnazioni> cacheAccount = new ConcurrentHashMap<>();
     private volatile Map<String, Set<Permesso>> cachePermessi;
 
-    Autorizzazioni(AssegnazioneRuoloRepository assegnazioni, RuoloPermessoRepository permessiRuoli) {
+    Autorizzazioni(AssegnazioneRuoloRepository assegnazioni, RuoloPermessoRepository permessiRuoli, AccountRepository account) {
         this.assegnazioni = assegnazioni;
         this.permessiRuoli = permessiRuoli;
+        this.account = account;
     }
 
     /** Dopo ogni modifica a ruoli, permessi o assegnazioni. */
@@ -58,14 +63,27 @@ public class Autorizzazioni {
     /** I ruoli validi oggi dell'utente. */
     @Transactional(readOnly = true)
     public List<RuoloAssegnato> ruoli(Utente u) {
+        Assegnazioni a = carica(u);
+        return a.attivo() ? a.ruoli() : List.of();
+    }
+
+    @Transactional(readOnly = true)
+    public StatoAccount stato(Utente u) {
+        Assegnazioni a = carica(u);
+        return new StatoAccount(a.attivo(), a.deveCambiarePassword());
+    }
+
+    private Assegnazioni carica(Utente u) {
         LocalDate oggi = LocalDate.now(UtenteService.FUSO);
         Assegnazioni a = cacheAccount.get(u.accountId());
         if (a == null || !a.giorno().equals(oggi)) {
+            var acc = account.findById(u.accountId());
             a = new Assegnazioni(oggi, assegnazioni.validi(u.accountId(), oggi).stream()
-                .map(r -> new RuoloAssegnato(r.getRuolo(), r.getImpiantoId())).toList());
+                .map(r -> new RuoloAssegnato(r.getRuolo(), r.getImpiantoId())).toList(),
+                acc.map(Account::isAttivo).orElse(false), acc.map(Account::isDeveCambiarePassword).orElse(false));
             cacheAccount.put(u.accountId(), a);
         }
-        return a.ruoli();
+        return a;
     }
 
     Set<Permesso> permessiDelRuolo(String ruolo) {

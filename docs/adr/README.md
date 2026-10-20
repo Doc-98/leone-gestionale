@@ -15,3 +15,5 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0009](0009-tornello-e-controlli-di-accesso.md) | Tornello: braccialetti, controlli di accesso modulari, tesseramento e abbonamenti | accettata |
 | [0010](0010-ruoli-e-permessi.md) | Ruoli modificabili con permessi, validi subito | accettata |
 | [0011](0011-sorveglianza-uscita-provvisorio-sospensioni.md) | Sotto controllo, cooldown, uscita autonoma, certificato provvisorio, sospensioni | accettata |
+| [0012](0012-account.md) | Account dello staff: password temporanea, disattivazione immediata | accettata |
+| [0013](0013-scadenze-e-promemoria.md) | Scadenze per la segreteria e promemoria via email | accettata |

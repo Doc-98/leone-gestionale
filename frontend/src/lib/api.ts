@@ -11,7 +11,7 @@ export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
   | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
   | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS'
-  | 'REGOLE_TORNELLO' | 'RUOLI';
+  | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT';
 
 export interface Me {
   accountId: string;
@@ -22,6 +22,88 @@ export interface Me {
   ruoli: { ruolo: Ruolo; impiantoId: string | null }[];
   permessi: Permesso[];
   admin: boolean;
+  /** password temporanea: prima di tutto va cambiata */
+  deveCambiarePassword: boolean;
+}
+
+export interface Account {
+  id: string;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  email: string;
+  attivo: boolean;
+  deveCambiarePassword: boolean;
+  ultimoAccesso: string | null;
+  creatoIl: string;
+  ruoli: { ruolo: string; impiantoId: string | null }[];
+}
+
+/** La password temporanea si vede una volta sola. */
+export interface PasswordTemporanea {
+  accountId: string;
+  email: string;
+  password: string;
+}
+
+export type TipoScadenza = 'CERTIFICATO' | 'CERTIFICATO_MANCANTE' | 'ABBONAMENTO' | 'CARNET' | 'TESSERAMENTO' | 'TESSERAMENTO_MANCANTE';
+
+export interface VoceScadenza {
+  tipo: TipoScadenza;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  eta: number | null;
+  descrizione: string;
+  corso: string | null;
+  stagione: string | null;
+  scadenza: string | null;
+  /** giorni alla scadenza: negativo = già scaduto; null = senza data */
+  giorni: number | null;
+  riferimento: string;
+  email: string | null;
+  ultimoPromemoria: string | null;
+}
+
+export interface Scadenze {
+  oggi: string;
+  entro: number;
+  certificati: VoceScadenza[];
+  abbonamenti: VoceScadenza[];
+  tesseramento: VoceScadenza[];
+  postaConfigurata: boolean;
+}
+
+export type StatoEmail = 'INVIATA' | 'NON_INVIATA' | 'SENZA_EMAIL' | 'ERRORE';
+
+export interface EmailBreve {
+  id: string;
+  personaId: string | null;
+  destinatario: string | null;
+  oggetto: string;
+  testo: string;
+  stato: StatoEmail;
+  errore: string | null;
+  creataIl: string;
+}
+
+export type TipoPromemoria = 'CERTIFICATO' | 'ABBONAMENTO' | 'TESSERAMENTO' | 'TESSERAMENTO_MANCANTE';
+
+export interface RegolaPromemoria {
+  id: string;
+  tipo: TipoPromemoria;
+  giorni: number;
+  maxInvii: number | null;
+  attivo: boolean;
+  oggetto: string;
+  testo: string;
+}
+
+export interface PaginaPromemoria {
+  regole: RegolaPromemoria[];
+  ultimeEmail: EmailBreve[];
+  postaConfigurata: boolean;
+  orario: string;
 }
 
 export interface PaginaRuoli {
@@ -508,6 +590,24 @@ export const api = {
   segnaPresenze: (lezioneId: string, data: string, presenze: { personaId: string; presente: boolean }[]) =>
     richiesta<ElencoIscritti>('PUT', `/api/lezioni/${lezioneId}/presenze`, { data, presenze }),
   cercaPersone: (q: string) => richiesta<PersonaScheda[]>('GET', `/api/persone?q=${encodeURIComponent(q)}`),
+  account: () => richiesta<Account[]>('GET', '/api/account'),
+  creaAccount: (a: { personaId?: string; nome?: string; cognome?: string; email: string; ruolo: string | null; impiantoId: string | null }) =>
+    richiesta<PasswordTemporanea>('POST', '/api/account', a),
+  reimpostaPassword: (id: string) => richiesta<PasswordTemporanea>('POST', `/api/account/${id}/password`, {}),
+  disattivaAccount: (id: string) => richiesta<void>('POST', `/api/account/${id}/disattiva`, {}),
+  riattivaAccount: (id: string) => richiesta<void>('POST', `/api/account/${id}/riattiva`, {}),
+  emailAccount: (id: string, email: string) => richiesta<void>('PUT', `/api/account/${id}/email`, { email }),
+  cambiaPassword: (attuale: string, nuova: string) => richiesta<void>('PUT', '/api/me/password', { attuale, nuova }),
+  scadenze: (entro: number) => richiesta<Scadenze>('GET', `/api/scadenze?entro=${entro}`),
+  inviaPromemoria: (v: { personaId: string; tipo: TipoScadenza; riferimento: string }) =>
+    richiesta<{ emailId: string; stato: StatoEmail; errore: string | null }>('POST', '/api/scadenze/promemoria', v),
+  promemoria: () => richiesta<PaginaPromemoria>('GET', '/api/promemoria'),
+  creaPromemoria: (tipo: TipoPromemoria) => richiesta<RegolaPromemoria>('POST', '/api/promemoria', { tipo }),
+  modificaPromemoria: (id: string, r: { giorni: number; maxInvii: number | null; attivo: boolean; oggetto: string; testo: string }) =>
+    richiesta<RegolaPromemoria>('PUT', `/api/promemoria/${id}`, r),
+  eliminaPromemoria: (id: string) => richiesta<void>('DELETE', `/api/promemoria/${id}`),
+  eseguiPromemoria: () => richiesta<{ email: number; inviate: number; nonInviate: number; senzaEmail: number; errori: number }>('POST', '/api/promemoria/esegui', {}),
+  contatti: (personaId: string, c: { email: string | null; telefono: string | null }) => richiesta<{ email: string | null; telefono: string | null }>('PUT', `/api/clienti/${personaId}/contatti`, c),
   ruoli: () => richiesta<PaginaRuoli>('GET', '/api/ruoli'),
   creaRuolo: (r: { nome: string; descrizione: string | null; copiaDa: string | null }) => richiesta<{ codice: string }>('POST', '/api/ruoli', r),
   modificaRuolo: (codice: string, r: { nome: string; descrizione: string | null; permessi: Permesso[] }) => richiesta<void>('PUT', `/api/ruoli/${codice}`, r),
@@ -721,6 +821,8 @@ export interface TurnoFrequentato {
 
 export interface SchedaCliente {
   persona: { id: string; nome: string; cognome: string; dataNascita: string | null; eta: number | null };
+  contatti: { email: string | null; telefono: string | null };
+  email: EmailBreve[];
   certificati: Certificato[];
   tesseramenti: Tesseramento[];
   abbonamenti: Abbonamento[];

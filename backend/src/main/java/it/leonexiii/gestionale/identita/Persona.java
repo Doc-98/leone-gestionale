@@ -49,6 +49,11 @@ public class Persona {
     public String getEmail() { return email; }
     public String getTelefono() { return telefono; }
 
+    void contatti(String email, String telefono) {
+        this.email = email;
+        this.telefono = telefono;
+    }
+
     public String nomeCompleto() {
         return nome + " " + cognome;
     }

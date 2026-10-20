@@ -30,8 +30,11 @@ class SchedaClientiService {
 
     record StagioneDto(String stagione, LocalDate dal, LocalDate al, BigDecimal importo) {}
 
-    record Scheda(PersonaDto persona, List<CertificatoDto> certificati, List<TesseramentoDto> tesseramenti, List<AbbonamentoDto> abbonamenti,
-                  List<Frequenze.TurnoFrequentato> turni, StagioneDto stagioneProposta) {}
+    record Scheda(PersonaDto persona, Persone.Contatti contatti, List<CertificatoDto> certificati, List<TesseramentoDto> tesseramenti,
+                  List<AbbonamentoDto> abbonamenti, List<Frequenze.TurnoFrequentato> turni, StagioneDto stagioneProposta,
+                  List<it.leonexiii.gestionale.notifiche.Posta.EmailBreve> email) {}
+
+    record NuoviContatti(String email, String telefono) {}
 
     record NuovoCliente(String nome, String cognome, LocalDate dataNascita) {}
 
@@ -53,10 +56,13 @@ class SchedaClientiService {
     private final AbbonamentoRepository abbonamenti;
     private final ConsultazioneRepository consultazioni;
     private final SospensioneRepository sospensioni;
+    private final it.leonexiii.gestionale.notifiche.Posta posta;
     private final Clock orologio;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
-                         AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni, Clock orologio) {
+                         AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni,
+                         it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio) {
+        this.posta = posta;
         this.sospensioni = sospensioni;
         this.persone = persone;
         this.clienti = clienti;
@@ -87,8 +93,13 @@ class SchedaClientiService {
         }).toList();
         Stagione s = Stagione.di(oggi);
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), oggi).getYears();
-        return new Scheda(new PersonaDto(p.id(), p.nome(), p.cognome(), p.dataNascita(), eta), cert, tess, abb,
-            frequenze.turniDi(personaId, oggi), new StagioneDto(s.nome(), s.dal(), s.al(), s.importo()));
+        return new Scheda(new PersonaDto(p.id(), p.nome(), p.cognome(), p.dataNascita(), eta), persone.contatti(List.of(personaId)).get(personaId),
+            cert, tess, abb, frequenze.turniDi(personaId, oggi), new StagioneDto(s.nome(), s.dal(), s.al(), s.importo()), posta.diPersona(personaId, 10));
+    }
+
+    @Transactional
+    Persone.Contatti contatti(UUID personaId, NuoviContatti in) {
+        return persone.aggiornaContatti(personaId, in.email(), in.telefono());
     }
 
     @Transactional

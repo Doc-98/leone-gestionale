@@ -20,9 +20,14 @@
   import Regole from './routes/Regole.svelte';
   import Ruoli from './routes/Ruoli.svelte';
   import Segnalazioni from './components/Segnalazioni.svelte';
+  import Foglio from './components/Foglio.svelte';
+  import CambioPassword from './routes/CambioPassword.svelte';
+  import Scadenze from './routes/Scadenze.svelte';
+  import Promemoria from './routes/Promemoria.svelte';
+  import Account from './routes/Account.svelte';
   import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account';
   interface Sezione {
     id: Scheda;
     nome: string;
@@ -49,6 +54,9 @@
     corsi: 'M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2M8 8h6M8 12h6',
     tornello: 'M5 4h4v16H5zM15 4h4v16h-4zM9 12h6M12 9l3 3-3 3',
     clienti: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6',
+    scadenze: 'M12 7v5l3 2M5 3 2 6M19 3l3 3M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z',
+    promemoria: 'M4 6h16v12H4zM4 7l8 6 8-6',
+    account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
     ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
     regole: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
     tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
@@ -62,12 +70,15 @@
     { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: I.corsi },
     { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: I.tornello },
     { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: I.clienti },
+    { id: 'scadenze', nome: 'Scadenze', breve: 'Scadenze', titolo: 'Scadenze', gruppo: 'Accessi', permessi: ['CLIENTI'], larga: true, icona: I.scadenze },
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.pianifica },
     { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: I.approva },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.modelli },
     { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.postazioni },
     { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.tariffe },
     { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole },
+    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', permessi: ['CLIENTI'], larga: true, icona: I.promemoria },
+    { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', permessi: ['ACCOUNT'], larga: true, icona: I.account },
     { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', permessi: ['RUOLI'], larga: true, icona: I.ruoli },
   ];
   const ID = SEZIONI.map((s) => s.id);
@@ -97,7 +108,8 @@
   );
   // Telefono: al massimo cinque voci in basso, le prime per il ruolo; il resto in «Altro»
   // in ordine di importanza; lo staff senza gestione ha richieste e ore in basso
-  const ORDINE_BASSO: Scheda[] = ['turni', 'piano', 'tornello', 'clienti', 'approva', 'pianifica', 'richieste', 'ore'];
+  const ORDINE_BASSO: Scheda[] = ['turni', 'piano', 'tornello', 'clienti', 'scadenze', 'approva', 'pianifica', 'richieste', 'ore'];
+  let cambioPassword = $state(false);
   const prime = $derived(
     sessione.puo('CLIENTI', 'APPROVAZIONI', 'PIANIFICAZIONE')
       ? ORDINE_BASSO.filter((id) => visibili.some((s) => s.id === id)).slice(0, 5)
@@ -147,6 +159,11 @@
   <p class="muted centro">Caricamento…</p>
 {:else if !sessione.utente}
   <main class="accesso"><Login /></main>
+{:else if sessione.utente.deveCambiarePassword}
+  <main class="accesso">
+    <h1 class="page-title">Nuova password</h1>
+    <CambioPassword obbligatorio />
+  </main>
 {:else}
   <div class="guscio" class:desktop={schermo.larga}>
     {#if schermo.larga}
@@ -171,6 +188,7 @@
         <div class="io">
           <div class="io-nome">{sessione.utente.nome} {sessione.utente.cognome}</div>
           <div class="muted small">{ruolo}</div>
+          <button class="link small" onclick={() => (cambioPassword = true)}>Cambia password</button>
           <button class="link small" onclick={() => sessione.esci()}>Esci</button>
           {#if programma}
             <div class="programma muted">Programma {programma.versione} · {location.host}</div>
@@ -189,6 +207,7 @@
         {#if !schermo.larga}
           <div class="chi">
             <span class="muted small">{sessione.utente.nome}</span>
+            <button class="link small" onclick={() => (cambioPassword = true)}>Password</button>
             <button class="link small" onclick={() => sessione.esci()}>Esci</button>
           </div>
         {/if}
@@ -207,11 +226,19 @@
         {:else if corrente.id === 'tornello'}<Tornello />
         {:else if corrente.id === 'clienti'}<Clienti />
         {:else if corrente.id === 'regole'}<Regole />
-        {:else if corrente.id === 'ruoli'}<Ruoli />{/if}
+        {:else if corrente.id === 'ruoli'}<Ruoli />
+        {:else if corrente.id === 'scadenze'}<Scadenze />
+        {:else if corrente.id === 'promemoria'}<Promemoria />
+        {:else if corrente.id === 'account'}<Account />{/if}
       {/key}
     </main>
 
     {#if sessione.puo('CLIENTI', 'BRACCIALETTI')}<Segnalazioni />{/if}
+    {#if cambioPassword}
+      <Foglio titolo="Cambia password" chiudi={() => (cambioPassword = false)}>
+        <CambioPassword fatto={() => (cambioPassword = false)} />
+      </Foglio>
+    {/if}
 
     {#if !schermo.larga}
       {#if menuAltro}

@@ -32,20 +32,23 @@ class AuthController {
 
     /** Chi è collegato, con i ruoli e l'unione dei permessi (l'ambito per impianto lo controlla il server). */
     record Me(UUID accountId, UUID personaId, String email, String nome, String cognome, List<RuoloAssegnato> ruoli,
-              java.util.Set<Permesso> permessi, boolean admin) {}
+              java.util.Set<Permesso> permessi, boolean admin, boolean deveCambiarePassword) {}
 
     private Me descrivi(Utente u) {
         return new Me(u.accountId(), u.personaId(), u.email(), u.nome(), u.cognome(), autorizzazioni.ruoli(u), autorizzazioni.permessi(u),
-            autorizzazioni.admin(u));
+            autorizzazioni.admin(u), autorizzazioni.stato(u).deveCambiarePassword());
     }
 
     private final Autorizzazioni autorizzazioni;
+    private final AccountService accessi;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
 
-    AuthController(Autorizzazioni autorizzazioni, AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository) {
+    AuthController(Autorizzazioni autorizzazioni, AccountService accessi, AuthenticationManager authenticationManager,
+                   SecurityContextRepository securityContextRepository) {
         this.autorizzazioni = autorizzazioni;
+        this.accessi = accessi;
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
     }
@@ -72,6 +75,7 @@ class AuthController {
         ctx.setAuthentication(auth);
         holder.setContext(ctx);
         securityContextRepository.saveContext(ctx, request, response);
+        accessi.registraAccesso(((Utente) auth.getPrincipal()).accountId());
         return ResponseEntity.ok(descrivi((Utente) auth.getPrincipal()));
     }
 

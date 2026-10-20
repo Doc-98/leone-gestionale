@@ -105,6 +105,29 @@ public class Clienti {
         return new Situazione(personaId, cert, tess, abbonamentiDi(personaId));
     }
 
+    /** Gli abbonamenti non annullati di tutti, per persona (per le scadenze e i promemoria): poche query in tutto. */
+    Map<UUID, List<AbbonamentoBreve>> abbonamentiDiTutti() {
+        List<Abbonamento> tutti = abbonamenti.findAll().stream().filter(a -> a.getAnnullatoIl() == null)
+            .sorted(java.util.Comparator.comparing(Abbonamento::getDal).reversed()).toList();
+        Map<UUID, long[]> conteggi = new java.util.HashMap<>();
+        Map<UUID, Instant> ultimi = new java.util.HashMap<>();
+        for (Object[] r : ingressi.riepilogo()) {
+            conteggi.put((UUID) r[0], new long[] {((Number) r[1]).longValue()});
+            ultimi.put((UUID) r[0], (Instant) r[2]);
+        }
+        Map<UUID, String> nomiCorsi = frequenze.corsi().stream().collect(Collectors.toMap(Frequenze.CorsoBreve::id, Frequenze.CorsoBreve::nome));
+        Map<UUID, List<Periodo>> sospesi = sospensioni.findAll().stream().filter(s -> s.getAnnullataIl() == null)
+            .collect(Collectors.groupingBy(Sospensione::getAbbonamentoId, Collectors.mapping(s -> new Periodo(s.getId(), s.getDal(), s.getAl(), s.getMotivo()), Collectors.toList())));
+        Map<UUID, List<AbbonamentoBreve>> out = new java.util.HashMap<>();
+        for (Abbonamento a : tutti) {
+            long usati = conteggi.containsKey(a.getId()) ? conteggi.get(a.getId())[0] : 0;
+            out.computeIfAbsent(a.getPersonaId(), k -> new ArrayList<>()).add(new AbbonamentoBreve(a.getId(), a.getTipo(), a.getCorsoId(),
+                a.getCorsoId() == null ? null : nomiCorsi.get(a.getCorsoId()), a.getVolteASettimana(), a.getIngressi(), (int) usati, ultimi.get(a.getId()),
+                a.getDal(), a.getAl(), sospesi.getOrDefault(a.getId(), List.of())));
+        }
+        return out;
+    }
+
     List<AbbonamentoBreve> abbonamentiDi(UUID personaId) {
         List<Abbonamento> suoi = abbonamenti.findByPersonaIdOrderByDalDesc(personaId).stream().filter(a -> a.getAnnullatoIl() == null).toList();
         List<UUID> carnet = suoi.stream().filter(Abbonamento::isCarnet).map(Abbonamento::getId).toList();

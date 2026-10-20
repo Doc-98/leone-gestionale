@@ -74,6 +74,7 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 | `pianovasca` | Corsi, lezioni ricorrenti con eccezioni, eventi |
 | `clienti` | Certificati, tesseramento annuale, abbonamenti (corso o carnet), scheda cliente con registro delle consultazioni; poi pagamenti e tutori |
 | `accessi` | Braccialetti, ban, golden pass, regole del tornello (controlli indipendenti), passaggi |
+| `notifiche` | Invio delle email (SMTP) e registro di tutte le email |
 
 ## Permessi e accesso ai dati
 
@@ -201,6 +202,7 @@ erDiagram
 - `abbonamento`: al corso (mono, bi, trisettimanale) o carnet di ingressi; `ingresso_carnet` per gli ingressi scalati.
 - `certificato_medico`: tipo (non agonistico/agonistico) e scadenza (non serve conservare il documento).
 - `consultazione_scheda`: chi ha aperto quale scheda e quando.
+- `promemoria` (regole e testi) e `invio_promemoria` (cosa è stato mandato a chi); `email_inviata` (modulo notifiche).
 - `pagamento`: da fare (quote, ricevute).
 
 **Accessi** (ADR 0009)
@@ -240,6 +242,7 @@ erDiagram
    Ruoli modificabili con permessi, pagina «Ruoli e permessi». *(fatto — ADR 0010)*
    Sotto controllo con avvisi in segreteria, cooldown, lato d'uscita con permesso di uscita autonoma, certificato
    provvisorio, sospensione degli abbonamenti. *(fatto — ADR 0011)*
+   Account dello staff (ADR 0012); pagina Scadenze e promemoria email automatici (ADR 0013).
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.
 
 ## Domande aperte

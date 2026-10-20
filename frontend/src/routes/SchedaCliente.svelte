@@ -91,6 +91,7 @@
   };
 
   // ── Ban e golden pass ─────────────────────────────────────────────────
+  let contatti = $state<{ email: string; telefono: string } | null>(null);
   let banPersona = $state<{ tipo: 'BAN' | 'SORVEGLIANZA'; motivo: string; al: string } | null>(null);
   let permesso = $state<{ tipo: 'USCITA_AUTONOMA' | 'ACCOMPAGNATORE'; firmataDa: string; firmataIl: string; al: string; note: string } | null>(null);
   let sospensione = $state<{ abbonamentoId: string; dal: string; al: string; motivo: string } | null>(null);
@@ -151,6 +152,37 @@
   </div>
 
   <div class="griglia">
+    <!-- Contatti -->
+    <section class="card blocco">
+      <h3>Contatti</h3>
+      {#if contatti}
+        <form class="modulo" onsubmit={(e) => { e.preventDefault(); esegui(() => api.contatti(id, { email: contatti!.email || null, telefono: contatti!.telefono || null }), 'Contatti salvati.').then((ok) => ok && (contatti = null)); }}>
+          <input class="inp" type="email" bind:value={contatti.email} placeholder="Email (per i minori, di un genitore)" aria-label="Email" />
+          <input class="inp" type="tel" bind:value={contatti.telefono} placeholder="Telefono" aria-label="Telefono" />
+          <div class="row">
+            <button type="button" class="btn btn-secondary grow" onclick={() => (contatti = null)}>Annulla</button>
+            <button class="btn btn-primary grow">Salva</button>
+          </div>
+        </form>
+      {:else}
+        <div class="voce-l">
+          <span class="grow">{#if cliente.contatti?.email}{cliente.contatti.email}{:else}<span class="manca-email">Nessuna email: i promemoria non possono partire</span>{/if}
+            {#if cliente.contatti?.telefono}<span class="muted"> · {cliente.contatti.telefono}</span>{/if}</span>
+          <button class="link small" onclick={() => (contatti = { email: cliente!.contatti?.email ?? '', telefono: cliente!.contatti?.telefono ?? '' })}>Modifica</button>
+        </div>
+      {/if}
+      {#if cliente.email.length}
+        <div class="sotto">
+          <span class="lbl">Email inviate</span>
+          {#each cliente.email as e (e.id)}
+            <div class="small"><span class="muted">{dataBreve(dataDi(e.creataIl))}</span> · {e.oggetto}
+              {#if e.stato !== 'INVIATA'}<span class="muted"> · {e.stato === 'SENZA_EMAIL' ? 'senza indirizzo' : e.stato === 'NON_INVIATA' ? 'non partita (posta non configurata)' : 'errore'}</span>{/if}</div>
+          {/each}
+        </div>
+      {/if}
+      <p class="muted small nomargin">Tutori e nucleo famiglia arriveranno con la scheda completa.</p>
+    </section>
+
     <!-- Braccialetti -->
     <section class="card blocco">
       <h3>Braccialetti</h3>
@@ -506,6 +538,7 @@
   .sosp { display: flex; align-items: center; gap: var(--space-8); color: var(--warn); margin-top: 2px; }
   .sospendi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; margin-top: var(--space-6); }
   .sospendi .inp { width: auto; min-width: 140px; }
+  .manca-email { color: var(--warn); font-weight: 600; }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); }
   select.inp { appearance: auto; }
   .sotto { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-10); border-top: 1px solid var(--line); }

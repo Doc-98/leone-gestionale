@@ -67,6 +67,26 @@ public class Persone {
         return new PersonaScheda(p.getId(), p.getNome(), p.getCognome(), p.getDataNascita());
     }
 
+    /** Email e telefono di una persona (per i minori, finché non ci sono i tutori, quelli della famiglia). */
+    public record Contatti(String email, String telefono) {}
+
+    @Transactional(readOnly = true)
+    public Map<UUID, Contatti> contatti(Collection<UUID> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return repo.findAllById(ids).stream().collect(Collectors.toMap(Persona::getId, p -> new Contatti(p.getEmail(), p.getTelefono())));
+    }
+
+    @Transactional
+    public Contatti aggiornaContatti(UUID id, String email, String telefono) {
+        Persona p = repo.findById(id).orElseThrow(() -> new it.leonexiii.gestionale.condiviso.NonTrovato("Persona non trovata."));
+        String e = email == null || email.isBlank() ? null : email.strip();
+        String t = telefono == null || telefono.isBlank() ? null : telefono.strip();
+        if (e != null && (e.length() > 200 || !e.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+"))) throw new IllegalArgumentException("Email non valida.");
+        if (t != null && (t.length() > 40 || !t.matches("[0-9+ ./()-]{5,40}"))) throw new IllegalArgumentException("Telefono non valido.");
+        p.contatti(e, t);
+        return new Contatti(e, t);
+    }
+
     @Transactional(readOnly = true)
     public boolean haPermesso(UUID personaId, Permesso permesso, UUID impiantoId) {
         return conPermesso(permesso, impiantoId).stream().anyMatch(p -> p.id().equals(personaId));
