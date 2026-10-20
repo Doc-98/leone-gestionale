@@ -637,6 +637,13 @@ export const api = {
     richiesta<void>('PUT', `/api/accessi/regole/${codice}`, { attiva, parametri }),
   schedaCliente: (personaId: string) => richiesta<SchedaCliente>('GET', `/api/clienti/${personaId}`),
   nuovoCliente: (c: { nome: string; cognome: string; dataNascita: string | null }) => richiesta<SchedaCliente['persona']>('POST', '/api/clienti', c),
+  aggiornaAnagrafica: (personaId: string, a: ModificaAnagrafica) => richiesta<Anagrafica>('PUT', `/api/clienti/${personaId}/anagrafica`, a),
+  aggiungiTutore: (personaId: string, t: NuovoTutore) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/tutori`, t),
+  modificaLegame: (legameId: string, l: { relazione: Relazione; comunicazioni: boolean; delegatoRitiro: boolean }) =>
+    richiesta<void>('PUT', `/api/clienti/legami/${legameId}`, l),
+  chiudiLegame: (legameId: string) => richiesta<void>('POST', `/api/clienti/legami/${legameId}/chiudi`, {}),
+  nuovoConsenso: (personaId: string, c: NuovoConsenso) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/consensi`, c),
+  revocaConsenso: (id: string) => richiesta<void>('POST', `/api/clienti/consensi/${id}/revoca`, {}),
   nuovoCertificato: (personaId: string, c: { tipo: string; rilasciatoIl: string | null; scadenza: string; note?: string | null; firmatoDa?: string | null }) =>
     richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/certificati`, c),
   nuovoTesseramento: (personaId: string, t: { stagione?: string; dal?: string; al?: string; importo?: number | null; pagatoIl?: string | null }) =>
@@ -821,13 +828,86 @@ export interface TurnoFrequentato {
 
 export interface SchedaCliente {
   persona: { id: string; nome: string; cognome: string; dataNascita: string | null; eta: number | null };
+  anagrafica: Anagrafica;
   contatti: { email: string | null; telefono: string | null };
+  famiglia: { tutori: Familiare[]; assistiti: Familiare[]; fratelli: Familiare[]; destinatari: string[] };
+  consensi: Consenso[];
   email: EmailBreve[];
   certificati: Certificato[];
   tesseramenti: Tesseramento[];
   abbonamenti: Abbonamento[];
   turni: TurnoFrequentato[];
   stagioneProposta: { stagione: string; dal: string; al: string; importo: number };
+}
+
+export type Sesso = 'M' | 'F';
+export interface ModificaAnagrafica {
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
+  sesso: Sesso | null;
+  luogoNascita: string | null;
+  codiceFiscale: string | null;
+  indirizzo: string | null;
+  cap: string | null;
+  citta: string | null;
+  provincia: string | null;
+  nazione: string | null;
+  note: string | null;
+}
+export interface Anagrafica extends ModificaAnagrafica {
+  id: string;
+  email: string | null;
+  telefono: string | null;
+}
+
+export type Relazione = 'MADRE' | 'PADRE' | 'TUTORE' | 'NONNO' | 'ALTRO';
+/** Un tutore o un assistito o un fratello, con i dati del legame (per i fratelli: quello con il tutore in comune). */
+export interface Familiare {
+  legameId: string;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
+  relazione: Relazione;
+  comunicazioni: boolean;
+  delegatoRitiro: boolean;
+  email: string | null;
+  telefono: string | null;
+}
+export interface NuovoTutore {
+  tutoreId?: string | null;
+  nome?: string;
+  cognome?: string;
+  codiceFiscale?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  relazione: Relazione;
+  comunicazioni: boolean;
+  delegatoRitiro: boolean;
+}
+
+export type TipoConsenso = 'TRATTAMENTO' | 'MARKETING' | 'IMMAGINI';
+export interface Consenso {
+  id: string;
+  tipo: TipoConsenso;
+  firmatoDa: string | null;
+  datoIl: string;
+  validoFino: string | null;
+  email: boolean;
+  sms: boolean;
+  cartaceo: boolean;
+  revocatoIl: string | null;
+  valido: boolean;
+}
+export interface NuovoConsenso {
+  tipo: TipoConsenso;
+  firmatoDa: string | null;
+  datoIl: string | null;
+  validoFino: string | null;
+  email: boolean;
+  sms: boolean;
+  cartaceo: boolean;
 }
 
 export interface ParametroRegola {

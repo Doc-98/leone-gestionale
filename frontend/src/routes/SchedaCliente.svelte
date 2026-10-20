@@ -2,16 +2,19 @@
   import { onDestroy, untrack } from 'svelte';
   import {
     api, messaggioErrore,
-    type Abbonamento, type Braccialetto, type Corso, type SchedaAccessi, type SchedaCliente,
+    type Abbonamento, type Braccialetto, type Corso, type SchedaAccessi, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, GIORNI_BREVI, iso, ora, oraDi } from '../lib/date';
   import { leggiConNfc, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
+  import ConsensiCliente from '../components/ConsensiCliente.svelte';
   import EsitoTornello from '../components/EsitoTornello.svelte';
+  import FamigliaCliente from '../components/FamigliaCliente.svelte';
 
   /**
-   * La scheda di un cliente per la segreteria: come andrebbe adesso al tornello, braccialetti, ban e golden pass,
-   * certificato medico, tesseramento, abbonamenti, turni frequentati, ultimi passaggi. Ogni apertura si registra.
+   * La scheda di un cliente per la segreteria: come andrebbe adesso al tornello, anagrafica e contatti, famiglia,
+   * consensi, braccialetti, ban e golden pass, certificato medico, tesseramento, abbonamenti, turni frequentati, ultimi
+   * passaggi. Ogni apertura si registra.
    */
   let { personaId }: { personaId: string } = $props();
   const id = untrack(() => personaId);
@@ -90,8 +93,38 @@
     DISATTIVATO: { nome: 'Disattivato', classe: 't-altro' },
   };
 
+  // ── Anagrafica e contatti ─────────────────────────────────────────────
+  type Bozza = { nome: string; cognome: string; dataNascita: string; sesso: Sesso | ''; luogoNascita: string; codiceFiscale: string; indirizzo: string;
+    cap: string; citta: string; provincia: string; nazione: string; note: string; email: string; telefono: string };
+  let anag = $state<Bozza | null>(null);
+
+  function modificaAnagrafica() {
+    const a = cliente!.anagrafica;
+    anag = { nome: a.nome, cognome: a.cognome, dataNascita: a.dataNascita ?? '', sesso: a.sesso ?? '', luogoNascita: a.luogoNascita ?? '', codiceFiscale: a.codiceFiscale ?? '',
+      indirizzo: a.indirizzo ?? '', cap: a.cap ?? '', citta: a.citta ?? '', provincia: a.provincia ?? '', nazione: a.nazione ?? '', note: a.note ?? '',
+      email: cliente!.contatti?.email ?? '', telefono: cliente!.contatti?.telefono ?? '' };
+  }
+
+  const vuoto = (v: string) => (v.trim() ? v.trim() : null);
+  const salvaAnagrafica = async () => {
+    const b = anag!;
+    const ok = await esegui(async () => {
+      await api.aggiornaAnagrafica(id, { nome: b.nome.trim(), cognome: b.cognome.trim(), dataNascita: b.dataNascita || null, sesso: b.sesso || null,
+        luogoNascita: vuoto(b.luogoNascita), codiceFiscale: vuoto(b.codiceFiscale), indirizzo: vuoto(b.indirizzo), cap: vuoto(b.cap), citta: vuoto(b.citta),
+        provincia: vuoto(b.provincia), nazione: vuoto(b.nazione), note: vuoto(b.note) });
+      await api.contatti(id, { email: vuoto(b.email), telefono: vuoto(b.telefono) });
+    }, 'Anagrafica salvata.');
+    if (ok) anag = null;
+  };
+
+  const indirizzo = $derived.by(() => {
+    const a = cliente?.anagrafica;
+    if (!a) return '';
+    const luogo = [a.cap, a.citta].filter(Boolean).join(' ') + (a.provincia ? ` (${a.provincia})` : '');
+    return [a.indirizzo, luogo.trim(), a.nazione && a.nazione !== 'Italia' ? a.nazione : ''].filter(Boolean).join(', ');
+  });
+
   // ── Ban e golden pass ─────────────────────────────────────────────────
-  let contatti = $state<{ email: string; telefono: string } | null>(null);
   let banPersona = $state<{ tipo: 'BAN' | 'SORVEGLIANZA'; motivo: string; al: string } | null>(null);
   let permesso = $state<{ tipo: 'USCITA_AUTONOMA' | 'ACCOMPAGNATORE'; firmataDa: string; firmataIl: string; al: string; note: string } | null>(null);
   let sospensione = $state<{ abbonamentoId: string; dal: string; al: string; motivo: string } | null>(null);
@@ -139,7 +172,7 @@
   <header class="testa">
     <div>
       <h2 class="d nome">{p.nome} {p.cognome}</h2>
-      <div class="muted">{eta(p.eta)}{p.dataNascita ? ` · nato il ${dataBreve(p.dataNascita)}` : ''}</div>
+      <div class="muted">{eta(p.eta)}{p.dataNascita ? ` · nat${cliente.anagrafica.sesso === 'F' ? 'a' : 'o'} il ${dataBreve(p.dataNascita)}` : ''}{cliente.anagrafica.luogoNascita ? ` a ${cliente.anagrafica.luogoNascita}` : ''}</div>
     </div>
   </header>
 
@@ -152,24 +185,57 @@
   </div>
 
   <div class="griglia">
-    <!-- Contatti -->
+    <!-- Anagrafica e contatti -->
     <section class="card blocco">
-      <h3>Contatti</h3>
-      {#if contatti}
-        <form class="modulo" onsubmit={(e) => { e.preventDefault(); esegui(() => api.contatti(id, { email: contatti!.email || null, telefono: contatti!.telefono || null }), 'Contatti salvati.').then((ok) => ok && (contatti = null)); }}>
-          <input class="inp" type="email" bind:value={contatti.email} placeholder="Email (per i minori, di un genitore)" aria-label="Email" />
-          <input class="inp" type="tel" bind:value={contatti.telefono} placeholder="Telefono" aria-label="Telefono" />
+      <h3>Anagrafica e contatti</h3>
+      {#if anag}
+        <form class="modulo" onsubmit={(e) => { e.preventDefault(); salvaAnagrafica(); }}>
+          <div class="due">
+            <label class="field"><span class="lbl">Nome</span><input class="inp" bind:value={anag.nome} /></label>
+            <label class="field"><span class="lbl">Cognome</span><input class="inp" bind:value={anag.cognome} /></label>
+          </div>
+          <div class="due">
+            <label class="field"><span class="lbl">Data di nascita</span><input class="inp" type="date" bind:value={anag.dataNascita} max={oggi} /></label>
+            <div class="field"><span class="lbl">Sesso</span>
+              <div class="seg" style="grid-template-columns: 1fr 1fr 1fr" role="group" aria-label="Sesso">
+                <button type="button" aria-pressed={anag.sesso === 'F'} onclick={() => (anag!.sesso = 'F')}>F</button>
+                <button type="button" aria-pressed={anag.sesso === 'M'} onclick={() => (anag!.sesso = 'M')}>M</button>
+                <button type="button" aria-pressed={anag.sesso === ''} onclick={() => (anag!.sesso = '')}>—</button>
+              </div>
+            </div>
+          </div>
+          <div class="due stretto">
+            <label class="field"><span class="lbl">Luogo di nascita</span><input class="inp" bind:value={anag.luogoNascita} /></label>
+            <label class="field"><span class="lbl">Codice fiscale</span><input class="inp m" bind:value={anag.codiceFiscale} maxlength="16" autocapitalize="characters" /></label>
+          </div>
+          <label class="field"><span class="lbl">Indirizzo</span><input class="inp" bind:value={anag.indirizzo} placeholder="Via e numero civico" /></label>
+          <div class="tre">
+            <label class="field"><span class="lbl">CAP</span><input class="inp m" bind:value={anag.cap} inputmode="numeric" maxlength="10" /></label>
+            <label class="field"><span class="lbl">Città</span><input class="inp" bind:value={anag.citta} /></label>
+            <label class="field"><span class="lbl">Prov.</span><input class="inp m" bind:value={anag.provincia} maxlength="2" autocapitalize="characters" /></label>
+          </div>
+          <label class="field"><span class="lbl">Nazione</span><input class="inp" bind:value={anag.nazione} placeholder="Italia" /></label>
+          <div class="due stretto">
+            <label class="field"><span class="lbl">Email</span><input class="inp" type="email" bind:value={anag.email} placeholder="Per i minori, meglio quella del tutore" /></label>
+            <label class="field"><span class="lbl">Telefono</span><input class="inp" type="tel" bind:value={anag.telefono} /></label>
+          </div>
+          <label class="field"><span class="lbl">Note</span><textarea class="inp note" rows="3" bind:value={anag.note} maxlength="1000"></textarea></label>
+          <p class="muted small nomargin">Solo ciò che serve: niente documenti d'identità o dati sanitari (il certificato va nel suo riquadro).</p>
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (contatti = null)}>Annulla</button>
-            <button class="btn btn-primary grow">Salva</button>
+            <button type="button" class="btn btn-secondary grow" onclick={() => (anag = null)}>Annulla</button>
+            <button class="btn btn-primary grow" disabled={!anag.nome.trim() || !anag.cognome.trim()}>Salva</button>
           </div>
         </form>
       {:else}
-        <div class="voce-l">
-          <span class="grow">{#if cliente.contatti?.email}{cliente.contatti.email}{:else}<span class="manca-email">Nessuna email: i promemoria non possono partire</span>{/if}
-            {#if cliente.contatti?.telefono}<span class="muted"> · {cliente.contatti.telefono}</span>{/if}</span>
-          <button class="link small" onclick={() => (contatti = { email: cliente!.contatti?.email ?? '', telefono: cliente!.contatti?.telefono ?? '' })}>Modifica</button>
-        </div>
+        {@const a = cliente.anagrafica}
+        <dl class="dati">
+          <dt>Codice fiscale</dt><dd class="m">{a.codiceFiscale ?? '—'}</dd>
+          <dt>Indirizzo</dt><dd>{indirizzo || '—'}</dd>
+          <dt>Email</dt><dd>{#if cliente.contatti?.email}{cliente.contatti.email}{:else}<span class="muted">—</span>{/if}</dd>
+          <dt>Telefono</dt><dd>{cliente.contatti?.telefono ?? '—'}</dd>
+          {#if a.note}<dt>Note</dt><dd class="a-capo-t">{a.note}</dd>{/if}
+        </dl>
+        <button class="link small sx" onclick={modificaAnagrafica}>Modifica</button>
       {/if}
       {#if cliente.email.length}
         <div class="sotto">
@@ -180,8 +246,10 @@
           {/each}
         </div>
       {/if}
-      <p class="muted small nomargin">Tutori e nucleo famiglia arriveranno con la scheda completa.</p>
     </section>
+
+    <FamigliaCliente {cliente} {esegui} />
+    <ConsensiCliente {cliente} {esegui} />
 
     <!-- Braccialetti -->
     <section class="card blocco">
@@ -538,7 +606,14 @@
   .sosp { display: flex; align-items: center; gap: var(--space-8); color: var(--warn); margin-top: 2px; }
   .sospendi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; margin-top: var(--space-6); }
   .sospendi .inp { width: auto; min-width: 140px; }
-  .manca-email { color: var(--warn); font-weight: 600; }
+  .dati { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-4) var(--space-14); margin: 0; }
+  .dati dt { color: var(--muted); font-size: var(--text-sm); align-self: center; }
+  .dati dd { margin: 0; overflow-wrap: anywhere; }
+  .a-capo-t { white-space: pre-line; }
+  .sx { align-self: flex-start; }
+  .tre { display: grid; grid-template-columns: 110px minmax(0, 1fr) 80px; gap: var(--space-10); }
+  @media (max-width: 560px) { .due.stretto { grid-template-columns: 1fr; } }
+  .note { min-height: 70px; resize: vertical; font-family: var(--font-body); }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); }
   select.inp { appearance: auto; }
   .sotto { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-10); border-top: 1px solid var(--line); }

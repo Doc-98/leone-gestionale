@@ -29,6 +29,18 @@ public class Persona {
 
     private String telefono;
 
+    private String sesso;
+    @Column(name = "luogo_nascita")
+    private String luogoNascita;
+    @Column(name = "codice_fiscale")
+    private String codiceFiscale;
+    private String indirizzo;
+    private String cap;
+    private String citta;
+    private String provincia;
+    private String nazione;
+    private String note;
+
     @Column(name = "creato_il", nullable = false, insertable = false, updatable = false)
     private Instant creatoIl;
 
@@ -48,6 +60,32 @@ public class Persona {
     public LocalDate getDataNascita() { return dataNascita; }
     public String getEmail() { return email; }
     public String getTelefono() { return telefono; }
+
+    void anagrafica(String nome, String cognome, LocalDate dataNascita, String sesso, String luogoNascita, String codiceFiscale, String indirizzo,
+                    String cap, String citta, String provincia, String nazione, String note) {
+        this.nome = nome;
+        this.cognome = cognome;
+        this.dataNascita = dataNascita;
+        this.sesso = sesso;
+        this.luogoNascita = luogoNascita;
+        this.codiceFiscale = codiceFiscale;
+        this.indirizzo = indirizzo;
+        this.cap = cap;
+        this.citta = citta;
+        this.provincia = provincia;
+        this.nazione = nazione;
+        this.note = note;
+    }
+
+    String getSesso() { return sesso; }
+    String getLuogoNascita() { return luogoNascita; }
+    String getCodiceFiscale() { return codiceFiscale; }
+    String getIndirizzo() { return indirizzo; }
+    String getCap() { return cap; }
+    String getCitta() { return citta; }
+    String getProvincia() { return provincia; }
+    String getNazione() { return nazione; }
+    String getNote() { return note; }
 
     void contatti(String email, String telefono) {
         this.email = email;

@@ -12,9 +12,12 @@ interface PersonaRepository extends JpaRepository<Persona, UUID> {
     @Query("""
         select p from Persona p
         where lower(concat(p.nome, ' ', p.cognome)) like :testo or lower(concat(p.cognome, ' ', p.nome)) like :testo
+           or p.codiceFiscale = :codiceFiscale
         order by p.cognome, p.nome
         """)
-    List<Persona> cerca(String testo, org.springframework.data.domain.Pageable pagina);
+    List<Persona> cerca(String testo, String codiceFiscale, org.springframework.data.domain.Pageable pagina);
+
+    java.util.Optional<Persona> findByCodiceFiscale(String codiceFiscale);
 
     /**
      * Persone con un account attivo e un ruolo valido oggi che ha il permesso (esplicito, non quello implicito di

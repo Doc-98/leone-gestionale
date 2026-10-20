@@ -125,7 +125,7 @@ class ScadenzeService {
         Set<UUID> ids = new HashSet<>();
         grezze.forEach(g -> ids.add(g.personaId()));
         Map<UUID, Persone.PersonaScheda> schede = persone.schede(ids);
-        Map<UUID, Persone.Contatti> contatti = persone.contatti(ids);
+        Map<UUID, List<String>> destinatari = persone.destinatari(ids);
         Map<String, Instant> ultimi = new HashMap<>();
         for (InvioPromemoria i : invii.findByCreatoIlAfter(orologio.instant().minus(180, ChronoUnit.DAYS)))
             ultimi.merge(i.getPersonaId() + "|" + i.getTipo(), i.getCreatoIl(), (a, b) -> a.isAfter(b) ? a : b);
@@ -136,9 +136,9 @@ class ScadenzeService {
             if (s == null) continue;
             Integer eta = s.dataNascita() == null ? null : Period.between(s.dataNascita(), oggi).getYears();
             Long giorni = g.scadenza() == null ? null : ChronoUnit.DAYS.between(oggi, g.scadenza());
-            Persone.Contatti ct = contatti.get(g.personaId());
+            List<String> a = destinatari.getOrDefault(g.personaId(), List.of());
             out.add(new Voce(g.tipo(), g.personaId(), s.nome(), s.cognome(), eta, g.descrizione(), g.corso(), g.stagione(), g.scadenza(), giorni,
-                g.riferimento(), ct == null ? null : ct.email(), ultimi.get(g.personaId() + "|" + PromemoriaService.tipoPromemoria(g.tipo()).name())));
+                g.riferimento(), a.isEmpty() ? null : String.join(", ", a), ultimi.get(g.personaId() + "|" + PromemoriaService.tipoPromemoria(g.tipo()).name())));
         }
         out.sort(Comparator.comparing((Voce v) -> v.giorni() == null ? Long.MIN_VALUE : v.giorni()).thenComparing(Voce::cognome).thenComparing(Voce::nome));
         return out;

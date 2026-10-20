@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.clienti;
 
+import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.identita.Utente;
 import java.util.Map;
 import java.util.UUID;
@@ -38,8 +39,44 @@ class ClientiController {
         return schede.scheda(u, id);
     }
 
+    @PutMapping("/{id}/anagrafica")
+    Persone.Anagrafica anagrafica(@PathVariable UUID id, @RequestBody Persone.ModificaAnagrafica in) {
+        return schede.anagrafica(id, in);
+    }
+
+    /** {"tutoreId"} oppure {"nome", "cognome", "codiceFiscale", "email", "telefono"}, con "relazione", "comunicazioni", "delegatoRitiro". */
+    @PostMapping("/{id}/tutori")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, UUID> tutore(@PathVariable UUID id, @RequestBody Persone.NuovoTutore in) {
+        return Map.of("id", schede.tutore(id, in));
+    }
+
+    @PutMapping("/legami/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void modificaLegame(@PathVariable UUID id, @RequestBody SchedaClientiService.ModificaLegame in) {
+        schede.modificaLegame(id, in);
+    }
+
+    @PostMapping("/legami/{id}/chiudi")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void chiudiLegame(@PathVariable UUID id) {
+        schede.chiudiLegame(id);
+    }
+
+    @PostMapping("/{id}/consensi")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, UUID> consenso(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody SchedaClientiService.NuovoConsenso in) {
+        return Map.of("id", schede.consenso(u, id, in));
+    }
+
+    @PostMapping("/consensi/{id}/revoca")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void revocaConsenso(@PathVariable UUID id) {
+        schede.revocaConsenso(id);
+    }
+
     @PutMapping("/{id}/contatti")
-    it.leonexiii.gestionale.identita.Persone.Contatti contatti(@PathVariable UUID id, @RequestBody SchedaClientiService.NuoviContatti in) {
+    Persone.Contatti contatti(@PathVariable UUID id, @RequestBody SchedaClientiService.NuoviContatti in) {
         return schede.contatti(id, in);
     }
 

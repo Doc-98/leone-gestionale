@@ -41,7 +41,7 @@ Schede: Anagrafica · Tessera · Certificati · Abbonamenti · Prenotazioni · B
 
 ## Cosa già copre il nuovo gestionale
 
-Anagrafica di base, tesseramento, certificato con tipo e scadenza, abbonamenti e carnet, braccialetti (più di uno per
+Anagrafica completa (codice fiscale, indirizzo), tutori e nucleo famiglia, consensi GDPR con validità e canali, tesseramento, certificato con tipo e scadenza, abbonamenti e carnet, braccialetti (più di uno per
 persona, smarrito, disattivato), golden pass, ban, controlli al tornello con tutti i motivi, registro dei passaggi.
 
 ## Decisioni (20/10/2026, ADR 0011)
@@ -62,6 +62,5 @@ braccialetto?) e se il borsellino paga anche altro (es. la tessera da 10 €).
 
 ## Da decidere
 
-- Nucleo famiglia e tutori, consensi GDPR, categoria (con la scheda cliente completa).
 - Pagamenti: tessera, borsellino, ricevute (in attesa delle informazioni dalla segreteria).
-- Come esportare i dati da TeamSystem per l'importazione.
+- Come esportare i dati da TeamSystem per l'importazione (e che categorie usa: per ora non c'è una categoria, ADR 0014).

@@ -30,7 +30,17 @@ class SchedaClientiService {
 
     record StagioneDto(String stagione, LocalDate dal, LocalDate al, BigDecimal importo) {}
 
-    record Scheda(PersonaDto persona, Persone.Contatti contatti, List<CertificatoDto> certificati, List<TesseramentoDto> tesseramenti,
+    record Famiglia(List<Persone.Familiare> tutori, List<Persone.Familiare> assistiti, List<Persone.Familiare> fratelli, List<String> destinatari) {}
+
+    record ConsensoDto(UUID id, String tipo, String firmatoDa, LocalDate datoIl, LocalDate validoFino, boolean email, boolean sms, boolean cartaceo,
+                       Instant revocatoIl, boolean valido) {}
+
+    record NuovoConsenso(String tipo, String firmatoDa, LocalDate datoIl, LocalDate validoFino, Boolean email, Boolean sms, Boolean cartaceo) {}
+
+    record ModificaLegame(String relazione, boolean comunicazioni, boolean delegatoRitiro) {}
+
+    record Scheda(PersonaDto persona, Persone.Anagrafica anagrafica, Persone.Contatti contatti, Famiglia famiglia, List<ConsensoDto> consensi,
+                  List<CertificatoDto> certificati, List<TesseramentoDto> tesseramenti,
                   List<AbbonamentoDto> abbonamenti, List<Frequenze.TurnoFrequentato> turni, StagioneDto stagioneProposta,
                   List<it.leonexiii.gestionale.notifiche.Posta.EmailBreve> email) {}
 
@@ -56,12 +66,14 @@ class SchedaClientiService {
     private final AbbonamentoRepository abbonamenti;
     private final ConsultazioneRepository consultazioni;
     private final SospensioneRepository sospensioni;
+    private final ConsensoRepository consensi;
     private final it.leonexiii.gestionale.notifiche.Posta posta;
     private final Clock orologio;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
                          AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni,
-                         it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio) {
+                         ConsensoRepository consensi, it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio) {
+        this.consensi = consensi;
         this.posta = posta;
         this.sospensioni = sospensioni;
         this.persone = persone;
@@ -93,8 +105,53 @@ class SchedaClientiService {
         }).toList();
         Stagione s = Stagione.di(oggi);
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), oggi).getYears();
-        return new Scheda(new PersonaDto(p.id(), p.nome(), p.cognome(), p.dataNascita(), eta), persone.contatti(List.of(personaId)).get(personaId),
+        var famiglia = new Famiglia(persone.tutoriDi(personaId), persone.assistitiDi(personaId), persone.fratelliDi(personaId),
+            persone.destinatari(List.of(personaId)).getOrDefault(personaId, List.of()));
+        var cons = consensi.findByPersonaIdOrderByDatoIlDesc(personaId).stream().map(c -> new ConsensoDto(c.getId(), c.tipo().name(), c.getFirmatoDa(),
+            c.getDatoIl(), c.getValidoFino(), c.isEmail(), c.isSms(), c.isCartaceo(), c.getRevocatoIl(), c.validoIl(oggi))).toList();
+        return new Scheda(new PersonaDto(p.id(), p.nome(), p.cognome(), p.dataNascita(), eta), persone.anagrafica(personaId),
+            persone.contatti(List.of(personaId)).get(personaId), famiglia, cons,
             cert, tess, abb, frequenze.turniDi(personaId, oggi), new StagioneDto(s.nome(), s.dal(), s.al(), s.importo()), posta.diPersona(personaId, 10));
+    }
+
+    @Transactional
+    Persone.Anagrafica anagrafica(UUID personaId, Persone.ModificaAnagrafica in) {
+        return persone.aggiornaAnagrafica(personaId, in);
+    }
+
+    @Transactional
+    UUID tutore(UUID personaId, Persone.NuovoTutore in) {
+        return persone.aggiungiTutore(personaId, in);
+    }
+
+    @Transactional
+    void modificaLegame(UUID legameId, ModificaLegame in) {
+        persone.modificaLegame(legameId, in.relazione(), in.comunicazioni(), in.delegatoRitiro());
+    }
+
+    @Transactional
+    void chiudiLegame(UUID legameId) {
+        persone.chiudiLegame(legameId);
+    }
+
+    /** Un consenso firmato (per i minori da un genitore): senza «valido fino» vale finché non si revoca. */
+    @Transactional
+    UUID consenso(Utente u, UUID personaId, NuovoConsenso in) {
+        persona(personaId);
+        Consenso.Tipo tipo;
+        try {
+            tipo = Consenso.Tipo.valueOf(String.valueOf(in.tipo()));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Tipo di consenso non valido: TRATTAMENTO, MARKETING o IMMAGINI.");
+        }
+        LocalDate dato = in.datoIl() != null ? in.datoIl() : LocalDate.now(orologio);
+        return consensi.saveAndFlush(new Consenso(personaId, tipo, in.firmatoDa(), dato, in.validoFino(), Boolean.TRUE.equals(in.email()),
+            Boolean.TRUE.equals(in.sms()), Boolean.TRUE.equals(in.cartaceo()), u.personaId(), orologio.instant())).getId();
+    }
+
+    @Transactional
+    void revocaConsenso(UUID id) {
+        consensi.findById(id).orElseThrow(() -> new NonTrovato("Consenso non trovato.")).revoca(orologio.instant());
     }
 
     @Transactional

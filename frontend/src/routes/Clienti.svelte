@@ -59,7 +59,7 @@
     <aside class="ricerca">
       <label class="field">
         <span class="lbl">Cerca un cliente</span>
-        <input class="inp" type="search" bind:value={cerca} oninput={cercaPersone} placeholder="Nome e cognome" autocomplete="off" />
+        <input class="inp" type="search" bind:value={cerca} oninput={cercaPersone} placeholder="Nome, cognome o codice fiscale" autocomplete="off" />
       </label>
       {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
       {#if trovate.length}

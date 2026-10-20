@@ -157,8 +157,10 @@ erDiagram
 ### Entità principali
 
 **Identità**
-- `persona`: anagrafica unica per staff, clienti e tutori (nome, cognome, data di nascita, contatti).
-  Un tutore è una persona come le altre, collegata al minore da `tutela`.
+- `persona`: anagrafica unica per staff, clienti e tutori (nome, cognome, data di nascita, sesso, luogo di nascita,
+  codice fiscale unico, indirizzo, contatti, note).
+- `legame`: tutore → persona (relazione, riceve le comunicazioni, delegato al ritiro, dal/al). Un tutore è una persona
+  come le altre; i fratelli si ricavano dai tutori in comune (ADR 0014).
 - `account`: credenziali di accesso (email, hash della password, attivo). Non tutti hanno un account.
 - `assegnazione_ruolo`: ruolo + ambito (impianto, oppure tutta la società) + validità.
 - `dispositivo`: tablet/telefono della società registrato per la postazione atrio (revocabile).
@@ -202,6 +204,7 @@ erDiagram
 - `abbonamento`: al corso (mono, bi, trisettimanale) o carnet di ingressi; `ingresso_carnet` per gli ingressi scalati.
 - `certificato_medico`: tipo (non agonistico/agonistico) e scadenza (non serve conservare il documento).
 - `consultazione_scheda`: chi ha aperto quale scheda e quando.
+- `consenso`: trattamento, comunicazioni promozionali (con i canali), foto e video; chi ha firmato, validità, revoca.
 - `promemoria` (regole e testi) e `invio_promemoria` (cosa è stato mandato a chi); `email_inviata` (modulo notifiche).
 - `pagamento`: da fare (quote, ricevute).
 
@@ -232,7 +235,7 @@ erDiagram
    giorno + orario) con posti, conteggio nel piano, lista per istruttori e segreteria, presenze. *(fatto — ADR 0008)*
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
    Tornello con tutti i motivi del rosso e il nome della persona, regole modulari, golden pass, carnet, scheda per
-   la segreteria. *(fatto — ADR 0009)* Da fare: pagamenti e ricevute, tutori e contatti, dispositivi registrati
+   la segreteria. *(fatto — ADR 0009)* Da fare: pagamenti e ricevute, dispositivi registrati
    (livello 2), lettore da scrivania nel programma per Windows, telefono come lettore per il PC.
    Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice
@@ -243,6 +246,7 @@ erDiagram
    Sotto controllo con avvisi in segreteria, cooldown, lato d'uscita con permesso di uscita autonoma, certificato
    provvisorio, sospensione degli abbonamenti. *(fatto — ADR 0011)*
    Account dello staff (ADR 0012); pagina Scadenze e promemoria email automatici (ADR 0013).
+   Scheda cliente completa: anagrafica con codice fiscale, tutori e fratelli, consensi privacy. *(fatto — ADR 0014)*
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.
 
 ## Domande aperte

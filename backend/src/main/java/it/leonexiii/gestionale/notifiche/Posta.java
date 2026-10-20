@@ -12,7 +12,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** API pubblica: invia un'email (testo semplice) e la registra, sempre, con il suo esito. */
+/** API pubblica: invia un'email (testo semplice; più destinatari separati da virgola) e la registra, sempre, con il suo esito. */
 @Service
 public class Posta {
 
@@ -55,7 +55,7 @@ public class Posta {
             try {
                 SimpleMailMessage m = new SimpleMailMessage();
                 m.setFrom(mittente);
-                m.setTo(destinatario);
+                m.setTo(java.util.Arrays.stream(destinatario.split(",")).map(String::strip).filter(x -> !x.isEmpty()).toArray(String[]::new));
                 m.setSubject(oggetto);
                 m.setText(testo);
                 smtp.send(m);
