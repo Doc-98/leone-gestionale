@@ -22,12 +22,13 @@
   import Segnalazioni from './components/Segnalazioni.svelte';
   import Foglio from './components/Foglio.svelte';
   import CambioPassword from './routes/CambioPassword.svelte';
+  import ListaAttesa from './routes/ListaAttesa.svelte';
   import Scadenze from './routes/Scadenze.svelte';
   import Promemoria from './routes/Promemoria.svelte';
   import Account from './routes/Account.svelte';
   import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa';
   interface Sezione {
     id: Scheda;
     nome: string;
@@ -56,6 +57,7 @@
     clienti: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6',
     scadenze: 'M12 7v5l3 2M5 3 2 6M19 3l3 3M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z',
     promemoria: 'M4 6h16v12H4zM4 7l8 6 8-6',
+    attesa: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
     account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
     ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
     regole: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
@@ -67,6 +69,7 @@
     { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: I.richieste },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: I.ore },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: I.piano },
+    { id: 'attesa', nome: 'Liste d\'attesa', breve: 'Attesa', titolo: 'Liste d\'attesa', gruppo: 'Piscina', permessi: ['ISCRIZIONI'], larga: true, icona: I.attesa },
     { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: I.corsi },
     { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: I.tornello },
     { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: I.clienti },
@@ -228,6 +231,7 @@
         {:else if corrente.id === 'regole'}<Regole />
         {:else if corrente.id === 'ruoli'}<Ruoli />
         {:else if corrente.id === 'scadenze'}<Scadenze />
+        {:else if corrente.id === 'attesa'}<ListaAttesa />
         {:else if corrente.id === 'promemoria'}<Promemoria />
         {:else if corrente.id === 'account'}<Account />{/if}
       {/key}

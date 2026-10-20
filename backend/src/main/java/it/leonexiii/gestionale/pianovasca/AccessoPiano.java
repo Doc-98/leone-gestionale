@@ -40,6 +40,11 @@ class AccessoPiano {
         return autorizzazioni.puo(u, Permesso.PRESENZE, impiantoId);
     }
 
+    /** Dove l'utente iscrive (e gestisce le liste d'attesa). */
+    Set<UUID> impiantiConIscrizioni(Utente u) {
+        return espandi(autorizzazioni.ambito(u, Permesso.ISCRIZIONI));
+    }
+
     /** Dove l'utente vede le liste di tutti i turni (per iscrivere o per le presenze). */
     Set<UUID> impiantiIscrizioni(Utente u) {
         Set<UUID> out = new HashSet<>(espandi(autorizzazioni.ambito(u, Permesso.ISCRIZIONI)));

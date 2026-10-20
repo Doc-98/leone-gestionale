@@ -4,17 +4,18 @@
     api, messaggioErrore,
     type Abbonamento, type Braccialetto, type Corso, type SchedaAccessi, type SchedaCliente, type Sesso,
   } from '../lib/api';
-  import { dataBreve, dataDi, GIORNI_BREVI, iso, ora, oraDi } from '../lib/date';
+  import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { leggiConNfc, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
   import ConsensiCliente from '../components/ConsensiCliente.svelte';
   import EsitoTornello from '../components/EsitoTornello.svelte';
   import FamigliaCliente from '../components/FamigliaCliente.svelte';
+  import TurniCliente from '../components/TurniCliente.svelte';
 
   /**
    * La scheda di un cliente per la segreteria: come andrebbe adesso al tornello, anagrafica e contatti, famiglia,
-   * consensi, braccialetti, ban e golden pass, certificato medico, tesseramento, abbonamenti, turni frequentati, ultimi
-   * passaggi. Ogni apertura si registra.
+   * consensi, braccialetti, ban e golden pass, certificato medico, tesseramento, abbonamenti, turni frequentati e liste
+   * d'attesa, ultimi passaggi. Ogni apertura si registra.
    */
   let { personaId }: { personaId: string } = $props();
   const id = untrack(() => personaId);
@@ -540,15 +541,9 @@
         <button class="btn btn-secondary" onclick={nuovoAbbonamento}>Nuovo abbonamento o carnet…</button>
       {/if}
 
-      <div class="sotto">
-        <span class="lbl">Turni frequentati</span>
-        {#each cliente.turni as t (t.iscrizioneId)}
-          <div class="small">{GIORNI_BREVI[t.giornoSettimana]} <span class="m">{ora(t.inizio)}–{ora(t.fine)}</span> · {t.corso}{t.al ? ` (fino al ${dataBreve(t.al)})` : ''}</div>
-        {:else}
-          <div class="muted small">Nessun turno: le iscrizioni ai turni si fanno dal piano vasca.</div>
-        {/each}
-      </div>
     </section>
+
+    <div class="largo-g"><TurniCliente {cliente} {corsi} {esegui} /></div>
 
     <!-- Passaggi -->
     <section class="card blocco largo">
@@ -580,7 +575,7 @@
   .griglia { display: grid; grid-template-columns: 1fr; gap: var(--space-14); }
   @media (min-width: 1180px) {
     .griglia { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .blocco.largo { grid-column: 1 / -1; }
+    .blocco.largo, .largo-g { grid-column: 1 / -1; }
   }
   .blocco { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }
   h3 { margin: 0; font-size: var(--text-xl); }

@@ -306,6 +306,62 @@ export interface Iscritto {
   presente: boolean | null;
 }
 
+/** Una persona in lista d'attesa per un turno pieno; i contatti sono gli indirizzi a cui va l'avviso. */
+export interface VoceAttesa {
+  id: string;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
+  eta: number | null;
+  aggiuntaIl: string;
+  note: string | null;
+  avvisataIl: string | null;
+  posizione: number;
+  contatti: string[];
+}
+/** Un turno del corso con i posti: liberi negativi = soprannumero; liberoDal = primo giorno con un posto (null = mai). */
+export interface TurnoPosti {
+  lezioneId: string;
+  corsoId: string;
+  corso: string;
+  etaDa: number | null;
+  etaA: number | null;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  posti: number | null;
+  occupati: number;
+  liberi: number | null;
+  liberoDal: string | null;
+  inAttesa: number;
+  attesa: VoceAttesa[];
+}
+export interface PaginaAttesa {
+  oggi: string;
+  societa: string;
+  turni: TurnoPosti[];
+}
+export interface InAttesa {
+  attesaId: string;
+  lezioneId: string;
+  corsoId: string;
+  corso: string;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  aggiuntaIl: string;
+  posizione: number;
+  liberi: number | null;
+}
+export interface CambioFatto {
+  iscrizione: Iscritto;
+  corsoPrima: string;
+  corsoDopo: string;
+  corsoCambiato: boolean;
+}
+type Chi = { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null } };
+
 export interface ElencoIscritti {
   lezioneId: string;
   corsoId: string;
@@ -587,6 +643,16 @@ export const api = {
   iscrivi: (lezioneId: string, i: { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null }; dal: string; forza?: boolean }) =>
     richiesta<Iscritto>('POST', `/api/lezioni/${lezioneId}/iscritti`, i),
   terminaIscrizione: (id: string, al: string) => richiesta<void>('POST', `/api/iscrizioni/${id}/termina`, { al }),
+  cambiaTurno: (iscrizioneId: string, c: { lezioneId: string; dal: string; forza?: boolean }) =>
+    richiesta<CambioFatto>('POST', `/api/iscrizioni/${iscrizioneId}/cambia`, c),
+  paginaAttesa: () => richiesta<PaginaAttesa>('GET', '/api/attesa'),
+  turniDelCorso: (corsoId: string) => richiesta<TurnoPosti[]>('GET', `/api/corsi/${corsoId}/turni`),
+  attesaDelTurno: (lezioneId: string) => richiesta<VoceAttesa[]>('GET', `/api/lezioni/${lezioneId}/attesa`),
+  aggiungiAttesa: (lezioneId: string, a: Chi & { note?: string | null }) => richiesta<VoceAttesa>('POST', `/api/lezioni/${lezioneId}/attesa`, a),
+  iscriviDaAttesa: (attesaId: string, i: { dal: string; forza?: boolean }) => richiesta<Iscritto>('POST', `/api/attesa/${attesaId}/iscrivi`, i),
+  rinunciaAttesa: (attesaId: string) => richiesta<void>('POST', `/api/attesa/${attesaId}/rinuncia`, {}),
+  avvisaAttesa: (attesaId: string, a: { oggetto: string; testo: string }) =>
+    richiesta<{ emailId: string; stato: StatoEmail; errore: string | null }>('POST', `/api/attesa/${attesaId}/avvisa`, a),
   segnaPresenze: (lezioneId: string, data: string, presenze: { personaId: string; presente: boolean }[]) =>
     richiesta<ElencoIscritti>('PUT', `/api/lezioni/${lezioneId}/presenze`, { data, presenze }),
   cercaPersone: (q: string) => richiesta<PersonaScheda[]>('GET', `/api/persone?q=${encodeURIComponent(q)}`),
@@ -837,6 +903,7 @@ export interface SchedaCliente {
   tesseramenti: Tesseramento[];
   abbonamenti: Abbonamento[];
   turni: TurnoFrequentato[];
+  attesa: InAttesa[];
   stagioneProposta: { stagione: string; dal: string; al: string; importo: number };
 }
 

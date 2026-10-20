@@ -18,3 +18,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0012](0012-account.md) | Account dello staff: password temporanea, disattivazione immediata | accettata |
 | [0013](0013-scadenze-e-promemoria.md) | Scadenze per la segreteria e promemoria via email | accettata |
 | [0014](0014-scheda-completa.md) | Scheda cliente completa: anagrafica, tutori e famiglia, consensi | accettata |
+| [0015](0015-lista-attesa-e-cambio-turno.md) | Lista d'attesa dei turni pieni e cambio di turno | accettata |

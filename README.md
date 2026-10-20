@@ -80,6 +80,10 @@ Scheda cliente completa (ADR 0014): anagrafica con codice fiscale (anche nella r
 comunicazioni» e «può venire a prenderlo», fratelli, consensi privacy. Prova Tommaso Neri (`D0000002`): la madre
 Paola riceve i promemoria e la sorella Sara compare tra i fratelli.
 
+Liste d'attesa dei turni pieni e cambio di turno (ADR 0015): pagina «Liste d'attesa» (in un turno si libera un posto
+tra 6 giorni: avvisa il primo e iscrivilo), lista d'attesa anche negli iscritti del piano vasca e nella scheda
+(Sara Neri è prima in lista); dalla scheda si cambia turno scegliendo tra i turni del corso con i posti.
+
 La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Programma per Windows
@@ -159,6 +163,9 @@ La CI (GitHub Actions) esegue entrambi a ogni push.
 | PUT | `/api/clienti/{id}/anagrafica` | anagrafica (codice fiscale controllato e unico) |
 | POST · PUT | `/api/clienti/{id}/tutori` · `/api/clienti/legami/{id}` · `/legami/{id}/chiudi` | tutori: aggiungi (esistente o nuovo), modifica, togli |
 | POST | `/api/clienti/{id}/consensi` · `/api/clienti/consensi/{id}/revoca` | consensi privacy |
+| GET | `/api/attesa` · `/api/corsi/{id}/turni` · `/api/lezioni/{id}/attesa` | liste d'attesa; turni di un corso con posti e attesa |
+| POST | `/api/lezioni/{id}/attesa` · `/api/attesa/{id}/iscrivi` · `/rinuncia` · `/avvisa` | lista d'attesa: aggiungi, iscrivi, togli, avvisa la famiglia |
+| POST | `/api/iscrizioni/{id}/cambia` `{lezioneId, dal, forza}` | cambio di turno (anche di corso) da una data |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |

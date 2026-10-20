@@ -42,6 +42,11 @@ class IscrizioniService {
 
     record Termine(LocalDate al) {}
 
+    /** Passa a un altro turno (anche di un altro corso) da una data: l'iscrizione attuale finisce il giorno prima. */
+    record Cambio(UUID lezioneId, LocalDate dal, Boolean forza) {}
+
+    record CambioFatto(IscrittoDto iscrizione, String corsoPrima, String corsoDopo, boolean corsoCambiato) {}
+
     record PresenzaInput(UUID personaId, boolean presente) {}
 
     record Presenze(LocalDate data, List<PresenzaInput> presenze) {}
@@ -51,8 +56,13 @@ class IscrizioniService {
     private final PresenzaRepository presenze;
     private final Persone persone;
     private final AccessoPiano accesso;
+    private final AttesaRepository attese;
+    private final java.time.Clock orologio;
 
-    IscrizioniService(LezioneRepository lezioni, IscrizioneRepository iscrizioni, PresenzaRepository presenze, Persone persone, AccessoPiano accesso) {
+    IscrizioniService(LezioneRepository lezioni, IscrizioneRepository iscrizioni, PresenzaRepository presenze, Persone persone, AccessoPiano accesso,
+                      AttesaRepository attese, java.time.Clock orologio) {
+        this.attese = attese;
+        this.orologio = orologio;
         this.lezioni = lezioni;
         this.iscrizioni = iscrizioni;
         this.presenze = presenze;
@@ -93,11 +103,7 @@ class IscrizioniService {
         if (!accesso.gestisceIscrizioni(u, impianto(l))) throw new AccessDeniedException("Per iscrivere serve il permesso «Iscrizioni».");
         LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(FUSO);
         if (l.getValidaAl() != null && dal.isAfter(l.getValidaAl())) throw new IllegalArgumentException("Il turno finisce prima di quella data.");
-        if (l.getPosti() != null && !Boolean.TRUE.equals(in.forza())) {
-            long occupati = iscrizioni.findByLezioneIdOrderByDal(lezioneId).stream().filter(i -> i.attivaIl(dal)).count();
-            if (occupati >= l.getPosti())
-                throw new Conflitto("Il turno è al completo (" + occupati + "/" + l.getPosti() + "). Per iscrivere comunque, conferma il soprannumero.");
-        }
+        controllaPosti(l, dal, in.forza());
         Persone.PersonaScheda p;
         if (in.personaId() != null) {
             p = persone.schede(List.of(in.personaId())).get(in.personaId());
@@ -106,6 +112,7 @@ class IscrizioniService {
             p = persone.crea(in.nuovaPersona().nome(), in.nuovaPersona().cognome(), in.nuovaPersona().dataNascita());
         } else throw new IllegalArgumentException("Scegli chi iscrivere.");
         Iscrizione i = iscrizioni.saveAndFlush(new Iscrizione(lezioneId, p.id(), dal));
+        chiudiAttesa(lezioneId, p.id());
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), dal).getYears();
         return new IscrittoDto(i.getId(), p.id(), p.nome(), p.cognome(), p.dataNascita(), eta, i.getDal(), null, null);
     }
@@ -117,6 +124,48 @@ class IscrizioniService {
         Lezione l = lezione(i.getLezioneId());
         if (!accesso.gestisceIscrizioni(u, impianto(l))) throw new AccessDeniedException("Per iscrivere serve il permesso «Iscrizioni».");
         i.termina(in.al() != null ? in.al() : LocalDate.now(FUSO));
+    }
+
+    @Transactional
+    CambioFatto cambia(Utente u, UUID iscrizioneId, Cambio in) {
+        Iscrizione vecchia = iscrizioni.findById(iscrizioneId).orElseThrow(() -> new NonTrovato("Iscrizione non trovata."));
+        Lezione da = lezione(vecchia.getLezioneId());
+        if (in.lezioneId() == null) throw new IllegalArgumentException("Scegli il nuovo turno.");
+        if (in.lezioneId().equals(da.getId())) throw new IllegalArgumentException("È già iscritto a questo turno.");
+        Lezione a = lezione(in.lezioneId());
+        if (!accesso.gestisceIscrizioni(u, impianto(da)) || !accesso.gestisceIscrizioni(u, impianto(a)))
+            throw new AccessDeniedException("Per cambiare turno serve il permesso «Iscrizioni».");
+        LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(FUSO);
+        if (vecchia.getAl() != null && vecchia.getAl().isBefore(dal)) throw new IllegalArgumentException("L'iscrizione attuale finisce prima di quella data.");
+        if (a.getValidaAl() != null && dal.isAfter(a.getValidaAl())) throw new IllegalArgumentException("Il nuovo turno finisce prima di quella data.");
+        controllaPosti(a, dal, in.forza());
+        LocalDate fine = vecchia.getAl();
+        // non ancora iniziata: si sostituisce; altrimenti l'ultimo giorno nel vecchio turno è il giorno prima
+        if (!dal.isAfter(vecchia.getDal())) iscrizioni.delete(vecchia);
+        else vecchia.termina(dal.minusDays(1));
+        iscrizioni.flush();
+        Iscrizione nuova = new Iscrizione(a.getId(), vecchia.getPersonaId(), dal);
+        if (fine != null) nuova.termina(fine);
+        iscrizioni.saveAndFlush(nuova);
+        chiudiAttesa(a.getId(), vecchia.getPersonaId());
+        Persone.PersonaScheda p = persone.schede(List.of(vecchia.getPersonaId())).get(vecchia.getPersonaId());
+        Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), dal).getYears();
+        var dto = new IscrittoDto(nuova.getId(), p.id(), p.nome(), p.cognome(), p.dataNascita(), eta, nuova.getDal(), nuova.getAl(), null);
+        return new CambioFatto(dto, da.getCorso().getNome(), a.getCorso().getNome(), !da.getCorso().getId().equals(a.getCorso().getId()));
+    }
+
+    /** Oltre i posti si iscrive solo confermando il soprannumero (la lista d'attesa è l'alternativa). */
+    private void controllaPosti(Lezione l, LocalDate dal, Boolean forza) {
+        if (l.getPosti() == null || Boolean.TRUE.equals(forza)) return;
+        long occupati = iscrizioni.findByLezioneIdOrderByDal(l.getId()).stream().filter(i -> i.attivaIl(dal)).count();
+        if (occupati >= l.getPosti())
+            throw new Conflitto("Il turno è al completo (" + occupati + "/" + l.getPosti() + "). Per iscrivere comunque, conferma il soprannumero; "
+                + "altrimenti mettilo in lista d'attesa.");
+    }
+
+    /** Chi viene iscritto esce dalla lista d'attesa di quel turno. */
+    private void chiudiAttesa(UUID lezioneId, UUID personaId) {
+        attese.inAttesa(lezioneId, personaId).ifPresent(x -> x.chiudi(Attesa.Stato.ISCRITTA, orologio.instant()));
     }
 
     @Transactional

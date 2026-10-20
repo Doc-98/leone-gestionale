@@ -28,14 +28,28 @@ public class Frequenze {
 
     public record CorsoBreve(UUID id, String nome, UUID impiantoId, boolean attivo) {}
 
+    /** Un turno in cui la persona è in lista d'attesa, con la posizione e i posti liberi oggi (null se senza limite). */
+    public record InAttesa(UUID attesaId, UUID lezioneId, UUID corsoId, String corso, int giornoSettimana, LocalTime inizio, LocalTime fine,
+                           java.time.Instant aggiuntaIl, int posizione, Integer liberi) {}
+
     private final IscrizioneRepository iscrizioni;
     private final LezioneRepository lezioni;
     private final CorsoRepository corsi;
 
-    Frequenze(IscrizioneRepository iscrizioni, LezioneRepository lezioni, CorsoRepository corsi) {
+    private final AttesaService attesa;
+
+    Frequenze(IscrizioneRepository iscrizioni, LezioneRepository lezioni, CorsoRepository corsi, AttesaService attesa) {
+        this.attesa = attesa;
         this.iscrizioni = iscrizioni;
         this.lezioni = lezioni;
         this.corsi = corsi;
+    }
+
+    /** Le liste d'attesa in cui è la persona. */
+    @Transactional(readOnly = true)
+    public List<InAttesa> attesaDi(UUID personaId) {
+        return attesa.attesaDi(personaId).stream().map(a -> new InAttesa(a.id(), a.lezioneId(), a.corsoId(), a.corso(), a.giornoSettimana(), a.inizio(),
+            a.fine(), a.aggiuntaIl(), a.posizione(), a.liberi())).toList();
     }
 
     /** Le iscrizioni ancora attive alla data o che iniziano dopo. */

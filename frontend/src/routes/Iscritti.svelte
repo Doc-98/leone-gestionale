@@ -1,11 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { api, ErroreApi, messaggioErrore, type ElencoIscritti, type PersonaScheda } from '../lib/api';
+  import { api, ErroreApi, messaggioErrore, type ElencoIscritti, type PersonaScheda, type VoceAttesa } from '../lib/api';
+  import { dataBreve, dataDi } from '../lib/date';
   import { giornoEsteso, iso, ora } from '../lib/date';
 
   /**
    * Gli iscritti a un turno del corso in una data: per l'istruttore il registro delle presenze, per la segreteria
-   * le iscrizioni (nuove, soprannumero, ritiri). Si mostrano solo nome ed età: niente contatti.
+   * le iscrizioni (nuove, soprannumero, lista d'attesa, ritiri). Si mostrano solo nome ed età: niente contatti.
    */
   let { lezioneId, data, cambiato }: { lezioneId: string; data: string; cambiato?: () => void } = $props();
 
@@ -21,7 +22,9 @@
   let cerca = $state('');
   let trovate = $state<PersonaScheda[]>([]);
   let nuova = $state({ nome: '', cognome: '', dataNascita: '' });
-  let completo = $state<null | (() => Promise<void>)>(null);
+  let completo = $state<null | { soprannumero: () => Promise<void>; attesa?: () => Promise<void> }>(null);
+  let attesa = $state<VoceAttesa[]>([]);
+  let togli = $state('');
 
   const giorno = untrack(() => data);
   const oggi = iso(new Date());
@@ -30,6 +33,7 @@
     try {
       elenco = await api.iscritti(lezioneId, giorno);
       presenze = Object.fromEntries(elenco.iscritti.filter((i) => i.presente != null).map((i) => [i.personaId, i.presente!]));
+      attesa = elenco.puoIscrivere ? await api.attesaDelTurno(lezioneId) : [];
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco a caricare gli iscritti.');
     }
@@ -73,23 +77,71 @@
     }
   }
 
-  async function iscrivi(chi: { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null } }, forza = false) {
+  type Chi = { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null } };
+  const dal = () => (giorno < oggi ? oggi : giorno);
+
+  function chiudiModulo() {
+    aperta = false;
+    cerca = '';
+    trovate = [];
+    nuova = { nome: '', cognome: '', dataNascita: '' };
+  }
+
+  async function iscrivi(chi: Chi, forza = false) {
     errore = '';
     completo = null;
     try {
-      const i = await api.iscrivi(lezioneId, { ...chi, dal: giorno < oggi ? oggi : giorno, forza });
+      const i = await api.iscrivi(lezioneId, { ...chi, dal: dal(), forza });
       messaggio = `${i.nome} ${i.cognome} iscritto${forza ? ' in soprannumero' : ''}.`;
-      aperta = false;
-      cerca = '';
-      trovate = [];
-      nuova = { nome: '', cognome: '', dataNascita: '' };
+      chiudiModulo();
       await carica();
       cambiato?.();
     } catch (e) {
       if (e instanceof ErroreApi && e.status === 409 && e.message.includes('al completo')) {
         errore = e.message;
-        completo = () => iscrivi(chi, true);
+        completo = { soprannumero: () => iscrivi(chi, true), attesa: () => inAttesa(chi) };
       } else errore = messaggioErrore(e);
+    }
+  }
+
+  async function inAttesa(chi: Chi) {
+    errore = '';
+    completo = null;
+    try {
+      const v = await api.aggiungiAttesa(lezioneId, chi);
+      messaggio = `${v.nome} ${v.cognome} in lista d'attesa (${v.posizione}° in ordine di arrivo).`;
+      chiudiModulo();
+      await carica();
+    } catch (e) {
+      errore = messaggioErrore(e);
+    }
+  }
+
+  async function daAttesa(v: VoceAttesa, forza = false) {
+    errore = '';
+    completo = null;
+    try {
+      await api.iscriviDaAttesa(v.id, { dal: dal(), forza });
+      messaggio = `${v.nome} ${v.cognome} iscritto dalla lista d'attesa${forza ? ' in soprannumero' : ''}.`;
+      await carica();
+      cambiato?.();
+    } catch (e) {
+      if (e instanceof ErroreApi && e.status === 409 && e.message.includes('al completo')) {
+        errore = e.message;
+        completo = { soprannumero: () => daAttesa(v, true) };
+      } else errore = messaggioErrore(e);
+    }
+  }
+
+  async function rinuncia(v: VoceAttesa) {
+    if (togli !== v.id) return (togli = v.id);
+    togli = '';
+    try {
+      await api.rinunciaAttesa(v.id);
+      messaggio = `${v.nome} ${v.cognome} tolto dalla lista d'attesa.`;
+      await carica();
+    } catch (e) {
+      errore = messaggioErrore(e);
     }
   }
 
@@ -124,7 +176,12 @@
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#if errore}
     <p class="msg err" role="alert">{errore}</p>
-    {#if completo}<button class="btn btn-secondary" onclick={completo}>Iscrivi comunque in soprannumero</button>{/if}
+    {#if completo}
+      <div class="row">
+        {#if completo.attesa}<button class="btn btn-primary grow" onclick={completo.attesa}>Metti in lista d'attesa</button>{/if}
+        <button class="btn btn-secondary grow" onclick={completo.soprannumero}>Iscrivi comunque in soprannumero</button>
+      </div>
+    {/if}
   {/if}
 
   <ul class="card elenco">
@@ -158,6 +215,26 @@
     </div>
   {/if}
 
+  {#if elenco.puoIscrivere && attesa.length}
+    <section class="attesa">
+      <div class="lbl">Lista d'attesa · {attesa.length}</div>
+      <ul class="card elenco">
+        {#each attesa as v (v.id)}
+          <li>
+            <span class="pos m">{v.posizione}</span>
+            <span class="chi">
+              <span class="nome">{v.cognome} {v.nome}</span>
+              <span class="muted small">{eta(v.eta)}{v.eta != null ? ' · ' : ''}dal {dataBreve(dataDi(v.aggiuntaIl))}{v.avvisataIl ? ` · avvisato il ${dataBreve(dataDi(v.avvisataIl))}` : ''}{v.note ? ` · ${v.note}` : ''}</span>
+            </span>
+            <button class="link small" onclick={() => daAttesa(v)}>Iscrivi</button>
+            <button class="link small ritira" onclick={() => rinuncia(v)}>{togli === v.id ? 'Conferma' : 'Togli'}</button>
+          </li>
+        {/each}
+      </ul>
+      <a class="small" href="#/attesa">Tutte le liste d'attesa e gli avvisi alle famiglie</a>
+    </section>
+  {/if}
+
   {#if elenco.puoIscrivere}
     {#if !aperta}
       <button class="btn btn-secondary" onclick={() => ((aperta = true), (messaggio = ''))}>Iscrivi qualcuno…</button>
@@ -179,7 +256,11 @@
         <label class="field"><span class="lbl">Data di nascita</span><input class="inp" type="date" bind:value={nuova.dataNascita} max={oggi} /></label>
         <button class="btn btn-primary" disabled={!nuova.nome.trim() || !nuova.cognome.trim()}
                 onclick={() => iscrivi({ nuovaPersona: { nome: nuova.nome, cognome: nuova.cognome, dataNascita: nuova.dataNascita || null } })}>Iscrivi</button>
-        <p class="muted small nomargin">La scheda completa (contatti, tutori, certificato) arriverà con la parte clienti.</p>
+        {#if pieno}
+          <button class="btn btn-secondary" disabled={!nuova.nome.trim() || !nuova.cognome.trim()}
+                  onclick={() => inAttesa({ nuovaPersona: { nome: nuova.nome, cognome: nuova.cognome, dataNascita: nuova.dataNascita || null } })}>Metti in lista d'attesa</button>
+        {/if}
+        <p class="muted small nomargin">Contatti, tutori e certificato si completano poi dalla scheda in «Clienti».</p>
       </div>
     {/if}
   {/if}
@@ -207,4 +288,7 @@
   .trovata { display: flex; justify-content: space-between; gap: var(--space-8); padding: var(--space-8) var(--space-10); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
   .trovata:hover { border-color: var(--cloro); }
   .sep { margin-top: var(--space-6); }
+  .attesa { display: flex; flex-direction: column; gap: var(--space-6); }
+  .pos { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-sunken); display: inline-flex; align-items: center; justify-content: center;
+    font-size: var(--text-sm); font-weight: 700; flex-shrink: 0; }
 </style>

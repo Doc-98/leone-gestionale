@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 20 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello, scheda cliente completa, scadenze e promemoria fatti (ADR 0009–0014); mancano i pagamenti.
+Stato: 20 ottobre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello, scheda cliente completa, scadenze e promemoria, liste d'attesa fatti (ADR 0009–0015); mancano i pagamenti.
 
 ## Obiettivo
 
@@ -197,6 +197,7 @@ erDiagram
 - `fascia_oraria`: per vasca e giorno della settimana, orario libero e assetto delle corsie (5/6), validità; niente
   fasce accavallate (vincolo nel database).
 - `lezione.posti`; `iscrizione` (persona ↔ turno del corso, dal/al, senza doppioni); `presenza` (turno + data + persona).
+- `attesa`: lista d'attesa di un turno pieno, in ordine di arrivo, con nota, avviso e stato (ADR 0015).
 - Il piano di un periodo si calcola al momento (occorrenze con stato, sovrapposizioni, iscritti/posti).
 
 **Clienti**
@@ -248,6 +249,7 @@ erDiagram
    provvisorio, sospensione degli abbonamenti. *(fatto — ADR 0011)*
    Account dello staff (ADR 0012); pagina Scadenze e promemoria email automatici (ADR 0013).
    Scheda cliente completa: anagrafica con codice fiscale, tutori e fratelli, consensi privacy. *(fatto — ADR 0014)*
+   Liste d'attesa dei turni pieni con avviso alle famiglie, cambio di turno in un passaggio. *(fatto — ADR 0015)*
 4. **Poi** – notifiche, altri sport, area per tutori/clienti, importazione dal vecchio gestionale.
 
 ## Domande aperte

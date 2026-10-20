@@ -14,7 +14,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** La scheda cliente per la segreteria: certificati, tesseramenti, abbonamenti, turni frequentati. */
+/** La scheda cliente per la segreteria: certificati, tesseramenti, abbonamenti, turni frequentati e liste d'attesa. */
 @Service
 class SchedaClientiService {
 
@@ -41,7 +41,7 @@ class SchedaClientiService {
 
     record Scheda(PersonaDto persona, Persone.Anagrafica anagrafica, Persone.Contatti contatti, Famiglia famiglia, List<ConsensoDto> consensi,
                   List<CertificatoDto> certificati, List<TesseramentoDto> tesseramenti,
-                  List<AbbonamentoDto> abbonamenti, List<Frequenze.TurnoFrequentato> turni, StagioneDto stagioneProposta,
+                  List<AbbonamentoDto> abbonamenti, List<Frequenze.TurnoFrequentato> turni, List<Frequenze.InAttesa> attesa, StagioneDto stagioneProposta,
                   List<it.leonexiii.gestionale.notifiche.Posta.EmailBreve> email) {}
 
     record NuoviContatti(String email, String telefono) {}
@@ -111,7 +111,7 @@ class SchedaClientiService {
             c.getDatoIl(), c.getValidoFino(), c.isEmail(), c.isSms(), c.isCartaceo(), c.getRevocatoIl(), c.validoIl(oggi))).toList();
         return new Scheda(new PersonaDto(p.id(), p.nome(), p.cognome(), p.dataNascita(), eta), persone.anagrafica(personaId),
             persone.contatti(List.of(personaId)).get(personaId), famiglia, cons,
-            cert, tess, abb, frequenze.turniDi(personaId, oggi), new StagioneDto(s.nome(), s.dal(), s.al(), s.importo()), posta.diPersona(personaId, 10));
+            cert, tess, abb, frequenze.turniDi(personaId, oggi), frequenze.attesaDi(personaId), new StagioneDto(s.nome(), s.dal(), s.al(), s.importo()), posta.diPersona(personaId, 10));
     }
 
     @Transactional
