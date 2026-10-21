@@ -48,14 +48,14 @@ infra/      docker-compose per il database di sviluppo
 
 ## Avviare in locale
 
-Servono Java 21, Maven, Node 22 e Docker.
+Servono Java 21, Maven 3.9 (il `4.0.0` nel `pom.xml` è la versione del formato del file, non di Maven), Node 22 e Docker.
 
 ```bash
 # 1. Database
 docker compose -f infra/docker-compose.yml up -d
 
 # 2. Backend con i dati demo (http://localhost:8080)
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=demo
+cd backend && mvn spring-boot:run "-Dspring-boot.run.profiles=demo"   # le virgolette servono in PowerShell
 
 # 3. Frontend (http://localhost:5173, le chiamate /api vanno al backend)
 cd frontend && npm install && npm run dev
