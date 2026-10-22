@@ -3,5 +3,5 @@
   "identifier": "avvio",
   "description": "La pagina di avvio inclusa nel programma: sceglie il server e lo apre.",
   "windows": ["principale"],
-  "permissions": ["core:default", "allow-server", "allow-imposta-server"]
+  "permissions": ["core:default", "allow-server", "allow-imposta-server", "allow-cerca-aggiornamento", "allow-installa-aggiornamento"]
 }

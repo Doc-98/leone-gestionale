@@ -45,6 +45,15 @@
         <p id="stato" class="muted">Controllo il server della società.</p>
         <p id="errore" class="err" role="alert" hidden></p>
 
+        <div id="aggiornamento" hidden>
+          <p id="agg-testo"></p>
+          <p id="agg-note" class="muted" style="margin-top: 6px; white-space: pre-line" hidden></p>
+          <div class="azioni" style="margin-top: 16px">
+            <button id="dopo" type="button">Più tardi</button>
+            <button class="primario" id="aggiorna" type="button">Aggiorna ora</button>
+          </div>
+        </div>
+
         <form id="modulo" hidden>
           <label>
             <span class="lbl">Indirizzo del server</span>
@@ -88,6 +97,37 @@
         $('indirizzo').focus();
       }
 
+      /** Cerca una versione nuova del programma (al massimo qualche secondo: senza internet si va avanti). */
+      async function nuovaVersione() {
+        try {
+          return await Promise.race([invoke('cerca_aggiornamento'), new Promise((r) => setTimeout(() => r(null), 4000))]);
+        } catch {
+          return null;
+        }
+      }
+
+      function proponi(agg, poi) {
+        $('titolo').textContent = 'Aggiornamento disponibile';
+        $('stato').hidden = true;
+        $('modulo').hidden = true;
+        $('aggiornamento').hidden = false;
+        $('agg-testo').textContent = `È disponibile la versione ${agg.versione} del programma (ora hai la ${agg.attuale}).`;
+        $('agg-note').hidden = !agg.note;
+        $('agg-note').textContent = agg.note || '';
+        $('dopo').onclick = () => { $('aggiornamento').hidden = true; poi(); };
+        $('aggiorna').onclick = async () => {
+          $('aggiorna').disabled = $('dopo').disabled = true;
+          $('agg-testo').textContent = 'Scarico e installo l\'aggiornamento: il programma si chiuderà e si riaprirà da solo.';
+          try {
+            await invoke('installa_aggiornamento');
+          } catch (err) {
+            $('errore').hidden = false;
+            $('errore').textContent = String(err);
+            $('aggiorna').disabled = $('dopo').disabled = false;
+          }
+        };
+      }
+
       async function apri(url) {
         $('titolo').textContent = 'Collegamento al server…';
         $('stato').hidden = false;
@@ -115,9 +155,16 @@
       (async () => {
         const salvato = await invoke('server');
         const cambia = new URLSearchParams(location.search).has('cambia');
-        if (!salvato) chiedi('Benvenuto', '', '');
-        else if (cambia) chiedi('Cambia server', '', salvato);
-        else apri(salvato);
+        const continua = () => {
+          if (!salvato) chiedi('Benvenuto', '', '');
+          else if (cambia) chiedi('Cambia server', '', salvato);
+          else apri(salvato);
+        };
+        if (cambia) return continua();
+        $('stato').textContent = 'Controllo gli aggiornamenti del programma.';
+        const agg = await nuovaVersione();
+        if (agg) proponi(agg, continua);
+        else continua();
       })();
     </script>
   </body>

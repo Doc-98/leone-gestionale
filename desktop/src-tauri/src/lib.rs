@@ -7,6 +7,9 @@
 //! La parte nativa espone pochi comandi, chiamabili solo dalla pagina di avvio e dal server configurato
 //! (vedi ADR 0006). Lettore NFC e stampa arriveranno qui, dietro gli stessi comandi che il frontend
 //! usa tramite `lib/dispositivi.ts`.
+//!
+//! Aggiornamenti (ADR 0016): il programma controlla le nuove versioni pubblicate dalla CI su GitHub Releases
+//! (`latest.json`, firmato), le scarica e le installa. L'interfaccia invece si aggiorna già da sola dal server.
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -58,7 +61,9 @@ fn autorizza(app: &AppHandle, server: &Url) -> Result<(), String> {
             .window("principale")
             .permission("core:default")
             .permission("allow-informazioni")
-            .permission("allow-torna-all-avvio"),
+            .permission("allow-torna-all-avvio")
+            .permission("allow-cerca-aggiornamento")
+            .permission("allow-installa-aggiornamento"),
     )
     .map_err(|e| e.to_string())
 }
@@ -98,9 +103,41 @@ fn informazioni(app: AppHandle) -> serde_json::Value {
     })
 }
 
+#[derive(Serialize)]
+struct Aggiornamento {
+    versione: String,
+    attuale: String,
+    note: Option<String>,
+}
+
+/// C'è una versione nuova del programma? `None` se è già aggiornato.
+#[tauri::command]
+async fn cerca_aggiornamento(app: AppHandle) -> Result<Option<Aggiornamento>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let trovato = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| testo_errore(&e.to_string()))?;
+    Ok(trovato.map(|u| Aggiornamento { versione: u.version.clone(), attuale: u.current_version.clone(), note: u.body.clone() }))
+}
+
+/// Scarica e installa la versione nuova, poi riavvia (su Windows l'installer chiude il programma da sé).
+#[tauri::command]
+async fn installa_aggiornamento(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let trovato = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| testo_errore(&e.to_string()))?;
+    let Some(nuovo) = trovato else {
+        return Err("Il programma è già aggiornato.".into());
+    };
+    nuovo.download_and_install(|_, _| {}, || {}).await.map_err(|e| testo_errore(&e.to_string()))?;
+    app.restart();
+}
+
+fn testo_errore(e: &str) -> String {
+    format!("Aggiornamento non riuscito: {e}. Controlla la connessione a internet e riprova.")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             if let Some(s) = leggi(app.handle()).server {
                 if let Ok(url) = origine(&s) {
@@ -109,7 +146,14 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![server, imposta_server, torna_all_avvio, informazioni])
+        .invoke_handler(tauri::generate_handler![
+            server,
+            imposta_server,
+            torna_all_avvio,
+            informazioni,
+            cerca_aggiornamento,
+            installa_aggiornamento
+        ])
         .run(tauri::generate_context!())
         .expect("errore all'avvio di Leone Gestionale");
 }

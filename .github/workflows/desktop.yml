@@ -1,16 +1,24 @@
 name: Programma Windows
 
-# Costruisce l'installer del programma per Windows (Tauri) su un runner Windows.
-# Gli installer (.msi e .exe) si scaricano dagli «Artifacts» dell'esecuzione.
+# Costruisce l'installer del programma per Windows (Tauri) su un runner Windows, a ogni modifica di desktop/.
+# Con la chiave di firma (segreti TAURI_SIGNING_PRIVATE_KEY e TAURI_SIGNING_PRIVATE_KEY_PASSWORD) pubblica anche una
+# release «desktop-v0.2.N» con gli installer e latest.json: i programmi installati la trovano e si aggiornano da soli
+# (ADR 0016). Senza chiave costruisce comunque gli installer, scaricabili dagli «Artifacts» dell'esecuzione.
 on:
   push:
     branches: [main]
     paths: ['desktop/**', '.github/workflows/desktop.yml']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     defaults:
       run:
         working-directory: desktop
@@ -26,10 +34,46 @@ jobs:
         with:
           workspaces: desktop/src-tauri
       - run: npm ci
-      - run: npx tauri build
+
+      # Ogni costruzione ha una versione più alta della precedente (0.2.<numero dell'esecuzione>): l'aggiornamento
+      # parte solo verso versioni più alte. Gli artefatti per l'aggiornamento si firmano solo se c'è la chiave.
+      - name: Versione
+        shell: bash
+        run: |
+          VERSIONE="0.2.${{ github.run_number }}"
+          echo "VERSIONE=$VERSIONE" >> "$GITHUB_ENV"
+          echo "NOTE=$(git log -1 --format=%s)" >> "$GITHUB_ENV"
+          node -e "
+            const fs = require('fs'), f = 'src-tauri/tauri.conf.json', c = JSON.parse(fs.readFileSync(f, 'utf8'));
+            c.version = process.argv[1];
+            c.bundle.createUpdaterArtifacts = !!process.env.TAURI_SIGNING_PRIVATE_KEY;
+            fs.writeFileSync(f, JSON.stringify(c, null, 2));
+          " "$VERSIONE"
+
+      - name: Costruisci e pubblica la release
+        if: github.ref == 'refs/heads/main' && env.TAURI_SIGNING_PRIVATE_KEY != ''
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: desktop-v__VERSION__
+          releaseName: Programma per Windows __VERSION__
+          releaseBody: |
+            ${{ env.NOTE }}
+
+            Prima installazione: scarica il file .msi qui sotto e aprilo. Chi ha già il programma lo aggiorna da lì.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+      - name: Costruisci (senza chiave di firma, quindi senza aggiornamento automatico)
+        if: github.ref != 'refs/heads/main' || env.TAURI_SIGNING_PRIVATE_KEY == ''
+        run: npx tauri build
+
       - uses: actions/upload-artifact@v4
         with:
-          name: leone-gestionale-windows
+          name: leone-gestionale-windows-${{ env.VERSIONE }}
           path: |
             desktop/src-tauri/target/release/bundle/msi/*.msi
             desktop/src-tauri/target/release/bundle/nsis/*.exe

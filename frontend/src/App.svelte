@@ -3,7 +3,9 @@
   import { api } from './lib/api';
   import { sessione } from './lib/sessione.svelte';
   import { schermo } from './lib/schermo.svelte';
-  import { cambiaServer, infoProgramma, type InfoProgramma } from './lib/dispositivi';
+  import {
+    cambiaServer, cercaAggiornamento, infoProgramma, installaAggiornamento, type AggiornamentoProgramma, type InfoProgramma,
+  } from './lib/dispositivi';
   import Login from './routes/Login.svelte';
   import Turni from './routes/Turni.svelte';
   import Richieste from './routes/Richieste.svelte';
@@ -93,10 +95,35 @@
   let scheda = $state<Scheda>(leggiScheda());
   let daApprovare = $state(0);
   let programma = $state<InfoProgramma | null>(null);
+  // Programma per Windows: versione nuova disponibile e stato del controllo («Cerca aggiornamenti»)
+  let aggiornamento = $state<AggiornamentoProgramma | null>(null);
+  let statoAggiornamento = $state('');
+
+  async function controllaAggiornamento(aMano: boolean) {
+    statoAggiornamento = aMano ? 'Controllo…' : '';
+    try {
+      aggiornamento = await cercaAggiornamento();
+      if (aMano) statoAggiornamento = aggiornamento ? '' : 'Il programma è aggiornato.';
+    } catch (e) {
+      if (aMano) statoAggiornamento = String(e);
+    }
+  }
+
+  async function aggiorna() {
+    statoAggiornamento = 'Scarico e installo: il programma si chiuderà e si riaprirà da solo.';
+    try {
+      await installaAggiornamento();
+    } catch (e) {
+      statoAggiornamento = String(e);
+    }
+  }
 
   onMount(() => {
     sessione.carica();
-    infoProgramma().then((i) => (programma = i));
+    infoProgramma().then((i) => {
+      programma = i;
+      if (i) controllaAggiornamento(false);
+    });
     const f = () => (scheda = leggiScheda());
     window.addEventListener('hashchange', f);
     return () => window.removeEventListener('hashchange', f);
@@ -196,12 +223,21 @@
           {#if programma}
             <div class="programma muted">Programma {programma.versione} · {location.host}</div>
             <button class="link small" onclick={cambiaServer}>Cambia server</button>
+            <button class="link small" onclick={() => controllaAggiornamento(true)}>Cerca aggiornamenti</button>
+            {#if statoAggiornamento && !aggiornamento}<div class="programma muted">{statoAggiornamento}</div>{/if}
           {/if}
         </div>
       </aside>
     {/if}
 
     <main class:larga={schermo.larga && corrente.larga} class:con-nav={!schermo.larga}>
+      {#if aggiornamento}
+        <div class="aggiornamento" role="status">
+          <span class="grow">{statoAggiornamento || `È disponibile la versione ${aggiornamento.versione} del programma (ora hai la ${aggiornamento.attuale}).`}</span>
+          <button class="btn btn-primary" onclick={aggiorna}>Aggiorna e riavvia</button>
+          <button class="link small" onclick={() => (aggiornamento = null)}>Più tardi</button>
+        </div>
+      {/if}
       <header class="testa">
         <div>
           {#if !schermo.larga}<div class="lbl">Leone XIII Sport · Piscina</div>{/if}
@@ -306,6 +342,8 @@
   .io-nome { font-weight: 600; font-size: var(--text-md); }
   .io .link { min-height: 32px; }
   .programma { font-size: var(--text-2xs); margin-top: var(--space-6); }
+  .aggiornamento { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-10) var(--space-14);
+    border-radius: var(--radius-md); background: var(--cloro-soft); color: var(--cloro-ink); border: 1px solid var(--cloro); margin-bottom: var(--space-12); }
 
   /* ── Telefono ─────────────────────────────────────────────── */
   nav.basso {

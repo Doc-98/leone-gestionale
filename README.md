@@ -48,21 +48,136 @@ infra/      docker-compose per il database di sviluppo
 
 ## Avviare in locale
 
-Servono Java 21, Maven 3.9 (il `4.0.0` nel `pom.xml` è la versione del formato del file, non di Maven), Node 22 e Docker.
+Questa parte spiega come far girare tutto il gestionale sul proprio computer, con dati inventati: database, server
+(backend) e interfaccia (frontend). I comandi sono per **PowerShell su Windows**; dove su macOS/Linux cambiano, c'è
+anche la versione per il terminale di quei sistemi.
 
-```bash
-# 1. Database
-docker compose -f infra/docker-compose.yml up -d
+In breve, quando è tutto pronto:
 
-# 2. Backend con i dati demo (http://localhost:8080)
-cd backend && mvn spring-boot:run "-Dspring-boot.run.profiles=demo"   # le virgolette servono in PowerShell
+| Cosa | Dove gira | Come si avvia |
+|---|---|---|
+| Database (PostgreSQL) | in Docker, porta 5432 | `docker compose -f infra/docker-compose.yml up -d` |
+| Backend (Java, Spring Boot) | http://localhost:8080 | `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=demo"` in `backend` |
+| Frontend (Svelte, Vite) | http://localhost:5173 | `npm run dev` in `frontend` |
 
-# 3. Frontend (http://localhost:5173, le chiamate /api vanno al backend)
-cd frontend && npm install && npm run dev
+### 0. Installare i programmi necessari (una volta sola)
+
+| Programma | A cosa serve | Installazione su Windows (PowerShell) | Controllo |
+|---|---|---|---|
+| Git | scaricare il codice | `winget install Git.Git` | `git --version` |
+| Java 21 (JDK) | far girare il backend | `winget install EclipseAdoptium.Temurin.21.JDK` | `java -version` → 21 |
+| Node.js 22 o più recente | far girare il frontend | `winget install OpenJS.NodeJS.LTS` | `node -v` |
+| Docker Desktop | il database (e i test del backend) | `winget install Docker.DockerDesktop` | `docker --version` |
+
+Maven **non serve installarlo**: nella cartella `backend` c'è il Maven Wrapper (`mvnw.cmd` su Windows, `mvnw` su
+macOS/Linux), che al primo avvio scarica da solo la versione giusta (3.9.11). Se hai già un Maven tuo va bene lo stesso,
+ma usa la 3.9: il `4.0.0` scritto nel `pom.xml` è la versione del formato del file, non di Maven.
+
+Dopo aver installato i programmi **chiudi e riapri PowerShell**, così trova i comandi nuovi. Docker Desktop va aperto
+almeno una volta (e deve restare acceso mentre lavori): la prima volta chiede di accettare le condizioni e può chiedere
+di riavviare il computer.
+
+Su macOS si installa tutto con [Homebrew](https://brew.sh): `brew install git node temurin@21` e `brew install --cask docker`.
+
+### 1. Scaricare il codice
+
+Scegli una cartella dove tenere i progetti (es. `Documenti\GitRepos`), poi:
+
+```powershell
+cd $HOME\Documents\GitRepos          # o la cartella che preferisci
+git clone https://github.com/Doc-98/leone-gestionale.git
+cd leone-gestionale
 ```
 
+Da qui in poi i comandi partono sempre da questa cartella, `leone-gestionale` (la «cartella del progetto»).
+
+### 2. Avviare il database
+
+Con Docker Desktop acceso, dalla cartella del progetto:
+
+```powershell
+docker compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml ps     # deve dire «healthy» dopo qualche secondo
+```
+
+Il database resta acceso in sottofondo anche se chiudi PowerShell (si ferma con il passo «Fermare tutto», più sotto).
+I dati restano tra un avvio e l'altro.
+
+### 3. Avviare il backend
+
+In una finestra di PowerShell:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=demo"
+```
+
+Su macOS/Linux: `cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=demo`.
+
+- Le **virgolette** attorno a `-Dspring-boot.run.profiles=demo` servono in PowerShell: senza, PowerShell spezza
+  l'argomento al punto e Maven risponde «Unknown lifecycle phase».
+- Il profilo `demo` riempie il database con persone, corsi, turni e braccialetti **inventati** (la prima volta ci mette
+  un po'). Senza profilo il database resta vuoto.
+- È pronto quando compare `Started GestionaleApplication`. Lascia questa finestra aperta: chiudendola si ferma il
+  backend (oppure `Ctrl+C`).
+- Prova: http://localhost:8080/actuator/health deve rispondere `{"status":"UP"}`.
+
+### 4. Avviare il frontend
+
+In una **seconda** finestra di PowerShell, dalla cartella del progetto:
+
+```powershell
+cd frontend
+npm install        # solo la prima volta e quando cambiano le dipendenze
+npm run dev
+```
+
+Lascia aperta anche questa finestra. Le modifiche al codice del frontend si vedono subito nel browser, senza riavviare.
+
+### 5. Aprire il gestionale
+
+Apri http://localhost:5173 ed entra con uno degli account demo (vedi «Provare il gestionale», sotto), ad esempio
+`segreteria@demo.leone` con password `demo1234`.
+
+### Aggiornare all'ultima versione
+
+Quando su GitHub c'è codice nuovo:
+
+```powershell
+git pull                              # dalla cartella del progetto
+cd frontend; npm install; cd ..       # se sono cambiate le dipendenze del frontend (non fa danni farlo sempre)
+```
+
+Poi riavvia il backend (`Ctrl+C` nella sua finestra e di nuovo il comando del passo 3): le modifiche al database si
+applicano da sole all'avvio. Il frontend si aggiorna da solo.
+
+### Fermare tutto, o ripartire da zero
+
+```powershell
+# backend e frontend: Ctrl+C nelle loro finestre
+docker compose -f infra/docker-compose.yml stop        # ferma il database (i dati restano)
+docker compose -f infra/docker-compose.yml down -v     # cancella il database: al prossimo avvio i dati demo ripartono da capo
+```
+
+Ripartire da zero serve, ad esempio, dopo aver fatto molte prove: con `down -v` e di nuovo i passi 2 e 3 si ritrovano i
+dati demo come all'inizio (le date si ricalcolano su oggi).
+
+### Problemi frequenti
+
+| Messaggio | Causa e soluzione |
+|---|---|
+| `Unknown lifecycle phase ".run.profiles=demo"` | Mancano le virgolette attorno a `-Dspring-boot...` in PowerShell (passo 3). |
+| `Connection to localhost:5432 refused` all'avvio del backend | Il database non è acceso: apri Docker Desktop e ripeti il passo 2. |
+| `port is already allocated` (5432) al passo 2 | C'è già un PostgreSQL installato sul computer che usa la porta: fermalo, oppure cambia `"5432:5432"` in `"5433:5432"` in `infra/docker-compose.yml` e avvia il backend con `$env:DB_URL="jdbc:postgresql://localhost:5433/gestionale"` prima del comando. |
+| `JAVA_HOME is not set` o Java sbagliato | `java -version` deve dire 21. Imposta la variabile: `$env:JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-21…"` (il percorso del tuo JDK). |
+| Il frontend si apre ma ogni pagina dà errore | Il backend non è avviato o non è ancora pronto (passo 3). |
+| `npm` non è riconosciuto | Node non è installato o PowerShell non è stato riaperto dopo l'installazione. |
+
+## Provare il gestionale (dati demo)
+
 Account demo (password `demo1234`): `admin@demo.leone`, `coordinatore@demo.leone`, `segreteria@demo.leone`,
-`staff@demo.leone` (Luca, istruttore di Delfino Giallo), `giulia@demo.leone`, `marta@demo.leone`. Sono persone inventate: nello sviluppo non si usano dati reali.
+`staff@demo.leone` (Luca, istruttore di Delfino Giallo), `giulia@demo.leone`, `marta@demo.leone`. Sono persone
+inventate: nello sviluppo non si usano dati reali.
 
 Braccialetti demo da provare al tornello (si scrivono nel campo): `D0000001` carnet (verde, scala), `D0000002` Delfino
 Giallo bisettimanale (verde solo nella fascia), `D0000003` certificato scaduto e tesseramento mancante, `D0000004`
@@ -72,49 +187,172 @@ esaurito, `D0000008` abbonamento scaduto, `D0000009` nessun abbonamento, `D00001
 uscita autonoma (prova il lato «Uscita»), `FFFFFFFF` sconosciuto. Sofia (`D0000001`) è «sotto controllo»: la segreteria
 riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. `3489660929` = `D0000001`).
 
-Pagina «Scadenze» (certificati, abbonamenti, tesseramento mancante) e promemoria email automatici con testi
-modificabili; senza server di posta le email si registrano ma non partono. Account dello staff con password temporanea
-(ADR 0012, 0013).
+- **Scadenze e promemoria** (ADR 0012, 0013): pagina «Scadenze» (certificati, abbonamenti, tesseramento mancante) e
+  promemoria email automatici con testi modificabili; senza server di posta le email si registrano ma non partono.
+  Account dello staff con password temporanea.
+- **Scheda cliente completa** (ADR 0014): anagrafica con codice fiscale (anche nella ricerca), tutori con «riceve le
+  comunicazioni» e «può venire a prenderlo», fratelli, consensi privacy. Prova Tommaso Neri (`D0000002`): la madre
+  Paola riceve i promemoria e la sorella Sara compare tra i fratelli.
+- **Liste d'attesa e cambio di turno** (ADR 0015): pagina «Liste d'attesa» (in un turno si libera un posto tra 6
+  giorni: avvisa il primo e iscrivilo), lista d'attesa anche negli iscritti del piano vasca e nella scheda (Sara Neri è
+  prima in lista); dalla scheda si cambia turno scegliendo tra i turni del corso con i posti.
+- La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
-Scheda cliente completa (ADR 0014): anagrafica con codice fiscale (anche nella ricerca), tutori con «riceve le
-comunicazioni» e «può venire a prenderlo», fratelli, consensi privacy. Prova Tommaso Neri (`D0000002`): la madre
-Paola riceve i promemoria e la sorella Sara compare tra i fratelli.
+## Provare l'NFC dal telefono
 
-Liste d'attesa dei turni pieni e cambio di turno (ADR 0015): pagina «Liste d'attesa» (in un turno si libera un posto
-tra 6 giorni: avvisa il primo e iscrivilo), lista d'attesa anche negli iscritti del piano vasca e nella scheda
-(Sara Neri è prima in lista); dalla scheda si cambia turno scegliendo tra i turni del corso con i posti.
+Il gestionale legge i braccialetti con l'NFC del telefono direttamente dal browser (Web NFC, ADR 0004): pagina
+«Tornello» → «Leggi i braccialetti con l'NFC», oppure il pulsante «NFC» accanto a «Assegna un braccialetto» nella scheda
+del cliente. Funziona solo con **Chrome su Android** e solo su indirizzi **sicuri** (https, oppure `localhost`).
+In sviluppo il telefono apre il gestionale dall'indirizzo del PC in rete (`http://192.168…`), che non è sicuro: si
+segna come sicuro una volta in Chrome. Passo passo:
 
-La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
+1. Telefono e PC sulla **stessa rete Wi-Fi**; sul telefono l'NFC acceso (Impostazioni → Dispositivi connessi → NFC).
+2. Avvia database e backend come sopra; il frontend invece avvialo così, perché sia raggiungibile dalla rete:
+
+   ```powershell
+   cd frontend
+   npm run dev:telefono
+   ```
+
+   Vite scrive due indirizzi: usa quello «Network», ad esempio `http://192.168.1.50:5173`. (Lo trovi anche con
+   `ipconfig`, alla voce «Indirizzo IPv4» della scheda Wi-Fi.) La prima volta Windows chiede se consentire a Node.js
+   l'accesso alla rete: consenti sulle **reti private**.
+3. Sul telefono, in Chrome, apri `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, scrivi nel riquadro
+   l'indirizzo del punto 2 (es. `http://192.168.1.50:5173`), imposta **Enabled** e tocca **Relaunch**. Si fa una
+   volta sola (finché non cambia l'indirizzo del PC).
+4. Apri quell'indirizzo, entra come `segreteria@demo.leone` e vai su «Tornello» → «Leggi i braccialetti con l'NFC».
+   Chrome chiede il permesso per l'NFC: consenti. Appoggia il braccialetto al retro del telefono.
+5. Un braccialetto nuovo risulta «sconosciuto» e il tornello mostra il suo codice. Per collegarlo a una persona demo:
+   «Clienti» → cerca la persona → «Assegna un braccialetto» → «NFC» → appoggia il braccialetto → «Assegna». Da lì il
+   tornello lo riconosce.
+
+Se il pulsante NFC non compare, sotto al campo del codice c'è scritto il motivo (browser, indirizzo non sicuro, NFC spento).
+
+**Cosa si può leggere.** Va bene qualunque tag NFC comune (braccialetti, tessere, adesivi NTAG): il gestionale usa solo
+il numero di serie del chip, che è fisso e diverso per ogni tag, quindi **non serve programmarli**. Un telefono invece
+non può fingersi un braccialetto: quando emula una carta presenta un numero di serie casuale, diverso a ogni
+avvicinamento. Per avere più «braccialetti» di prova bastano quindi degli adesivi o tessere NFC qualsiasi.
+
+Al tornello e in segreteria i lettori fissi da scrivania che «scrivono» il codice come una tastiera funzionano già: basta
+che il cursore sia nel campo del codice.
 
 ## Programma per Windows
 
-Il programma (`desktop/`) è una finestra sul server della società: al primo avvio chiede l'indirizzo del
-server, poi apre l'interfaccia servita da lì (sessione e aggiornamenti come sul web). La parte nativa esporrà
-lettore NFC e stampa; per ora dà versione e «Cambia server».
+Il programma (`desktop/`, fatto con Tauri) è **una finestra sul server**: al primo avvio chiede l'indirizzo del server,
+poi apre l'interfaccia servita da lì. Per questo:
 
-- **Installer**: a ogni modifica di `desktop/` la CI costruisce `.msi` e `.exe` su Windows (workflow
-  «Programma Windows», scheda *Artifacts*); si può anche lanciare a mano.
-- **In locale** (serve Rust): `cd desktop && npm ci && npx tauri build`. Per provarlo con il frontend di
-  sviluppo, come server si indica `http://localhost:5173`.
-- Il server deve offrire interfaccia e `/api` **sullo stesso indirizzo** (in sviluppo lo fa Vite; in
-  produzione un proxy, da definire con il tecnico della società).
+- le modifiche all'**interfaccia** (cartella `frontend`) arrivano da sole, senza reinstallare niente: basta ricaricare
+  (in sviluppo Vite le applica subito);
+- solo le modifiche alla **parte nativa** (cartella `desktop`) richiedono una versione nuova del programma, e quella
+  arriva con l'**aggiornamento automatico** (ADR 0016).
+
+### Installarlo (la prima volta)
+
+1. Apri la pagina dell'ultima versione: https://github.com/Doc-98/leone-gestionale/releases/latest
+2. In «Assets» scarica il file `Leone.Gestionale_…_x64_it-IT.msi` e aprilo.
+3. Windows può mostrare «Windows ha protetto il PC» (il programma non ha ancora una firma digitale a pagamento): «Ulteriori
+   informazioni» → «Esegui comunque». L'installazione chiede il permesso di amministratore.
+4. Al primo avvio il programma chiede l'**indirizzo del server**. In sviluppo, con backend e frontend avviati come sopra,
+   scrivi `http://localhost:5173`. Si cambia quando vuoi da «Cambia server», in fondo al menu laterale.
+
+Se avevi installato una versione costruita da te prima che ci fosse l'aggiornamento automatico, disinstallala da
+Impostazioni → App e installa quella della pagina sopra (una volta sola).
+
+### Aggiornamenti
+
+- **All'avvio** il programma controlla se c'è una versione nuova e, se c'è, propone «Aggiorna ora» (o «Più tardi»).
+- **Mentre lo usi**: in fondo al menu laterale «Cerca aggiornamenti»; se c'è una versione nuova compare anche un
+  avviso in cima alla pagina con «Aggiorna e riavvia».
+- L'aggiornamento si scarica, si installa (Windows chiede il permesso di amministratore) e il programma si riapre da solo.
+
+Le versioni nuove le pubblica la CI: a ogni modifica di `desktop/` su `main`, il workflow «Programma Windows» costruisce
+gli installer su Windows e crea una release `desktop-v0.2.N` con il file `latest.json`, firmato, da cui i programmi
+installati capiscono che c'è un aggiornamento. Per firmare servono due segreti del repository (vedi sotto).
+
+### Configurare la pubblicazione (una volta sola, per chi gestisce il repository)
+
+Gli aggiornamenti sono firmati: il programma installa solo versioni firmate con la chiave del progetto. La chiave
+privata e la sua password **non stanno nel repository** (la chiave pubblica è in `desktop/src-tauri/tauri.conf.json`).
+
+1. Su GitHub: repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+2. Nome `TAURI_SIGNING_PRIVATE_KEY`, valore: tutto il contenuto del file della chiave privata (`leone-gestionale.key`).
+3. Nome `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, valore: la password della chiave.
+4. **Actions** → «Programma Windows» → **Run workflow** per pubblicare subito la prima versione.
+
+Conserva chiave e password in un posto sicuro (es. un gestore di password): se si perdono, i programmi installati non
+possono più aggiornarsi da soli e vanno reinstallati a mano con una chiave nuova.
+
+Senza i segreti la CI costruisce comunque gli installer, scaricabili dalla pagina dell'esecuzione (sezione «Artifacts»),
+ma senza aggiornamento automatico.
+
+### Costruirlo sul proprio computer (solo per chi modifica `desktop/`)
+
+Serve, oltre a Node.js, il compilatore di Rust con gli strumenti di Microsoft per il C++:
+
+```powershell
+winget install Rustlang.Rustup
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+Riapri PowerShell (controllo: `cargo --version`), poi dalla cartella del progetto:
+
+```powershell
+cd desktop
+npm ci
+npx tauri dev       # apre il programma in modalità sviluppo, si ricompila a ogni modifica
+npx tauri build     # costruisce gli installer
+```
+
+Gli installer finiscono in `desktop\src-tauri\target\release\bundle\msi\` (e `...\nsis\` per l'`.exe`). Una versione
+costruita così è la `0.1.0`: il programma la vede sempre come vecchia e propone l'ultima pubblicata.
+
+Il server deve offrire interfaccia e `/api` **sullo stesso indirizzo** (in sviluppo lo fa Vite; in produzione un
+proxy, da definire con il tecnico della società).
 
 ## Test
 
-```bash
-cd backend && mvn verify      # unitari + integrazione su Postgres in un container (serve Docker)
-cd frontend && npm run check && npm test
+Prima di pubblicare una modifica si fanno girare i test di quello che si è toccato. La CI (GitHub Actions) li rifà
+comunque a ogni push su GitHub: i risultati sono nella scheda **Actions** del repository.
+
+### Backend
+
+Serve **Docker Desktop acceso**: i test avviano da soli un PostgreSQL usa e getta in un container (Testcontainers),
+quindi non toccano il database di sviluppo.
+
+```powershell
+cd backend
+.\mvnw.cmd verify                              # tutti i test (qualche minuto)
+.\mvnw.cmd test "-Dtest=AttesaTest"            # una sola classe di test
 ```
 
-Senza Docker, i test del backend possono usare un Postgres già avviato (database vuoto, ricreato a ogni giro):
+Su macOS/Linux: `./mvnw verify`. Alla fine deve comparire `BUILD SUCCESS`; se un test fallisce, Maven dice quale e
+il dettaglio è in `backend\target\surefire-reports\`.
 
-```bash
-TEST_DB_ESTERNO=true DB_URL=jdbc:postgresql://localhost:5432/gestionale_test DB_USER=… DB_PASSWORD=… mvn verify
+Senza Docker si può usare un PostgreSQL già installato, con un database vuoto dedicato (viene svuotato a ogni giro):
+
+```powershell
+$env:TEST_DB_ESTERNO="true"
+$env:DB_URL="jdbc:postgresql://localhost:5432/gestionale_test"
+$env:DB_USER="postgres"; $env:DB_PASSWORD="la-tua-password"
+.\mvnw.cmd verify
 ```
 
-Con il profilo `demo` la documentazione interattiva delle API è su http://localhost:8080/swagger-ui.html.
+Con il backend avviato in profilo `demo`, la documentazione interattiva delle API è su
+http://localhost:8080/swagger-ui.html.
 
-La CI (GitHub Actions) esegue entrambi a ogni push.
+### Frontend
+
+```powershell
+cd frontend
+npm run check      # controllo dei tipi (TypeScript e Svelte)
+npm test           # test unitari (Vitest)
+npm run build      # prova che l'app si costruisca per la produzione
+```
+
+### Programma per Windows
+
+Se si tocca `desktop/`, almeno la compilazione: `cd desktop\src-tauri` e `cargo build`. Gli installer li costruisce
+la CI su Windows.
 
 ## API
 

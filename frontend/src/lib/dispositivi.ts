@@ -36,3 +36,22 @@ export async function infoProgramma(): Promise<InfoProgramma | null> {
 export async function cambiaServer(): Promise<void> {
   await tauri()?.core.invoke('torna_all_avvio');
 }
+
+/** Una versione nuova del programma per Windows (l'interfaccia invece si aggiorna da sola dal server). */
+export interface AggiornamentoProgramma {
+  versione: string;
+  attuale: string;
+  note: string | null;
+}
+
+/** Nel programma: c'è una versione nuova? `null` se è aggiornato o se non si è nel programma. */
+export async function cercaAggiornamento(): Promise<AggiornamentoProgramma | null> {
+  const t = tauri();
+  if (!t) return null;
+  return t.core.invoke<AggiornamentoProgramma | null>('cerca_aggiornamento');
+}
+
+/** Nel programma: scarica e installa la versione nuova; il programma si chiude e si riapre. */
+export async function installaAggiornamento(): Promise<void> {
+  await tauri()?.core.invoke('installa_aggiornamento');
+}

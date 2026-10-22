@@ -22,7 +22,7 @@ jobs:
       # I test d'integrazione avviano Postgres in un container (Testcontainers): Docker è già sul runner
       - name: mvn verify
         shell: bash
-        run: mvn -B -ntp verify 2>&1 | tee mvn.log; exit ${PIPESTATUS[0]}
+        run: ./mvnw -B -ntp verify 2>&1 | tee mvn.log; exit ${PIPESTATUS[0]}
       # Se fallisce, gli errori diventano annotazioni leggibili dalla pagina della CI e dalle API di GitHub
       - name: Riassunto errori
         if: failure()

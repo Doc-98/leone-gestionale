@@ -1,0 +1,3 @@
+# Script del Maven Wrapper: fine riga giuste per ogni sistema (altrimenti non partono)
+backend/mvnw text eol=lf
+backend/mvnw.cmd text eol=crlf

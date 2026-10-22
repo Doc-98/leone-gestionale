@@ -36,6 +36,19 @@ export function nfcDisponibile(): boolean {
 }
 
 /**
+ * Perché questo dispositivo non legge i braccialetti dal browser, in parole semplici (null se li legge). La Web NFC c'è
+ * solo in Chrome per Android, e solo su pagine sicure: https:// oppure localhost. In sviluppo, dal telefono si apre
+ * l'indirizzo del PC in rete (http://192.168…): Chrome lo accetta solo se lo si segna come sicuro (vedi README).
+ */
+export function motivoNfcAssente(ua = navigator.userAgent, sicura = window.isSecureContext): string | null {
+  if (nfcDisponibile()) return null;
+  if (!/Android/i.test(ua)) return "Questo dispositivo non legge l'NFC dal browser (serve Chrome su Android): scrivi il codice o usa il lettore.";
+  if (!/Chrome\//.test(ua) || /SamsungBrowser|Firefox|EdgA|OPR\//.test(ua)) return "Per leggere i braccialetti apri il gestionale con Chrome: questo browser non legge l'NFC.";
+  if (!sicura) return "Chrome legge l'NFC solo su indirizzi sicuri (https://): questo indirizzo non lo è. Vedi «Provare l'NFC dal telefono» nel README.";
+  return "Chrome non dà accesso all'NFC: aggiornalo e controlla che l'NFC del telefono sia acceso.";
+}
+
+/**
  * Legge i braccialetti finché non si ferma con il segnale. Lo stesso codice letto di nuovo entro {@link pausaMs} si
  * ignora (il braccialetto appoggiato al telefono viene letto più volte di seguito).
  */

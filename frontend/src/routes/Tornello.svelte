@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { api, messaggioErrore, type EsitoTornello, type Passaggio, type Verso } from '../lib/api';
   import { oraDi } from '../lib/date';
-  import { codiceValido, leggiConNfc, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
+  import { codiceValido, leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { schermo } from '../lib/schermo.svelte';
   import { sessione } from '../lib/sessione.svelte';
   import EsitoTornelloView from '../components/EsitoTornello.svelte';
@@ -115,8 +115,8 @@
         {:else}
           <button type="button" class="btn btn-accent grande" onclick={avviaNfc}>Leggi i braccialetti con l'NFC</button>
         {/if}
-      {:else if !schermo.larga}
-        <p class="muted small nomargin">Questo dispositivo non legge l'NFC dal browser (serve Chrome su Android): scrivi il codice.</p>
+      {:else if !schermo.larga || /Android/i.test(navigator.userAgent)}
+        <p class="muted small nomargin">{motivoNfcAssente()}</p>
       {/if}
       <label class="field">
         <span class="lbl">{schermo.larga ? 'Passa il braccialetto sul lettore o scrivi il codice' : 'Codice del braccialetto'}</span>

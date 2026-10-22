@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cerca-aggiornamento"
+description = "Enables the cerca_aggiornamento command without any pre-configured scope."
+commands.allow = ["cerca_aggiornamento"]
+
+[[permission]]
+identifier = "deny-cerca-aggiornamento"
+description = "Denies the cerca_aggiornamento command without any pre-configured scope."
+commands.deny = ["cerca_aggiornamento"]

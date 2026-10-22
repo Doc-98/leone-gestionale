@@ -25,15 +25,45 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
+    "targets": [
+      "msi",
+      "nsis"
+    ],
     "publisher": "Leone Gestionale",
     "shortDescription": "Il gestionale della società sportiva",
     "category": "Business",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico", "icons/icon.png"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
-      "wix": { "language": "it-IT" },
-      "nsis": { "languages": ["Italian"], "installMode": "perMachine" }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "wix": {
+        "language": "it-IT"
+      },
+      "nsis": {
+        "languages": [
+          "Italian"
+        ],
+        "installMode": "perMachine"
+      }
+    },
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczQTE3ODY2OEY3RUM1Q0UKUldUT3hYNlBabmloYzhFRmU3QVBmYUo3NnVWbTBqMzVVUllVSERTN3R6UkZ0bXZBWmZJcjg2MkcK",
+      "endpoints": [
+        "https://github.com/Doc-98/leone-gestionale/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

@@ -5,7 +5,7 @@
     type Abbonamento, type Braccialetto, type Corso, type SchedaAccessi, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
-  import { leggiConNfc, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
+  import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
   import ConsensiCliente from '../components/ConsensiCliente.svelte';
   import EsitoTornello from '../components/EsitoTornello.svelte';
@@ -299,6 +299,7 @@
           <button class="btn btn-primary" disabled={normalizzaCodice(nuovoCodice).length < 4}>Assegna</button>
         </div>
         <p class="muted small nomargin">Se uno è smarrito resta suo: se si ritrova basta segnarlo come ritrovato.</p>
+        {#if !nfcDisponibile() && /Android/i.test(navigator.userAgent)}<p class="muted small nomargin">{motivoNfcAssente()}</p>{/if}
       </form>
     </section>
 
