@@ -6,6 +6,8 @@
   import { schermo } from '../lib/schermo.svelte';
   import { sessione } from '../lib/sessione.svelte';
   import EsitoTornelloView from '../components/EsitoTornello.svelte';
+  import LettoreTelefonoPc from '../components/LettoreTelefonoPc.svelte';
+  import { lettoreTelefono } from '../lib/lettore.svelte';
 
   /**
    * La postazione del tornello. Sul telefono Android si leggono i braccialetti con l'NFC; sul PC un lettore da
@@ -72,6 +74,9 @@
     }
   }
 
+  // I braccialetti letti dal telefono abbinato arrivano qui come da un lettore da scrivania
+  onMount(() => lettoreTelefono.ascolta((c) => leggi(c)));
+
   async function avviaNfc() {
     errore = '';
     fermaNfc = new AbortController();
@@ -128,6 +133,7 @@
       </label>
       {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
     </form>
+    {#if !nfc}<LettoreTelefonoPc />{/if}
 
     {#if esito}
       <EsitoTornelloView {esito} schedaHref={href(esito.persona?.id)} />

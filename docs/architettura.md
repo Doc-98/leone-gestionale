@@ -108,13 +108,13 @@ Per i dati dei clienti, tre livelli:
 
 Prova del 17 ottobre 2026 (Nothing Phone 3, Chrome, pagina `ClockWork/nfc.html`):
 
-- Il bracciale viene letto con la **Web NFC**: seriale `0c:7a:5c:ae` (4 byte), identico in quattro letture.
+- Il bracciale viene letto con la **Web NFC**: seriale di 4 byte (nel formato `3a:9f:12:c4`), identico in quattro letture.
 - Nessun dato nel chip (record NDEF vuoto): il bracciale è solo un identificativo, i dati stanno nel
   gestionale. Il nostro sistema farà lo stesso.
 - Funziona su **Android con Chrome**. Su iPhone il web non legge l'NFC: per la postazione atrio serve un
   dispositivo Android, oppure in futuro un'app nativa.
-- Da verificare nel gestionale attuale in che forma è salvato il codice: esadecimale `0C7A5CAE`,
-  invertito `AE5C7A0C`, decimale `209345710` o decimale invertito `2925296140`. Lo salveremo
+- Da verificare nel gestionale attuale in che forma è salvato il codice (con l'esempio `3a:9f:12:c4`): esadecimale `3A9F12C4`,
+  invertito `C4129F3A`, decimale `983503556` o decimale invertito `3289554746`. Lo salveremo
   normalizzato (esadecimale maiuscolo, ordine di lettura) con un vincolo di unicità tra le credenziali attive.
 
 ## Modello dati (prima stesura)
@@ -238,7 +238,8 @@ erDiagram
 3. **Clienti e accessi** – scheda cliente, credenziali NFC, stato di accesso, livelli 1–2, registro.
    Tornello con tutti i motivi del rosso e il nome della persona, regole modulari, golden pass, carnet, scheda per
    la segreteria. *(fatto — ADR 0009)* Da fare: pagamenti e ricevute, dispositivi registrati
-   (livello 2), lettore da scrivania nel programma per Windows, telefono come lettore per il PC.
+   (livello 2), lettore da scrivania nel programma per Windows.
+   Telefono Android come lettore NFC del PC (abbinamento con QR). *(fatto — ADR 0017)*
    Lettura dei bracciali dal PC: programma Tauri con lettore da scrivania (PC/SC o emulazione tastiera) e,
    come alternativa senza hardware, **telefono Android come lettore**: il PC mostra un QR con un codice
    temporaneo, il telefono si abbina, legge il bracciale con la Web NFC e il server inoltra il codice al PC.

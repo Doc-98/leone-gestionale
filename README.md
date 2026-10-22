@@ -196,6 +196,8 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
 - **Liste d'attesa e cambio di turno** (ADR 0015): pagina «Liste d'attesa» (in un turno si libera un posto tra 6
   giorni: avvisa il primo e iscrivilo), lista d'attesa anche negli iscritti del piano vasca e nella scheda (Sara Neri è
   prima in lista); dalla scheda si cambia turno scegliendo tra i turni del corso con i posti.
+- **Braccialetti nel formato dei chip NFC** (seriali di 4 e 7 byte), per le prove con il telefono: cerca in «Clienti»
+  Chiara Venturi, Davide Colombi, Elisa Marchi, Federico Bernardi o Giada Rinaldi (verdi e rossi per motivi diversi).
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono
@@ -232,6 +234,22 @@ Se il pulsante NFC non compare, sotto al campo del codice c'è scritto il motivo
 il numero di serie del chip, che è fisso e diverso per ogni tag, quindi **non serve programmarli**. Un telefono invece
 non può fingersi un braccialetto: quando emula una carta presenta un numero di serie casuale, diverso a ogni
 avvicinamento. Per avere più «braccialetti» di prova bastano quindi degli adesivi o tessere NFC qualsiasi.
+
+### Il telefono come lettore del PC
+
+Dal PC (browser o programma per Windows) si può usare un telefono Android come lettore NFC (ADR 0017): i braccialetti
+letti dal telefono arrivano al PC come da un lettore da scrivania. Il telefono non deve accedere e non vede dati dei
+clienti: manda solo i codici.
+
+1. Prepara il telefono come nei punti 1–3 qui sopra (frontend avviato con `npm run dev:telefono`, indirizzo del PC
+   segnato come sicuro in Chrome).
+2. Sul PC apri «Tornello» (o la scheda di un cliente, «Assegna un braccialetto») e premi **Collega un telefono**:
+   compare un QR con un codice di 6 cifre.
+3. Sul telefono inquadra il QR con la fotocamera (oppure apri `http://<indirizzo del PC>:5173/#/lettore` e scrivi il
+   codice). Sul PC compare «Telefono collegato».
+4. Sul telefono tocca **Inizia a leggere** e appoggia i braccialetti: sul PC il tornello mostra subito l'esito (nella
+   scheda, il codice finisce nel campo del braccialetto).
+5. Finito, «Scollega» sul PC (comunque l'abbinamento finisce da solo dopo qualche minuto senza il PC).
 
 Al tornello e in segreteria i lettori fissi da scrivania che «scrivono» il codice come una tastiera funzionano già: basta
 che il cursore sia nel campo del codice.
@@ -404,6 +422,8 @@ la CI su Windows.
 | GET | `/api/attesa` · `/api/corsi/{id}/turni` · `/api/lezioni/{id}/attesa` | liste d'attesa; turni di un corso con posti e attesa |
 | POST | `/api/lezioni/{id}/attesa` · `/api/attesa/{id}/iscrivi` · `/rinuncia` · `/avvisa` | lista d'attesa: aggiungi, iscrivi, togli, avvisa la famiglia |
 | POST | `/api/iscrizioni/{id}/cambia` `{lezioneId, dal, forza}` | cambio di turno (anche di corso) da una data |
+| POST · GET · DELETE | `/api/lettori` · `/{id}/letture?dopo=` · `/{id}` | il PC abbina un telefono come lettore e riceve i codici |
+| POST · GET | `/api/lettori/telefono/{token}/presente` · `/telefono/{token}/letture` `{codice}` · `/api/lettori/codice/{codice}` | il telefono (senza accesso, con il token) |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |

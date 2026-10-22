@@ -5,7 +5,7 @@
 
 /**
  * Il codice come lo salva il server: esadecimale maiuscolo senza separatori («04:a1:b2:c3» → «04A1B2C3»). Dieci
- * cifre sono il formato decimale del gestionale attuale e dei lettori fissi: «0209345710» → «0C7A5CAE».
+ * cifre sono il formato decimale del gestionale attuale e dei lettori fissi: «0983503556» → «3A9F12C4».
  */
 export function normalizzaCodice(grezzo: string): string {
   const c = grezzo.replace(/[^0-9a-z]/gi, '').toUpperCase();

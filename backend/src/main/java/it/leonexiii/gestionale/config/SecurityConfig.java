@@ -41,6 +41,8 @@ class SecurityConfig {
                 // altrimenti un 403 a chi non è collegato diventerebbe 401
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/csrf", "/actuator/health").permitAll()
+                // il telefono come lettore del PC: lo autorizza il token dell'abbinamento (ADR 0017)
+                .requestMatchers("/api/lettori/telefono/**", "/api/lettori/codice/*").permitAll()
                 // documentazione delle API: esiste solo se springdoc.api-docs.enabled (profilo demo)
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())

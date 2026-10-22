@@ -12,9 +12,9 @@ describe('codici dei braccialetti', () => {
     expect(codiceValido('')).toBe(false);
   });
   it('converte il decimale a 10 cifre del gestionale attuale', () => {
-    expect(normalizzaCodice('0209345710')).toBe('0C7A5CAE');
-    expect(normalizzaCodice('0c:7a:5c:ae')).toBe('0C7A5CAE');
-    expect(codiceDecimale('0C7A5CAE')).toBe('0209345710');
+    expect(normalizzaCodice('0983503556')).toBe('3A9F12C4');
+    expect(normalizzaCodice('3a:9f:12:c4')).toBe('3A9F12C4');
+    expect(codiceDecimale('3A9F12C4')).toBe('0983503556');
     expect(normalizzaCodice('12345678')).toBe('12345678'); // otto cifre: già esadecimale
   });
 });

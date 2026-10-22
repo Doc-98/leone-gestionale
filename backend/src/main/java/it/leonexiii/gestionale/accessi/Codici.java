@@ -4,8 +4,8 @@ import java.util.Locale;
 
 /**
  * Il codice di un braccialetto come lo salviamo: esadecimale maiuscolo senza separatori, nell'ordine di lettura.
- * Il telefono legge «0c:7a:5c:ae» → «0C7A5CAE». Il gestionale attuale (e i lettori fissi) scrivono lo stesso seriale
- * in decimale a 10 cifre, «0209345710»: dieci cifre e basta vengono convertite (ADR 0004).
+ * Il telefono legge «3a:9f:12:c4» → «3A9F12C4». Il gestionale attuale (e i lettori fissi) scrivono lo stesso seriale
+ * in decimale a 10 cifre, «0983503556»: dieci cifre e basta vengono convertite (ADR 0004).
  */
 final class Codici {
     private Codici() {}

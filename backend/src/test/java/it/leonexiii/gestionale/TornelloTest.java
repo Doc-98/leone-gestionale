@@ -219,12 +219,12 @@ class TornelloTest {
 
         // lo stesso seriale in decimale a 10 cifre (gestionale attuale, lettori fissi) e in esadecimale (telefono)
         String decimale = cliente(segr, "Decimo");
-        var dec = segr.post("/api/accessi/persone/" + decimale + "/braccialetti", "{\"codice\":\"0209345710\"}");
+        var dec = segr.post("/api/accessi/persone/" + decimale + "/braccialetti", "{\"codice\":\"0983503556\"}");
         assertThat(dec.statusCode()).as(dec.body()).isEqualTo(201);
-        assertThat(json(dec).get("codice")).isEqualTo("0C7A5CAE");
-        @SuppressWarnings("unchecked") var chi = (Map<String, Object>) passa(staff, "2028-01-02T06:00", "0c:7a:5c:ae").get("persona");
+        assertThat(json(dec).get("codice")).isEqualTo("3A9F12C4");
+        @SuppressWarnings("unchecked") var chi = (Map<String, Object>) passa(staff, "2028-01-02T06:00", "3a:9f:12:c4").get("persona");
         assertThat(chi.get("nome")).isEqualTo("Decimo");
-        assertThat(segr.get("/api/accessi/persone/" + decimale).body()).contains("\"decimale\":\"0209345710\"");
+        assertThat(segr.get("/api/accessi/persone/" + decimale).body()).contains("\"decimale\":\"0983503556\"");
 
         // sconosciuto; la scheda accessi non è per lo staff; lo storico dei passaggi sì
         assertThat(codici(passa(staff, "2028-01-02T06:00", "FFFF0000FFFF"))).containsExactly("BRACCIALETTO_SCONOSCIUTO");

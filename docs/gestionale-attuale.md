@@ -22,7 +22,7 @@ Schede: Anagrafica · Tessera · Certificati · Abbonamenti · Prenotazioni · B
 
 **Tessera** (il braccialetto)
 - Codice in **decimale a 10 cifre**: è il seriale del chip letto dal telefono come esadecimale
-  (`0c:7a:5c:ae` → `0209345710`). Il nuovo gestionale accetta entrambi i formati (ADR 0004).
+  (es. `3a:9f:12:c4` → `0983503556`). Il nuovo gestionale accetta entrambi i formati (ADR 0004).
 - Stato (es. ATTIVA), data dello stato, operatore dell'ultima modifica.
 - **Gold card**: accesso sempre consentito (di solito ai gestori) → da noi il *golden pass*, ma sulla persona.
 - **Alert list**: la persona entra, ma la segreteria viene avvisata a ogni suo accesso (persona «sotto controllo»).

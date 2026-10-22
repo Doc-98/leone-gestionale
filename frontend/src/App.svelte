@@ -6,6 +6,7 @@
   import {
     cambiaServer, cercaAggiornamento, infoProgramma, installaAggiornamento, type AggiornamentoProgramma, type InfoProgramma,
   } from './lib/dispositivi';
+  import LettoreTelefono from './routes/LettoreTelefono.svelte';
   import Login from './routes/Login.svelte';
   import Turni from './routes/Turni.svelte';
   import Richieste from './routes/Richieste.svelte';
@@ -93,6 +94,8 @@
     return ID.includes(h) ? h : 'turni';
   };
   let scheda = $state<Scheda>(leggiScheda());
+  // Il telefono come lettore NFC di un PC: pagina a sé, senza accesso (ADR 0017)
+  let paginaLettore = $state(location.hash.startsWith('#/lettore'));
   let daApprovare = $state(0);
   let programma = $state<InfoProgramma | null>(null);
   // Programma per Windows: versione nuova disponibile e stato del controllo («Cerca aggiornamenti»)
@@ -124,7 +127,10 @@
       programma = i;
       if (i) controllaAggiornamento(false);
     });
-    const f = () => (scheda = leggiScheda());
+    const f = () => {
+      scheda = leggiScheda();
+      paginaLettore = location.hash.startsWith('#/lettore');
+    };
     window.addEventListener('hashchange', f);
     return () => window.removeEventListener('hashchange', f);
   });
@@ -185,7 +191,9 @@
   {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} da approvare">{daApprovare}</span>{/if}
 {/snippet}
 
-{#if !sessione.pronto}
+{#if paginaLettore}
+  <main class="accesso"><LettoreTelefono /></main>
+{:else if !sessione.pronto}
   <p class="muted centro">Caricamento…</p>
 {:else if !sessione.utente}
   <main class="accesso"><Login /></main>

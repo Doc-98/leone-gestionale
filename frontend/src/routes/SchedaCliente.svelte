@@ -11,6 +11,8 @@
   import EsitoTornello from '../components/EsitoTornello.svelte';
   import FamigliaCliente from '../components/FamigliaCliente.svelte';
   import TurniCliente from '../components/TurniCliente.svelte';
+  import LettoreTelefonoPc from '../components/LettoreTelefonoPc.svelte';
+  import { lettoreTelefono } from '../lib/lettore.svelte';
 
   /**
    * La scheda di un cliente per la segreteria: come andrebbe adesso al tornello, anagrafica e contatti, famiglia,
@@ -82,6 +84,8 @@
     }
   }
   onDestroy(() => fermaNfc?.abort());
+  // con il telefono abbinato come lettore, il codice letto va nel campo «Assegna un braccialetto»
+  onDestroy(lettoreTelefono.ascolta((c) => (nuovoCodice = c)));
 
   const assegna = async () => {
     const c = normalizzaCodice(nuovoCodice);
@@ -301,6 +305,7 @@
         <p class="muted small nomargin">Se uno è smarrito resta suo: se si ritrova basta segnarlo come ritrovato.</p>
         {#if !nfcDisponibile() && /Android/i.test(navigator.userAgent)}<p class="muted small nomargin">{motivoNfcAssente()}</p>{/if}
       </form>
+      {#if !nfcDisponibile()}<LettoreTelefonoPc compatto />{/if}
     </section>
 
     <!-- Ban e golden pass -->

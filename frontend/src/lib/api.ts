@@ -362,6 +362,18 @@ export interface CambioFatto {
 }
 type Chi = { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null } };
 
+/** Abbinamento del telefono come lettore NFC del PC (ADR 0017). */
+export interface AbbinamentoLettore {
+  id: string;
+  token: string;
+  codice: string;
+  scadeIl: string;
+}
+export interface LettureLettore {
+  letture: { numero: number; codice: string; letta: string }[];
+  telefonoVistoIl: string | null;
+}
+
 export interface ElencoIscritti {
   lezioneId: string;
   corsoId: string;
@@ -643,6 +655,12 @@ export const api = {
   iscrivi: (lezioneId: string, i: { personaId?: string; nuovaPersona?: { nome: string; cognome: string; dataNascita: string | null }; dal: string; forza?: boolean }) =>
     richiesta<Iscritto>('POST', `/api/lezioni/${lezioneId}/iscritti`, i),
   terminaIscrizione: (id: string, al: string) => richiesta<void>('POST', `/api/iscrizioni/${id}/termina`, { al }),
+  abbinaLettore: () => richiesta<AbbinamentoLettore>('POST', '/api/lettori', {}),
+  lettureLettore: (id: string, dopo: number) => richiesta<LettureLettore>('GET', `/api/lettori/${id}/letture?dopo=${dopo}`),
+  scollegaLettore: (id: string) => richiesta<void>('DELETE', `/api/lettori/${id}`),
+  tokenLettore: (codice: string) => richiesta<{ token: string }>('GET', `/api/lettori/codice/${encodeURIComponent(codice)}`),
+  telefonoPresente: (token: string) => richiesta<void>('POST', `/api/lettori/telefono/${token}/presente`, {}),
+  inviaLettura: (token: string, codice: string) => richiesta<void>('POST', `/api/lettori/telefono/${token}/letture`, { codice }),
   cambiaTurno: (iscrizioneId: string, c: { lezioneId: string; dal: string; forza?: boolean }) =>
     richiesta<CambioFatto>('POST', `/api/iscrizioni/${iscrizioneId}/cambia`, c),
   paginaAttesa: () => richiesta<PaginaAttesa>('GET', '/api/attesa'),
