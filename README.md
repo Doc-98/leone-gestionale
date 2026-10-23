@@ -205,7 +205,8 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
   «Cambiare l'importo proposto» e un motivo. «Termina oggi» mostra il rimborso secondo la regola di recesso.
 - **Impostazioni** (società e stagioni, listino, promemoria, regole del tornello, mansioni e tariffe, account, ruoli): tutte
-  sotto la voce «Impostazioni» in fondo alla barra laterale, con un menu interno per area; sul telefono da «Altro».
+  sotto la voce «Impostazioni» in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area
+  («← Impostazioni» torna indietro); sul telefono da «Altro».
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono

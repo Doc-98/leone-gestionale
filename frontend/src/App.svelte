@@ -166,6 +166,13 @@
   const elencoImpostazioni = $derived(scheda === 'impostazioni');
   const corrente = $derived(visibili.find((s) => s.id === scheda) ?? (elencoImpostazioni ? impostazioni[0] : undefined) ?? SEZIONI[0]);
   const inImpostazioni = $derived(elencoImpostazioni || corrente.gruppo === 'Impostazioni');
+  // Sul PC la barra mostra le sezioni di lavoro o, scorrendo, le impostazioni: dipende dalla pagina aperta.
+  // «← Impostazioni» torna all'ultima pagina di lavoro.
+  let ultimaLavoro = $state<Scheda>('turni');
+  $effect(() => {
+    if (!inImpostazioni && lavoro.some((s) => s.id === corrente.id)) ultimaLavoro = corrente.id;
+  });
+  const tornaAlLavoro = () => (location.hash = `#/${lavoro.some((s) => s.id === ultimaLavoro) ? ultimaLavoro : (lavoro[0]?.id ?? 'turni')}`);
   $effect(() => {
     if (elencoImpostazioni && schermo.larga && impostazioni.length) location.replace(`#/${impostazioni[0].id}`);
   });
@@ -273,24 +280,46 @@
           <span class="d logo">Leone</span>
           <span class="lbl">{nomeSocieta || 'Gestionale'}</span>
         </div>
-        <nav aria-label="Sezioni">
-          {#each gruppi as g (g.nome)}
-            <div class="gruppo-nav">
-              <div class="lbl">{g.nome}</div>
-              {#each g.voci as s (s.id)}
-                <a href={`#/${s.id}`} class="voce-nav" class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}
-                   title="{s.nome} (Alt+{lavoro.indexOf(s) + 1})">
-                  {@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}
-                </a>
+        <div class="scorrevole">
+          <div class="traccia" class:imp={inImpostazioni}>
+            <nav aria-label="Sezioni" class="pannello" inert={inImpostazioni}>
+              {#each gruppi as g (g.nome)}
+                <div class="gruppo-nav">
+                  <div class="lbl">{g.nome}</div>
+                  {#each g.voci as s (s.id)}
+                    <a href={`#/${s.id}`} class="voce-nav" class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}
+                       title="{s.nome} (Alt+{lavoro.indexOf(s) + 1})">
+                      {@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}
+                    </a>
+                  {/each}
+                </div>
               {/each}
-            </div>
-          {/each}
-        </nav>
-        {#if impostazioni.length}
-          <a href={`#/${impostazioni[0].id}`} class="voce-nav impostazioni" class:on={inImpostazioni} aria-current={inImpostazioni ? 'page' : undefined}>
-            {@render icona(I.impostazioni)}<span class="grow">Impostazioni</span>
-          </a>
-        {/if}
+              <span class="grow"></span>
+              {#if impostazioni.length}
+                <a href={`#/${impostazioni[0].id}`} class="voce-nav impostazioni" aria-label="Apri le impostazioni">
+                  {@render icona(I.impostazioni)}<span class="grow">Impostazioni</span>
+                  <svg class="ic freccia-nav" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                </a>
+              {/if}
+            </nav>
+            <nav aria-label="Impostazioni" class="pannello" inert={!inImpostazioni}>
+              <button class="indietro-nav" onclick={tornaAlLavoro} aria-label="Torna alle sezioni">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
+                <span class="grow">Impostazioni</span>
+              </button>
+              {#each areeImpostazioni as a (a.nome)}
+                <div class="gruppo-nav">
+                  <div class="lbl">{a.nome}</div>
+                  {#each a.voci as s (s.id)}
+                    <a href={`#/${s.id}`} class="voce-nav" class:on={corrente.id === s.id} aria-current={corrente.id === s.id ? 'page' : undefined}>
+                      {@render icona(s.icona)}<span class="grow">{s.nome}</span>
+                    </a>
+                  {/each}
+                </div>
+              {/each}
+            </nav>
+          </div>
+        </div>
         <div class="io">
           <div class="io-riga">
             <span class="avatar" aria-hidden="true">{iniziali}</span>
@@ -321,29 +350,14 @@
         </div>
       {/if}
       {#if inImpostazioni && schermo.larga}
-        <div class="area-imp">
-          <nav class="sotto" aria-label="Impostazioni">
-            <div class="sotto-testa">{@render icona(I.impostazioni)}<span>Impostazioni</span></div>
-            {#each areeImpostazioni as a (a.nome)}
-              <div class="sotto-gruppo">
-                <div class="lbl">{a.nome}</div>
-                {#each a.voci as s (s.id)}
-                  <a href={`#/${s.id}`} class:on={corrente.id === s.id} aria-current={corrente.id === s.id ? 'page' : undefined}>{s.nome}</a>
-                {/each}
-              </div>
-            {/each}
-          </nav>
-          <div class="pagina-imp">
-            <header class="testa">
-              <div>
-                <div class="briciole lbl">Impostazioni · {corrente.area}</div>
-                <h1 class="page-title">{corrente.titolo}</h1>
-                {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}.</p>{/if}
-              </div>
-            </header>
-            {@render pagina()}
+        <header class="testa">
+          <div>
+            <div class="briciole lbl">Impostazioni · {corrente.area}</div>
+            <h1 class="page-title">{corrente.titolo}</h1>
+            {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}.</p>{/if}
           </div>
-        </div>
+        </header>
+        {@render pagina()}
       {:else if elencoImpostazioni}
         <header class="testa"><div><div class="lbl">{nomeSocieta}</div><h1 class="page-title">Impostazioni</h1></div></header>
         {#each areeImpostazioni as a (a.nome)}
@@ -432,7 +446,6 @@
   }
   .marchio { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-10); }
   .logo { font-size: 26px; font-weight: 800; color: var(--cloro); line-height: 1; }
-  .lato nav { display: flex; flex-direction: column; gap: var(--space-16); flex: 1; }
   .gruppo-nav { display: flex; flex-direction: column; gap: var(--space-2); }
   .gruppo-nav > .lbl { padding: 0 var(--space-10) var(--space-4); font-size: var(--text-2xs); }
   .voce-nav {
@@ -443,8 +456,7 @@
   .voce-nav:hover { background: var(--carta); }
   .voce-nav.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; }
   .voce-nav.on .ic { color: var(--cloro); }
-  .voce-nav.impostazioni { border-top: 1px solid var(--line-soft); border-radius: 0; padding-top: var(--space-6); min-height: 46px; }
-  .voce-nav.impostazioni.on { border-radius: var(--radius-sm); border-top-color: transparent; }
+  .voce-nav.impostazioni { border-top: 1px solid var(--line-soft); border-radius: 0; min-height: 46px; flex-shrink: 0; }
   .io { border-top: 1px solid var(--line-soft); padding: var(--space-12) var(--space-10) 0; display: flex; flex-direction: column; gap: var(--space-4); }
   .io-riga { display: flex; align-items: center; gap: var(--space-10); }
   .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--cloro-soft); color: var(--cloro-ink); display: inline-flex; align-items: center;
@@ -454,19 +466,17 @@
   .io-azioni { display: flex; gap: var(--space-14); flex-wrap: wrap; }
   .io .link { min-height: 30px; }
 
-  /* ── Area impostazioni (PC): menu interno a sinistra, pagina a destra ── */
-  .area-imp { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-24, 24px); align-items: start; }
-  .sotto { position: sticky; top: 28px; display: flex; flex-direction: column; gap: var(--space-14); padding: var(--space-14) var(--space-10);
-    border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
-  .sotto-testa { display: flex; align-items: center; gap: var(--space-8); padding: 0 var(--space-6); font-weight: 700; font-size: var(--text-lg); }
-  .sotto-testa .ic { width: 20px; height: 20px; color: var(--cloro); }
-  .sotto-gruppo { display: flex; flex-direction: column; gap: 2px; }
-  .sotto-gruppo .lbl { padding: 0 var(--space-6) var(--space-4); font-size: var(--text-2xs); }
-  .sotto a { display: flex; align-items: center; min-height: 34px; padding: 0 var(--space-10); border-radius: var(--radius-sm); color: var(--ink);
-    text-decoration: none; font-size: var(--text-md); }
-  .sotto a:hover { background: var(--carta); }
-  .sotto a.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--cloro); }
-  .pagina-imp { display: flex; flex-direction: column; gap: var(--space-16); min-width: 0; }
+  /* ── Barra che scorre: sezioni di lavoro ⇄ impostazioni ── */
+  .scorrevole { flex: 1; overflow: hidden; min-height: 0; }
+  .traccia { display: flex; width: 200%; height: 100%; transition: transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .traccia.imp { transform: translateX(-50%); }
+  @media (prefers-reduced-motion: reduce) { .traccia { transition: none; } }
+  .pannello { width: 50%; height: 100%; display: flex; flex-direction: column; gap: var(--space-16); overflow-y: auto; box-sizing: border-box; }
+  .freccia-nav { width: 16px; height: 16px; }
+  .indietro-nav { display: flex; align-items: center; gap: var(--space-8); min-height: 44px; padding: 0 var(--space-8); border: none; border-radius: var(--radius-sm);
+    background: var(--carta); color: var(--ink); font: inherit; font-size: var(--text-lg); font-weight: 700; cursor: pointer; text-align: left; flex-shrink: 0; }
+  .indietro-nav .ic { width: 20px; height: 20px; color: var(--cloro); }
+  .indietro-nav:hover { background: var(--surface-sunken); }
   .briciole { color: var(--cloro-ink); }
   .spiega { margin-top: var(--space-4); }
 
