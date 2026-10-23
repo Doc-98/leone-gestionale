@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -98,6 +99,21 @@ class ClientiController {
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, UUID> abbonamento(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody SchedaClientiService.NuovoAbbonamento in) {
         return Map.of("id", schede.nuovoAbbonamento(u, id, in));
+    }
+
+    @GetMapping("/{id}/proposta")
+    it.leonexiii.gestionale.listino.Listino.Proposta proposta(@PathVariable UUID id, @RequestParam UUID offertaId,
+                                                              @RequestParam(required = false) Integer volte,
+                                                              @RequestParam(required = false) java.time.LocalDate dal) {
+        return schede.proposta(id, offertaId, volte, dal);
+    }
+
+    /** Il rimborso secondo la regola di recesso della stagione; 204 se l'abbonamento non viene dal listino o la regola è spenta. */
+    @GetMapping("/abbonamenti/{id}/recesso")
+    org.springframework.http.ResponseEntity<it.leonexiii.gestionale.listino.Listino.Rimborso> recesso(@PathVariable UUID id,
+                                                                                                    @RequestParam(required = false) java.time.LocalDate data) {
+        return schede.recesso(id, data).map(org.springframework.http.ResponseEntity::ok)
+            .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
     }
 
     @PostMapping("/abbonamenti/{id}/termina")

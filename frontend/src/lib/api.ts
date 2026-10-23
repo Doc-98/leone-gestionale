@@ -10,7 +10,7 @@ export type Ruolo = string;
 export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
   | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
-  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS'
+  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI'
   | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT' | 'IMPOSTAZIONI';
 
 export interface Me {
@@ -673,6 +673,16 @@ export const api = {
   membriGruppo: (id: string) => richiesta<MembroGruppo[]>('GET', `/api/gruppi/${id}/persone`),
   aggiungiAlGruppo: (personaId: string, gruppoId: string) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/gruppi`, { gruppoId }),
   togliDalGruppo: (appartenenzaId: string) => richiesta<void>('POST', `/api/clienti/appartenenze/${appartenenzaId}/chiudi`, {}),
+  listino: (stagioneId: string) => richiesta<PaginaListino>('GET', `/api/listino?stagione=${stagioneId}`),
+  creaOfferta: (o: NuovaOfferta) => richiesta<Offerta>('POST', '/api/listino/offerte', o),
+  modificaOfferta: (id: string, o: NuovaOfferta) => richiesta<Offerta>('PUT', `/api/listino/offerte/${id}`, o),
+  eliminaOfferta: (id: string) => richiesta<void>('DELETE', `/api/listino/offerte/${id}`),
+  modificaRegolaPrezzo: (stagioneId: string, tipo: TipoRegolaPrezzo, attiva: boolean, parametri: Record<string, unknown>) =>
+    richiesta<RegolaPrezzo>('PUT', `/api/listino/regole/${stagioneId}/${tipo}`, { attiva, parametri }),
+  copiaListino: (da: string, a: string, aumentoPercentuale: number) => richiesta<{ offerte: number }>('POST', '/api/listino/copia', { da, a, aumentoPercentuale }),
+  propostaPrezzo: (personaId: string, offertaId: string, volte: number | null, dal: string) =>
+    richiesta<PropostaPrezzo>('GET', `/api/clienti/${personaId}/proposta?offertaId=${offertaId}${volte == null ? '' : `&volte=${volte}`}&dal=${dal}`),
+  recesso: (abbonamentoId: string, data: string) => richiesta<Rimborso | undefined>('GET', `/api/clienti/abbonamenti/${abbonamentoId}/recesso?data=${data}`),
   cambiaTurno: (iscrizioneId: string, c: { lezioneId: string; dal: string; forza?: boolean }) =>
     richiesta<CambioFatto>('POST', `/api/iscrizioni/${iscrizioneId}/cambia`, c),
   paginaAttesa: () => richiesta<PaginaAttesa>('GET', '/api/attesa'),
@@ -908,6 +918,10 @@ export interface Abbonamento {
   importo: number | null;
   note: string | null;
   valido: boolean;
+  /** venduto dal listino: l'offerta, l'importo proposto e il motivo se è stato cambiato */
+  offertaId: string | null;
+  importoListino: number | null;
+  motivoImporto: string | null;
 }
 
 export interface TurnoFrequentato {
@@ -1069,6 +1083,64 @@ export interface GruppoDi {
   dal: string;
 }
 
+export type TipoOfferta = 'CORSO' | 'CARNET' | 'ALTRO';
+/** Un prezzo: volte a settimana (1–7, 0 = open, null = prezzo unico), facoltativamente per un gruppo di clienti. */
+export interface PrezzoOfferta {
+  volte: number | null;
+  gruppoId: string | null;
+  importo: number;
+}
+export interface Offerta {
+  id: string;
+  stagioneId: string;
+  nome: string;
+  tipo: TipoOfferta;
+  descrizione: string | null;
+  ingressi: number | null;
+  validitaMesi: number | null;
+  validitaGiorni: number | null;
+  corsoId: string | null;
+  corsi: string[];
+  riduzioneTardiva: boolean;
+  attiva: boolean;
+  ordine: number;
+  prezzi: PrezzoOfferta[];
+}
+export type NuovaOfferta = Omit<Offerta, 'id'>;
+export type TipoRegolaPrezzo = 'RIDUZIONE_TARDIVA' | 'RATE' | 'RECESSO' | 'SOSPENSIONE';
+export interface RegolaPrezzo {
+  tipo: TipoRegolaPrezzo;
+  attiva: boolean;
+  parametri: Record<string, unknown>;
+}
+export interface PaginaListino {
+  stagione: Stagione;
+  offerte: Offerta[];
+  regole: RegolaPrezzo[];
+}
+export interface PropostaPrezzo {
+  offertaId: string;
+  offerta: string;
+  tipo: TipoOfferta;
+  volte: number | null;
+  listino: number;
+  /** il prezzo di base, se quello applicato è di un gruppo */
+  prezzoBase: number | null;
+  gruppoId: string | null;
+  riduzionePercentuale: number;
+  riduzione: number;
+  proposto: number;
+  rate: { numero: number; scadenza: string | null; importo: number }[];
+  al: string | null;
+}
+export interface Rimborso {
+  base: number;
+  percentuale: number;
+  importo: number;
+  nelBorsellino: boolean;
+  finoAl: string | null;
+}
+
 export interface ParametroRegola {
   nome: string;
   etichetta: string;
@@ -1092,7 +1164,9 @@ export interface RegolaAccesso {
 }
 
 export interface AbbonamentoInput {
-  tipo: 'CORSO' | 'CARNET';
+  tipo?: 'CORSO' | 'CARNET';
+  offertaId?: string | null;
+  motivoImporto?: string | null;
   corsoId?: string | null;
   volteASettimana?: number | null;
   ingressi?: number | null;

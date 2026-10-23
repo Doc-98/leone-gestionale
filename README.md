@@ -200,6 +200,10 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   Chiara Venturi, Davide Colombi, Elisa Marchi, Federico Bernardi o Giada Rinaldi (verdi e rossi per motivi diversi).
 - **Impostazioni della società** (admin, ADR 0018): dati della società, stagioni con la quota associativa (demo: dal 1/9
   al 31/8, 35 €), gruppi di clienti (demo: «Alunni dell'Istituto», «Squadra agonistica»); i gruppi si danno dalla scheda.
+- **Listino e regole di prezzo** (ADR 0018): pagina «Listino» con i prezzi della Leone (scuola nuoto mono 520 €, bi 795 €,
+  alunni dell'Istituto 460 €, nuoto libero, carnet) e le regole (riduzione per iscrizione tardiva, rate, recesso).
+  Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
+  «Cambiare l'importo proposto» e un motivo. «Termina oggi» mostra il rimborso secondo la regola di recesso.
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono
@@ -430,6 +434,9 @@ la CI su Windows.
 | GET · POST · PUT · DELETE | `/api/stagioni` · `/{id}` | stagioni e quota associativa (modifica: IMPOSTAZIONI) |
 | GET · POST · PUT | `/api/gruppi` · `/{id}` · `/{id}/persone` | gruppi di clienti (creazione: IMPOSTAZIONI) |
 | POST | `/api/clienti/{id}/gruppi` `{gruppoId}` · `/api/clienti/appartenenze/{id}/chiudi` | mettere e togliere una persona da un gruppo (CLIENTI) |
+| GET · POST · PUT · DELETE | `/api/listino?stagione=` · `/api/listino/offerte` · `/offerte/{id}` | listino della stagione (modifica: IMPOSTAZIONI) |
+| PUT · POST | `/api/listino/regole/{stagione}/{tipo}` · `/api/listino/copia` `{da, a, aumentoPercentuale}` | regole di prezzo; copia del listino |
+| GET | `/api/clienti/{id}/proposta?offertaId=&volte=&dal=` · `/api/clienti/abbonamenti/{id}/recesso?data=` | importo proposto; rimborso per recesso |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |

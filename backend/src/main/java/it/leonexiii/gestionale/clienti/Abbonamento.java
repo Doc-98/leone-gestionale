@@ -39,6 +39,12 @@ class Abbonamento {
     private Instant registratoIl;
     @Column(name = "annullato_il")
     private Instant annullatoIl;
+    @Column(name = "offerta_id")
+    private UUID offertaId;
+    @Column(name = "importo_listino")
+    private BigDecimal importoListino;
+    @Column(name = "motivo_importo")
+    private String motivoImporto;
 
     protected Abbonamento() {}
 
@@ -75,6 +81,13 @@ class Abbonamento {
         return a;
     }
 
+    /** Venduto dal listino: l'offerta, l'importo proposto e, se l'importo è diverso, il motivo. */
+    void daListino(UUID offertaId, BigDecimal proposto, String motivo) {
+        this.offertaId = offertaId;
+        this.importoListino = proposto;
+        this.motivoImporto = Testo.breve(motivo, 300);
+    }
+
     void annulla(Instant ora) {
         if (annullatoIl == null) annullatoIl = ora;
     }
@@ -99,6 +112,9 @@ class Abbonamento {
     LocalDate getDal() { return dal; }
     LocalDate getAl() { return al; }
     BigDecimal getImporto() { return importo; }
+    UUID getOffertaId() { return offertaId; }
+    BigDecimal getImportoListino() { return importoListino; }
+    String getMotivoImporto() { return motivoImporto; }
     String getNote() { return note; }
     Instant getAnnullatoIl() { return annullatoIl; }
 }

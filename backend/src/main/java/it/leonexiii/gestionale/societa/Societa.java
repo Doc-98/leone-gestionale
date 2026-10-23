@@ -68,6 +68,11 @@ public class Societa {
     }
 
     @Transactional(readOnly = true)
+    public Optional<Stagione> stagione(UUID id) {
+        return id == null ? Optional.empty() : stagioni.findById(id).map(StagioneSportiva::dto);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<Stagione> stagione(String nome) {
         return nome == null ? Optional.empty() : stagioni.findByNome(nome.strip()).map(StagioneSportiva::dto);
     }

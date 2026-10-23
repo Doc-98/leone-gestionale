@@ -7,6 +7,7 @@
     cambiaServer, cercaAggiornamento, infoProgramma, installaAggiornamento, type AggiornamentoProgramma, type InfoProgramma,
   } from './lib/dispositivi';
   import LettoreTelefono from './routes/LettoreTelefono.svelte';
+  import Listino from './routes/Listino.svelte';
   import Login from './routes/Login.svelte';
   import Turni from './routes/Turni.svelte';
   import Richieste from './routes/Richieste.svelte';
@@ -32,7 +33,7 @@
   import Account from './routes/Account.svelte';
   import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino';
   interface Sezione {
     id: Scheda;
     nome: string;
@@ -62,6 +63,7 @@
     scadenze: 'M12 7v5l3 2M5 3 2 6M19 3l3 3M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z',
     promemoria: 'M4 6h16v12H4zM4 7l8 6 8-6',
     societa: 'M4 21V8l8-5 8 5v13M9 21v-6h6v6M4 21h16',
+    listino: 'M5 3h10l4 4v14H5zM9 9h6M9 13h6M9 17h3',
     attesa: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
     account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
     ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
@@ -86,6 +88,7 @@
     { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.tariffe },
     { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole },
     { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', permessi: ['CLIENTI'], larga: true, icona: I.promemoria },
+    { id: 'listino', nome: 'Listino', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: I.listino },
     { id: 'societa', nome: 'Società e stagioni', titolo: 'Impostazioni della società', gruppo: 'Impostazioni', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.societa },
     { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', permessi: ['ACCOUNT'], larga: true, icona: I.account },
     { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', permessi: ['RUOLI'], larga: true, icona: I.ruoli },
@@ -280,6 +283,7 @@
         {:else if corrente.id === 'scadenze'}<Scadenze />
         {:else if corrente.id === 'attesa'}<ListaAttesa />
         {:else if corrente.id === 'societa'}<Societa />
+        {:else if corrente.id === 'listino'}<Listino />
         {:else if corrente.id === 'promemoria'}<Promemoria />
         {:else if corrente.id === 'account'}<Account />{/if}
       {/key}

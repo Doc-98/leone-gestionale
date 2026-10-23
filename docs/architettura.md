@@ -213,6 +213,9 @@ erDiagram
 - `consenso`: trattamento, comunicazioni promozionali (con i canali), foto e video; chi ha firmato, validità, revoca.
 - `societa` (una riga: nome e dati per le ricevute), `stagione` (date e quota associativa), `gruppo_clienti` e
   `appartenenza_gruppo` (es. alunni dell'Istituto: prezzi e precedenza) — ADR 0018.
+- `offerta` (listino per stagione: corsi con prezzo per frequenza, carnet, altri importi), `offerta_corso`,
+  `offerta_prezzo` (anche per gruppo), `regola_prezzo` (riduzione tardiva, rate, recesso, sospensione); l'abbonamento
+  ricorda offerta, importo proposto e motivo se cambiato.
 - `promemoria` (regole e testi) e `invio_promemoria` (cosa è stato mandato a chi); `email_inviata` (modulo notifiche).
 - `pagamento`: da fare (quote, ricevute).
 

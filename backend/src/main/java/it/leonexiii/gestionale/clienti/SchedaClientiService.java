@@ -1,8 +1,11 @@
 package it.leonexiii.gestionale.clienti;
 
 import it.leonexiii.gestionale.condiviso.NonTrovato;
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.identita.Utente;
+import it.leonexiii.gestionale.listino.Listino;
 import it.leonexiii.gestionale.pianovasca.Frequenze;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -10,7 +13,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +33,8 @@ class SchedaClientiService {
 
     record AbbonamentoDto(UUID id, String tipo, UUID corsoId, String corso, Integer volteASettimana, Integer ingressi, int usati,
                           Integer residui, Instant ultimoIngresso, LocalDate dal, LocalDate al, LocalDate alEffettivo, List<Clienti.Periodo> sospensioni,
-                          boolean sospesoOggi, BigDecimal importo, String note, boolean valido) {}
+                          boolean sospesoOggi, BigDecimal importo, String note, boolean valido, UUID offertaId, BigDecimal importoListino,
+                          String motivoImporto) {}
 
     record StagioneDto(String stagione, LocalDate dal, LocalDate al, BigDecimal importo) {}
 
@@ -59,7 +67,12 @@ class SchedaClientiService {
 
     record NuovoTesseramento(String stagione, LocalDate dal, LocalDate al, BigDecimal importo, LocalDate pagatoIl) {}
 
-    record NuovoAbbonamento(String tipo, UUID corsoId, Integer volteASettimana, Integer ingressi, LocalDate dal, LocalDate al, BigDecimal importo, String note) {}
+    /**
+     * Dal listino: offertaId (+ volteASettimana per i corsi, corsoId se l'offerta vale per più corsi), e l'importo solo se
+     * diverso da quello proposto (con motivoImporto). Senza offerta: tipo, corso, ingressi e importo scritti a mano.
+     */
+    record NuovoAbbonamento(String tipo, UUID corsoId, Integer volteASettimana, Integer ingressi, LocalDate dal, LocalDate al, BigDecimal importo, String note,
+                            UUID offertaId, String motivoImporto) {}
 
     record Termine(LocalDate al) {}
 
@@ -75,11 +88,15 @@ class SchedaClientiService {
     private final it.leonexiii.gestionale.notifiche.Posta posta;
     private final Clock orologio;
     private final it.leonexiii.gestionale.societa.Societa societa;
+    private final Listino listino;
+    private final Autorizzazioni autorizzazioni;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
                          AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni,
                          ConsensoRepository consensi, it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio,
-                         it.leonexiii.gestionale.societa.Societa societa) {
+                         it.leonexiii.gestionale.societa.Societa societa, Listino listino, Autorizzazioni autorizzazioni) {
+        this.listino = listino;
+        this.autorizzazioni = autorizzazioni;
         this.societa = societa;
         this.consensi = consensi;
         this.posta = posta;
@@ -109,7 +126,8 @@ class SchedaClientiService {
             Abbonamento e = note.stream().filter(x -> x.getId().equals(a.id())).findFirst().orElseThrow();
             boolean valido = a.validoIl(oggi) && (!a.carnet() || a.residui() > 0);
             return new AbbonamentoDto(a.id(), a.tipo(), a.corsoId(), a.corso(), a.volteASettimana(), a.ingressi(), a.usati(), a.residui(), a.ultimoIngresso(),
-                a.dal(), a.al(), a.alEffettivo(), a.sospensioni(), a.sospesoIl(oggi).isPresent(), e.getImporto(), e.getNote(), valido);
+                a.dal(), a.al(), a.alEffettivo(), a.sospensioni(), a.sospesoIl(oggi).isPresent(), e.getImporto(), e.getNote(), valido,
+                e.getOffertaId(), e.getImportoListino(), e.getMotivoImporto());
         }).toList();
         var daProporre = societa.stagioniDaProporre(oggi).stream().map(SchedaClientiService::dto).toList();
         var proposta = societa.stagioneIl(oggi).map(SchedaClientiService::dto).orElse(daProporre.isEmpty() ? null : daProporre.getFirst());
@@ -208,6 +226,7 @@ class SchedaClientiService {
     UUID nuovoAbbonamento(Utente u, UUID personaId, NuovoAbbonamento in) {
         persona(personaId);
         LocalDate dal = in.dal() != null ? in.dal() : LocalDate.now(orologio);
+        if (in.offertaId() != null) return dalListino(u, personaId, dal, in);
         Abbonamento a;
         if (in.corsoId() != null && frequenze.corsi().stream().noneMatch(c -> c.id().equals(in.corsoId()))) throw new NonTrovato("Corso non trovato.");
         if (Abbonamento.CARNET.equals(in.tipo()))
@@ -216,6 +235,56 @@ class SchedaClientiService {
             a = Abbonamento.corso(personaId, in.corsoId(), in.volteASettimana(), dal, in.al(), in.importo(), in.note(), u.personaId(), orologio.instant());
         } else throw new IllegalArgumentException("Scegli il tipo: abbonamento al corso o carnet.");
         return abbonamenti.saveAndFlush(a).getId();
+    }
+
+    /** L'importo proposto dal listino per questa persona (con i suoi gruppi) e questa data d'inizio. */
+    @Transactional(readOnly = true)
+    Listino.Proposta proposta(UUID personaId, UUID offertaId, Integer volte, LocalDate dal) {
+        persona(personaId);
+        return listino.proponi(offertaId, volte, gruppiDi(personaId), dal != null ? dal : LocalDate.now(orologio));
+    }
+
+    /**
+     * Venduto dal listino: tipo, corso, ingressi e scadenza vengono dall'offerta. L'importo è quello proposto; se è
+     * diverso serve il permesso «Cambiare l'importo proposto» e il motivo.
+     */
+    private UUID dalListino(Utente u, UUID personaId, LocalDate dal, NuovoAbbonamento in) {
+        Listino.Proposta p = listino.proponi(in.offertaId(), in.volteASettimana(), gruppiDi(personaId), dal);
+        Listino.OffertaDto o = listino.offerta(in.offertaId());
+        BigDecimal importo = in.importo() != null ? in.importo() : p.proposto();
+        String motivo = in.motivoImporto() == null || in.motivoImporto().isBlank() ? null : in.motivoImporto().strip();
+        if (importo.compareTo(p.proposto()) != 0) {
+            if (!autorizzazioni.puo(u, Permesso.SCONTI)) throw new AccessDeniedException("Per cambiare l'importo proposto serve il permesso «Cambiare l'importo proposto».");
+            if (motivo == null) throw new IllegalArgumentException("L'importo è diverso da quello proposto (" + p.proposto() + " €): scrivi il motivo.");
+        }
+        LocalDate al = in.al() != null ? in.al() : p.al();
+        Abbonamento a = switch (o.tipo()) {
+            case "CORSO" -> {
+                UUID corso = in.corsoId() != null ? in.corsoId() : o.corsi().size() == 1 ? o.corsi().getFirst() : null;
+                if (corso == null) throw new IllegalArgumentException("Scegli il corso: l'offerta vale per più corsi.");
+                if (!o.corsi().contains(corso)) throw new IllegalArgumentException("Questo corso non è compreso nell'offerta.");
+                Integer volte = in.volteASettimana() != null ? in.volteASettimana() : p.volte();
+                // prezzo unico → una volta a settimana; «open» → tutti i giorni
+                int v = volte == null ? 1 : volte == 0 ? 7 : volte;
+                yield Abbonamento.corso(personaId, corso, v, dal, al, importo, in.note(), u.personaId(), orologio.instant());
+            }
+            case "CARNET" -> Abbonamento.carnet(personaId, o.ingressi(), o.corsoId(), dal, al, importo, in.note(), u.personaId(), orologio.instant());
+            default -> throw new IllegalArgumentException("«" + o.nome() + "» non è un abbonamento né un carnet: si addebita con i pagamenti.");
+        };
+        a.daListino(o.id(), p.proposto(), importo.compareTo(p.proposto()) != 0 ? motivo : null);
+        return abbonamenti.saveAndFlush(a).getId();
+    }
+
+    /** Quanto si rimborserebbe recedendo in quella data, secondo la regola della stagione dell'offerta (vuoto se non c'è). */
+    @Transactional(readOnly = true)
+    Optional<Listino.Rimborso> recesso(UUID abbonamentoId, LocalDate data) {
+        Abbonamento a = abbonamenti.findById(abbonamentoId).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
+        if (a.getOffertaId() == null) return Optional.empty();
+        return listino.recesso(listino.stagioneDi(a.getOffertaId()), a.getImporto(), data != null ? data : LocalDate.now(orologio));
+    }
+
+    private Set<UUID> gruppiDi(UUID personaId) {
+        return clienti.gruppiDi(personaId).stream().map(Clienti.GruppoDi::gruppoId).collect(Collectors.toSet());
     }
 
     @Transactional

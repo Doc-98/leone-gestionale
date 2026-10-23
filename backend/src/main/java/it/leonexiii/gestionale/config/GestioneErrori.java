@@ -48,6 +48,8 @@ class GestioneErrori {
             : m.contains("stagione_nome_key") ? "C'è già una stagione con questo nome."
             : m.contains("gruppo_clienti_nome") ? "C'è già un gruppo con questo nome."
             : m.contains("appartenenza_gruppo_attiva") ? "La persona è già in questo gruppo."
+            : m.contains("offerta_prezzo_unico") ? "C'è già un prezzo per questa frequenza (e gruppo)."
+            : m.contains("abbonamento_offerta_id_fkey") ? "Con questa offerta sono già stati venduti abbonamenti: invece di eliminarla, disattivala."
             : "I dati non rispettano un vincolo del database.";
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, testo);
     }

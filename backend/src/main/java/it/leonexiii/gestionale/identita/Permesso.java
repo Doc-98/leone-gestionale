@@ -17,10 +17,11 @@ public enum Permesso {
     CLIENTI("Clienti e accessi", "Clienti", "Scheda cliente: certificati, tesseramenti, abbonamenti", true),
     BRACCIALETTI("Clienti e accessi", "Braccialetti e ban", "Assegnare braccialetti, segnarli smarriti, bannare", true),
     GOLDEN_PASS("Clienti e accessi", "Golden pass", "Dare e togliere il golden pass", true),
+    SCONTI("Clienti e accessi", "Cambiare l'importo proposto", "Scontare o cambiare l'importo proposto dal listino, scrivendo il motivo", true),
     REGOLE_TORNELLO("Sistema", "Regole del tornello", "Accendere, spegnere e configurare i controlli del tornello", true),
     RUOLI("Sistema", "Ruoli e permessi", "Creare ruoli, cambiarne i permessi e assegnarli alle persone", true),
     ACCOUNT("Sistema", "Account", "Creare gli account dello staff, disattivarli, reimpostare le password", true),
-    IMPOSTAZIONI("Sistema", "Impostazioni della società", "Dati della società, stagioni e quota associativa, gruppi di clienti", true);
+    IMPOSTAZIONI("Sistema", "Impostazioni della società", "Dati della società, stagioni e quota associativa, gruppi di clienti, listino e regole di prezzo", true);
 
     private final String gruppo;
     private final String nome;

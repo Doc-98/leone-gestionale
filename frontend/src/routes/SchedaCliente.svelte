@@ -5,12 +5,14 @@
     type Abbonamento, type Braccialetto, type Corso, type GruppoClienti, type SchedaAccessi, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
+  import { euro } from '../lib/listino';
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
   import ConsensiCliente from '../components/ConsensiCliente.svelte';
   import EsitoTornello from '../components/EsitoTornello.svelte';
   import FamigliaCliente from '../components/FamigliaCliente.svelte';
   import TurniCliente from '../components/TurniCliente.svelte';
+  import VenditaListino from '../components/VenditaListino.svelte';
   import LettoreTelefonoPc from '../components/LettoreTelefonoPc.svelte';
   import { lettoreTelefono } from '../lib/lettore.svelte';
 
@@ -153,6 +155,23 @@
 
   // ── Abbonamenti ───────────────────────────────────────────────────────
   let abbonamento = $state<{ tipo: 'CORSO' | 'CARNET'; corsoId: string; volte: number; ingressi: number | string; aOrario: boolean; dal: string; al: string; importo: number | string | null } | null>(null);
+
+  // vendita dal listino (di base) o a mano
+  let vendita = $state(false);
+  let rimborsi = $state<Record<string, string>>({});
+  /** Al primo clic su «Termina oggi»: quanto si rimborserebbe secondo la regola di recesso della stagione. */
+  async function terminaOggi(a: Abbonamento) {
+    if (!confermato('fin' + a.id)) {
+      try {
+        const r = await api.recesso(a.id, oggi);
+        rimborsi[a.id] = r ? `Recesso oggi: rimborso del ${r.percentuale}% di ${euro(r.base)} = ${euro(r.importo)}${r.nelBorsellino ? ', nel borsellino' : ''} (da registrare con i pagamenti).` : '';
+      } catch {
+        rimborsi[a.id] = '';
+      }
+      return;
+    }
+    esegui(() => api.terminaAbbonamento(a.id, oggi), 'Abbonamento terminato oggi.');
+  }
 
   function nuovoAbbonamento() {
     abbonamento = { tipo: 'CORSO', corsoId: cliente?.turni[0]?.corsoId ?? '', volte: Math.max(1, Math.min(3, cliente?.turni.length ?? 1)), ingressi: 10, aOrario: false,
@@ -502,7 +521,9 @@
             <span class="grow">
               {#if a.tipo === 'CORSO'}<strong>{a.corso}</strong> · {a.volteASettimana === 1 ? 'una volta' : `${a.volteASettimana} volte`} a settimana
               {:else}<strong>Carnet {a.ingressi} ingressi</strong> · {a.corso ? `negli orari di ${a.corso}` : 'entrata libera'} · {a.residui} rimasti{a.ultimoIngresso ? `, ultimo il ${dataBreve(dataDi(a.ultimoIngresso))}` : ''}{/if}
-              <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.alEffettivo ?? a.al)}` : ''}{a.alEffettivo && a.al && a.alEffettivo !== a.al ? ` (allungato per le sospensioni)` : ''}</span>
+              <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.alEffettivo ?? a.al)}` : ''}{a.alEffettivo && a.al && a.alEffettivo !== a.al ? ` (allungato per le sospensioni)` : ''}{a.importo != null ? ` · ${euro(a.importo)}` : ''}</span>
+              {#if a.motivoImporto}<span class="small muted riga-info">Proposto {euro(a.importoListino)} · {a.motivoImporto}</span>{/if}
+              {#if conferma === 'fin' + a.id && rimborsi[a.id]}<span class="small riga-info rimborso">{rimborsi[a.id]}</span>{/if}
               {#each a.sospensioni as s (s.id)}
                 <span class="sosp small">Sospeso dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.motivo ? ` · ${s.motivo}` : ''}
                   <button class="link small muted" onclick={() => confermato('sos' + s.id) && esegui(() => api.annullaSospensione(s.id), 'Sospensione annullata.')}>{conferma === 'sos' + s.id ? 'Conferma' : 'Annulla'}</button></span>
@@ -520,7 +541,7 @@
             <span class="tag {st.classe}">{st.nome}</span>
             {#if !sospensione}<button class="link small" onclick={() => (sospensione = { abbonamentoId: a.id, dal: oggi, al: tra(13), motivo: '' })}>Sospendi</button>{/if}
             {#if !a.al || a.al > oggi}
-              <button class="link small" onclick={() => confermato('fin' + a.id) && esegui(() => api.terminaAbbonamento(a.id, oggi), 'Abbonamento terminato oggi.')}>{conferma === 'fin' + a.id ? 'Conferma' : 'Termina oggi'}</button>
+              <button class="link small" onclick={() => terminaOggi(a)}>{conferma === 'fin' + a.id ? 'Conferma' : 'Termina oggi'}</button>
             {/if}
             <button class="link small muted" onclick={() => confermato('abb' + a.id) && esegui(() => api.annullaVoce('abbonamenti', a.id), 'Abbonamento annullato.')}>{conferma === 'abb' + a.id ? 'Conferma' : 'Annulla'}</button>
           </li>
@@ -528,7 +549,9 @@
           <li class="muted small">Nessun abbonamento.</li>
         {/each}
       </ul>
-      {#if abbonamento}
+      {#if vendita}
+        <VenditaListino {cliente} {corsi} {esegui} chiudi={() => (vendita = false)} aMano={() => { vendita = false; nuovoAbbonamento(); }} />
+      {:else if abbonamento}
         <form class="modulo" onsubmit={(e) => { e.preventDefault(); salvaAbbonamento(); }}>
           <div class="seg" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Tipo di abbonamento">
             <button type="button" aria-pressed={abbonamento.tipo === 'CORSO'} onclick={() => { abbonamento!.tipo = 'CORSO'; abbonamento!.al = cliente!.stagioneProposta?.al ?? ''; }}>Corso</button>
@@ -577,7 +600,7 @@
           </div>
         </form>
       {:else}
-        <button class="btn btn-secondary" onclick={nuovoAbbonamento}>Nuovo abbonamento o carnet…</button>
+        <button class="btn btn-secondary" onclick={() => (vendita = true)}>Nuovo abbonamento o carnet…</button>
       {/if}
 
     </section>
@@ -646,6 +669,8 @@
   .a-capo-t { white-space: pre-line; }
   .sx { align-self: flex-start; }
   .tess { display: flex; flex-direction: column; gap: var(--space-4); }
+  .riga-info { display: block; margin-top: 2px; }
+  .rimborso { color: var(--cloro-ink); font-weight: 600; }
   .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
   .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
   .togli { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
