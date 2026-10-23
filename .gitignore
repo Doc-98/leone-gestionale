@@ -12,3 +12,5 @@ frontend/dist/
 # Configurazioni locali con segreti
 .env
 *.local.yml
+# Dati veri usati solo in locale (profilo «locale»): non vanno mai nel repository
+dati-locali/

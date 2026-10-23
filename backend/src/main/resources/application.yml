@@ -47,6 +47,20 @@ spring:
     locations: classpath:db/migration,classpath:db/demo
     # I dati demo hanno versioni alte (V1000+): le migrazioni dello schema aggiunte dopo vanno applicate lo stesso
     out-of-order: true
+    # si può tornare al solo «demo» su un database che ha avuto anche i dati locali (profilo «locale», sotto)
+    ignore-migration-patterns: "*:missing"
 springdoc:
   api-docs:
     enabled: true
+---
+# Dati veri che non vanno su GitHub (es. lo staff reale degli spogliatoi), da usare insieme a «demo»:
+# i file .sql nella cartella backend/dati-locali (esclusa da git) si applicano dopo i dati demo.
+# Le migrazioni ripetibili (R__…) si riapplicano da sole quando il file cambia; se il file viene tolto, si va avanti.
+spring:
+  config:
+    activate:
+      on-profile: locale
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo,filesystem:dati-locali
+    out-of-order: true
+    ignore-migration-patterns: "*:missing"

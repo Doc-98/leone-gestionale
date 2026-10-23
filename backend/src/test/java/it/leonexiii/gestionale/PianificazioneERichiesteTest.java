@@ -95,15 +95,15 @@ class PianificazioneERichiesteTest {
     void generareIlMeseDalModelloSenzaDoppioni() throws Exception {
         var coord = come("coordinatore@demo.leone");
         var prima = json(coord.post("/api/modelli/" + MODELLO + "/genera", "{\"mese\":\"2027-02\"}"));
-        // febbraio 2027: 4 settimane esatte; 8 righe con persona e 1 da assegnare (il venerdì dei piccoli)
-        assertThat(prima).containsEntry("creati", 32).containsEntry("scoperti", 4).containsEntry("giaPresenti", 0);
+        // febbraio 2027: 4 settimane esatte; 63 righe con persona e 2 da assegnare (venerdì e domenica dei piccoli)
+        assertThat(prima).containsEntry("creati", 252).containsEntry("scoperti", 8).containsEntry("giaPresenti", 0);
 
         var seconda = json(coord.post("/api/modelli/" + MODELLO + "/genera", "{\"mese\":\"2027-02\"}"));
-        assertThat(seconda).containsEntry("creati", 0).containsEntry("giaPresenti", 36);
+        assertThat(seconda).containsEntry("creati", 0).containsEntry("giaPresenti", 260);
 
         var tutti = lista(coord.get("/api/turni?da=2027-02-01&a=2027-02-28"));
-        assertThat(tutti).hasSize(36);
-        assertThat(tutti.stream().filter(t -> mappa(t).get("persona") == null)).hasSize(4);
+        assertThat(tutti).hasSize(260);
+        assertThat(tutti.stream().filter(t -> mappa(t).get("persona") == null)).hasSize(8);
 
         assertThat(coord.post("/api/modelli/" + MODELLO + "/genera", "{\"mese\":\"febbraio\"}").statusCode()).isEqualTo(400);
         assertThat(come("staff@demo.leone").post("/api/modelli/" + MODELLO + "/genera", "{\"mese\":\"2027-03\"}").statusCode()).isEqualTo(403);

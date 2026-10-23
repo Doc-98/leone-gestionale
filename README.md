@@ -162,6 +162,24 @@ docker compose -f infra/docker-compose.yml down -v     # cancella il database: a
 Ripartire da zero serve, ad esempio, dopo aver fatto molte prove: con `down -v` e di nuovo i passi 2 e 3 si ritrovano i
 dati demo come all'inizio (le date si ricalcolano su oggi).
 
+### Dati veri solo sul tuo computer (profilo «locale»)
+
+Alcuni dati veri (per esempio i turni dello staff reale degli spogliatoi) non devono finire su GitHub. Per provarli:
+
+1. Crea la cartella `backend\dati-locali` e mettici dentro i file `.sql` (es. `R__staff_spogliatoi_reale.sql`).
+   La cartella è esclusa da git: `git status` non la mostra mai.
+2. Avvia il backend con il profilo `locale` oltre a `demo`:
+
+   ```powershell
+   cd backend
+   .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=demo,locale"
+   ```
+
+   I file si applicano dopo i dati demo. Un file `R__…` si riapplica da solo al riavvio quando lo modifichi.
+3. Per tornare ai soli dati inventati: `docker compose -f infra/docker-compose.yml down -v` e avvio con il solo `demo`.
+
+I test usano solo il profilo `demo`: i dati della cartella non entrano mai nei test.
+
 ### Problemi frequenti
 
 | Messaggio | Causa e soluzione |
@@ -176,8 +194,16 @@ dati demo come all'inizio (le date si ricalcolano su oggi).
 ## Provare il gestionale (dati demo)
 
 Account demo (password `demo1234`): `admin@demo.leone`, `coordinatore@demo.leone`, `segreteria@demo.leone`,
-`staff@demo.leone` (Luca, istruttore di Delfino Giallo), `giulia@demo.leone`, `marta@demo.leone`. Sono persone
-inventate: nello sviluppo non si usano dati reali.
+`staff@demo.leone` (Luca, spogliatoi), `giulia@demo.leone`, `marta@demo.leone`; istruttori come
+`federico.mauri@demo.leone` (Delfino Giallo) e `elena@demo.leone` (Acquababy, AquaFitness); lo staff degli spogliatoi
+come `ruggero.sala@demo.leone`. Sono persone inventate: nello sviluppo non si usano dati reali.
+
+- **Piano vasca come sul sito**: tutti i turni di tutti i corsi della pagina «Piscina» della Leone XIII Sport (dall'Acquababy
+  all'AquaFitness, con nuoto adulti, corsi leoniani e nuoto libero), un corso per corsia, la vasca grande a 6 corsie e il
+  mercoledì a 5. Ogni turno ha i suoi iscritti inventati; gli istruttori sono inventati, tranne i responsabili indicati sul
+  sito per Propaganda e corsi leoniani.
+- **Staff degli spogliatoi** organizzato come il foglio turni vero (maschile a 3 postazioni, femminile a 2, piccoli fino
+  a 6, atrio, domenica mattina), con persone inventate, un modello settimanale, turni scoperti e richieste aperte.
 
 Braccialetti demo da provare al tornello (si scrivono nel campo): `D0000001` carnet (verde, scala), `D0000002` Delfino
 Giallo bisettimanale (verde solo nella fascia), `D0000003` certificato scaduto e tesseramento mancante, `D0000004`

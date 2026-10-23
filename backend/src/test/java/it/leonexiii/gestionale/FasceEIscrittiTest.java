@@ -74,13 +74,13 @@ class FasceEIscrittiTest {
         assertThat(come("staff@demo.leone").get("/api/fasce").body()).contains("\"inizio\":\"17:00:00\"").contains("\"assetto\":6").contains("\"assetto\":5");
         assertThat(come("staff@demo.leone").post("/api/fasce", "{}").statusCode()).isEqualTo(403);
 
-        // domenica 10:00-10:45 in vasca grande a 6 corsie; una fascia che si accavalla no
+        // domenica 14:00-14:45 (dopo il nuoto libero del mattino) in vasca grande a 6 corsie; una fascia che si accavalla no
         var nuove = coord.post("/api/fasce", """
-            {"vascaId":"%s","giorni":[7],"inizio":"10:00","fine":"10:45","assetto":6,"validaDal":"2028-01-01"}""".formatted(VASCA_GRANDE));
+            {"vascaId":"%s","giorni":[7],"inizio":"14:00","fine":"14:45","assetto":6,"validaDal":"2028-01-01"}""".formatted(VASCA_GRANDE));
         assertThat(nuove.statusCode()).as(nuove.body()).isEqualTo(201);
         String fascia = (String) mappa(lista(nuove).get(0)).get("id");
         var accavallata = coord.post("/api/fasce", """
-            {"vascaId":"%s","giorni":[7],"inizio":"10:30","fine":"11:15","assetto":6,"validaDal":"2028-01-01"}""".formatted(VASCA_GRANDE));
+            {"vascaId":"%s","giorni":[7],"inizio":"14:30","fine":"15:15","assetto":6,"validaDal":"2028-01-01"}""".formatted(VASCA_GRANDE));
         assertThat(accavallata.statusCode()).isEqualTo(409);
         assertThat(accavallata.body()).contains("già una fascia");
         // una vasca non si divide in 4
@@ -88,7 +88,7 @@ class FasceEIscrittiTest {
             {"vascaId":"%s","giorni":[7],"inizio":"12:00","fine":"12:45","assetto":4,"validaDal":"2028-01-01"}""".formatted(VASCA_GRANDE)).statusCode()).isEqualTo(400);
 
         String corso = corso(coord, "Prova fasce");
-        String turno = lezione(coord, corso, "10:00", "10:45", CORSIA_2, "null");
+        String turno = lezione(coord, corso, "14:00", "14:45", CORSIA_2, "null");
 
         // a 5 corsie: il turno passa sulla corsia 2 della vasca a 5
         var a5 = coord.post("/api/fasce/" + fascia + "/assetto", "{\"assetto\":5}");
@@ -97,19 +97,19 @@ class FasceEIscrittiTest {
         assertThat(coord.get("/api/corsi").body()).contains(CORSIA_2_DI_5);
         // ora la corsia 6 non c'è
         var sesta = coord.post("/api/corsi/" + corso + "/lezioni", """
-            {"giornoSettimana":7,"inizio":"10:00","fine":"10:45","validaDal":"2028-01-01","spazi":["%s"]}""".formatted(CORSIA_6));
+            {"giornoSettimana":7,"inizio":"14:00","fine":"14:45","validaDal":"2028-01-01","spazi":["%s"]}""".formatted(CORSIA_6));
         assertThat(sesta.statusCode()).isEqualTo(400);
         // si torna a 6 e si occupa la corsia 6: tornare a 5 non si può finché c'è un corso in corsia 6
         assertThat(coord.post("/api/fasce/" + fascia + "/assetto", "{\"assetto\":6}").statusCode()).isEqualTo(200);
-        String inSesta = lezione(coord, corso, "10:00", "10:45", CORSIA_6, "null");
+        String inSesta = lezione(coord, corso, "14:00", "14:45", CORSIA_6, "null");
         var bloccato = coord.post("/api/fasce/" + fascia + "/assetto", "{\"assetto\":5}");
         assertThat(bloccato.statusCode()).isEqualTo(409);
         assertThat(bloccato.body()).contains("corsia 6");
 
         // la fascia si sposta di 5 minuti e i suoi turni la seguono
-        var spostata = coord.put("/api/fasce/" + fascia, "{\"inizio\":\"10:05\",\"fine\":\"10:50\",\"validaDal\":\"2028-01-01\"}");
+        var spostata = coord.put("/api/fasce/" + fascia, "{\"inizio\":\"14:05\",\"fine\":\"14:50\",\"validaDal\":\"2028-01-01\"}");
         assertThat(json(spostata)).containsEntry("turniAggiornati", 2);
-        assertThat(coord.get("/api/corsi").body()).contains("\"inizio\":\"10:05:00\"");
+        assertThat(coord.get("/api/corsi").body()).contains("\"inizio\":\"14:05:00\"");
 
         // con dei turni dentro non si elimina; tolti i turni sì
         assertThat(coord.delete("/api/fasce/" + fascia).statusCode()).isEqualTo(409);
@@ -163,30 +163,30 @@ class FasceEIscrittiTest {
         assertThat(giulia.put("/api/lezioni/" + turno + "/presenze", "{\"data\":\"2028-01-09\",\"presenze\":[{\"personaId\":\"" + bimbo + "\",\"presente\":true}]}")
             .statusCode()).isEqualTo(400);
 
-        // un turno demo già iniziato: l'ultimo lunedì passato, Delfino Giallo (istruttore Luca)
+        // un turno demo già iniziato: l'ultimo lunedì passato, Delfino Giallo (istruttore Federico)
         LocalDate oggi = LocalDate.now(ZoneId.of("Europe/Rome"));
         LocalDate lunedi = oggi.with(TemporalAdjusters.previous(DayOfWeek.MONDAY));
-        var luca = come("staff@demo.leone");
+        var federico = come("federico.mauri@demo.leone");
         @SuppressWarnings("unchecked")
-        var giallo = ((List<Object>) json(luca.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(FasceEIscrittiTest::mappa)
+        var giallo = ((List<Object>) json(federico.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(FasceEIscrittiTest::mappa)
             .filter(o -> "Delfino Giallo".equals(o.get("titolo")) && "17:00:00".equals(o.get("inizio"))).findFirst().orElseThrow();
         assertThat(((Number) giallo.get("iscritti")).intValue()).isBetween(5, 9); // 5-8 inventati, più Tommaso (casi del tornello)
         String turnoGiallo = (String) giallo.get("lezioneId");
-        var lista = json(luca.get("/api/lezioni/" + turnoGiallo + "/iscritti?data=" + lunedi));
+        var lista = json(federico.get("/api/lezioni/" + turnoGiallo + "/iscritti?data=" + lunedi));
         assertThat(lista).containsEntry("puoSegnarePresenze", true);
         @SuppressWarnings("unchecked")
         var bambini = ((List<Object>) lista.get("iscritti")).stream().map(FasceEIscrittiTest::mappa).toList();
         String uno = (String) bambini.get(0).get("personaId"), due = (String) bambini.get(1).get("personaId");
-        var segnate = json(luca.put("/api/lezioni/" + turnoGiallo + "/presenze", """
+        var segnate = json(federico.put("/api/lezioni/" + turnoGiallo + "/presenze", """
             {"data":"%s","presenze":[{"personaId":"%s","presente":true},{"personaId":"%s","presente":false}]}""".formatted(lunedi, uno, due)));
         @SuppressWarnings("unchecked")
         var dopo = ((List<Object>) segnate.get("iscritti")).stream().map(FasceEIscrittiTest::mappa).toList();
         assertThat(dopo.stream().filter(b -> uno.equals(b.get("personaId"))).findFirst().orElseThrow()).containsEntry("presente", true);
         assertThat(dopo.stream().filter(b -> due.equals(b.get("personaId"))).findFirst().orElseThrow()).containsEntry("presente", false);
         // il martedì il turno del lunedì non si tiene
-        assertThat(luca.put("/api/lezioni/" + turnoGiallo + "/presenze", """
+        assertThat(federico.put("/api/lezioni/" + turnoGiallo + "/presenze", """
             {"data":"%s","presenze":[{"personaId":"%s","presente":true}]}""".formatted(lunedi.plusDays(1), uno)).statusCode()).isEqualTo(400);
-        // un altro istruttore non segna le presenze di Luca
+        // un altro istruttore non segna le presenze di Federico
         assertThat(giulia.put("/api/lezioni/" + turnoGiallo + "/presenze", """
             {"data":"%s","presenze":[{"personaId":"%s","presente":true}]}""".formatted(lunedi, uno)).statusCode()).isEqualTo(403);
 
