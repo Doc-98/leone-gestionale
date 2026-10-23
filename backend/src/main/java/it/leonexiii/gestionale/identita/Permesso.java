@@ -19,7 +19,8 @@ public enum Permesso {
     GOLDEN_PASS("Clienti e accessi", "Golden pass", "Dare e togliere il golden pass", true),
     REGOLE_TORNELLO("Sistema", "Regole del tornello", "Accendere, spegnere e configurare i controlli del tornello", true),
     RUOLI("Sistema", "Ruoli e permessi", "Creare ruoli, cambiarne i permessi e assegnarli alle persone", true),
-    ACCOUNT("Sistema", "Account", "Creare gli account dello staff, disattivarli, reimpostare le password", true);
+    ACCOUNT("Sistema", "Account", "Creare gli account dello staff, disattivarli, reimpostare le password", true),
+    IMPOSTAZIONI("Sistema", "Impostazioni della società", "Dati della società, stagioni e quota associativa, gruppi di clienti", true);
 
     private final String gruppo;
     private final String nome;

@@ -37,7 +37,7 @@ class Tesseramento {
     protected Tesseramento() {}
 
     Tesseramento(UUID personaId, String stagione, LocalDate dal, LocalDate al, BigDecimal importo, LocalDate pagatoIl, UUID registratoDa, Instant ora) {
-        if (stagione == null || !stagione.matches("[0-9]{4}/[0-9]{2}")) throw new IllegalArgumentException("Stagione non valida (es. 2026/27).");
+        if (stagione == null || stagione.isBlank() || stagione.length() > 20) throw new IllegalArgumentException("Indica la stagione (es. 2026/27).");
         if (dal == null || al == null || al.isBefore(dal)) throw new IllegalArgumentException("Controlla le date del tesseramento.");
         if (importo != null && importo.signum() < 0) throw new IllegalArgumentException("L'importo non può essere negativo.");
         this.id = UUID.randomUUID();

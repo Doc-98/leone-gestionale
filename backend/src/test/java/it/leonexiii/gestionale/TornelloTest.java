@@ -138,11 +138,11 @@ class TornelloTest {
         crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-02\"}");
         assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).doesNotContain("CERTIFICATO_SCADUTO", "CERTIFICATO_MANCANTE");
 
-        // tesseramento senza dati: la stagione in corso, 2027/28 da settembre a luglio
+        // tesseramento senza dati: la stagione in corso (impostata dalla società), 2027/28
         crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
         assertThat(segr.post("/api/clienti/" + persona + "/tesseramenti", "{}").statusCode()).isEqualTo(409);
         var scheda = json(segr.get("/api/clienti/" + persona));
-        assertThat(scheda.toString()).contains("stagione=2027/28").contains("dal=2027-09-01").contains("al=2028-07-31");
+        assertThat(scheda.toString()).contains("stagione=2027/28").contains("dal=2027-09-01").contains("al=2028-08-31");
 
         // un turno la domenica alle 06:00-06:45, iscrizione e abbonamento al corso
         String corso = crea(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Corso del tornello\",\"tipo\":\"ALTRO\"}");

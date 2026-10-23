@@ -45,8 +45,11 @@ class ScadenzeService {
     private final Posta posta;
     private final Clock orologio;
 
+    private final it.leonexiii.gestionale.societa.Societa societa;
+
     ScadenzeService(Clienti clienti, CertificatoRepository certificati, TesseramentoRepository tesseramenti, InvioPromemoriaRepository invii,
-                    Persone persone, Posta posta, Clock orologio) {
+                    Persone persone, Posta posta, Clock orologio, it.leonexiii.gestionale.societa.Societa societa) {
+        this.societa = societa;
         this.clienti = clienti;
         this.certificati = certificati;
         this.tesseramenti = tesseramenti;
@@ -72,6 +75,7 @@ class ScadenzeService {
     @Transactional(readOnly = true)
     List<Voce> voci(LocalDate oggi, int entro) {
         LocalDate limite = oggi.plusDays(entro);
+        var stagione = societa.stagioneIl(oggi).orElse(null);
         Map<UUID, List<Clienti.AbbonamentoBreve>> abbonamenti = clienti.abbonamentiDiTutti();
         Map<UUID, CertificatoMedico> migliori = new HashMap<>();
         for (CertificatoMedico c : certificati.findAll())
@@ -113,8 +117,8 @@ class ScadenzeService {
             if (frequentaOra) {
                 List<Tesseramento> suoiT = tess.getOrDefault(p, List.of());
                 Tesseramento valido = suoiT.stream().filter(t -> t.validoIl(oggi)).findFirst().orElse(null);
-                Stagione s = Stagione.di(oggi);
-                if (valido == null) {
+                var s = stagione;
+                if (valido == null && s != null) {
                     grezze.add(new Grezza("TESSERAMENTO_MANCANTE", p, "Manca il tesseramento " + s.nome(), null, s.nome(), null, s.nome()));
                 } else if (!valido.getAl().isAfter(limite) && suoiT.stream().noneMatch(t -> t.getDal().isAfter(valido.getAl()))) {
                     grezze.add(new Grezza("TESSERAMENTO", p, "Tesseramento " + valido.getStagione(), null, valido.getStagione(), valido.getAl(), valido.getId().toString()));

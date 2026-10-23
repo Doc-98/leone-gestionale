@@ -79,21 +79,38 @@ public class Clienti {
 
     public record IngressoScalato(EsitoCarnet esito, int usati, int ingressi) {}
 
+    /** Un gruppo di clienti di cui la persona fa parte (es. per prezzi diversi o la precedenza nei rinnovi). */
+    public record GruppoDi(UUID appartenenzaId, UUID gruppoId, String nome, LocalDate dal) {}
+
     private final CertificatoRepository certificati;
     private final TesseramentoRepository tesseramenti;
     private final AbbonamentoRepository abbonamenti;
     private final IngressoCarnetRepository ingressi;
     private final SospensioneRepository sospensioni;
     private final Frequenze frequenze;
+    private final GruppoClientiRepository gruppi;
+    private final AppartenenzaGruppoRepository appartenenze;
 
     Clienti(CertificatoRepository certificati, TesseramentoRepository tesseramenti, AbbonamentoRepository abbonamenti,
-            IngressoCarnetRepository ingressi, SospensioneRepository sospensioni, Frequenze frequenze) {
+            IngressoCarnetRepository ingressi, SospensioneRepository sospensioni, Frequenze frequenze,
+            GruppoClientiRepository gruppi, AppartenenzaGruppoRepository appartenenze) {
+        this.gruppi = gruppi;
+        this.appartenenze = appartenenze;
         this.sospensioni = sospensioni;
         this.certificati = certificati;
         this.tesseramenti = tesseramenti;
         this.abbonamenti = abbonamenti;
         this.ingressi = ingressi;
         this.frequenze = frequenze;
+    }
+
+    /** I gruppi di clienti di cui la persona fa parte oggi. */
+    @Transactional(readOnly = true)
+    public List<GruppoDi> gruppiDi(UUID personaId) {
+        var nomi = new java.util.HashMap<UUID, String>();
+        gruppi.findAll().forEach(g -> nomi.put(g.getId(), g.getNome()));
+        return appartenenze.attiveDi(personaId).stream()
+            .map(a -> new GruppoDi(a.getId(), a.getGruppoId(), nomi.get(a.getGruppoId()), a.getDal())).toList();
     }
 
     @Transactional(readOnly = true)

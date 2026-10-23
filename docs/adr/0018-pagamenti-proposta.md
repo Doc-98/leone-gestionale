@@ -1,6 +1,7 @@
 # 0018 · Pagamenti, listino, borsellino e ricevute (proposta)
 
-**Stato.** Proposta: da confermare prima di costruirla, un pezzo alla volta.
+**Stato.** Accettata il 23/10/2026, si costruisce un pezzo alla volta. Fatte: parti 1 (impostazioni della società e
+stagioni) e 2 (gruppi di clienti).
 
 **Contesto.** Il gestionale deve servire a una società sportiva qualsiasi (vedi «Principi» in `docs/architettura.md`):
 listino, sconti, rate, rimborsi e regole cambiano da una società all'altra e da una stagione all'altra. Le regole della

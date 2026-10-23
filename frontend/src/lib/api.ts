@@ -11,7 +11,7 @@ export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
   | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
   | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS'
-  | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT';
+  | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT' | 'IMPOSTAZIONI';
 
 export interface Me {
   accountId: string;
@@ -661,6 +661,18 @@ export const api = {
   tokenLettore: (codice: string) => richiesta<{ token: string }>('GET', `/api/lettori/codice/${encodeURIComponent(codice)}`),
   telefonoPresente: (token: string) => richiesta<void>('POST', `/api/lettori/telefono/${token}/presente`, {}),
   inviaLettura: (token: string, codice: string) => richiesta<void>('POST', `/api/lettori/telefono/${token}/letture`, { codice }),
+  societa: () => richiesta<DatiSocieta>('GET', '/api/societa'),
+  modificaSocieta: (d: DatiSocieta) => richiesta<DatiSocieta>('PUT', '/api/societa', d),
+  stagioni: () => richiesta<Stagione[]>('GET', '/api/stagioni'),
+  creaStagione: (s: NuovaStagione) => richiesta<Stagione>('POST', '/api/stagioni', s),
+  modificaStagione: (id: string, s: NuovaStagione) => richiesta<Stagione>('PUT', `/api/stagioni/${id}`, s),
+  eliminaStagione: (id: string) => richiesta<void>('DELETE', `/api/stagioni/${id}`),
+  gruppi: () => richiesta<GruppoClienti[]>('GET', '/api/gruppi'),
+  creaGruppo: (g: { nome: string; descrizione: string | null }) => richiesta<{ id: string }>('POST', '/api/gruppi', g),
+  modificaGruppo: (id: string, g: { nome: string; descrizione: string | null; attivo: boolean }) => richiesta<void>('PUT', `/api/gruppi/${id}`, g),
+  membriGruppo: (id: string) => richiesta<MembroGruppo[]>('GET', `/api/gruppi/${id}/persone`),
+  aggiungiAlGruppo: (personaId: string, gruppoId: string) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/gruppi`, { gruppoId }),
+  togliDalGruppo: (appartenenzaId: string) => richiesta<void>('POST', `/api/clienti/appartenenze/${appartenenzaId}/chiudi`, {}),
   cambiaTurno: (iscrizioneId: string, c: { lezioneId: string; dal: string; forza?: boolean }) =>
     richiesta<CambioFatto>('POST', `/api/iscrizioni/${iscrizioneId}/cambia`, c),
   paginaAttesa: () => richiesta<PaginaAttesa>('GET', '/api/attesa'),
@@ -922,7 +934,11 @@ export interface SchedaCliente {
   abbonamenti: Abbonamento[];
   turni: TurnoFrequentato[];
   attesa: InAttesa[];
-  stagioneProposta: { stagione: string; dal: string; al: string; importo: number };
+  /** la stagione in corso (o la prossima, se non ce n'è una in corso); null se la società non ne ha impostate */
+  stagioneProposta: StagioneBreve | null;
+  /** le stagioni per cui proporre il tesseramento: quella in corso e, se manca poco, la prossima */
+  stagioniTesseramento: StagioneBreve[];
+  gruppi: GruppoDi[];
 }
 
 export type Sesso = 'M' | 'F';
@@ -993,6 +1009,64 @@ export interface NuovoConsenso {
   email: boolean;
   sms: boolean;
   cartaceo: boolean;
+}
+
+export interface StagioneBreve {
+  stagione: string;
+  dal: string;
+  al: string;
+  importo: number | null;
+}
+
+/** I dati della società che usa il gestionale (ADR 0018). */
+export interface DatiSocieta {
+  nome: string;
+  ragioneSociale: string | null;
+  partitaIva: string | null;
+  codiceFiscale: string | null;
+  indirizzo: string | null;
+  cap: string | null;
+  citta: string | null;
+  provincia: string | null;
+  email: string | null;
+  telefono: string | null;
+  giorniAnticipo: number;
+}
+export interface Stagione {
+  id: string;
+  nome: string;
+  dal: string;
+  al: string;
+  quota: number | null;
+  quotaRimborsabile: boolean;
+}
+export interface NuovaStagione {
+  nome: string;
+  dal: string;
+  al: string;
+  quota: number | null;
+  quotaRimborsabile: boolean;
+}
+export interface GruppoClienti {
+  id: string;
+  nome: string;
+  descrizione: string | null;
+  attivo: boolean;
+  persone: number;
+}
+export interface MembroGruppo {
+  appartenenzaId: string;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
+  dal: string;
+}
+export interface GruppoDi {
+  appartenenzaId: string;
+  gruppoId: string;
+  nome: string;
+  dal: string;
 }
 
 export interface ParametroRegola {

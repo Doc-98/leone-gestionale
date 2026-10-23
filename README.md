@@ -198,6 +198,8 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   prima in lista); dalla scheda si cambia turno scegliendo tra i turni del corso con i posti.
 - **Braccialetti nel formato dei chip NFC** (seriali di 4 e 7 byte), per le prove con il telefono: cerca in «Clienti»
   Chiara Venturi, Davide Colombi, Elisa Marchi, Federico Bernardi o Giada Rinaldi (verdi e rossi per motivi diversi).
+- **Impostazioni della società** (admin, ADR 0018): dati della società, stagioni con la quota associativa (demo: dal 1/9
+  al 31/8, 35 €), gruppi di clienti (demo: «Alunni dell'Istituto», «Squadra agonistica»); i gruppi si danno dalla scheda.
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono
@@ -424,6 +426,10 @@ la CI su Windows.
 | POST | `/api/iscrizioni/{id}/cambia` `{lezioneId, dal, forza}` | cambio di turno (anche di corso) da una data |
 | POST · GET · DELETE | `/api/lettori` · `/{id}/letture?dopo=` · `/{id}` | il PC abbina un telefono come lettore e riceve i codici |
 | POST · GET | `/api/lettori/telefono/{token}/presente` · `/telefono/{token}/letture` `{codice}` · `/api/lettori/codice/{codice}` | il telefono (senza accesso, con il token) |
+| GET · PUT | `/api/societa` | dati della società (modifica: permesso IMPOSTAZIONI) |
+| GET · POST · PUT · DELETE | `/api/stagioni` · `/{id}` | stagioni e quota associativa (modifica: IMPOSTAZIONI) |
+| GET · POST · PUT | `/api/gruppi` · `/{id}` · `/{id}/persone` | gruppi di clienti (creazione: IMPOSTAZIONI) |
+| POST | `/api/clienti/{id}/gruppi` `{gruppoId}` · `/api/clienti/appartenenze/{id}/chiudi` | mettere e togliere una persona da un gruppo (CLIENTI) |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |

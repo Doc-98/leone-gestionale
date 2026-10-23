@@ -29,7 +29,7 @@
     const t = cliente.famiglia.tutori[0];
     const firmatario = minore && t ? `${t.nome} ${t.cognome} (${t.relazione === 'PADRE' ? 'padre' : t.relazione === 'MADRE' ? 'madre' : 'tutore'})`
       : `${cliente.persona.nome} ${cliente.persona.cognome}`;
-    nuovo = { tipo, firmatoDa: firmatario, datoIl: oggi, validoFino: tipo === 'IMMAGINI' ? cliente.stagioneProposta.al : '', email: true, sms: false, cartaceo: false };
+    nuovo = { tipo, firmatoDa: firmatario, datoIl: oggi, validoFino: tipo === 'IMMAGINI' ? cliente.stagioneProposta?.al ?? '' : '', email: true, sms: false, cartaceo: false };
   }
 
   async function salva() {

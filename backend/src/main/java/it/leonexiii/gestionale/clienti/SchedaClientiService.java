@@ -30,6 +30,10 @@ class SchedaClientiService {
 
     record StagioneDto(String stagione, LocalDate dal, LocalDate al, BigDecimal importo) {}
 
+    private static StagioneDto dto(it.leonexiii.gestionale.societa.Societa.Stagione s) {
+        return new StagioneDto(s.nome(), s.dal(), s.al(), s.quota());
+    }
+
     record Famiglia(List<Persone.Familiare> tutori, List<Persone.Familiare> assistiti, List<Persone.Familiare> fratelli, List<String> destinatari) {}
 
     record ConsensoDto(UUID id, String tipo, String firmatoDa, LocalDate datoIl, LocalDate validoFino, boolean email, boolean sms, boolean cartaceo,
@@ -42,6 +46,7 @@ class SchedaClientiService {
     record Scheda(PersonaDto persona, Persone.Anagrafica anagrafica, Persone.Contatti contatti, Famiglia famiglia, List<ConsensoDto> consensi,
                   List<CertificatoDto> certificati, List<TesseramentoDto> tesseramenti,
                   List<AbbonamentoDto> abbonamenti, List<Frequenze.TurnoFrequentato> turni, List<Frequenze.InAttesa> attesa, StagioneDto stagioneProposta,
+                  List<StagioneDto> stagioniTesseramento, List<Clienti.GruppoDi> gruppi,
                   List<it.leonexiii.gestionale.notifiche.Posta.EmailBreve> email) {}
 
     record NuoviContatti(String email, String telefono) {}
@@ -69,10 +74,13 @@ class SchedaClientiService {
     private final ConsensoRepository consensi;
     private final it.leonexiii.gestionale.notifiche.Posta posta;
     private final Clock orologio;
+    private final it.leonexiii.gestionale.societa.Societa societa;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
                          AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni,
-                         ConsensoRepository consensi, it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio) {
+                         ConsensoRepository consensi, it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio,
+                         it.leonexiii.gestionale.societa.Societa societa) {
+        this.societa = societa;
         this.consensi = consensi;
         this.posta = posta;
         this.sospensioni = sospensioni;
@@ -103,7 +111,8 @@ class SchedaClientiService {
             return new AbbonamentoDto(a.id(), a.tipo(), a.corsoId(), a.corso(), a.volteASettimana(), a.ingressi(), a.usati(), a.residui(), a.ultimoIngresso(),
                 a.dal(), a.al(), a.alEffettivo(), a.sospensioni(), a.sospesoIl(oggi).isPresent(), e.getImporto(), e.getNote(), valido);
         }).toList();
-        Stagione s = Stagione.di(oggi);
+        var daProporre = societa.stagioniDaProporre(oggi).stream().map(SchedaClientiService::dto).toList();
+        var proposta = societa.stagioneIl(oggi).map(SchedaClientiService::dto).orElse(daProporre.isEmpty() ? null : daProporre.getFirst());
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), oggi).getYears();
         var famiglia = new Famiglia(persone.tutoriDi(personaId), persone.assistitiDi(personaId), persone.fratelliDi(personaId),
             persone.destinatari(List.of(personaId)).getOrDefault(personaId, List.of()));
@@ -111,7 +120,7 @@ class SchedaClientiService {
             c.getDatoIl(), c.getValidoFino(), c.isEmail(), c.isSms(), c.isCartaceo(), c.getRevocatoIl(), c.validoIl(oggi))).toList();
         return new Scheda(new PersonaDto(p.id(), p.nome(), p.cognome(), p.dataNascita(), eta), persone.anagrafica(personaId),
             persone.contatti(List.of(personaId)).get(personaId), famiglia, cons,
-            cert, tess, abb, frequenze.turniDi(personaId, oggi), frequenze.attesaDi(personaId), new StagioneDto(s.nome(), s.dal(), s.al(), s.importo()), posta.diPersona(personaId, 10));
+            cert, tess, abb, frequenze.turniDi(personaId, oggi), frequenze.attesaDi(personaId), proposta, daProporre, clienti.gruppiDi(personaId), posta.diPersona(personaId, 10));
     }
 
     @Transactional
@@ -173,15 +182,24 @@ class SchedaClientiService {
             in.note(), in.firmatoDa(), u.personaId(), orologio.instant())).getId();
     }
 
-    /** Senza date si usa la stagione in corso (settembre–luglio) con la quota di base. */
+    /**
+     * Senza stagione si usa quella da proporre oggi (la in corso, o la prossima se manca poco); date e quota vengono dalla
+     * stagione impostata dalla società, se non indicate.
+     */
     @Transactional
     UUID nuovoTesseramento(Utente u, UUID personaId, NuovoTesseramento in) {
         persona(personaId);
-        Stagione s = Stagione.di(LocalDate.now(orologio));
-        String nome = in.stagione() == null || in.stagione().isBlank() ? s.nome() : in.stagione().strip();
-        LocalDate dal = in.dal() != null ? in.dal() : s.dal();
-        LocalDate al = in.al() != null ? in.al() : s.al();
-        BigDecimal importo = in.importo() != null ? in.importo() : s.importo();
+        LocalDate oggi = LocalDate.now(orologio);
+        var s = in.stagione() == null || in.stagione().isBlank()
+            ? societa.stagioniDaProporre(oggi).stream().findFirst()
+            : societa.stagione(in.stagione());
+        if (s.isEmpty() && (in.stagione() == null || in.dal() == null || in.al() == null))
+            throw new IllegalArgumentException(in.stagione() == null || in.stagione().isBlank()
+                ? "Nessuna stagione in corso: aggiungila in «Impostazioni della società»." : "Stagione non trovata: aggiungila in «Impostazioni della società».");
+        String nome = s.map(it.leonexiii.gestionale.societa.Societa.Stagione::nome).orElseGet(() -> in.stagione().strip());
+        LocalDate dal = in.dal() != null ? in.dal() : s.get().dal();
+        LocalDate al = in.al() != null ? in.al() : s.get().al();
+        BigDecimal importo = in.importo() != null ? in.importo() : s.map(it.leonexiii.gestionale.societa.Societa.Stagione::quota).orElse(null);
         LocalDate pagato = in.pagatoIl() != null ? in.pagatoIl() : LocalDate.now(orologio);
         return tesseramenti.saveAndFlush(new Tesseramento(personaId, nome, dal, al, importo, pagato, u.personaId(), orologio.instant())).getId();
     }

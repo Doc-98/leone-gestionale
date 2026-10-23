@@ -47,11 +47,11 @@ class PromemoriaService {
     private final ScadenzeService scadenze;
     private final Posta posta;
     private final Clock orologio;
-    private final String societa;
+    private final it.leonexiii.gestionale.societa.Societa societa;
     private final String orario;
 
     PromemoriaService(PromemoriaRepository regole, InvioPromemoriaRepository invii, ScadenzeService scadenze, Posta posta, Clock orologio,
-                      @Value("${gestionale.societa.nome:Leone XIII Sport}") String societa,
+                      it.leonexiii.gestionale.societa.Societa societa,
                       @Value("${gestionale.promemoria.cron:0 0 9 * * *}") String orario) {
         this.regole = regole;
         this.invii = invii;
@@ -194,6 +194,6 @@ class PromemoriaService {
             .replace("{giorni}", v.giorni() == null ? "" : String.valueOf(Math.max(0, v.giorni())))
             .replace("{corso}", v.corso() == null ? "" : v.corso())
             .replace("{stagione}", v.stagione() == null ? "" : v.stagione())
-            .replace("{societa}", societa);
+            .replace("{societa}", societa.nome());
     }
 }

@@ -2,7 +2,7 @@
   import { onDestroy, untrack } from 'svelte';
   import {
     api, messaggioErrore,
-    type Abbonamento, type Braccialetto, type Corso, type SchedaAccessi, type SchedaCliente, type Sesso,
+    type Abbonamento, type Braccialetto, type Corso, type GruppoClienti, type SchedaAccessi, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
@@ -41,6 +41,17 @@
   }
   carica();
   api.corsi().then((c) => (corsi = c.filter((x) => x.attivo))).catch(() => {});
+
+  // ── Gruppi di clienti ─────────────────────────────────────────────────
+  let gruppi = $state<GruppoClienti[]>([]);
+  let nuovoGruppo = $state('');
+  api.gruppi().then((g) => (gruppi = g)).catch(() => {});
+  const gruppiLiberi = $derived(gruppi.filter((g) => g.attivo && !cliente?.gruppi.some((x) => x.gruppoId === g.id)));
+  async function aggiungiGruppo() {
+    const g = gruppi.find((x) => x.id === nuovoGruppo);
+    if (!g) return;
+    if (await esegui(() => api.aggiungiAlGruppo(id, g.id), `Aggiunto al gruppo «${g.nome}».`)) nuovoGruppo = '';
+  }
 
   async function esegui(azione: () => Promise<unknown>, fatto: string) {
     errore = '';
@@ -145,7 +156,7 @@
 
   function nuovoAbbonamento() {
     abbonamento = { tipo: 'CORSO', corsoId: cliente?.turni[0]?.corsoId ?? '', volte: Math.max(1, Math.min(3, cliente?.turni.length ?? 1)), ingressi: 10, aOrario: false,
-      dal: oggi, al: cliente?.stagioneProposta.al ?? '', importo: null };
+      dal: oggi, al: cliente?.stagioneProposta?.al ?? '', importo: null };
   }
 
   const numero = (v: number | string | null) => (v === null || v === '' ? null : Number(v));
@@ -169,7 +180,8 @@
   const attivi = $derived(accessi?.blocchi.filter((b) => b.attivo) ?? []);
   const gp = $derived(accessi?.goldenPass.find((g) => g.attivo));
   const eta = (n: number | null) => (n == null ? '' : n === 1 ? '1 anno' : `${n} anni`);
-  const tesseramentoInCorso = $derived(cliente?.tesseramenti.some((t) => t.stagione === cliente!.stagioneProposta.stagione) ?? false);
+  // le stagioni proposte per cui manca ancora il tesseramento
+  const daTesserare = $derived(cliente?.stagioniTesseramento.filter((s) => !cliente!.tesseramenti.some((t) => t.stagione === s.stagione)) ?? []);
 </script>
 
 {#if cliente && accessi}
@@ -239,6 +251,23 @@
           <dt>Email</dt><dd>{#if cliente.contatti?.email}{cliente.contatti.email}{:else}<span class="muted">—</span>{/if}</dd>
           <dt>Telefono</dt><dd>{cliente.contatti?.telefono ?? '—'}</dd>
           {#if a.note}<dt>Note</dt><dd class="a-capo-t">{a.note}</dd>{/if}
+          <dt>Gruppi</dt>
+          <dd class="gruppi">
+            {#each cliente.gruppi as g (g.appartenenzaId)}
+              <span class="tag t-soft gruppo">{g.nome}
+                <button class="togli" aria-label={`Togli dal gruppo ${g.nome}`} title="Togli dal gruppo"
+                        onclick={() => confermato('gr' + g.appartenenzaId) && esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}>{conferma === 'gr' + g.appartenenzaId ? 'conferma' : '×'}</button>
+              </span>
+            {:else}
+              <span class="muted">—</span>
+            {/each}
+            {#if gruppiLiberi.length}
+              <select class="inp scegli-gruppo" bind:value={nuovoGruppo} onchange={aggiungiGruppo} aria-label="Aggiungi a un gruppo">
+                <option value="">+ gruppo</option>
+                {#each gruppiLiberi as g (g.id)}<option value={g.id}>{g.nome}</option>{/each}
+              </select>
+            {/if}
+          </dd>
         </dl>
         <button class="link small sx" onclick={modificaAnagrafica}>Modifica</button>
       {/if}
@@ -450,12 +479,16 @@
           <li class="muted small">Nessun tesseramento.</li>
         {/each}
       </ul>
-      {#if !tesseramentoInCorso}
-        {@const s = cliente.stagioneProposta}
-        <button class="btn btn-secondary" onclick={() => esegui(() => api.nuovoTesseramento(id, {}), `Tesseramento ${s.stagione} registrato.`)}>
-          Registra il tesseramento {s.stagione} · {s.importo} €
-        </button>
-        <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}, pagato oggi.</p>
+      {#each daTesserare as s (s.stagione)}
+        <div class="tess">
+          <button class="btn btn-secondary" onclick={() => esegui(() => api.nuovoTesseramento(id, { stagione: s.stagione }), `Tesseramento ${s.stagione} registrato.`)}>
+            Registra il tesseramento {s.stagione}{s.importo != null ? ` · ${s.importo} €` : ''}
+          </button>
+          <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}, pagato oggi.</p>
+        </div>
+      {/each}
+      {#if !cliente.stagioniTesseramento.length}
+        <p class="muted small nomargin">Nessuna stagione in corso: le stagioni si impostano in «Impostazioni della società».</p>
       {/if}
     </section>
 
@@ -498,7 +531,7 @@
       {#if abbonamento}
         <form class="modulo" onsubmit={(e) => { e.preventDefault(); salvaAbbonamento(); }}>
           <div class="seg" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Tipo di abbonamento">
-            <button type="button" aria-pressed={abbonamento.tipo === 'CORSO'} onclick={() => { abbonamento!.tipo = 'CORSO'; abbonamento!.al = cliente!.stagioneProposta.al; }}>Corso</button>
+            <button type="button" aria-pressed={abbonamento.tipo === 'CORSO'} onclick={() => { abbonamento!.tipo = 'CORSO'; abbonamento!.al = cliente!.stagioneProposta?.al ?? ''; }}>Corso</button>
             <button type="button" aria-pressed={abbonamento.tipo === 'CARNET'} onclick={() => { abbonamento!.tipo = 'CARNET'; abbonamento!.al = ''; }}>Carnet</button>
           </div>
           {#if abbonamento.tipo === 'CORSO'}
@@ -612,6 +645,13 @@
   .dati dd { margin: 0; overflow-wrap: anywhere; }
   .a-capo-t { white-space: pre-line; }
   .sx { align-self: flex-start; }
+  .tess { display: flex; flex-direction: column; gap: var(--space-4); }
+  .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+  .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
+  .togli { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
+    color: inherit; cursor: pointer; font: inherit; padding: 0 4px; min-width: 20px; border-radius: var(--radius-pill); }
+  .togli:hover { background: var(--surface-sunken); }
+  .scegli-gruppo { width: auto; min-height: 30px; height: 30px; padding: 0 var(--space-8); appearance: auto; font-size: var(--text-sm); }
   .tre { display: grid; grid-template-columns: 110px minmax(0, 1fr) 80px; gap: var(--space-10); }
   @media (max-width: 560px) { .due.stretto { grid-template-columns: 1fr; } }
   .note { min-height: 70px; resize: vertical; font-family: var(--font-body); }

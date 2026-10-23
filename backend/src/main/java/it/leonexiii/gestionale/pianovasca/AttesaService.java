@@ -20,7 +20,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,11 +58,11 @@ class AttesaService {
     private final Posta posta;
     private final AccessoPiano accesso;
     private final Clock orologio;
-    private final String societa;
+    private final it.leonexiii.gestionale.societa.Societa societa;
 
     AttesaService(AttesaRepository attese, LezioneRepository lezioni, IscrizioneRepository iscrizioni, IscrizioniService iscrizioniService,
                   Persone persone, Posta posta, AccessoPiano accesso, Clock orologio,
-                  @Value("${gestionale.societa.nome:Leone XIII Sport}") String societa) {
+                  it.leonexiii.gestionale.societa.Societa societa) {
         this.attese = attese;
         this.lezioni = lezioni;
         this.iscrizioni = iscrizioni;
@@ -85,7 +84,7 @@ class AttesaService {
             .sorted(Comparator.comparing((TurnoPosti t) -> t.liberoDal() == null ? LocalDate.MAX : t.liberoDal())
                 .thenComparing(TurnoPosti::corso).thenComparingInt(TurnoPosti::giornoSettimana).thenComparing(TurnoPosti::inizio))
             .toList();
-        return new PaginaAttesa(oggi(), societa, out);
+        return new PaginaAttesa(oggi(), societa.nome(), out);
     }
 
     /** I turni (ancora validi) di un corso, con posti e attesa: per iscrivere o cambiare turno dalla scheda. */

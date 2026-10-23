@@ -44,6 +44,10 @@ class GestioneErrori {
             : m.contains("account_email_unica") ? "C'è già un account con questa email."
             : m.contains("braccialetto_codice_in_uso") ? "Questo braccialetto è già assegnato a una persona: va prima disattivato."
             : m.contains("tesseramento_uno_per_stagione") ? "Per questa stagione il tesseramento è già registrato."
+            : m.contains("stagione_senza_sovrapposizioni") ? "Le date si accavallano con un'altra stagione."
+            : m.contains("stagione_nome_key") ? "C'è già una stagione con questo nome."
+            : m.contains("gruppo_clienti_nome") ? "C'è già un gruppo con questo nome."
+            : m.contains("appartenenza_gruppo_attiva") ? "La persona è già in questo gruppo."
             : "I dati non rispettano un vincolo del database.";
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, testo);
     }
