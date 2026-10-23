@@ -33,7 +33,8 @@
   import Account from './routes/Account.svelte';
   import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'impostazioni';
+  type AreaImpostazioni = 'La società' | 'Clienti' | 'Staff' | 'Accessi' | 'Sistema';
   interface Sezione {
     id: Scheda;
     nome: string;
@@ -41,6 +42,9 @@
     breve?: string;
     titolo: string;
     gruppo: 'Il mio lavoro' | 'Piscina' | 'Accessi' | 'Gestione' | 'Impostazioni';
+    /** Le impostazioni stanno tutte sotto un'unica voce, divise per area (con una riga di spiegazione per l'elenco). */
+    area?: AreaImpostazioni;
+    spiega?: string;
     /** Visibile a chi ha almeno uno di questi permessi; senza, a tutti. */
     permessi?: Permesso[];
     larga?: boolean;
@@ -68,6 +72,7 @@
     account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
     ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
     regole: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
+    impostazioni: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z',
     tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
   };
 
@@ -84,20 +89,31 @@
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.pianifica },
     { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: I.approva },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.modelli },
-    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.postazioni },
-    { id: 'tariffe', nome: 'Tariffe', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.tariffe },
-    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole },
-    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', permessi: ['CLIENTI'], larga: true, icona: I.promemoria },
-    { id: 'listino', nome: 'Listino', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: I.listino },
-    { id: 'societa', nome: 'Società e stagioni', titolo: 'Impostazioni della società', gruppo: 'Impostazioni', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.societa },
-    { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', permessi: ['ACCOUNT'], larga: true, icona: I.account },
-    { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', permessi: ['RUOLI'], larga: true, icona: I.ruoli },
+    // ── Impostazioni: tutte sotto una voce, per area ──
+    { id: 'societa', nome: 'Società e stagioni', titolo: 'Società e stagioni', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.societa,
+      spiega: 'Dati della società, stagioni e quota associativa, gruppi di clienti' },
+    { id: 'listino', nome: 'Listino e prezzi', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: I.listino,
+      spiega: 'Offerte della stagione, prezzi, riduzioni, rate e recesso' },
+    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['CLIENTI'], larga: true, icona: I.promemoria,
+      spiega: 'Quando partono i promemoria delle scadenze e con quale testo' },
+    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole,
+      spiega: 'Quali controlli fa il tornello e con quali tempi' },
+    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.postazioni,
+      spiega: 'Le mansioni dello staff e le postazioni da coprire' },
+    { id: 'tariffe', nome: 'Tariffe orarie', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.tariffe,
+      spiega: 'Il compenso orario per mansione' },
+    { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT'], larga: true, icona: I.account,
+      spiega: 'Chi accede al gestionale, password temporanee, disattivazioni' },
+    { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['RUOLI'], larga: true, icona: I.ruoli,
+      spiega: 'Cosa può fare ogni ruolo, e a chi è assegnato' },
   ];
   const ID = SEZIONI.map((s) => s.id);
 
+  const AREE: AreaImpostazioni[] = ['La società', 'Clienti', 'Accessi', 'Staff', 'Sistema'];
+
   const leggiScheda = (): Scheda => {
     const h = location.hash.replace('#/', '').split('/')[0] as Scheda;
-    return ID.includes(h) ? h : 'turni';
+    return ID.includes(h) || h === 'impostazioni' ? h : 'turni';
   };
   let scheda = $state<Scheda>(leggiScheda());
   // Il telefono come lettore NFC di un PC: pagina a sé, senza accesso (ADR 0017)
@@ -142,12 +158,28 @@
   });
 
   const visibili = $derived(SEZIONI.filter((s) => !s.permessi || sessione.puo(...s.permessi)));
-  const corrente = $derived(visibili.find((s) => s.id === scheda) ?? SEZIONI[0]);
+  // le sezioni di lavoro (nella barra) e le impostazioni (sotto un'unica voce)
+  const lavoro = $derived(visibili.filter((s) => s.gruppo !== 'Impostazioni'));
+  const impostazioni = $derived(visibili.filter((s) => s.gruppo === 'Impostazioni'));
+  const areeImpostazioni = $derived(AREE.map((a) => ({ nome: a, voci: impostazioni.filter((s) => s.area === a) })).filter((a) => a.voci.length));
+  /** «#/impostazioni»: l'elenco delle impostazioni (sul telefono); sul PC si apre la prima. */
+  const elencoImpostazioni = $derived(scheda === 'impostazioni');
+  const corrente = $derived(visibili.find((s) => s.id === scheda) ?? (elencoImpostazioni ? impostazioni[0] : undefined) ?? SEZIONI[0]);
+  const inImpostazioni = $derived(elencoImpostazioni || corrente.gruppo === 'Impostazioni');
+  $effect(() => {
+    if (elencoImpostazioni && schermo.larga && impostazioni.length) location.replace(`#/${impostazioni[0].id}`);
+  });
   const gruppi = $derived(
-    (['Il mio lavoro', 'Piscina', 'Accessi', 'Gestione', 'Impostazioni'] as const)
-      .map((g) => ({ nome: g, voci: visibili.filter((s) => s.gruppo === g) }))
+    (['Il mio lavoro', 'Piscina', 'Accessi', 'Gestione'] as const)
+      .map((g) => ({ nome: g, voci: lavoro.filter((s) => s.gruppo === g) }))
       .filter((g) => g.voci.length),
   );
+  // il nome della società (il gestionale serve a qualsiasi società)
+  let nomeSocieta = $state('');
+  $effect(() => {
+    if (sessione.utente) api.societa().then((d) => (nomeSocieta = d.nome)).catch(() => {});
+  });
+  const iniziali = $derived(((sessione.utente?.nome ?? ' ')[0] + (sessione.utente?.cognome ?? ' ')[0]).toUpperCase());
   // Telefono: al massimo cinque voci in basso, le prime per il ruolo; il resto in «Altro»
   // in ordine di importanza; lo staff senza gestione ha richieste e ore in basso
   const ORDINE_BASSO: Scheda[] = ['turni', 'piano', 'tornello', 'clienti', 'scadenze', 'approva', 'pianifica', 'richieste', 'ore'];
@@ -157,11 +189,11 @@
       ? ORDINE_BASSO.filter((id) => visibili.some((s) => s.id === id)).slice(0, 5)
       : (['turni', 'richieste', 'ore', 'piano', 'tornello'] as Scheda[]),
   );
-  const altre = $derived(visibili.filter((s) => !prime.includes(s.id)));
+  const altre = $derived(lavoro.filter((s) => !prime.includes(s.id)));
   const inBasso = $derived(
-    prime.map((id) => visibili.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, altre.length ? 4 : 5),
+    prime.map((id) => lavoro.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, altre.length || impostazioni.length ? 4 : 5),
   );
-  const nelMenu = $derived(visibili.filter((s) => !inBasso.includes(s)));
+  const nelMenu = $derived(lavoro.filter((s) => !inBasso.includes(s)));
   let menuAltro = $state(false);
   $effect(() => {
     void scheda;
@@ -180,9 +212,9 @@
   function tasto(e: KeyboardEvent) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
     const n = Number(e.key);
-    if (n >= 1 && n <= visibili.length) {
+    if (n >= 1 && n <= lavoro.length) {
       e.preventDefault();
-      location.hash = `#/${visibili[n - 1].id}`;
+      location.hash = `#/${lavoro[n - 1].id}`;
     }
   }
 </script>
@@ -191,6 +223,31 @@
 
 {#snippet icona(d: string)}
   <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg>
+{/snippet}
+
+{#snippet pagina()}
+  {#key corrente.id}
+    {#if corrente.id === 'turni'}<Turni />
+    {:else if corrente.id === 'richieste'}<Richieste />
+    {:else if corrente.id === 'ore'}<Ore />
+    {:else if corrente.id === 'pianifica'}<Pianifica />
+    {:else if corrente.id === 'approva'}<Approva cambiate={(n) => (daApprovare = n)} />
+    {:else if corrente.id === 'modelli'}<Modelli />
+    {:else if corrente.id === 'postazioni'}<Postazioni />
+    {:else if corrente.id === 'tariffe'}<Tariffe />
+    {:else if corrente.id === 'piano'}<PianoVasca />
+    {:else if corrente.id === 'corsi'}<Corsi />
+    {:else if corrente.id === 'tornello'}<Tornello />
+    {:else if corrente.id === 'clienti'}<Clienti />
+    {:else if corrente.id === 'regole'}<Regole />
+    {:else if corrente.id === 'ruoli'}<Ruoli />
+    {:else if corrente.id === 'scadenze'}<Scadenze />
+    {:else if corrente.id === 'attesa'}<ListaAttesa />
+    {:else if corrente.id === 'societa'}<Societa />
+    {:else if corrente.id === 'listino'}<Listino />
+    {:else if corrente.id === 'promemoria'}<Promemoria />
+    {:else if corrente.id === 'account'}<Account />{/if}
+  {/key}
 {/snippet}
 
 {#snippet badge(s: Sezione)}
@@ -214,7 +271,7 @@
       <aside class="lato">
         <div class="marchio">
           <span class="d logo">Leone</span>
-          <span class="lbl">Gestionale · Piscina</span>
+          <span class="lbl">{nomeSocieta || 'Gestionale'}</span>
         </div>
         <nav aria-label="Sezioni">
           {#each gruppi as g (g.nome)}
@@ -222,22 +279,33 @@
               <div class="lbl">{g.nome}</div>
               {#each g.voci as s (s.id)}
                 <a href={`#/${s.id}`} class="voce-nav" class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}
-                   title="{s.nome} (Alt+{visibili.indexOf(s) + 1})">
+                   title="{s.nome} (Alt+{lavoro.indexOf(s) + 1})">
                   {@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}
                 </a>
               {/each}
             </div>
           {/each}
         </nav>
+        {#if impostazioni.length}
+          <a href={`#/${impostazioni[0].id}`} class="voce-nav impostazioni" class:on={inImpostazioni} aria-current={inImpostazioni ? 'page' : undefined}>
+            {@render icona(I.impostazioni)}<span class="grow">Impostazioni</span>
+          </a>
+        {/if}
         <div class="io">
-          <div class="io-nome">{sessione.utente.nome} {sessione.utente.cognome}</div>
-          <div class="muted small">{ruolo}</div>
-          <button class="link small" onclick={() => (cambioPassword = true)}>Cambia password</button>
-          <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+          <div class="io-riga">
+            <span class="avatar" aria-hidden="true">{iniziali}</span>
+            <span class="io-chi"><span class="io-nome">{sessione.utente.nome} {sessione.utente.cognome}</span><span class="muted small">{ruolo}</span></span>
+          </div>
+          <div class="io-azioni">
+            <button class="link small" onclick={() => (cambioPassword = true)}>Password</button>
+            <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+          </div>
           {#if programma}
             <div class="programma muted">Programma {programma.versione} · {location.host}</div>
-            <button class="link small" onclick={cambiaServer}>Cambia server</button>
-            <button class="link small" onclick={() => controllaAggiornamento(true)}>Cerca aggiornamenti</button>
+            <div class="io-azioni">
+              <button class="link small" onclick={cambiaServer}>Cambia server</button>
+              <button class="link small" onclick={() => controllaAggiornamento(true)}>Aggiornamenti</button>
+            </div>
             {#if statoAggiornamento && !aggiornamento}<div class="programma muted">{statoAggiornamento}</div>{/if}
           {/if}
         </div>
@@ -252,41 +320,59 @@
           <button class="link small" onclick={() => (aggiornamento = null)}>Più tardi</button>
         </div>
       {/if}
-      <header class="testa">
-        <div>
-          {#if !schermo.larga}<div class="lbl">Leone XIII Sport · Piscina</div>{/if}
-          <h1 class="page-title">{corrente.titolo}</h1>
-        </div>
-        {#if !schermo.larga}
-          <div class="chi">
-            <span class="muted small">{sessione.utente.nome}</span>
-            <button class="link small" onclick={() => (cambioPassword = true)}>Password</button>
-            <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+      {#if inImpostazioni && schermo.larga}
+        <div class="area-imp">
+          <nav class="sotto" aria-label="Impostazioni">
+            <div class="sotto-testa">{@render icona(I.impostazioni)}<span>Impostazioni</span></div>
+            {#each areeImpostazioni as a (a.nome)}
+              <div class="sotto-gruppo">
+                <div class="lbl">{a.nome}</div>
+                {#each a.voci as s (s.id)}
+                  <a href={`#/${s.id}`} class:on={corrente.id === s.id} aria-current={corrente.id === s.id ? 'page' : undefined}>{s.nome}</a>
+                {/each}
+              </div>
+            {/each}
+          </nav>
+          <div class="pagina-imp">
+            <header class="testa">
+              <div>
+                <div class="briciole lbl">Impostazioni · {corrente.area}</div>
+                <h1 class="page-title">{corrente.titolo}</h1>
+                {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}.</p>{/if}
+              </div>
+            </header>
+            {@render pagina()}
           </div>
-        {/if}
-      </header>
-      {#key corrente.id}
-        {#if corrente.id === 'turni'}<Turni />
-        {:else if corrente.id === 'richieste'}<Richieste />
-        {:else if corrente.id === 'ore'}<Ore />
-        {:else if corrente.id === 'pianifica'}<Pianifica />
-        {:else if corrente.id === 'approva'}<Approva cambiate={(n) => (daApprovare = n)} />
-        {:else if corrente.id === 'modelli'}<Modelli />
-        {:else if corrente.id === 'postazioni'}<Postazioni />
-        {:else if corrente.id === 'tariffe'}<Tariffe />
-        {:else if corrente.id === 'piano'}<PianoVasca />
-        {:else if corrente.id === 'corsi'}<Corsi />
-        {:else if corrente.id === 'tornello'}<Tornello />
-        {:else if corrente.id === 'clienti'}<Clienti />
-        {:else if corrente.id === 'regole'}<Regole />
-        {:else if corrente.id === 'ruoli'}<Ruoli />
-        {:else if corrente.id === 'scadenze'}<Scadenze />
-        {:else if corrente.id === 'attesa'}<ListaAttesa />
-        {:else if corrente.id === 'societa'}<Societa />
-        {:else if corrente.id === 'listino'}<Listino />
-        {:else if corrente.id === 'promemoria'}<Promemoria />
-        {:else if corrente.id === 'account'}<Account />{/if}
-      {/key}
+        </div>
+      {:else if elencoImpostazioni}
+        <header class="testa"><div><div class="lbl">{nomeSocieta}</div><h1 class="page-title">Impostazioni</h1></div></header>
+        {#each areeImpostazioni as a (a.nome)}
+          <section class="elenco-imp">
+            <div class="lbl">{a.nome}</div>
+            <div class="card voci-imp">
+              {#each a.voci as s (s.id)}
+                <a href={`#/${s.id}`}>{@render icona(s.icona)}<span class="grow"><span class="nome-imp">{s.nome}</span><span class="muted small">{s.spiega}</span></span><span class="freccia" aria-hidden="true">›</span></a>
+              {/each}
+            </div>
+          </section>
+        {/each}
+      {:else}
+        <header class="testa">
+          <div>
+            {#if !schermo.larga && inImpostazioni}<a class="indietro small" href="#/impostazioni">‹ Impostazioni</a>
+            {:else if !schermo.larga}<div class="lbl">{nomeSocieta}</div>{/if}
+            <h1 class="page-title">{corrente.titolo}</h1>
+          </div>
+          {#if !schermo.larga}
+            <div class="chi">
+              <span class="muted small">{sessione.utente.nome}</span>
+              <button class="link small" onclick={() => (cambioPassword = true)}>Password</button>
+              <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+            </div>
+          {/if}
+        </header>
+        {@render pagina()}
+      {/if}
     </main>
 
     {#if sessione.puo('CLIENTI', 'BRACCIALETTI')}<Segnalazioni />{/if}
@@ -302,16 +388,19 @@
           {#each nelMenu as s (s.id)}
             <a href={`#/${s.id}`} class:on={scheda === s.id}>{@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}</a>
           {/each}
+          {#if impostazioni.length}
+            <a href="#/impostazioni" class="sep" class:on={inImpostazioni}>{@render icona(I.impostazioni)}<span class="grow">Impostazioni</span></a>
+          {/if}
         </div>
       {/if}
-      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length + (nelMenu.length ? 1 : 0)}">
+      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length + (nelMenu.length || impostazioni.length ? 1 : 0)}">
         {#each inBasso as s (s.id)}
           <a href={`#/${s.id}`} class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}>
             {s.breve ?? s.nome}{@render badge(s)}
           </a>
         {/each}
-        {#if nelMenu.length}
-          <button class:on={menuAltro || nelMenu.some((s) => s.id === scheda)} aria-expanded={menuAltro} aria-controls="menu-altro"
+        {#if nelMenu.length || impostazioni.length}
+          <button class:on={menuAltro || inImpostazioni || nelMenu.some((s) => s.id === scheda)} aria-expanded={menuAltro} aria-controls="menu-altro"
                   onclick={() => (menuAltro = !menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}</button>
         {/if}
       </nav>
@@ -354,9 +443,45 @@
   .voce-nav:hover { background: var(--carta); }
   .voce-nav.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; }
   .voce-nav.on .ic { color: var(--cloro); }
-  .io { border-top: 1px solid var(--line-soft); padding: var(--space-12) var(--space-10) 0; display: flex; flex-direction: column; align-items: flex-start; }
-  .io-nome { font-weight: 600; font-size: var(--text-md); }
-  .io .link { min-height: 32px; }
+  .voce-nav.impostazioni { border-top: 1px solid var(--line-soft); border-radius: 0; padding-top: var(--space-6); min-height: 46px; }
+  .voce-nav.impostazioni.on { border-radius: var(--radius-sm); border-top-color: transparent; }
+  .io { border-top: 1px solid var(--line-soft); padding: var(--space-12) var(--space-10) 0; display: flex; flex-direction: column; gap: var(--space-4); }
+  .io-riga { display: flex; align-items: center; gap: var(--space-10); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--cloro-soft); color: var(--cloro-ink); display: inline-flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: var(--text-sm); flex-shrink: 0; }
+  .io-chi { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+  .io-nome { font-weight: 600; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .io-azioni { display: flex; gap: var(--space-14); flex-wrap: wrap; }
+  .io .link { min-height: 30px; }
+
+  /* ── Area impostazioni (PC): menu interno a sinistra, pagina a destra ── */
+  .area-imp { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-24, 24px); align-items: start; }
+  .sotto { position: sticky; top: 28px; display: flex; flex-direction: column; gap: var(--space-14); padding: var(--space-14) var(--space-10);
+    border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+  .sotto-testa { display: flex; align-items: center; gap: var(--space-8); padding: 0 var(--space-6); font-weight: 700; font-size: var(--text-lg); }
+  .sotto-testa .ic { width: 20px; height: 20px; color: var(--cloro); }
+  .sotto-gruppo { display: flex; flex-direction: column; gap: 2px; }
+  .sotto-gruppo .lbl { padding: 0 var(--space-6) var(--space-4); font-size: var(--text-2xs); }
+  .sotto a { display: flex; align-items: center; min-height: 34px; padding: 0 var(--space-10); border-radius: var(--radius-sm); color: var(--ink);
+    text-decoration: none; font-size: var(--text-md); }
+  .sotto a:hover { background: var(--carta); }
+  .sotto a.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--cloro); }
+  .pagina-imp { display: flex; flex-direction: column; gap: var(--space-16); min-width: 0; }
+  .briciole { color: var(--cloro-ink); }
+  .spiega { margin-top: var(--space-4); }
+
+  /* ── Elenco delle impostazioni (telefono) ── */
+  .elenco-imp { display: flex; flex-direction: column; gap: var(--space-6); }
+  .voci-imp { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+  .voci-imp a { display: flex; align-items: center; gap: var(--space-12); min-height: 60px; padding: var(--space-8) var(--space-14); color: var(--ink);
+    text-decoration: none; border-top: 1px solid var(--line-soft); }
+  .voci-imp a:first-child { border-top: none; }
+  .voci-imp .ic { width: 20px; height: 20px; color: var(--cloro); flex-shrink: 0; }
+  .voci-imp .grow { display: flex; flex-direction: column; min-width: 0; }
+  .nome-imp { font-weight: 600; }
+  .freccia { color: var(--muted); font-size: 22px; }
+  .indietro { color: var(--cloro-ink); text-decoration: none; font-weight: 600; display: inline-flex; min-height: 32px; align-items: center; }
+  .altro a.sep { border-top: 1px solid var(--line-soft); border-radius: 0; margin-top: var(--space-4); }
   .programma { font-size: var(--text-2xs); margin-top: var(--space-6); }
   .aggiornamento { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-10) var(--space-14);
     border-radius: var(--radius-md); background: var(--cloro-soft); color: var(--cloro-ink); border: 1px solid var(--cloro); margin-bottom: var(--space-12); }

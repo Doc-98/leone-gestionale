@@ -200,10 +200,12 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   Chiara Venturi, Davide Colombi, Elisa Marchi, Federico Bernardi o Giada Rinaldi (verdi e rossi per motivi diversi).
 - **Impostazioni della società** (admin, ADR 0018): dati della società, stagioni con la quota associativa (demo: dal 1/9
   al 31/8, 35 €), gruppi di clienti (demo: «Alunni dell'Istituto», «Squadra agonistica»); i gruppi si danno dalla scheda.
-- **Listino e regole di prezzo** (ADR 0018): pagina «Listino» con i prezzi della Leone (scuola nuoto mono 520 €, bi 795 €,
+- **Listino e regole di prezzo** (ADR 0018): «Impostazioni → Listino e prezzi» con i prezzi della Leone (scuola nuoto mono 520 €, bi 795 €,
   alunni dell'Istituto 460 €, nuoto libero, carnet) e le regole (riduzione per iscrizione tardiva, rate, recesso).
   Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
   «Cambiare l'importo proposto» e un motivo. «Termina oggi» mostra il rimborso secondo la regola di recesso.
+- **Impostazioni** (società e stagioni, listino, promemoria, regole del tornello, mansioni e tariffe, account, ruoli): tutte
+  sotto la voce «Impostazioni» in fondo alla barra laterale, con un menu interno per area; sul telefono da «Altro».
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono
