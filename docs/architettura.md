@@ -28,6 +28,10 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 - **Orari nel fuso Europe/Rome**: date e ore "da calendario" (giorno + ora locale).
 - **Lo sport è una dimensione, non un modulo**: ogni corso, spazio e mansione appartiene a un impianto
   e a una disciplina.
+- **Per qualsiasi società sportiva**: prezzi, sconti, stagioni, quote e regole sono impostazioni modificabili
+  dall'interno, non valori nel codice. I numeri della Leone XIII Sport servono solo come dati demo.
+- **Libertà per chi lo usa**: ogni automatismo che limita (blocchi, applicazione automatica di regole, solleciti) è
+  un'opzione che si accende o si spegne, con i suoi tempi impostabili, e/o un permesso che si dà o no a un ruolo.
 
 ## Architettura
 

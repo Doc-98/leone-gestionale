@@ -54,13 +54,46 @@ persona, smarrito, disattivato), golden pass, ban, controlli al tornello con tut
 - Sospensione → l'abbonamento non vale in quei giorni e la scadenza si allunga.
 - Foto: oggi non ci sono foto di bambini nel gestionale; resta un'idea per il futuro.
 
-## Borsellino (per i pagamenti)
+## Pagamenti e regole (dal sito e dalla segreteria, 23/10/2026)
 
-Credito prepagato sul profilo, caricato e pagato in segreteria. In piscina serve per **docce e phon**. Oggi un credito
-vale 0,20 € (da rendere configurabile). Da capire con i pagamenti: come docce e phon scalano i crediti (leggono il
-braccialetto?) e se il borsellino paga anche altro (es. la tessera da 10 €).
+Riferimento per i **dati demo** e per capire cosa deve saper fare il gestionale; tutto diventa impostazione (vedi
+`docs/architettura.md`, «Per qualsiasi società sportiva», e la proposta in ADR 0018).
 
-## Da decidere
+**Dal regolamento sul sito** (leonexiiisport.it): quota associativa annuale 35 € (1/9–31/8, una sola anche con più
+attività, mai rimborsabile); corsi a prezzo per frequenza (es. mono 520 €, bi 795 €, tri 950 €), con prezzi diversi per
+gli alunni dell'Istituto; pacchetti a lezioni (Aquababy 15 lezioni); nuoto libero annuale per frequenza e pacchetti di
+ingressi con validità e fascia oraria; ingresso extra 5 €; quota fissa di 50 € per le squadre agonistiche. Riduzione
+per iscrizione a stagione iniziata (−10% novembre … −40% da febbraio). Rate: quota + 50% all'iscrizione, il resto prima
+dell'inizio; chi non paga riceve avviso, sollecito, poi sospensione. Recesso con rimborso in percentuale secondo la data
+(100% entro luglio … niente dopo il 31/12), accreditato nel borsellino. Sospensione per malattia: credito oltre 6
+settimane, certificato entro 4. Cambio di attività: si calcola la differenza. Pagamento in segreteria (contanti sotto
+i 1000 €, bancomat, carte, Satispay) o con bonifico.
 
-- Pagamenti: tessera, borsellino, ricevute (in attesa delle informazioni dalla segreteria).
-- Come esportare i dati da TeamSystem per l'importazione (e che categorie usa: per ora non c'è una categoria, ADR 0014).
+**Braccialetto**: cauzione di 10 €, restituita alla riconsegna, persa se lo si smarrisce. I crediti per phon e docce
+(0,20 € l'uno, ricarica minima 5 €) si rimborsano riconsegnando il braccialetto, non se è perso.
+
+**Borsellino**: oltre ai crediti per phon e docce, raccoglie in euro i rimborsi per recesso, sospensione o cambio di
+attività; valgono un anno e si possono trasferire ai familiari iscritti.
+
+**Phon e docce**: in spogliatoio i phon accettano monete da 20 centesimi oppure il braccialetto, che scala i crediti;
+le docce hanno lettori simili e la prima doccia della giornata è gratuita. Il braccialetto contiene solo il numero di
+serie: probabilmente le macchine sono in rete e leggono e scalano i crediti dal gestionale sul server (da verificare
+con il tecnico: marca, modello e come parlano con il gestionale attuale).
+
+**Ricevute** (segreteria): il POS stampa la sua ricevuta; le ricevute della società le fa il gestionale e le stampa su
+una stampante A4 collegata al PC. Sono numerate e la numerazione riparte a ogni stagione. Si può chiedere la fattura.
+Le famiglie chiedono ricevute per rimborsi, welfare e detrazioni fiscali.
+
+**Cassa**: chiusura a fine giornata, con un fondo cassa. Il pagamento dei bonifici probabilmente si segna a mano nel
+gestionale.
+
+**Precedenza nei rinnovi**: gli alunni dell'Istituto e chi frequentava nella stagione precedente hanno la precedenza
+sui nuovi; le richieste si mettono in coda in ordine di arrivo.
+
+## Domande ancora aperte
+
+- Pagamenti misti (parte contanti, parte carta) e cosa serve all'amministrazione dalla chiusura di cassa.
+- Formato della numerazione delle ricevute; chi emette oggi le fatture (gestionale, commercialista) e se elettroniche.
+- Preiscrizione online e Satispay «entro 7 giorni».
+- Phon e docce: marca, modello, collegamento con il gestionale attuale.
+- Come esportare i dati da TeamSystem per l'importazione.
