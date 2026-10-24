@@ -42,7 +42,13 @@ un'opzione con i suoi tempi, o un permesso.
 9. **Servizi a crediti** (phon, docce): ogni servizio ha un prezzo in crediti e utilizzi gratuiti al giorno (es. la
    prima doccia). Le macchine, registrate come dispositivi con una chiave propria, chiamano il server con il codice
    del braccialetto: il server risponde sì/no e scala i crediti. Il protocollo delle macchine vere è da verificare
-   (marca e modello): se non si può cambiare, serve un adattatore.
+   (marca e modello): se non si può cambiare, serve un adattatore. Alla Leone le centraline sono Romano Control
+   Systems (foto descritte in `docs/gestionale-attuale.md`); tre strade, da scegliere quando sapremo dove sta il credito:
+   a) la centralina chiede a un server: il gestionale espone l'API, o un adattatore traduce il protocollo Romano;
+   b) il credito è scritto sul braccialetto: il gestionale lo scrive con un lettore/scrittore in segreteria, con le
+   chiavi e il formato di Romano, oppure per le ricariche si tiene affiancato il loro programma;
+   c) si sostituisce l'elettronica della centralina con una nostra (lettore RFID e relè per prese ed elettrovalvole)
+   che parla con l'API del gestionale. Il simulatore serve in tutti e tre i casi.
 10. **Ricevute**: numerate per serie (es. ricevute, fatture) con numerazione che riparte a ogni stagione e formato
     impostabile; PDF A4 da stampare o mandare per email; intestate a chi paga (spesso il genitore) con il beneficiario
     e i codici fiscali, come servono per detrazioni e welfare. La fattura: dati del cliente e numerazione propria;
