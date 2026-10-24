@@ -95,11 +95,14 @@ class SchedaClientiService {
     private final Listino listino;
     private final Autorizzazioni autorizzazioni;
     private final Pagamenti pagamenti;
+    private final it.leonexiii.gestionale.pagamenti.Borsellino borsellino;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
                          AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni,
                          ConsensoRepository consensi, it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio,
-                         it.leonexiii.gestionale.societa.Societa societa, Listino listino, Autorizzazioni autorizzazioni, Pagamenti pagamenti) {
+                         it.leonexiii.gestionale.societa.Societa societa, Listino listino, Autorizzazioni autorizzazioni, Pagamenti pagamenti,
+                         it.leonexiii.gestionale.pagamenti.Borsellino borsellino) {
+        this.borsellino = borsellino;
         this.pagamenti = pagamenti;
         this.listino = listino;
         this.autorizzazioni = autorizzazioni;
@@ -348,7 +351,9 @@ class SchedaClientiService {
         BigDecimal pagato = pagato(a);
         BigDecimal annullato = pagamenti.chiudi(Pagamenti.Origine.ABBONAMENTO, id, "Recesso dal " + al.plusDays(1), u.personaId());
         Listino.Rimborso r = a.getOffertaId() == null ? null : listino.recesso(listino.stagioneDi(a.getOffertaId()), pagato, al).orElse(null);
-        if (r != null && r.importo().signum() > 0)
+        if (r != null && r.importo().signum() > 0 && r.nelBorsellino())
+            borsellino.accredita(a.getPersonaId(), r.importo(), "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)", id, u.personaId());
+        else if (r != null && r.importo().signum() > 0)
             pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(a.getPersonaId(), "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)",
                 r.importo().negate(), al, Pagamenti.Origine.RIMBORSO, id, a.getOffertaId(), null, null,
                 r.nelBorsellino() ? "Va nel borsellino" : "Da restituire")), u.personaId());

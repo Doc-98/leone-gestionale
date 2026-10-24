@@ -12,7 +12,12 @@ import java.util.UUID;
 @Table(name = "braccialetto")
 class Braccialetto {
 
-    enum Stato { ATTIVO, SMARRITO, DISATTIVATO }
+    enum Stato {
+        ATTIVO, SMARRITO, DISATTIVATO, RESTITUITO;
+
+        /** Disattivato o riconsegnato: il codice si può dare a un'altra persona. */
+        boolean libero() { return this == DISATTIVATO || this == RESTITUITO; }
+    }
 
     @Id
     private UUID id;

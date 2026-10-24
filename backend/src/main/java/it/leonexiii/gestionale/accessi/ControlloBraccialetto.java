@@ -31,6 +31,8 @@ class ControlloBraccialetto implements ControlloAccesso {
                 "Se è stato ritrovato, segnarlo come ritrovato nella scheda. " + rimedioAltri));
             case DISATTIVATO -> List.of(Motivo.blocca("BRACCIALETTO_DISATTIVATO", regola(), "Braccialetto disattivato il " + Contesto.data(dal) + ".",
                 rimedioAltri));
+            case RESTITUITO -> List.of(Motivo.blocca("BRACCIALETTO_RESTITUITO", regola(), "Braccialetto riconsegnato il " + Contesto.data(dal) + ".",
+                rimedioAltri));
             case ATTIVO -> List.of();
         };
     }

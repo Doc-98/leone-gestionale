@@ -2,13 +2,15 @@
   import { onDestroy, untrack } from 'svelte';
   import {
     api, messaggioErrore,
-    type Abbonamento, type Braccialetto, type Corso, type GruppoClienti, type SchedaAccessi, type SchedaCliente, type Sesso,
+    type Abbonamento, type Braccialetto, type Corso, type GruppoClienti, type MetodoPagamento, type ModoRestituzione, type RegoleBorsellino,
+    type SchedaAccessi, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
   import ConsensiCliente from '../components/ConsensiCliente.svelte';
+  import BorsellinoCliente from '../components/BorsellinoCliente.svelte';
   import ContoCliente from '../components/ContoCliente.svelte';
   import EsitoTornello from '../components/EsitoTornello.svelte';
   import FamigliaCliente from '../components/FamigliaCliente.svelte';
@@ -104,15 +106,57 @@
   // con il telefono abbinato come lettore, il codice letto va nel campo «Assegna un braccialetto»
   onDestroy(lettoreTelefono.ascolta((c) => (nuovoCodice = c)));
 
+  // regole del borsellino (cauzione, crediti alla riconsegna e allo smarrimento) e metodi per restituire i soldi
+  let regole = $state<RegoleBorsellino | null>(null);
+  let metodi = $state<MetodoPagamento[]>([]);
+  api.regoleBorsellino().then((r) => (regole = r)).catch(() => {});
+  api.metodiPagamento().then((m) => (metodi = m.filter((x) => x.attivo && !x.borsellino && !x.daIncassare))).catch(() => {});
+  let conCauzione = $state(true);
+
   const assegna = async () => {
     const c = normalizzaCodice(nuovoCodice);
-    if (await esegui(() => api.assegnaBraccialetto(id, c), `Braccialetto ${c} assegnato.`)) nuovoCodice = '';
+    const cauzione = !!regole && regole.cauzione > 0 && conCauzione;
+    if (await esegui(() => api.assegnaBraccialetto(id, c, undefined, cauzione), `Braccialetto ${c} assegnato${cauzione ? `: cauzione di ${euro(regole!.cauzione)} tra i pagamenti` : ''}.`)) {
+      nuovoCodice = '';
+      conCauzione = true;
+    }
   };
+
+  async function smarrito(b: Braccialetto) {
+    let persi = 0;
+    const ok = await esegui(async () => (persi = (await api.statoBraccialetto(b.id, 'SMARRITO')).creditiPersi), `${b.codice} segnato come smarrito: al tornello darà rosso.`);
+    if (ok && persi > 0) messaggio = `${b.codice} segnato come smarrito: al tornello darà rosso. ${persi} crediti di phon e docce persi (regola della società).`;
+  }
+
+  // ── Riconsegna ────────────────────────────────────────────────────────
+  type Riconsegna = { id: string; cauzione: ModoRestituzione | 'TRATTIENI'; crediti: boolean; modoCrediti: ModoRestituzione; metodoId: string };
+  let riconsegna = $state<Riconsegna | null>(null);
+  const ultimoAttivo = (b: Braccialetto) => !accessi?.braccialetti.some((x) => x.id !== b.id && x.stato === 'ATTIVO');
+  function apriRiconsegna(b: Braccialetto) {
+    const regola = regole?.cauzioneRiconsegna ?? 'A_SCELTA';
+    const modo: ModoRestituzione = regola === 'A_SCELTA' ? 'DENARO' : regola;
+    riconsegna = { id: b.id, cauzione: modo, crediti: (regole?.creditiRiconsegna ?? true) && ultimoAttivo(b), modoCrediti: regola === 'A_SCELTA' ? 'BORSELLINO' : regola,
+      metodoId: metodi[0]?.id ?? '' };
+  }
+  async function confermaRiconsegna(b: Braccialetto) {
+    const r = riconsegna!;
+    let esito: Awaited<ReturnType<typeof api.riconsegnaBraccialetto>> | undefined;
+    const ok = await esegui(async () => (esito = await api.riconsegnaBraccialetto(b.id, { cauzione: r.cauzione, crediti: r.crediti ? r.modoCrediti : null,
+      metodoId: r.cauzione === 'DENARO' || (r.crediti && r.modoCrediti === 'DENARO') ? r.metodoId || null : null })), `${b.codice} riconsegnato.`);
+    if (ok && esito) {
+      const dove = (m: string | null) => (m === 'DENARO' ? 'in denaro' : 'nel borsellino');
+      const parti = [esito.cauzione > 0 ? `cauzione di ${euro(esito.cauzione)} restituita ${dove(esito.modoCauzione)}` : esito.modoCauzione === 'TRATTIENI' ? 'cauzione trattenuta' : '',
+        esito.crediti > 0 ? `${esito.crediti} crediti rimborsati ${dove(esito.modoCrediti)} (${euro(esito.valoreCrediti)})` : ''].filter(Boolean);
+      messaggio = `${b.codice} riconsegnato${parti.length ? ': ' + parti.join(', ') : ''}.`;
+      riconsegna = null;
+    }
+  }
 
   const STATI: Record<Braccialetto['stato'], { nome: string; classe: string }> = {
     ATTIVO: { nome: 'Attivo', classe: 't-soft' },
     SMARRITO: { nome: 'Smarrito', classe: 't-warn' },
     DISATTIVATO: { nome: 'Disattivato', classe: 't-altro' },
+    RESTITUITO: { nome: 'Riconsegnato', classe: 't-altro' },
   };
 
   // ── Anagrafica e contatti ─────────────────────────────────────────────
@@ -322,7 +366,7 @@
       <h3>Braccialetti</h3>
       <ul class="righe">
         {#each accessi.braccialetti as b (b.id)}
-          <li class="riga-b" class:spento={b.stato === 'DISATTIVATO'}>
+          <li class="riga-b" class:spento={b.stato === 'DISATTIVATO' || b.stato === 'RESTITUITO'}>
             <div class="riga-testa">
               <span class="m codice">{b.codice}</span>
               {#if b.decimale}<span class="m muted small" title="Lo stesso codice in decimale, come nel gestionale attuale">{b.decimale}</span>{/if}
@@ -336,10 +380,42 @@
                 <button class="btn btn-danger" disabled={!banBraccialetto.motivo.trim()}>Banna</button>
                 <button type="button" class="link small" onclick={() => (banBraccialetto = null)}>Annulla</button>
               </form>
-            {:else if b.stato !== 'DISATTIVATO'}
+            {:else if riconsegna?.id === b.id}
+              <form class="riconsegna" onsubmit={(e) => { e.preventDefault(); confermaRiconsegna(b); }}>
+                <div class="field">
+                  <span class="lbl">La cauzione{regole?.cauzione ? ` (${euro(regole.cauzione)}, se pagata)` : ''}</span>
+                  <div class="chips">
+                    {#if regole?.cauzioneRiconsegna !== 'BORSELLINO'}<button type="button" class="chip" aria-pressed={riconsegna.cauzione === 'DENARO'} onclick={() => (riconsegna!.cauzione = 'DENARO')}>Restituita in denaro</button>{/if}
+                    {#if regole?.cauzioneRiconsegna !== 'DENARO'}<button type="button" class="chip" aria-pressed={riconsegna.cauzione === 'BORSELLINO'} onclick={() => (riconsegna!.cauzione = 'BORSELLINO')}>Nel borsellino</button>{/if}
+                    <button type="button" class="chip" aria-pressed={riconsegna.cauzione === 'TRATTIENI'} onclick={() => (riconsegna!.cauzione = 'TRATTIENI')}>Trattenuta</button>
+                  </div>
+                </div>
+                {#if ultimoAttivo(b)}
+                  <label class="small spunta"><input type="checkbox" bind:checked={riconsegna.crediti} /> Rimborsa i crediti di phon e docce</label>
+                  {#if riconsegna.crediti && regole?.cauzioneRiconsegna === 'A_SCELTA'}
+                    <div class="chips">
+                      <button type="button" class="chip" aria-pressed={riconsegna.modoCrediti === 'BORSELLINO'} onclick={() => (riconsegna!.modoCrediti = 'BORSELLINO')}>Crediti nel borsellino (in euro)</button>
+                      <button type="button" class="chip" aria-pressed={riconsegna.modoCrediti === 'DENARO'} onclick={() => (riconsegna!.modoCrediti = 'DENARO')}>Crediti in denaro</button>
+                    </div>
+                  {/if}
+                {:else}
+                  <p class="muted small nomargin">Ha altri braccialetti attivi: i crediti di phon e docce restano a lui.</p>
+                {/if}
+                {#if riconsegna.cauzione === 'DENARO' || (riconsegna.crediti && riconsegna.modoCrediti === 'DENARO')}
+                  <label class="field"><span class="lbl">Soldi restituiti con</span>
+                    <select class="inp" bind:value={riconsegna.metodoId}>{#each metodi as m (m.id)}<option value={m.id}>{m.nome}</option>{/each}</select>
+                  </label>
+                {/if}
+                <div class="row">
+                  <button type="button" class="btn btn-secondary grow" onclick={() => (riconsegna = null)}>Annulla</button>
+                  <button class="btn btn-primary grow">Riconsegnato</button>
+                </div>
+              </form>
+            {:else if b.stato !== 'DISATTIVATO' && b.stato !== 'RESTITUITO'}
               <div class="azioni">
                 {#if b.stato === 'ATTIVO'}
-                  <button class="link small" onclick={() => esegui(() => api.statoBraccialetto(b.id, 'SMARRITO'), `${b.codice} segnato come smarrito: al tornello darà rosso.`)}>Smarrito</button>
+                  <button class="link small" onclick={() => smarrito(b)}>Smarrito</button>
+                  <button class="link small" onclick={() => apriRiconsegna(b)}>Riconsegnato…</button>
                   {#if !b.bannato}<button class="link small" onclick={() => (banBraccialetto = { id: b.id, motivo: '' })}>Banna</button>{/if}
                 {:else}
                   <button class="link small" onclick={() => esegui(() => api.statoBraccialetto(b.id, 'ATTIVO'), `${b.codice} ritrovato: di nuovo attivo.`)}>Ritrovato</button>
@@ -363,7 +439,10 @@
           {/if}
           <button class="btn btn-primary" disabled={normalizzaCodice(nuovoCodice).length < 4}>Assegna</button>
         </div>
-        <p class="muted small nomargin">Se uno è smarrito resta suo: se si ritrova basta segnarlo come ritrovato.</p>
+        {#if regole && regole.cauzione > 0}
+          <label class="small spunta"><input type="checkbox" bind:checked={conCauzione} /> Addebita la cauzione ({euro(regole.cauzione)}): si restituisce alla riconsegna</label>
+        {/if}
+        <p class="muted small nomargin">Se uno è smarrito resta suo: se si ritrova basta segnarlo come ritrovato.{regole?.creditiSmarrimento === 'PERSI' ? ' Segnandolo smarrito i crediti di phon e docce si perdono (regola della società), se non ha altri braccialetti attivi.' : ''}</p>
         {#if !nfcDisponibile() && /Android/i.test(navigator.userAgent)}<p class="muted small nomargin">{motivoNfcAssente()}</p>{/if}
       </form>
       {#if !nfcDisponibile()}<LettoreTelefonoPc compatto />{/if}
@@ -624,6 +703,8 @@
 
     <div class="largo-g"><ContoCliente personaId={id} {versione} cambiato={carica} /></div>
 
+    <div class="largo-g"><BorsellinoCliente personaId={id} {versione} cambiato={() => versione++} /></div>
+
     <div class="largo-g"><TurniCliente {cliente} {corsi} {esegui} /></div>
 
     <!-- Passaggi -->
@@ -689,6 +770,8 @@
   .sx { align-self: flex-start; }
   .tess { display: flex; flex-direction: column; gap: var(--space-4); }
   .riga-info { display: block; margin-top: 2px; }
+  .riconsegna { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-10); border-radius: var(--radius-md); background: var(--surface-sunken); }
+  .spunta { display: flex; align-items: center; gap: var(--space-6); }
   .recesso { display: flex; align-items: center; gap: var(--space-6); color: var(--cloro-ink); font-weight: 600; }
   .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
   .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }

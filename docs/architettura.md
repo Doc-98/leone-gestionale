@@ -225,6 +225,10 @@ erDiagram
   per più figli) con `pagamento_metodo` (anche più metodi insieme; «da incassare» finché il bonifico non arriva) e
   `pagamento_addebito` (quanto di ogni addebito), `metodo_pagamento` (elenco modificabile). Il tesseramento sa di
   essere pagato dall'evento `Pagamenti.Saldato`. Ricevute e cassa: parti 10–11.
+- Borsellino (modulo `pagamenti`, ADR 0018 parti 7–8): `regole_borsellino` (una riga), `movimento_borsellino` (euro e
+  crediti, con scadenza per gli euro in entrata), `uscita` (soldi restituiti); cauzione del braccialetto come addebito.
+- Modulo `servizi` (parte 9): `servizio` (phon, doccia: crediti per uso, gratuiti al giorno), `dispositivo` (macchine e
+  lettori del saldo, con l'impronta della chiave), `utilizzo` (ogni lettura, anche negata o simulata).
 
 **Accessi** (ADR 0009)
 - `braccialetto`: codice normalizzato → persona; attivo, smarrito o disattivato; più di uno per persona.

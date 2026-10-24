@@ -190,7 +190,7 @@ class TornelloTest {
         assertThat(passa(staff, "2028-01-02T06:00", primo).get("verde")).isEqualTo(true);
 
         // smarrito: rosso con il nome; l'altro braccialetto va; ritrovato torna verde
-        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"SMARRITO\"}").statusCode()).isEqualTo(204);
+        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"SMARRITO\"}").statusCode()).isEqualTo(200);
         var smarrito = passa(staff, "2028-01-02T06:00", primo);
         assertThat(codici(smarrito)).containsExactly("BRACCIALETTO_SMARRITO");
         assertThat(smarrito.get("statoBraccialetto")).isEqualTo("SMARRITO");
@@ -208,7 +208,7 @@ class TornelloTest {
         assertThat(codici(passa(staff, "2028-01-03T21:00", secondo))).containsExactly("CERTIFICATO_SCADUTO", "NESSUN_TURNO_OGGI");
 
         // disattivato: il codice si può dare a un'altra persona
-        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"DISATTIVATO\"}").statusCode()).isEqualTo(204);
+        assertThat(segr.put("/api/accessi/braccialetti/" + idPrimo + "/stato", "{\"stato\":\"DISATTIVATO\"}").statusCode()).isEqualTo(200);
         assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).containsExactly("BRACCIALETTO_DISATTIVATO");
         String altra = cliente(segr, "Bruna");
         assertThat(segr.post("/api/accessi/persone/" + altra + "/braccialetti", "{\"codice\":\"" + primo + "\"}").statusCode()).isEqualTo(201);

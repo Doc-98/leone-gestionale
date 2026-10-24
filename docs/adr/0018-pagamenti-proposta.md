@@ -2,7 +2,8 @@
 
 **Stato.** Accettata il 23/10/2026, si costruisce un pezzo alla volta. Fatte: parti 1 (impostazioni della società e
 stagioni), 2 (gruppi di clienti), 3–4 (listino e regole, con l'importo proposto alla vendita e il rimborso calcolato
-al recesso), 5 (addebiti e pagamenti, 24/10/2026: vedi «Come è fatta la parte 5» in fondo).
+al recesso), 5 (addebiti e pagamenti, 24/10/2026: vedi «Come è fatta la parte 5» in fondo), 7–9 (borsellino,
+braccialetto, servizi a crediti con simulatore, 24/10/2026: vedi «Come sono fatte le parti 7–9»).
 
 **Contesto.** Il gestionale deve servire a una società sportiva qualsiasi (vedi «Principi» in `docs/architettura.md`):
 listino, sconti, rate, rimborsi e regole cambiano da una società all'altra e da una stagione all'altra. Le regole della
@@ -87,6 +88,26 @@ paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
   (parte 7), si registra come credito (addebito negativo, origine RIMBORSO).
 - Pagina «Incassi»: pagamenti di un giorno o periodo con i totali per metodo, esportazione CSV, pagamenti da incassare.
   La chiusura di cassa vera (fondo cassa, contati) è la parte 11.
+
+**Come sono fatte le parti 7–9.**
+- Il credito sta **sul server**, non sul braccialetto (che porta solo il numero di serie, come quello della Leone): i
+  saldi sono della **persona**, e la segreteria ricarica dall'anagrafica senza dover leggere il braccialetto.
+- Borsellino nel modulo `pagamenti` (classe `Borsellino`): movimenti in euro e in crediti. Gli euro in entrata hanno
+  una scadenza (regola «validità») e le uscite consumano prima quelli che scadono prima; ogni notte gli euro scaduti
+  escono. Il borsellino è anche un metodo di pagamento: paga chi paga (anche un genitore per il figlio). Annullando un
+  pagamento tornano gli euro spesi, e una ricarica annullata toglie i crediti comprati.
+- Ricarica: un addebito (origine RICARICA) pagato subito, poi i crediti; importo minimo e multiplo del valore di un
+  credito (regole). Trasferimento di euro ai familiari (se la regola lo permette); restituzione in denaro (se la regola
+  lo permette, e con il permesso «Rimborsi e correzioni del borsellino»); correzioni a mano con il motivo. Il rimborso
+  per recesso «nel borsellino» ora ci va davvero.
+- Soldi che escono dalla cassa (cauzione restituita, credito in denaro): tabella `uscita`, nella pagina «Incassi».
+- Braccialetto: la cauzione (regola, 0 = nessuna) è un addebito alla consegna (si può non addebitare); «Riconsegnato»
+  (stato RESTITUITO, il codice torna libero) restituisce la cauzione pagata in denaro, nel borsellino o la trattiene, e
+  rimborsa i crediti se era l'ultimo braccialetto attivo; «Smarrito» li fa perdere con la regola «crediti persi».
+- Modulo `servizi`: servizi (crediti per uso, usi gratuiti al giorno, minuti), dispositivi (tipo SERVIZIO o SALDO) con
+  una chiave di cui si conserva solo l'impronta SHA-256, utilizzi (anche quelli negati). API delle macchine in
+  `/api/macchine/{id}` con l'intestazione `X-Chiave-Dispositivo`, fuori da sessione e CSRF. Il simulatore usa la stessa
+  logica e segna gli utilizzi come simulati. Per le macchine vere resta da scegliere tra le tre strade del punto 9.
 
 **Conseguenze.** Molte tabelle nuove e un modulo `pagamenti`; gli abbonamenti attuali (ADR 0009) diventano righe del
 listino vendute a una persona. Le parti 10–11 dipendono da risposte ancora aperte (formato delle ricevute, fattura

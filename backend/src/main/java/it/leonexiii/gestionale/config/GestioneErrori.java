@@ -49,6 +49,7 @@ class GestioneErrori {
             : m.contains("tesseramento_uno_per_stagione") ? "Per questa stagione il tesseramento è già registrato."
             : m.contains("stagione_senza_sovrapposizioni") ? "Le date si accavallano con un'altra stagione."
             : m.contains("stagione_nome_key") ? "C'è già una stagione con questo nome."
+            : m.contains("servizio_nome") ? "C'è già un servizio con questo nome."
             : m.contains("metodo_pagamento_nome") ? "C'è già un metodo di pagamento con questo nome."
             : m.contains("gruppo_clienti_nome") ? "C'è già un gruppo con questo nome."
             : m.contains("appartenenza_gruppo_attiva") ? "La persona è già in questo gruppo."

@@ -64,13 +64,16 @@
           {:else}
             <strong class="grow">{m.nome}</strong>
             {#if m.daIncassare}<span class="tag t-warn">Da incassare</span>{/if}
+            {#if m.borsellino}<span class="tag t-soft">Il credito in euro di chi paga</span>{/if}
             {#if !m.attivo}<span class="tag t-altro">Spento</span>{/if}
             {#if puo}
               <button class="link small" disabled={i === 0} onclick={() => sposta(i, -1)} aria-label="Sposta su">↑</button>
               <button class="link small" disabled={i === metodi.length - 1} onclick={() => sposta(i, 1)} aria-label="Sposta giù">↓</button>
-              <button class="link small" onclick={() => (modifica = { id: m.id, nome: m.nome })}>Rinomina</button>
-              <button class="link small" onclick={() => salva(m, { daIncassare: !m.daIncassare }, m.daIncassare ? `${m.nome}: incassato subito.` : `${m.nome}: da incassare a mano.`)}>
-                {m.daIncassare ? 'Incassato subito' : 'Da incassare'}</button>
+              {#if !m.borsellino}
+                <button class="link small" onclick={() => (modifica = { id: m.id, nome: m.nome })}>Rinomina</button>
+                <button class="link small" onclick={() => salva(m, { daIncassare: !m.daIncassare }, m.daIncassare ? `${m.nome}: incassato subito.` : `${m.nome}: da incassare a mano.`)}>
+                  {m.daIncassare ? 'Incassato subito' : 'Da incassare'}</button>
+              {/if}
               <button class="link small muted" onclick={() => salva(m, { attivo: !m.attivo }, m.attivo ? `${m.nome} spento.` : `${m.nome} riacceso.`)}>{m.attivo ? 'Spegni' : 'Riaccendi'}</button>
             {/if}
           {/if}

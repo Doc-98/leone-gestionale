@@ -90,9 +90,12 @@ con il tecnico: marca, modello e come parlano con il gestionale attuale).
   conferma) per sceglierlo, due gettoniere da 20 centesimi. I phon (numerati 3, 4, 5…) sono alimentati dalla
   centralina, che accende la presa del phon scelto.
 - *Docce*: un piccolo lettore per doccia, della stessa marca (foto da fare).
-- Da capire: se il credito sta **sul braccialetto** (chip scritto dalla centralina e da un ricaricatore in
-  segreteria) o **su un server** (centralina in rete con un programma Romano o con TeamSystem). Cambia tutto per
-  l'integrazione (vedi ADR 0018, punto 9).
+- Il credito sta **sul server**: il braccialetto contiene solo il numero di serie (verificato con NFC Tools); la
+  centralina dei phon legge il codice e lo comunica al gestionale, che oggi è TeamSystem (anche le ricariche si fanno
+  da lì). Avvicinando il braccialetto, la centralina dei phon, i lettori delle docce e un lettore davanti al tornello
+  (solo per controllare) mostrano i crediti rimasti. La segreteria per ricaricare passa il braccialetto su un lettore,
+  forse solo per non sbagliare persona: il nuovo gestionale ricarica dall'anagrafica, senza obbligo di leggerlo.
+- Come la centralina parla con TeamSystem non si sa (il progetto è un esercizio: niente domande al tecnico).
 
 **Ricevute** (segreteria): il POS stampa la sua ricevuta; le ricevute della società le fa il gestionale e le stampa su
 una stampante A4 collegata al PC. Sono numerate e la numerazione riparte a ogni stagione. Si può chiedere la fattura.

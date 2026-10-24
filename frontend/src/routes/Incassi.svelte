@@ -89,7 +89,8 @@
         <div class="card tot grande"><span class="lbl">Totale {da === a ? dataBreve(da) : `${dataBreve(da)} – ${dataBreve(a)}`}</span><strong class="m">{euro(dati.totale)}</strong></div>
         {#each dati.perMetodo as m (m.metodoId)}
           <div class="card tot"><span class="lbl">{m.metodo}</span><strong class="m">{euro(m.importo)}</strong>
-            {#if m.daIncassare}<span class="small avviso">{euro(m.daIncassare)} da incassare</span>{/if}</div>
+            {#if m.daIncassare}<span class="small avviso">{euro(m.daIncassare)} da incassare</span>{/if}
+            {#if m.uscite}<span class="small avviso">−{euro(m.uscite)} restituiti</span>{/if}</div>
         {/each}
       </div>
 
@@ -110,6 +111,20 @@
           {/each}
         </ul>
       </section>
+      {#if dati.uscite.length}
+        <section class="card elenco">
+          <div class="lbl sotto">Soldi restituiti</div>
+          <ul class="righe">
+            {#each dati.uscite as u (u.id)}
+              <li>
+                <span class="m imp">−{euro(u.importo)}</span>
+                <span class="grow"><strong>{u.persona}</strong>{da !== a ? ` · ${dataBreve(u.data)}` : ''}<span class="small muted riga">{u.descrizione}</span></span>
+                <span class="tag t-altro">{u.metodo}</span>
+              </li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
     {/if}
   {:else}
     <p class="muted small nomargin">I pagamenti con un metodo «da incassare» (es. bonifico) restano qui finché non li segni arrivati sul conto.
@@ -148,4 +163,5 @@
   .imp { min-width: 90px; font-weight: 700; }
   .riga { display: block; }
   .spento { opacity: 0.55; }
+  .sotto { padding-top: var(--space-10); }
 </style>

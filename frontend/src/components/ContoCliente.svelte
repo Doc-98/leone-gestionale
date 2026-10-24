@@ -75,7 +75,7 @@
   function apriPagamento(soloScaduti = false) {
     if (!scelti.length) scelti = propri.filter((a) => !soloScaduti || a.stato === 'SCADUTO').map((a) => a.id);
     const tutore = conto!.paganti.find((p) => p.personaId !== id);
-    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi[0]?.id ?? '', importo: '', riferimento: '' }], note: '', separati: false };
+    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi.find((m) => !m.borsellino)?.id ?? '', importo: '', riferimento: '' }], note: '', separati: false };
   }
 
   // l'importo della prima riga segue quanto si sceglie di pagare, finché c'è un solo metodo
@@ -192,7 +192,10 @@
           {#each modulo.righe as r, i (i)}
             <div class="riga-metodo">
               <select class="inp" bind:value={r.metodoId} aria-label="Metodo">
-                {#each attivi as m (m.id)}<option value={m.id}>{m.nome}</option>{/each}
+                {#each attivi as m (m.id)}
+                  {@const disp = conto.borsellini.find((b) => b.personaId === modulo!.paganteId)?.euro ?? 0}
+                  <option value={m.id} disabled={m.borsellino && disp <= 0}>{m.borsellino ? `Borsellino (credito: ${euro(disp)})` : m.nome}</option>
+                {/each}
               </select>
               <input class="inp m importo" type="number" min="0.01" step="0.01" bind:value={r.importo} aria-label="Importo in euro" readonly={!flessibile}
                      title={flessibile ? '' : 'Per un acconto serve il permesso «Acconti e pagamenti misti»'} />

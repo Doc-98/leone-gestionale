@@ -126,7 +126,8 @@ class ListinoTest {
         // con il recesso la seconda rata non è più dovuta e il rimborso diventa un credito
         var esito = json(segr.post("/api/clienti/abbonamenti/" + abb + "/termina", "{\"al\":\"2050-10-15\",\"recesso\":true}"));
         assertThat(esito).containsEntry("annullato", 225.00);
-        assertThat(json(segr.get("/api/pagamenti/persone/" + persona)).get("totali").toString()).contains("credito=112.5");
+        // il rimborso è andato nel borsellino (la regola demo dice «nel borsellino»)
+        assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=112.5");
 
         // un'offerta già venduta non si elimina; il listino si copia nella stagione nuova con l'aumento
         assertThat(admin.delete("/api/listino/offerte/" + offerta).statusCode()).isEqualTo(409);

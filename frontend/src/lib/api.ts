@@ -10,7 +10,7 @@ export type Ruolo = string;
 export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
   | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
-  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI' | 'PAGAMENTI' | 'PAGAMENTI_FLESSIBILI' | 'PAGAMENTI_ANNULLA'
+  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI' | 'PAGAMENTI' | 'PAGAMENTI_FLESSIBILI' | 'PAGAMENTI_ANNULLA' | 'BORSELLINO' | 'BORSELLINO_RIMBORSI'
   | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT' | 'IMPOSTAZIONI';
 
 export interface Me {
@@ -730,9 +730,33 @@ export const api = {
   annullaSospensione: (id: string) => richiesta<void>('POST', `/api/clienti/sospensioni/${id}/annulla`, {}),
   passaggi: (quanti = 20) => richiesta<Passaggio[]>('GET', `/api/accessi/passaggi?quanti=${quanti}`),
   schedaAccessi: (personaId: string) => richiesta<SchedaAccessi>('GET', `/api/accessi/persone/${personaId}`),
-  assegnaBraccialetto: (personaId: string, codice: string, note?: string) =>
-    richiesta<Braccialetto>('POST', `/api/accessi/persone/${personaId}/braccialetti`, { codice, note: note ?? null }),
-  statoBraccialetto: (id: string, stato: StatoBraccialetto) => richiesta<void>('PUT', `/api/accessi/braccialetti/${id}/stato`, { stato }),
+  assegnaBraccialetto: (personaId: string, codice: string, note?: string, cauzione = true) =>
+    richiesta<Braccialetto>('POST', `/api/accessi/persone/${personaId}/braccialetti`, { codice, note: note ?? null, cauzione }),
+  statoBraccialetto: (id: string, stato: StatoBraccialetto) => richiesta<{ creditiPersi: number }>('PUT', `/api/accessi/braccialetti/${id}/stato`, { stato }),
+  riconsegnaBraccialetto: (id: string, r: { cauzione: ModoRestituzione | 'TRATTIENI' | null; crediti: ModoRestituzione | null; metodoId?: string | null }) =>
+    richiesta<EsitoRiconsegna>('POST', `/api/accessi/braccialetti/${id}/riconsegna`, r),
+
+  // ── Borsellino, servizi e dispositivi (ADR 0018, parti 7–9) ──
+  borsellino: (personaId: string) => richiesta<SchedaBorsellino>('GET', `/api/borsellino/persone/${personaId}`),
+  ricarica: (personaId: string, r: { paganteId?: string | null; importo: number; metodi: { metodoId: string; importo: number; riferimento?: string | null }[]; note?: string | null }) =>
+    richiesta<{ pagamentoId: string }>('POST', `/api/borsellino/persone/${personaId}/ricariche`, r),
+  trasferisci: (personaId: string, aPersonaId: string, importo: number) => richiesta<void>('POST', `/api/borsellino/persone/${personaId}/trasferimenti`, { aPersonaId, importo }),
+  restituisci: (personaId: string, importo: number, metodoId: string | null) => richiesta<void>('POST', `/api/borsellino/persone/${personaId}/restituzioni`, { importo, metodoId }),
+  correggi: (personaId: string, saldo: 'EURO' | 'CREDITI', quantita: number, motivo: string) =>
+    richiesta<void>('POST', `/api/borsellino/persone/${personaId}/correzioni`, { saldo, quantita, motivo }),
+  regoleBorsellino: () => richiesta<RegoleBorsellino>('GET', '/api/borsellino/regole'),
+  modificaRegoleBorsellino: (r: RegoleBorsellino) => richiesta<RegoleBorsellino>('PUT', '/api/borsellino/regole', r),
+  servizi: () => richiesta<Servizio[]>('GET', '/api/servizi'),
+  creaServizio: (s: NuovoServizio) => richiesta<Servizio>('POST', '/api/servizi', s),
+  modificaServizio: (id: string, s: NuovoServizio) => richiesta<Servizio>('PUT', `/api/servizi/${id}`, s),
+  dispositivi: () => richiesta<Dispositivo[]>('GET', '/api/dispositivi'),
+  creaDispositivo: (d: NuovoDispositivo) => richiesta<DispositivoCreato>('POST', '/api/dispositivi', d),
+  modificaDispositivo: (id: string, d: NuovoDispositivo) => richiesta<Dispositivo>('PUT', `/api/dispositivi/${id}`, d),
+  nuovaChiaveDispositivo: (id: string) => richiesta<DispositivoCreato>('POST', `/api/dispositivi/${id}/chiave`, {}),
+  provaDispositivo: (id: string, codice: string, azione: 'USA' | 'SALDO', postazione?: string | null) =>
+    richiesta<RispostaMacchina>('POST', `/api/dispositivi/${id}/prova`, { codice, azione, postazione: postazione ?? null }),
+  utilizzi: (filtro: { personaId?: string; dispositivoId?: string; quanti?: number }) =>
+    richiesta<Utilizzo[]>('GET', `/api/utilizzi?${new URLSearchParams(Object.entries(filtro).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString()}`),
   banna: (b: { tipo?: 'BAN' | 'SORVEGLIANZA'; personaId?: string; braccialettoId?: string; motivo: string; al: string | null }) => richiesta<{ id: string }>('POST', '/api/accessi/ban', b),
   revocaBan: (id: string) => richiesta<void>('POST', `/api/accessi/ban/${id}/revoca`, {}),
   goldenPass: (personaId: string, motivo: string, al: string | null) =>
@@ -836,7 +860,7 @@ export interface Passaggio {
   carnetScalato: boolean;
 }
 
-export type StatoBraccialetto = 'ATTIVO' | 'SMARRITO' | 'DISATTIVATO';
+export type StatoBraccialetto = 'ATTIVO' | 'SMARRITO' | 'DISATTIVATO' | 'RESTITUITO';
 
 export interface Braccialetto {
   id: string;
@@ -1280,6 +1304,8 @@ export interface Conto {
   pagamenti: PagamentoRegistrato[];
   famiglia: { personaId: string; nome: string; relazione: string | null; totali: TotaliConto; aperti: Addebito[] }[];
   paganti: { personaId: string; nome: string; relazione: string | null }[];
+  /** il borsellino di chi può pagare: euro per il metodo «Borsellino» */
+  borsellini: { personaId: string; euro: number; crediti: number }[];
 }
 
 export interface NuovoPagamento {
@@ -1301,6 +1327,7 @@ export interface MetodoPagamento {
   daIncassare: boolean;
   attivo: boolean;
   ordine: number;
+  borsellino: boolean;
 }
 
 export interface NuovoMetodoPagamento {
@@ -1314,8 +1341,10 @@ export interface Incassi {
   da: string;
   a: string;
   totale: number;
-  perMetodo: { metodoId: string; metodo: string; importo: number; daIncassare: number }[];
+  perMetodo: { metodoId: string; metodo: string; importo: number; daIncassare: number; uscite: number }[];
   pagamenti: PagamentoRegistrato[];
+  /** soldi restituiti (cauzione, credito in denaro) */
+  uscite: { id: string; data: string; personaId: string; persona: string | null; metodo: string; importo: number; descrizione: string; registratoDa: string | null }[];
 }
 
 export interface DaIncassare {
@@ -1328,4 +1357,125 @@ export interface DaIncassare {
   importo: number;
   riferimento: string | null;
   per: string[];
+}
+
+// ── Borsellino, servizi e dispositivi ──
+
+export type ModoRestituzione = 'DENARO' | 'BORSELLINO';
+
+export interface RegoleBorsellino {
+  valoreCredito: number;
+  ricaricaMinima: number;
+  validitaEuroMesi: number | null;
+  trasferibile: boolean;
+  restituibile: boolean;
+  cauzione: number;
+  cauzioneRiconsegna: ModoRestituzione | 'A_SCELTA';
+  creditiRiconsegna: boolean;
+  creditiSmarrimento: 'RESTANO' | 'PERSI';
+}
+
+export interface SaldoBorsellino {
+  euro: number;
+  crediti: number;
+  valoreCrediti: number;
+  prossimaScadenza: string | null;
+  inScadenza: number;
+}
+
+export interface MovimentoBorsellino {
+  id: string;
+  saldo: 'EURO' | 'CREDITI';
+  quantita: number;
+  causale: string;
+  descrizione: string;
+  scadenza: string | null;
+  controparte: string | null;
+  creatoIl: string;
+  creatoDa: string | null;
+}
+
+export interface SchedaBorsellino {
+  personaId: string;
+  saldo: SaldoBorsellino;
+  regole: RegoleBorsellino;
+  movimenti: MovimentoBorsellino[];
+  trasferibileA: { personaId: string; nome: string; relazione: string | null }[];
+}
+
+export interface EsitoRiconsegna {
+  cauzione: number;
+  modoCauzione: string | null;
+  crediti: number;
+  valoreCrediti: number;
+  modoCrediti: string | null;
+}
+
+export interface Servizio {
+  id: string;
+  nome: string;
+  crediti: number;
+  gratuitiAlGiorno: number;
+  minuti: number | null;
+  attivo: boolean;
+  ordine: number;
+}
+
+export interface NuovoServizio {
+  nome: string;
+  crediti: number;
+  gratuitiAlGiorno?: number;
+  minuti?: number | null;
+  attivo?: boolean;
+  ordine?: number;
+}
+
+export interface Dispositivo {
+  id: string;
+  nome: string;
+  tipo: 'SERVIZIO' | 'SALDO';
+  servizioId: string | null;
+  servizio: string | null;
+  attivo: boolean;
+  creatoIl: string;
+  ultimoContatto: string | null;
+  utilizziOggi: number;
+}
+
+export interface NuovoDispositivo {
+  nome: string;
+  tipo?: 'SERVIZIO' | 'SALDO';
+  servizioId?: string | null;
+  attivo?: boolean;
+}
+
+export interface DispositivoCreato {
+  dispositivo: Dispositivo;
+  chiave: string;
+}
+
+export interface RispostaMacchina {
+  via: boolean;
+  esito: string;
+  messaggio: string;
+  nome: string | null;
+  crediti: number | null;
+  creditiUsati: number;
+  minuti: number | null;
+  euro: number | null;
+}
+
+export interface Utilizzo {
+  id: string;
+  istante: string;
+  dispositivoId: string;
+  dispositivo: string | null;
+  servizio: string | null;
+  codice: string;
+  personaId: string | null;
+  persona: string | null;
+  esito: string;
+  crediti: number;
+  postazione: string | null;
+  simulato: boolean;
 }

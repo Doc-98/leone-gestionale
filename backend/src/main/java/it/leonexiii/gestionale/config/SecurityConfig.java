@@ -35,7 +35,9 @@ class SecurityConfig {
             .securityContext(c -> c.securityContextRepository(repo))
             .csrf(c -> c
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                // le macchine (phon, docce) non hanno sessione né cookie: le autorizza la chiave del dispositivo
+                .ignoringRequestMatchers("/api/macchine/**"))
             .authorizeHttpRequests(a -> a
                 // Le risposte di errore (es. 403 per CSRF mancante) passano da /error: non vanno protette,
                 // altrimenti un 403 a chi non è collegato diventerebbe 401
@@ -43,6 +45,8 @@ class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/csrf", "/actuator/health").permitAll()
                 // il telefono come lettore del PC: lo autorizza il token dell'abbinamento (ADR 0017)
                 .requestMatchers("/api/lettori/telefono/**", "/api/lettori/codice/*").permitAll()
+                // le macchine di phon e docce: le autorizza la chiave del dispositivo (ADR 0018, parte 9)
+                .requestMatchers("/api/macchine/**").permitAll()
                 // documentazione delle API: esiste solo se springdoc.api-docs.enabled (profilo demo)
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())

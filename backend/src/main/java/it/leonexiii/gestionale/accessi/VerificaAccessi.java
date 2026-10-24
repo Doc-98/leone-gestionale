@@ -97,7 +97,7 @@ class VerificaAccessi {
         String codice = Codici.normalizza(codiceLetto);
         Instant istante = orologio.instant();
         List<Braccialetto> conCodice = braccialetti.findByCodiceOrderByAssegnatoIlDesc(codice);
-        Braccialetto b = conCodice.stream().filter(x -> x.stato() != Braccialetto.Stato.DISATTIVATO).findFirst()
+        Braccialetto b = conCodice.stream().filter(x -> !x.stato().libero()).findFirst()
             .orElse(conCodice.isEmpty() ? null : conCodice.getFirst());
         if (b == null) {
             // un codice sconosciuto è sempre rosso, qualunque regola sia attiva

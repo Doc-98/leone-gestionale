@@ -33,9 +33,12 @@
   import Account from './routes/Account.svelte';
   import Incassi from './routes/Incassi.svelte';
   import MetodiPagamento from './routes/MetodiPagamento.svelte';
+  import Macchine from './routes/Macchine.svelte';
+  import RegoleBorsellino from './routes/RegoleBorsellino.svelte';
+  import ServiziDispositivi from './routes/ServiziDispositivi.svelte';
   import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'metodi' | 'incassi' | 'impostazioni';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'borsellino' | 'servizi' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Clienti' | 'Staff' | 'Accessi' | 'Sistema';
   interface Sezione {
     id: Scheda;
@@ -72,6 +75,8 @@
     listino: 'M5 3h10l4 4v14H5zM9 9h6M9 13h6M9 17h3',
     incassi: 'M3 7h18v12H3zM3 11h18M7 15h3M16 4H6',
     metodi: 'M3 6h18v12H3zM3 10h18M7 14h4',
+    macchine: 'M6 3h12v18H6zM9 7h6M12 14a2 2 0 1 0 0 .01M9 18h6',
+    borsellino: 'M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4zM4 7l10-4 2 4M16 13h4',
     attesa: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
     account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
     ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
@@ -91,6 +96,7 @@
     { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: I.clienti },
     { id: 'scadenze', nome: 'Scadenze', breve: 'Scadenze', titolo: 'Scadenze', gruppo: 'Accessi', permessi: ['CLIENTI'], larga: true, icona: I.scadenze },
     { id: 'incassi', nome: 'Incassi', breve: 'Incassi', titolo: 'Incassi', gruppo: 'Accessi', permessi: ['PAGAMENTI'], larga: true, icona: I.incassi },
+    { id: 'macchine', nome: 'Phon e docce', breve: 'Phon', titolo: 'Phon e docce', gruppo: 'Accessi', permessi: ['BORSELLINO', 'IMPOSTAZIONI'], larga: true, icona: I.macchine },
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.pianifica },
     { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: I.approva },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.modelli },
@@ -101,8 +107,12 @@
       spiega: 'Offerte della stagione, prezzi, riduzioni, rate e recesso' },
     { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: I.metodi,
       spiega: 'Contanti, carta, Satispay, bonifico…: quali si usano e quali si segnano incassati a mano' },
+    { id: 'borsellino', nome: 'Borsellino e braccialetto', titolo: 'Borsellino e braccialetto', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.borsellino,
+      spiega: 'Valore dei crediti, ricarica minima, scadenza e trasferimento del credito, cauzione, riconsegna e smarrimento' },
     { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['CLIENTI'], larga: true, icona: I.promemoria,
       spiega: 'Quando partono i promemoria delle scadenze e con quale testo' },
+    { id: 'servizi', nome: 'Phon, docce e lettori', titolo: 'Phon, docce e lettori', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.macchine,
+      spiega: 'Quanti crediti costa ogni servizio, usi gratuiti, le macchine e le loro chiavi' },
     { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole,
       spiega: 'Quali controlli fa il tornello e con quali tempi' },
     { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.postazioni,
@@ -261,6 +271,9 @@
     {:else if corrente.id === 'listino'}<Listino />
     {:else if corrente.id === 'metodi'}<MetodiPagamento />
     {:else if corrente.id === 'incassi'}<Incassi />
+    {:else if corrente.id === 'macchine'}<Macchine />
+    {:else if corrente.id === 'borsellino'}<RegoleBorsellino />
+    {:else if corrente.id === 'servizi'}<ServiziDispositivi />
     {:else if corrente.id === 'promemoria'}<Promemoria />
     {:else if corrente.id === 'account'}<Account />{/if}
   {/key}

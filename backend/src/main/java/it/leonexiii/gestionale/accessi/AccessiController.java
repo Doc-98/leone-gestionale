@@ -77,16 +77,24 @@ class AccessiController {
     @PostMapping("/persone/{id}/braccialetti")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
-    GestioneAccessiService.BraccialettoDto assegna(@PathVariable UUID id, @RequestBody GestioneAccessiService.NuovoBraccialetto in) {
-        return gestione.assegna(id, in);
+    GestioneAccessiService.BraccialettoDto assegna(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
+                                                   @RequestBody GestioneAccessiService.NuovoBraccialetto in) {
+        return gestione.assegna(u, id, in);
     }
 
-    /** {"stato": "SMARRITO"} · "ATTIVO" (ritrovato) · "DISATTIVATO" */
+    /** {"stato": "SMARRITO"} · "ATTIVO" (ritrovato) · "DISATTIVATO"; risponde con i crediti persi (regola «crediti persi»). */
     @PutMapping("/braccialetti/{id}/stato")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
-    void stato(@PathVariable UUID id, @RequestBody GestioneAccessiService.NuovoStato in) {
-        gestione.cambiaStato(id, in);
+    Map<String, Integer> stato(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody GestioneAccessiService.NuovoStato in) {
+        return Map.of("creditiPersi", gestione.cambiaStato(u, id, in));
+    }
+
+    /** {"cauzione": "DENARO"|"BORSELLINO"|"TRATTIENI", "crediti": "DENARO"|"BORSELLINO"|null, "metodoId"} */
+    @PostMapping("/braccialetti/{id}/riconsegna")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'BRACCIALETTI')")
+    it.leonexiii.gestionale.pagamenti.Borsellino.EsitoRiconsegna riconsegna(@AuthenticationPrincipal Utente u, @PathVariable UUID id,
+                                                                           @RequestBody GestioneAccessiService.Riconsegna in) {
+        return gestione.riconsegna(u, id, in);
     }
 
     /** {"personaId"} oppure {"braccialettoId"}, con "motivo" e facoltativi "dal", "al". */

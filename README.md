@@ -238,7 +238,14 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   «Annullare pagamenti» (demo: coordinatore) e il motivo; acconti e pagamenti divisi tra più metodi il permesso «Acconti
   e pagamenti misti». Per due fratelli insieme: un pagamento unico, uno per ciascuno o a scelta, secondo «Impostazioni →
   Società e stagioni». Prova Tommaso Neri (`D0000002`): la seconda rata è scaduta,
-  la paga la mamma. Con «Termina oggi» e il recesso, le rate non pagate si annullano e il rimborso diventa un credito.
+  la paga la mamma. Con «Termina oggi» e il recesso, le rate non pagate si annullano e il rimborso va nel borsellino.
+- **Borsellino, braccialetto, phon e docce** (ADR 0018, parti 7–9): nella scheda, «Borsellino» con il credito in euro
+  (rimborsi; si usa per pagare con il metodo «Borsellino»; scade e si trasferisce ai familiari secondo le regole) e i
+  crediti di phon e docce, che si ricaricano dall'anagrafica senza il braccialetto in mano. Il braccialetto nuovo
+  addebita la cauzione; «Riconsegnato…» la restituisce (in denaro o nel borsellino) con i crediti; «Smarrito» li fa
+  perdere se la regola lo dice. Pagina «Phon e docce» con un **simulatore** delle macchine (scrivi o leggi il codice,
+  anche col telefono): prova Leonardo Ferri (`0C7A5CAE`, 37 crediti; la prima doccia del giorno è gratis). Regole in
+  «Impostazioni → Borsellino e braccialetto», servizi e dispositivi in «Impostazioni → Phon, docce e lettori».
 - **Impostazioni** (società e stagioni, listino, promemoria, regole del tornello, mansioni e tariffe, account, ruoli): tutte
   sotto la voce «Impostazioni» in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area
   («← Impostazioni» torna indietro); sul telefono da «Altro».
@@ -481,6 +488,14 @@ la CI su Windows.
 | POST | `/api/pagamenti/{id}/annulla` · `/api/pagamenti/addebiti/{id}/annulla` `{motivo}` | annullamenti (PAGAMENTI_ANNULLA) |
 | GET · POST | `/api/pagamenti/incassi?da=&a=` · `/api/pagamenti/da-incassare` · `/api/pagamenti/metodi-usati/{id}/incassa` | incassi e bonifici da incassare (PAGAMENTI) |
 | GET · POST · PUT | `/api/pagamenti/metodi` · `/{id}` | metodi di pagamento (modifica: IMPOSTAZIONI) |
+| GET | `/api/borsellino/persone/{id}` | saldi (euro e crediti), movimenti, a chi si può trasferire |
+| POST | `/api/borsellino/persone/{id}/ricariche` · `/trasferimenti` | ricarica dei crediti (pagata subito); euro a un familiare (BORSELLINO) |
+| POST | `/api/borsellino/persone/{id}/restituzioni` · `/correzioni` | credito restituito in denaro; correzioni a mano (BORSELLINO_RIMBORSI) |
+| GET · PUT | `/api/borsellino/regole` | regole del borsellino e del braccialetto (modifica: IMPOSTAZIONI) |
+| PUT · POST | `/api/accessi/braccialetti/{id}/stato` · `/riconsegna` `{cauzione, crediti, metodoId}` | smarrito (crediti persi secondo la regola); riconsegna con cauzione e crediti |
+| GET · POST · PUT | `/api/servizi` · `/api/dispositivi` · `/{id}` · `/api/dispositivi/{id}/chiave` | servizi a crediti, dispositivi e chiavi (modifica: IMPOSTAZIONI) |
+| POST · GET | `/api/dispositivi/{id}/prova` · `/api/utilizzi?personaId=&dispositivoId=` | simulatore; utilizzi |
+| POST · GET | `/api/macchine/{id}/utilizzi` · `/api/macchine/{id}/saldo?codice=` | le macchine, con la chiave (vedi «Macchine di phon e docce») |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |
@@ -490,6 +505,34 @@ la CI su Windows.
 Le richieste che modificano dati devono rimandare il token CSRF nell'intestazione `X-XSRF-TOKEN`.
 Gli errori seguono il formato «problem details» (RFC 9457): 400 dati non validi, 403 permessi,
 404 non trovato, 409 conflitto (es. turni sovrapposti).
+
+## Macchine di phon e docce (API)
+
+Le macchine (e i lettori del saldo) non entrano con utente e password: ognuna ha un **id** e una **chiave**, che si
+vedono in «Impostazioni → Phon, docce e lettori» quando si crea il dispositivo (la chiave una volta sola). La chiave va
+nell'intestazione `X-Chiave-Dispositivo`. Nei dati demo le chiavi sono note, per provare:
+
+| Dispositivo | Id | Chiave demo |
+|---|---|---|
+| Phon spogliatoio maschile | `00000000-0000-0000-0000-000000000a11` | `demo-phon-m` |
+| Phon spogliatoio femminile | `…a12` | `demo-phon-f` |
+| Phon spogliatoio piccoli | `…a13` | `demo-phon-p` |
+| Docce spogliatoio maschile | `…a14` | `demo-docce-m` |
+| Docce spogliatoio femminile | `…a15` | `demo-docce-f` |
+| Saldo all'ingresso | `…a16` | `demo-saldo` |
+
+```powershell
+# un braccialetto sul phon n° 4: risponde se può partire e scala un credito
+curl.exe -X POST http://localhost:8080/api/macchine/00000000-0000-0000-0000-000000000a11/utilizzi `
+  -H "X-Chiave-Dispositivo: demo-phon-m" -H "Content-Type: application/json" -d '{\"codice\":\"0C7A5CAE\",\"postazione\":\"4\"}'
+# solo il saldo (lettore all'ingresso, o il display prima di scegliere)
+curl.exe "http://localhost:8080/api/macchine/00000000-0000-0000-0000-000000000a16/saldo?codice=0C7A5CAE" -H "X-Chiave-Dispositivo: demo-saldo"
+```
+
+Risposta: `{"via": true, "esito": "OK", "messaggio": "Phon · restano 36 crediti", "nome": "Leonardo", "crediti": 36,
+"creditiUsati": 1, "minuti": 5}`. Esiti: `OK`, `GRATIS` (usi gratuiti del giorno), `CREDITI_FINITI`, `SCONOSCIUTO`,
+`NON_ATTIVO` (braccialetto smarrito, disattivato o riconsegnato), `SERVIZIO_SPENTO`; `via` dice se accendere il phon o
+aprire la doccia. Chiave sbagliata: 401. Sul display solo il nome di battesimo, mai il cognome.
 
 ## Posta (promemoria)
 

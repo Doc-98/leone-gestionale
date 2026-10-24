@@ -40,7 +40,11 @@ class GestioneAccessiService {
     record SchedaAccessi(List<BraccialettoDto> braccialetti, List<BloccoDto> blocchi, List<GoldenPassDto> goldenPass,
                          List<AutorizzazioneDto> autorizzazioni, List<PassaggioDto> passaggi, VerificaAccessi.Esito adesso) {}
 
-    record NuovoBraccialetto(String codice, String note) {}
+    /** «cauzione»: false per non addebitarla (es. braccialetto sostitutivo regalato); di base si addebita, se c'è. */
+    record NuovoBraccialetto(String codice, String note, Boolean cauzione) {}
+
+    /** cauzione: DENARO, BORSELLINO o TRATTIENI; crediti: DENARO, BORSELLINO o null (non rimborsarli); metodoId per il denaro. */
+    record Riconsegna(String cauzione, String crediti, UUID metodoId) {}
 
     record NuovoStato(String stato) {}
 
@@ -65,9 +69,12 @@ class GestioneAccessiService {
     private final AutorizzazioneRepository autorizzazioni;
     private final Persone persone;
     private final Clock orologio;
+    private final it.leonexiii.gestionale.pagamenti.Borsellino borsellino;
 
     GestioneAccessiService(VerificaAccessi verifica, BraccialettoRepository braccialetti, BloccoRepository blocchi, GoldenPassRepository golden,
-                           RegolaRepository regole, PassaggioRepository passaggi, AutorizzazioneRepository autorizzazioni, Persone persone, Clock orologio) {
+                           RegolaRepository regole, PassaggioRepository passaggi, AutorizzazioneRepository autorizzazioni, Persone persone, Clock orologio,
+                           it.leonexiii.gestionale.pagamenti.Borsellino borsellino) {
+        this.borsellino = borsellino;
         this.verifica = verifica;
         this.braccialetti = braccialetti;
         this.blocchi = blocchi;
@@ -124,10 +131,10 @@ class GestioneAccessiService {
     // ── Braccialetti ────────────────────────────────────────────────────────
 
     @Transactional
-    BraccialettoDto assegna(UUID personaId, NuovoBraccialetto in) {
+    BraccialettoDto assegna(Utente u, UUID personaId, NuovoBraccialetto in) {
         persona(personaId);
         String codice = Codici.normalizza(in.codice());
-        var inUso = braccialetti.findByCodiceOrderByAssegnatoIlDesc(codice).stream().filter(b -> b.stato() != Braccialetto.Stato.DISATTIVATO).findFirst();
+        var inUso = braccialetti.findByCodiceOrderByAssegnatoIlDesc(codice).stream().filter(b -> !b.stato().libero()).findFirst();
         if (inUso.isPresent()) {
             if (inUso.get().getPersonaId().equals(personaId)) throw new Conflitto("Questo braccialetto è già suo.");
             throw new Conflitto("Questo braccialetto è già assegnato a " + persone.nomiCompleti(List.of(inUso.get().getPersonaId())).get(inUso.get().getPersonaId())
@@ -136,12 +143,13 @@ class GestioneAccessiService {
         String note = in.note() == null || in.note().isBlank() ? null : in.note().strip();
         if (note != null && note.length() > 300) throw new IllegalArgumentException("Note troppo lunghe (massimo 300 caratteri).");
         Braccialetto b = braccialetti.saveAndFlush(new Braccialetto(codice, personaId, note, orologio.instant()));
+        if (!Boolean.FALSE.equals(in.cauzione())) borsellino.addebitaCauzione(personaId, b.getId(), b.getCodice(), u.personaId());
         return new BraccialettoDto(b.getId(), b.getCodice(), Codici.decimale(b.getCodice()), b.stato().name(), b.getStatoDal(), b.getAssegnatoIl(), b.getNote(), false);
     }
 
-    /** ATTIVO (anche «ritrovato»), SMARRITO, DISATTIVATO. */
+    /** ATTIVO (anche «ritrovato»), SMARRITO, DISATTIVATO. Smarrito: con la regola «crediti persi», i crediti si perdono. */
     @Transactional
-    void cambiaStato(UUID id, NuovoStato in) {
+    int cambiaStato(Utente u, UUID id, NuovoStato in) {
         Braccialetto b = braccialetti.findById(id).orElseThrow(() -> new NonTrovato("Braccialetto non trovato."));
         Braccialetto.Stato nuovo;
         try {
@@ -149,8 +157,28 @@ class GestioneAccessiService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Stato non valido: ATTIVO, SMARRITO o DISATTIVATO.");
         }
+        if (nuovo == Braccialetto.Stato.RESTITUITO) throw new IllegalArgumentException("Per la riconsegna usa «Riconsegnato», che restituisce cauzione e crediti.");
+        boolean eraSmarrito = b.stato() == Braccialetto.Stato.SMARRITO;
         b.cambiaStato(nuovo, orologio.instant());
         braccialetti.flush();
+        // i crediti sono della persona: si perdono solo se non le resta un altro braccialetto attivo
+        if (nuovo == Braccialetto.Stato.SMARRITO && !eraSmarrito && altriAttivi(b) == 0) return borsellino.smarrito(b.getPersonaId(), b.getId(), u.personaId());
+        return 0;
+    }
+
+    /** Il braccialetto torna alla società: cauzione e (se era l'ultimo) crediti dei servizi si restituiscono. */
+    @Transactional
+    it.leonexiii.gestionale.pagamenti.Borsellino.EsitoRiconsegna riconsegna(Utente u, UUID id, Riconsegna in) {
+        Braccialetto b = braccialetti.findById(id).orElseThrow(() -> new NonTrovato("Braccialetto non trovato."));
+        if (b.stato() == Braccialetto.Stato.RESTITUITO) throw new Conflitto("Il braccialetto è già stato riconsegnato.");
+        b.cambiaStato(Braccialetto.Stato.RESTITUITO, orologio.instant());
+        braccialetti.flush();
+        String crediti = altriAttivi(b) == 0 ? in.crediti() : null;
+        return borsellino.riconsegna(b.getPersonaId(), b.getId(), in.cauzione(), crediti, in.metodoId(), u.personaId());
+    }
+
+    private long altriAttivi(Braccialetto b) {
+        return braccialetti.findByPersonaIdOrderByAssegnatoIlDesc(b.getPersonaId()).stream().filter(x -> !x.getId().equals(b.getId()) && x.attivo()).count();
     }
 
     // ── Ban e golden pass ───────────────────────────────────────────────────

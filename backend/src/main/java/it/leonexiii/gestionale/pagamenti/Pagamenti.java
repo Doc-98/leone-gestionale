@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class Pagamenti {
 
-    public enum Origine { ABBONAMENTO, TESSERAMENTO, ALTRO, RIMBORSO }
+    public enum Origine { ABBONAMENTO, TESSERAMENTO, ALTRO, RIMBORSO, CAUZIONE, RICARICA }
 
     /** Un addebito da creare; importo negativo = credito. Per le rate: rata «numero» di «rate». */
     public record NuovoAddebito(UUID personaId, String descrizione, BigDecimal importo, LocalDate scadenza, Origine origine, UUID riferimentoId,
@@ -42,7 +42,7 @@ public class Pagamenti {
     /** Evento: gli addebiti di un tesseramento (o altro riferimento) risultano tutti pagati il «saldatoIl», o non più (null). */
     public record Saldato(Origine origine, UUID riferimentoId, LocalDate saldatoIl) {}
 
-    public record Metodo(UUID id, String nome, boolean daIncassare, boolean attivo, int ordine) {}
+    public record Metodo(UUID id, String nome, boolean daIncassare, boolean attivo, int ordine, boolean borsellino) {}
 
     record PagamentoDiAddebito(UUID pagamentoId, LocalDate data, BigDecimal importo) {}
 
@@ -64,8 +64,11 @@ public class Pagamenti {
 
     record Pagante(UUID personaId, String nome, String relazione) {}
 
+    /** Il borsellino di chi può pagare: euro disponibili (per pagare con il metodo «Borsellino») e crediti dei servizi. */
+    record BorsellinoDi(UUID personaId, BigDecimal euro, int crediti) {}
+
     record Conto(UUID personaId, Totali totali, List<AddebitoDto> addebiti, List<PagamentoDto> pagamenti, List<Familiare> famiglia,
-                 List<Pagante> paganti) {}
+                 List<Pagante> paganti, List<BorsellinoDi> borsellini) {}
 
     record NuovoAddebitoManuale(UUID personaId, String descrizione, BigDecimal importo, LocalDate scadenza, UUID offertaId, String note) {}
 
@@ -82,9 +85,12 @@ public class Pagamenti {
 
     record Incasso(LocalDate il) {}
 
-    record TotaleMetodo(UUID metodoId, String metodo, BigDecimal importo, BigDecimal daIncassare) {}
+    /** Per metodo: incassato, di cui da incassare, e uscito (soldi restituiti). */
+    record TotaleMetodo(UUID metodoId, String metodo, BigDecimal importo, BigDecimal daIncassare, BigDecimal uscite) {}
 
-    record Incassi(LocalDate da, LocalDate a, BigDecimal totale, List<TotaleMetodo> perMetodo, List<PagamentoDto> pagamenti) {}
+    record UscitaDto(UUID id, LocalDate data, UUID personaId, String persona, String metodo, BigDecimal importo, String descrizione, String registratoDa) {}
+
+    record Incassi(LocalDate da, LocalDate a, BigDecimal totale, List<TotaleMetodo> perMetodo, List<PagamentoDto> pagamenti, List<UscitaDto> uscite) {}
 
     record DaIncassare(UUID id, UUID pagamentoId, LocalDate data, UUID paganteId, String pagante, String metodo, BigDecimal importo, String riferimento,
                        List<String> per) {}
@@ -100,9 +106,14 @@ public class Pagamenti {
     private final ApplicationEventPublisher eventi;
     private final Clock orologio;
     private final it.leonexiii.gestionale.societa.Societa societa;
+    private final Movimenti movimenti;
+    private final UscitaRepository uscite;
 
     Pagamenti(AddebitoRepository addebiti, PagamentoRepository pagamenti, MetodoRepository metodi, Persone persone,
-              ApplicationEventPublisher eventi, Clock orologio, it.leonexiii.gestionale.societa.Societa societa) {
+              ApplicationEventPublisher eventi, Clock orologio, it.leonexiii.gestionale.societa.Societa societa, Movimenti movimenti,
+              UscitaRepository uscite) {
+        this.movimenti = movimenti;
+        this.uscite = uscite;
         this.societa = societa;
         this.addebiti = addebiti;
         this.pagamenti = pagamenti;
@@ -203,7 +214,8 @@ public class Pagamenti {
         List<Pagante> paganti = new ArrayList<>();
         paganti.add(new Pagante(personaId, nomi.getOrDefault(personaId, persone.nomiCompleti(List.of(personaId)).get(personaId)), null));
         tutori.forEach(t -> paganti.add(new Pagante(t.personaId(), (t.nome() + " " + t.cognome()).strip(), t.relazione())));
-        return new Conto(personaId, totali(propri, storico.stream().filter(p -> p.annullatoIl() == null).toList()), propri, storico, fam, paganti);
+        var borsellini = paganti.stream().map(p -> new BorsellinoDi(p.personaId(), movimenti.euro(p.personaId()), movimenti.crediti(p.personaId()))).toList();
+        return new Conto(personaId, totali(propri, storico.stream().filter(p -> p.annullatoIl() == null).toList()), propri, storico, fam, paganti, borsellini);
     }
 
     private static Totali totali(List<AddebitoDto> lista, List<PagamentoDto> pagati) {
@@ -378,8 +390,13 @@ public class Pagamenti {
                 manca = manca.subtract(parte);
             }
             gruppo.forEach(a -> p.aggiungiVoce(a.getId(), quote.get(a.getId())));
-            pagamenti.save(p);
+            pagamenti.saveAndFlush(p);
             ids.add(p.getId());
+            // con il borsellino si spende il credito in euro di chi paga
+            for (PagamentoMetodo pm : p.getMetodi())
+                if (met.get(pm.getMetodoId()).isBorsellino())
+                    movimenti.togliEuro(pagante, pm.getImporto(), MovimentoBorsellino.Causale.PAGAMENTO,
+                        "Pagamento: " + gruppo.getFirst().getDescrizione() + (gruppo.size() > 1 ? " e altro" : ""), p.getId(), da);
         }
         pagamenti.flush();
         daPagare.stream().filter(a -> a.getOrigine() == Origine.TESSERAMENTO && a.getRiferimentoId() != null)
@@ -393,6 +410,7 @@ public class Pagamenti {
         Pagamento p = pagamenti.findById(id).orElseThrow(() -> new NonTrovato("Pagamento non trovato."));
         p.annulla(motivo, da, orologio.instant());
         pagamenti.flush();
+        movimenti.annullaPagamento(id, da);
         addebiti.findAllById(p.getVoci().stream().map(Pagamento.Voce::getAddebitoId).toList()).stream()
             .filter(a -> a.getOrigine() == Origine.TESSERAMENTO && a.getRiferimentoId() != null)
             .map(Addebito::getRiferimentoId).distinct().forEach(r -> pubblicaSaldato(Origine.TESSERAMENTO, r));
@@ -416,12 +434,24 @@ public class Pagamenti {
         if (fine.isBefore(inizio)) throw new IllegalArgumentException("La data di fine viene prima di quella di inizio.");
         if (ChronoUnit.DAYS.between(inizio, fine) > 92) throw new IllegalArgumentException("Al massimo tre mesi alla volta.");
         var lista = dtoPagamenti(pagamenti.findByDataBetweenOrderByDataDescRegistratoIlDesc(inizio, fine));
+        var out = uscite.findByDataBetweenOrderByDataDescRegistratoIlDesc(inizio, fine).stream().filter(u -> u.getAnnullatoIl() == null).toList();
+        Map<UUID, MetodoPagamento> met = metodi.findAll().stream().collect(Collectors.toMap(MetodoPagamento::getId, x -> x));
+        Set<UUID> ids = new HashSet<>();
+        out.forEach(u -> {
+            ids.add(u.getPersonaId());
+            if (u.getRegistratoDa() != null) ids.add(u.getRegistratoDa());
+        });
+        Map<UUID, String> nomi = ids.isEmpty() ? Map.of() : persone.nomiCompleti(ids);
         Map<UUID, TotaleMetodo> tot = new LinkedHashMap<>();
-        metodi.findAllByOrderByOrdineAscNomeAsc().forEach(m -> tot.put(m.getId(), new TotaleMetodo(m.getId(), m.getNome(), ZERO, ZERO)));
+        metodi.findAllByOrderByOrdineAscNomeAsc().forEach(m -> tot.put(m.getId(), new TotaleMetodo(m.getId(), m.getNome(), ZERO, ZERO, ZERO)));
         lista.stream().filter(p -> p.annullatoIl() == null).flatMap(p -> p.metodi().stream()).forEach(m -> tot.computeIfPresent(m.metodoId(), (k, t) ->
-            new TotaleMetodo(k, t.metodo(), t.importo().add(m.importo()), m.incassatoIl() == null ? t.daIncassare().add(m.importo()) : t.daIncassare())));
+            new TotaleMetodo(k, t.metodo(), t.importo().add(m.importo()), m.incassatoIl() == null ? t.daIncassare().add(m.importo()) : t.daIncassare(), t.uscite())));
+        out.forEach(u -> tot.computeIfPresent(u.getMetodoId(), (k, t) -> new TotaleMetodo(k, t.metodo(), t.importo(), t.daIncassare(), t.uscite().add(u.getImporto()))));
         BigDecimal totale = tot.values().stream().map(TotaleMetodo::importo).reduce(ZERO, BigDecimal::add);
-        return new Incassi(inizio, fine, totale, tot.values().stream().filter(t -> t.importo().signum() > 0).toList(), lista);
+        var usciteDto = out.stream().map(u -> new UscitaDto(u.getId(), u.getData(), u.getPersonaId(), nomi.get(u.getPersonaId()),
+            met.containsKey(u.getMetodoId()) ? met.get(u.getMetodoId()).getNome() : "?", u.getImporto(), u.getDescrizione(),
+            u.getRegistratoDa() == null ? null : nomi.get(u.getRegistratoDa()))).toList();
+        return new Incassi(inizio, fine, totale, tot.values().stream().filter(t -> t.importo().signum() > 0 || t.uscite().signum() > 0).toList(), lista, usciteDto);
     }
 
     @Transactional(readOnly = true)
