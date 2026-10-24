@@ -207,6 +207,35 @@ label:has(> input[type='file']:focus-visible) { outline: 2px solid var(--cloro);
 .ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 .icon-btn { width: 44px; height: 44px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--surface); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); text-decoration: none; }
 .icon-btn.plain { border: none; background: none; }
+/* Pulsante-icona (Azione.svelte): le azioni di righe e intestazioni, senza testo a vista.
+   40px a vista con un'area di tocco da 44px; affiancati con 4px di gap le aree non si sovrappongono. */
+.azione { position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: var(--radius-md); background: transparent;
+  color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; padding: 0; }
+.azione::after { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.azione .ic { width: 20px; height: 20px; }
+.azione:hover:not(:disabled) { background: var(--surface-sunken); color: var(--ink); }
+.azione.cornice { border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 44px; height: 44px; border-radius: var(--radius-lg); }
+.azione.cornice .ic { width: 22px; height: 22px; }
+.azione.cloro { color: var(--cloro); }
+.azione.danger { color: var(--danger); }
+.azione[aria-pressed='true'] { background: var(--cloro-soft); color: var(--cloro-ink); }
+.azione:disabled { opacity: 0.4; cursor: default; }
+/* Armata: la domanda a parole, nel colore dell'azione, con il bordo (lo stato non si affida al solo colore) */
+.azione.armata { width: auto; padding: 0 var(--space-12); border: 1px solid currentColor; background: var(--surface); color: var(--cloro);
+  font-size: var(--text-sm); font-weight: 600; white-space: nowrap; }
+.azione.armata.danger { color: var(--danger); }
+.azione.armata:hover { background: var(--surface); }
+.gruppo-azioni { display: inline-flex; align-items: center; gap: var(--space-4); flex-shrink: 0; }
+
+/* Pulsante piccolo: azioni secondarie dentro le card («Aggiungi un prezzo», «Mostra tutto»), sempre con un'icona */
+.btn-sm { position: relative; height: 36px; padding: 0 var(--space-14) 0 var(--space-12); border-radius: var(--radius-md); font-size: var(--text-sm); gap: var(--space-6); }
+.btn-sm .ic { width: 18px; height: 18px; }
+.btn-sm::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+.btn-sm.sx { align-self: flex-start; }
+/* Tranquillo: senza bordo, per «Mostra tutto» e simili in fondo a un elenco */
+.btn-quieto { background: transparent; color: var(--cloro); border: none; }
+.btn-quieto:hover { background: var(--cloro-soft); color: var(--cloro-ink); }
+
 .link { background: none; border: none; padding: 0; color: var(--cloro); font-weight: 600; font-size: var(--text-base); cursor: pointer; min-height: 44px; text-decoration: none; display: inline-flex; align-items: center; }
 .page { display: flex; flex-direction: column; gap: var(--space-16); }
 .page-title { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }

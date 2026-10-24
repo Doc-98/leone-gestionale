@@ -21,4 +21,5 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0015](0015-lista-attesa-e-cambio-turno.md) | Lista d'attesa dei turni pieni e cambio di turno | accettata |
 | [0016](0016-aggiornamento-programma-windows.md) | Aggiornamento automatico del programma per Windows | accettata |
 | [0017](0017-telefono-come-lettore.md) | Il telefono come lettore NFC del PC | accettata |
-| [0018](0018-pagamenti-proposta.md) | Pagamenti, listino, borsellino e ricevute | accettata, in costruzione (parti 1–4 fatte) |
+| [0018](0018-pagamenti-proposta.md) | Pagamenti, listino, borsellino e ricevute | accettata, in costruzione (parti 1–5 e 7–9 fatte) |
+| [0019](0019-icone-e-azioni.md) | Sistema visivo: icone al posto dei link-testo, quattro forme di azione | accettata |

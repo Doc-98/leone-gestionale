@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from './Icona.svelte';
   import { onDestroy } from 'svelte';
   import { api, type Passaggio } from '../lib/api';
   import { oraDi } from '../lib/date';
@@ -36,7 +37,7 @@
       <div class="avviso card">
         <div class="testa">
           <span class="lbl">Sotto controllo · {a.verso === 'USCITA' ? 'uscita' : 'entrata'} alle {oraDi(a.istante)}</span>
-          <button class="chiudi" aria-label="Chiudi l'avviso" onclick={() => chiudi(a.id)}>×</button>
+          <button class="chiudi" aria-label="Chiudi l'avviso" onclick={() => chiudi(a.id)}><Icona nome="chiudi" /></button>
         </div>
         {#if a.persona}<a class="nome" href={`#/clienti/${a.persona.id}`} onclick={() => chiudi(a.id)}>{a.persona.nome} {a.persona.cognome}</a>{/if}
         <div class="small">{perche(a)}</div>

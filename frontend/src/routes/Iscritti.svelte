@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { untrack } from 'svelte';
   import { api, ErroreApi, messaggioErrore, type ElencoIscritti, type PersonaScheda, type VoceAttesa } from '../lib/api';
   import { dataBreve, dataDi } from '../lib/date';
@@ -15,7 +17,6 @@
   let messaggio = $state('');
   let presenze = $state<Record<string, boolean>>({});
   let salvando = $state(false);
-  let ritiro = $state('');
 
   // iscrizione
   let aperta = $state(false);
@@ -24,7 +25,6 @@
   let nuova = $state({ nome: '', cognome: '', dataNascita: '' });
   let completo = $state<null | { soprannumero: () => Promise<void>; attesa?: () => Promise<void> }>(null);
   let attesa = $state<VoceAttesa[]>([]);
-  let togli = $state('');
 
   const giorno = untrack(() => data);
   const oggi = iso(new Date());
@@ -134,8 +134,6 @@
   }
 
   async function rinuncia(v: VoceAttesa) {
-    if (togli !== v.id) return (togli = v.id);
-    togli = '';
     try {
       await api.rinunciaAttesa(v.id);
       messaggio = `${v.nome} ${v.cognome} tolto dalla lista d'attesa.`;
@@ -146,8 +144,6 @@
   }
 
   async function ritira(iscrizioneId: string) {
-    if (ritiro !== iscrizioneId) return (ritiro = iscrizioneId);
-    ritiro = '';
     try {
       await api.terminaIscrizione(iscrizioneId, oggi);
       messaggio = 'Ritirato: da domani non risulta più iscritto.';
@@ -198,7 +194,7 @@
           </span>
         {/if}
         {#if elenco.puoIscrivere && !i.al}
-          <button class="link small ritira" onclick={() => ritira(i.iscrizioneId)}>{ritiro === i.iscrizioneId ? 'Conferma ritiro' : 'Ritira'}</button>
+          <Azione icona="persona-meno" tono="danger" etichetta={`Ritira ${i.nome} ${i.cognome} dal corso`} conferma="Ritira?" onclick={() => ritira(i.iscrizioneId)} />
         {/if}
       </li>
     {:else}
@@ -208,7 +204,7 @@
 
   {#if elenco.puoSegnarePresenze && elenco.iscritti.length}
     <div class="row">
-      <button class="btn btn-secondary grow" onclick={tuttiPresenti}>Tutti presenti</button>
+      <button class="btn btn-secondary grow" onclick={tuttiPresenti}><Icona nome="check" />Tutti presenti</button>
       <button class="btn btn-primary grow" disabled={salvando || !modificate} onclick={salvaPresenze}>
         {salvando ? 'Salvo…' : modificate ? `Salva presenze (${modificate})` : elenco.iscritti.some((i) => i.presente != null) ? 'Presenze salvate' : 'Salva presenze'}
       </button>
@@ -226,8 +222,10 @@
               <span class="nome">{v.cognome} {v.nome}</span>
               <span class="muted small">{eta(v.eta)}{v.eta != null ? ' · ' : ''}dal {dataBreve(dataDi(v.aggiuntaIl))}{v.avvisataIl ? ` · avvisato il ${dataBreve(dataDi(v.avvisataIl))}` : ''}{v.note ? ` · ${v.note}` : ''}</span>
             </span>
-            <button class="link small" onclick={() => daAttesa(v)}>Iscrivi</button>
-            <button class="link small ritira" onclick={() => rinuncia(v)}>{togli === v.id ? 'Conferma' : 'Togli'}</button>
+            <span class="gruppo-azioni">
+              <Azione icona="persona-piu" tono="cloro" etichetta={`Iscrivi ${v.nome} ${v.cognome}`} onclick={() => daAttesa(v)} />
+              <Azione icona="cestino" tono="danger" etichetta={`Togli ${v.nome} ${v.cognome} dalla lista d'attesa`} conferma="Togli?" onclick={() => rinuncia(v)} />
+            </span>
           </li>
         {/each}
       </ul>
@@ -283,7 +281,6 @@
   .pa button { min-height: 32px; padding: 0 var(--space-8); font-size: var(--text-xs); }
   .pa button[aria-pressed='true']:first-child { background: var(--ok); color: #fff; }
   .pa button[aria-pressed='true']:last-child { background: var(--danger); color: #fff; }
-  .ritira { color: var(--danger); min-height: 32px; }
   .iscrivi { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-12); }
   .trovata { display: flex; justify-content: space-between; gap: var(--space-8); padding: var(--space-8) var(--space-10); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
   .trovata:hover { border-color: var(--cloro); }

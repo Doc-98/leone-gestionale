@@ -1,6 +1,8 @@
 <script lang="ts">
   import { api, messaggioErrore, type MetodoPagamento } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
 
   /** I metodi di pagamento della società: si aggiungono, si rinominano, si spengono (quelli usati restano nello storico). */
   let metodi = $state<MetodoPagamento[]>([]);
@@ -58,8 +60,10 @@
           {#if modifica?.id === m.id}
             <form class="riga" onsubmit={(e) => { e.preventDefault(); salva(m, { nome: modifica!.nome.trim() }, 'Nome cambiato.').then((ok) => ok && (modifica = null)); }}>
               <input class="inp" bind:value={modifica.nome} maxlength="60" aria-label="Nome" />
-              <button class="btn btn-primary" disabled={!modifica.nome.trim()}>Salva</button>
-              <button type="button" class="link small" onclick={() => (modifica = null)}>Annulla</button>
+              <span class="gruppo-azioni">
+                <Azione type="submit" icona="check" tono="cloro" etichetta="Salva il nome" disabled={!modifica.nome.trim()} />
+                <Azione icona="chiudi" etichetta="Annulla" onclick={() => (modifica = null)} />
+              </span>
             </form>
           {:else}
             <strong class="grow">{m.nome}</strong>
@@ -67,14 +71,17 @@
             {#if m.borsellino}<span class="tag t-soft">Il credito in euro di chi paga</span>{/if}
             {#if !m.attivo}<span class="tag t-altro">Spento</span>{/if}
             {#if puo}
-              <button class="link small" disabled={i === 0} onclick={() => sposta(i, -1)} aria-label="Sposta su">↑</button>
-              <button class="link small" disabled={i === metodi.length - 1} onclick={() => sposta(i, 1)} aria-label="Sposta giù">↓</button>
-              {#if !m.borsellino}
-                <button class="link small" onclick={() => (modifica = { id: m.id, nome: m.nome })}>Rinomina</button>
-                <button class="link small" onclick={() => salva(m, { daIncassare: !m.daIncassare }, m.daIncassare ? `${m.nome}: incassato subito.` : `${m.nome}: da incassare a mano.`)}>
-                  {m.daIncassare ? 'Incassato subito' : 'Da incassare'}</button>
-              {/if}
-              <button class="link small muted" onclick={() => salva(m, { attivo: !m.attivo }, m.attivo ? `${m.nome} spento.` : `${m.nome} riacceso.`)}>{m.attivo ? 'Spegni' : 'Riaccendi'}</button>
+              <span class="gruppo-azioni">
+                <Azione icona="su" etichetta="Sposta su" disabled={i === 0} onclick={() => sposta(i, -1)} />
+                <Azione icona="giu" etichetta="Sposta giù" disabled={i === metodi.length - 1} onclick={() => sposta(i, 1)} />
+                {#if !m.borsellino}
+                  <Azione icona="matita" etichetta={`Rinomina «${m.nome}»`} onclick={() => (modifica = { id: m.id, nome: m.nome })} />
+                  <Azione icona="attesa" etichetta="Da incassare a mano" premuto={m.daIncassare}
+                    onclick={() => salva(m, { daIncassare: !m.daIncassare }, m.daIncassare ? `${m.nome}: incassato subito.` : `${m.nome}: da incassare a mano.`)} />
+                {/if}
+                <Azione icona="spegni" etichetta={m.attivo ? `Spegni «${m.nome}»` : `Riaccendi «${m.nome}»`}
+                  onclick={() => salva(m, { attivo: !m.attivo }, m.attivo ? `${m.nome} spento.` : `${m.nome} riacceso.`)} />
+              </span>
             {/if}
           {/if}
         </li>
@@ -86,7 +93,7 @@
     <form class="card nuovo" onsubmit={(e) => { e.preventDefault(); esegui(() => api.creaMetodoPagamento({ nome: nuovo.nome.trim(), daIncassare: nuovo.daIncassare }), `Metodo «${nuovo.nome.trim()}» aggiunto.`).then((ok) => ok && (nuovo = { nome: '', daIncassare: false })); }}>
       <input class="inp" bind:value={nuovo.nome} placeholder="Nuovo metodo (es. buono welfare)" maxlength="60" aria-label="Nuovo metodo" />
       <label class="small spunta"><input type="checkbox" bind:checked={nuovo.daIncassare} /> Da incassare a mano</label>
-      <button class="btn btn-primary" disabled={!nuovo.nome.trim()}>Aggiungi</button>
+      <button class="btn btn-primary" disabled={!nuovo.nome.trim()}><Icona nome="piu" />Aggiungi</button>
     </form>
   {/if}
 </div>
@@ -103,5 +110,4 @@
   .nuovo { display: flex; gap: var(--space-10); align-items: center; flex-wrap: wrap; padding: var(--space-12) var(--space-16); }
   .nuovo .inp { flex: 1; min-width: 220px; }
   .spunta { display: flex; align-items: center; gap: var(--space-6); }
-  .link { min-height: 32px; }
 </style>

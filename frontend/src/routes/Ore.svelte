@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Riepilogo } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
   import { euro, formatOre, meseIso } from '../lib/date';
@@ -34,7 +35,7 @@
     {#each mia?.voci ?? [] as v (v.mansione + v.euroOra)}
       <div class="voce small"><span>{v.mansione}</span><span class="m muted">{formatOre(v.ore)} h × {v.euroOra == null ? '—' : euro(v.euroOra)}</span></div>
     {/each}
-    {#if mia}<a class="link small scarica" href={api.urlFoglioOreMio(mese)} download>Scarica il foglio ore (.xlsx)</a>{/if}
+    {#if mia}<a class="btn btn-secondary btn-sm scarica" href={api.urlFoglioOreMio(mese)} download><Icona nome="scarica" />Scarica il foglio ore (.xlsx)</a>{/if}
   </div>
 
   {#if coordinatore && staff}
@@ -42,8 +43,8 @@
     <div class="intesta">
       <h2 class="lbl">Tutto lo staff</h2>
       <span class="row scarichi">
-        {#if staff.righe.length}<a class="link small" href={api.urlFogliOreTutti(mese)} download>Tutti i fogli ore (.zip)</a>{/if}
-        <a class="link small" href={api.urlCsv(mese)} download>Riepilogo CSV</a>
+        {#if staff.righe.length}<a class="btn btn-secondary btn-sm" href={api.urlFogliOreTutti(mese)} download><Icona nome="scarica" />Tutti i fogli ore (.zip)</a>{/if}
+        <a class="btn btn-secondary btn-sm" href={api.urlCsv(mese)} download><Icona nome="scarica" />Riepilogo CSV</a>
       </span>
     </div>
     {#if staff.turniScoperti}<p class="msg err nomargin">{staff.turniScoperti === 1 ? 'Un turno del mese è ancora da assegnare.' : `${staff.turniScoperti} turni del mese sono ancora da assegnare.`}</p>{/if}
@@ -59,7 +60,7 @@
             {#each r.voci as v (v.mansione + v.euroOra)}
               <div class="voce small"><span>{v.mansione}</span><span class="m muted">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euro(v.euroOra)} = {euro(v.compenso)}</span></div>
             {/each}
-            <a class="link small scarica" href={api.urlFoglioOrePersona(r.persona.id, mese)} download>Foglio ore di {r.persona.nome} (.xlsx)</a>
+            <a class="btn btn-secondary btn-sm scarica" href={api.urlFoglioOrePersona(r.persona.id, mese)} download><Icona nome="scarica" />Foglio ore di {r.persona.nome} (.xlsx)</a>
           </div>
         {/if}
       {:else}
@@ -95,7 +96,8 @@
   .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dettagli { padding: 0 var(--space-14) var(--space-10); display: flex; flex-direction: column; gap: var(--space-4); }
   .manca { margin-left: var(--space-6); height: 20px; }
-  .scarica { min-height: 32px; align-self: flex-start; }
+  .scarica { align-self: flex-start; text-decoration: none; }
+  .scarichi a { text-decoration: none; }
   .scarichi { gap: var(--space-16); }
   .vuoto { padding: var(--space-12) var(--space-14); margin: 0; }
 </style>

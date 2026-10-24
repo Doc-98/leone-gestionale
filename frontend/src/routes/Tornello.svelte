@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { onDestroy, onMount, tick } from 'svelte';
   import { api, messaggioErrore, type EsitoTornello, type Passaggio, type Verso } from '../lib/api';
   import { oraDi } from '../lib/date';
@@ -140,7 +142,7 @@
       <p class="muted small nomargin">Letto alle {oraDi(esito.istante)}.</p>
     {:else}
       <div class="attesa card">
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16H7zM10 8h4M12 15v.01" /></svg>
+        <Icona nome="telefono" />
         <span>In attesa di un braccialetto</span>
       </div>
     {/if}
@@ -149,7 +151,7 @@
   <section class="storico">
     <div class="hdr-storico">
       <h2 class="lbl">Passaggi di oggi</h2>
-      <button class="link small" onclick={caricaStorico}>Aggiorna</button>
+      <Azione icona="aggiorna" etichetta="Aggiorna i passaggi" onclick={caricaStorico} />
     </div>
     <ul class="card lista">
       {#each storico.slice(0, schermo.larga ? 30 : 10) as p (p.id)}
@@ -188,7 +190,7 @@
   .lettore .inp { font-size: var(--text-lg); letter-spacing: 0.04em; }
   .attesa { display: flex; align-items: center; justify-content: center; gap: var(--space-10); min-height: 160px; color: var(--muted);
     border-style: dashed; border-color: var(--line-dashed); background: transparent; }
-  .attesa .ic { width: 26px; height: 26px; }
+  .attesa :global(.ic) { width: 26px; height: 26px; }
   .storico { display: flex; flex-direction: column; gap: var(--space-8); }
   .hdr-storico { display: flex; justify-content: space-between; align-items: center; }
   .hdr-storico h2 { margin: 0; }

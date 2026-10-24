@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from './Azione.svelte';
   import type { Snippet } from 'svelte';
 
   let { titolo, chiudi, children }: { titolo: string; chiudi: () => void; children: Snippet } = $props();
@@ -14,7 +15,7 @@
 <div class="foglio" role="dialog" aria-modal="true" aria-label={titolo}>
   <header>
     <h2>{titolo}</h2>
-    <button class="link" onclick={chiudi}>Chiudi</button>
+    <Azione cornice icona="chiudi" etichetta="Chiudi" onclick={chiudi} />
   </header>
   <div class="corpo">{@render children()}</div>
 </div>

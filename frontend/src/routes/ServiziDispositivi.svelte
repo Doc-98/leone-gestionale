@@ -2,6 +2,8 @@
   import { api, messaggioErrore, type Dispositivo, type Servizio } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
 
   /**
    * Servizi a crediti (phon, doccia) e dispositivi (le macchine e i lettori del saldo). Ogni dispositivo ha una chiave
@@ -67,7 +69,6 @@
       errore = messaggioErrore(e);
     }
   }
-  let conferma = $state('');
   const quando = (i: string | null) => (i ? `${dataBreve(dataDi(i))} ${oraDi(i)}` : 'mai');
 </script>
 
@@ -84,7 +85,7 @@
           <strong class="grow">{s.nome}</strong>
           <span class="small">{s.crediti === 0 ? 'gratis' : s.crediti === 1 ? '1 credito' : `${s.crediti} crediti`}{s.gratuitiAlGiorno ? ` · ${s.gratuitiAlGiorno} gratis al giorno` : ''}{s.minuti ? ` · ${s.minuti} min` : ''}</span>
           {#if !s.attivo}<span class="tag t-altro">Spento</span>{/if}
-          {#if puo}<button class="link small" onclick={() => (servizio = { id: s.id, nome: s.nome, crediti: String(s.crediti), gratuitiAlGiorno: String(s.gratuitiAlGiorno), minuti: s.minuti ? String(s.minuti) : '', attivo: s.attivo })}>Modifica</button>{/if}
+          {#if puo}<Azione icona="matita" etichetta={`Modifica «${s.nome}»`} onclick={() => (servizio = { id: s.id, nome: s.nome, crediti: String(s.crediti), gratuitiAlGiorno: String(s.gratuitiAlGiorno), minuti: s.minuti ? String(s.minuti) : '', attivo: s.attivo })} />{/if}
         </li>
       {:else}
         <li class="muted small">Nessun servizio.</li>
@@ -105,7 +106,7 @@
         </div>
       </form>
     {:else if puo}
-      <button class="btn btn-secondary sx" onclick={() => (servizio = { id: null, nome: '', crediti: '1', gratuitiAlGiorno: '0', minuti: '', attivo: true })}>Nuovo servizio…</button>
+      <button class="btn btn-secondary sx" onclick={() => (servizio = { id: null, nome: '', crediti: '1', gratuitiAlGiorno: '0', minuti: '', attivo: true })}><Icona nome="piu" />Nuovo servizio…</button>
     {/if}
   </section>
 
@@ -117,7 +118,7 @@
         <strong>Chiave di «{chiave.nome}»</strong>
         <code class="m">{chiave.chiave}</code>
         <span class="small">Id del dispositivo: <code class="m">{chiave.id}</code>. Scrivila adesso nella configurazione della macchina: non si potrà più rivedere (se si perde, se ne crea una nuova).</span>
-        <button class="link small sx" onclick={() => (chiave = null)}>Fatto</button>
+        <button class="btn btn-secondary btn-sm sx" onclick={() => (chiave = null)}><Icona nome="check" />L'ho scritta</button>
       </div>
     {/if}
     <ul class="righe">
@@ -127,8 +128,11 @@
             <span class="small muted riga">{d.tipo === 'SALDO' ? 'Mostra il saldo' : d.servizio} · ultimo contatto: {quando(d.ultimoContatto)} · oggi {d.utilizziOggi} letture</span></span>
           {#if !d.attivo}<span class="tag t-altro">Spento</span>{/if}
           {#if puo}
-            <button class="link small" onclick={() => (conferma === 'k' + d.id ? (conferma = '', rigenera(d)) : (conferma = 'k' + d.id))}>{conferma === 'k' + d.id ? 'Conferma: chiave nuova' : 'Chiave nuova'}</button>
-            <button class="link small muted" onclick={() => esegui(() => api.modificaDispositivo(d.id, { nome: d.nome, attivo: !d.attivo }), d.attivo ? `${d.nome} spento.` : `${d.nome} riacceso.`)}>{d.attivo ? 'Spegni' : 'Riaccendi'}</button>
+            <span class="gruppo-azioni">
+              <Azione icona="chiave" etichetta={`Chiave nuova per «${d.nome}» (la vecchia smette di funzionare)`} conferma="Chiave nuova?" onclick={() => rigenera(d)} />
+              <Azione icona="spegni" etichetta={d.attivo ? `Spegni «${d.nome}»` : `Riaccendi «${d.nome}»`}
+                onclick={() => esegui(() => api.modificaDispositivo(d.id, { nome: d.nome, attivo: !d.attivo }), d.attivo ? `${d.nome} spento.` : `${d.nome} riacceso.`)} />
+            </span>
           {/if}
         </li>
       {:else}
@@ -153,7 +157,7 @@
         </div>
       </form>
     {:else if puo}
-      <button class="btn btn-secondary sx" onclick={() => (nuovo = { nome: '', tipo: 'SERVIZIO', servizioId: servizi.find((s) => s.attivo)?.id ?? '' })}>Nuovo dispositivo…</button>
+      <button class="btn btn-secondary sx" onclick={() => (nuovo = { nome: '', tipo: 'SERVIZIO', servizioId: servizi.find((s) => s.attivo)?.id ?? '' })}><Icona nome="piu" />Nuovo dispositivo…</button>
     {/if}
   </section>
 </div>
@@ -172,7 +176,6 @@
   .spunta { display: flex; align-items: center; gap: var(--space-6); }
   select.inp { appearance: auto; }
   .sx { align-self: flex-start; }
-  .link { min-height: 32px; }
   .chiave { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-12); border-radius: var(--radius-md); background: var(--cloro-soft); color: var(--cloro-ink); }
   .chiave code { font-size: var(--text-lg); word-break: break-all; user-select: all; }
 </style>

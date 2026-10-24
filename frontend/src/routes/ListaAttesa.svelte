@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
   import { api, ErroreApi, messaggioErrore, type PaginaAttesa, type TurnoPosti, type VoceAttesa } from '../lib/api';
   import { dataBreve, dataDi, GIORNI_ESTESI, ora } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
@@ -12,7 +13,6 @@
   let messaggio = $state('');
   let soloLiberi = $state(false);
   let cerca = $state('');
-  let conferma = $state('');
   let soprannumero = $state<{ voce: VoceAttesa; turno: TurnoPosti } | null>(null);
   let avviso = $state<{ id: string; oggetto: string; testo: string } | null>(null);
 
@@ -53,7 +53,6 @@
   async function esegui(azione: () => Promise<unknown>, fatto: string) {
     errore = '';
     messaggio = '';
-    conferma = '';
     try {
       await azione();
       await carica();
@@ -152,10 +151,10 @@
                     {#if v.avvisataIl}<span class="tag t-soft avv">Avvisato il {dataBreve(dataDi(v.avvisataIl))}</span>{/if}</span>
                 </span>
                 <span class="azioni">
-                  {#if st.libero}<button class="link small" onclick={() => (avviso?.id === v.id ? (avviso = null) : apriAvviso(v, t))}>Avvisa</button>{/if}
-                  <button class="link small" onclick={() => iscrivi(v, t)}>Iscrivi{st.libero && t.liberoDal && t.liberoDal > pagina.oggi ? ` dal ${dataBreve(t.liberoDal)}` : ''}</button>
-                  <button class="link small rosso" onclick={() => (conferma === v.id ? esegui(() => api.rinunciaAttesa(v.id), `${v.nome} ${v.cognome} tolto dalla lista d'attesa.`) : (conferma = v.id))}>
-                    {conferma === v.id ? 'Conferma: togli' : 'Togli'}</button>
+                  {#if st.libero}<Azione icona="campana" etichetta={`Avvisa ${v.nome} ${v.cognome} che c'è un posto`} premuto={avviso?.id === v.id} onclick={() => (avviso?.id === v.id ? (avviso = null) : apriAvviso(v, t))} />{/if}
+                  <Azione icona="persona-piu" tono="cloro" etichetta={`Iscrivi ${v.nome} ${v.cognome}${st.libero && t.liberoDal && t.liberoDal > pagina.oggi ? ` dal ${dataBreve(t.liberoDal)}` : ''}`} onclick={() => iscrivi(v, t)} />
+                  <Azione icona="cestino" tono="danger" etichetta={`Togli ${v.nome} ${v.cognome} dalla lista d'attesa`} conferma="Togli?"
+                    onclick={() => esegui(() => api.rinunciaAttesa(v.id), `${v.nome} ${v.cognome} tolto dalla lista d'attesa.`)} />
                 </span>
               </div>
               {#if avviso?.id === v.id}
@@ -208,8 +207,7 @@
   .nome { font-weight: 600; color: var(--ink); }
   .avv { margin-left: var(--space-6); }
   .manca { color: var(--warn); font-weight: 600; }
-  .azioni { display: flex; gap: var(--space-12); flex-wrap: wrap; justify-content: flex-end; }
-  .azioni .link { min-height: 32px; }
+  .azioni { display: flex; gap: var(--space-4); flex-wrap: wrap; justify-content: flex-end; }
   .rosso { color: var(--danger); }
   .avviso { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-10) var(--space-12); background: var(--carta); border-radius: var(--radius-md); }
   .testo { min-height: 150px; font-family: var(--font-body); line-height: 1.45; resize: vertical; }

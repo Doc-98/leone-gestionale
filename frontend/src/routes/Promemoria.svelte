@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type PaginaPromemoria, type RegolaPromemoria, type StatoEmail, type TipoPromemoria } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
 
@@ -101,7 +103,7 @@
       <section class="tipo">
         <div class="testa-t">
           <div><h3>{t.nome}</h3><p class="muted small nomargin">{t.spiega}</p></div>
-          <button class="link small" onclick={() => esegui(() => api.creaPromemoria(t.tipo), 'Promemoria aggiunto (spento): scrivi il testo e attivalo.')}>Aggiungi</button>
+          <Azione cornice icona="piu" etichetta={`Aggiungi un promemoria: ${t.nome.toLowerCase()}`} onclick={() => esegui(() => api.creaPromemoria(t.tipo), 'Promemoria aggiunto (spento): scrivi il testo e attivalo.')} />
         </div>
         {#each pagina.regole.filter((r) => r.tipo === t.tipo) as r (r.id)}
           {@const b = bozze[r.id]}
@@ -116,7 +118,7 @@
                   <input class="inp m num" type="number" min="0" max="365" bind:value={b.giorni} aria-label="Giorni prima" /><span>giorni prima della scadenza</span>
                 {/if}
                 <span class="grow"></span>
-                <button class="link small" onclick={() => (aperta = aperta === r.id ? '' : r.id)}>{aperta === r.id ? 'Chiudi il testo' : 'Testo'}</button>
+                <Azione icona="testo" etichetta="Oggetto e testo dell'email" premuto={aperta === r.id} onclick={() => (aperta = aperta === r.id ? '' : r.id)} />
               </div>
               <div class="oggetto small"><strong>{anteprima(b.oggetto, b)}</strong></div>
               {#if aperta === r.id}
@@ -126,8 +128,8 @@
                 <div class="anteprima"><div class="lbl">Anteprima con dati di esempio</div><pre>{anteprima(b.testo, b)}</pre></div>
                 <div class="row">
                   <span class="grow"></span>
-                  <button class="link small rosso" onclick={() => conferma === r.id ? esegui(() => api.eliminaPromemoria(r.id), 'Promemoria eliminato.') : (conferma = r.id)}>
-                    {conferma === r.id ? 'Conferma: elimina' : 'Elimina'}</button>
+                  <button class="btn btn-danger btn-sm" onclick={() => conferma === r.id ? esegui(() => api.eliminaPromemoria(r.id), 'Promemoria eliminato.') : (conferma = r.id)}>
+                    <Icona nome="cestino" />{conferma === r.id ? 'Tocca di nuovo per eliminare' : 'Elimina il promemoria'}</button>
                 </div>
               {/if}
               {#if cambiata(r)}
@@ -150,7 +152,7 @@
           <span class="tag {STATI[e.stato].classe}">{STATI[e.stato].nome}</span>
           <span class="grow"><strong>{e.oggetto}</strong> <span class="muted small">· {e.destinatario ?? 'nessun indirizzo'}</span></span>
           <span class="muted small">{dataBreve(dataDi(e.creataIl))} {oraDi(e.creataIl)}</span>
-          {#if e.personaId}<a class="link small" href={`#/clienti/${e.personaId}`}>Scheda</a>{/if}
+          {#if e.personaId}<Azione icona="persona" etichetta="Apri la scheda del cliente" href={`#/clienti/${e.personaId}`} />{/if}
         </li>
       {:else}
         <li class="muted small">Nessuna email finora.</li>

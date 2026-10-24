@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
   import { onDestroy } from 'svelte';
   import { api, messaggioErrore, type Dispositivo, type RispostaMacchina, type Utilizzo } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
@@ -85,11 +86,11 @@
       <form class="riga" onsubmit={(e) => { e.preventDefault(); prova(dispositivo?.tipo === 'SALDO' ? 'SALDO' : 'USA'); }}>
         <input class="inp m grow" bind:value={codice} placeholder="Codice del braccialetto" aria-label="Codice del braccialetto" autocomplete="off" />
         {#if dispositivo?.tipo === 'SERVIZIO'}<input class="inp m post" bind:value={postazione} placeholder="N°" aria-label="Numero del phon o della doccia" maxlength="20" />{/if}
-        {#if nfcDisponibile()}<button type="button" class="btn btn-secondary" onclick={leggi}>NFC</button>{/if}
+        {#if nfcDisponibile()}<button type="button" class="btn btn-secondary" onclick={leggi}><Icona nome="nfc" />NFC</button>{/if}
         <button class="btn btn-primary" disabled={!scelto || normalizzaCodice(codice).length < 4 || attesa}>{dispositivo?.tipo === 'SALDO' ? 'Leggi il saldo' : 'Appoggia'}</button>
       </form>
       {#if dispositivo?.tipo === 'SERVIZIO'}
-        <button class="link small sx" disabled={!scelto || normalizzaCodice(codice).length < 4} onclick={() => prova('SALDO')}>Solo il saldo, senza usare</button>
+        <button class="btn btn-quieto btn-sm sx" disabled={!scelto || normalizzaCodice(codice).length < 4} onclick={() => prova('SALDO')}><Icona nome="occhio" />Solo il saldo, senza usare</button>
       {/if}
       <div class="display" class:via={risposta?.via} class:no={risposta && !risposta.via && risposta.esito !== 'SALDO'} aria-live="polite">
         {#if risposta}
@@ -145,7 +146,7 @@
   .riga { display: flex; gap: var(--space-8); align-items: center; flex-wrap: wrap; }
   .post { width: 70px; }
   select.inp { appearance: auto; }
-  .sx { align-self: flex-start; min-height: 32px; }
+  .sx { align-self: flex-start; }
   /* come il display verde della centralina */
   .display { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: #1f2a1a;
     color: #b8f28a; font-family: var(--font-mono, monospace); min-height: 76px; justify-content: center; border: 3px solid #2f3d27; }

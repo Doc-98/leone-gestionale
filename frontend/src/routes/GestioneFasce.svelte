@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type FasciaOraria, type SpazioPiano } from '../lib/api';
   import { GIORNI_BREVI, GIORNI_ESTESI, iso, ora } from '../lib/date';
@@ -23,7 +24,6 @@
 
   let errore = $state('');
   let inModifica = $state<{ id: string; inizio: string; fine: string } | null>(null);
-  let conferma = $state('');
 
   // nuova fascia
   let nuova = $state(untrack(() => ({ vascaId: '', giorni: [giornoSettimana], inizio: '17:00', fine: '17:45', assetto: 0 })));
@@ -56,8 +56,6 @@
     });
 
   function elimina(f: FasciaOraria) {
-    if (conferma !== f.id) return (conferma = f.id);
-    conferma = '';
     esegui(async () => {
       await api.eliminaFascia(f.id);
       return `Fascia ${ora(f.inizio)}–${ora(f.fine)} eliminata.`;
@@ -91,8 +89,10 @@
           <input class="inp m piccolo" type="time" bind:value={inModifica.inizio} aria-label="Inizio" />
           <span>–</span>
           <input class="inp m piccolo" type="time" bind:value={inModifica.fine} aria-label="Fine" />
-          <button class="link small" onclick={salvaOrario}>Salva</button>
-          <button class="link small muted" onclick={() => (inModifica = null)}>Annulla</button>
+          <span class="gruppo-azioni">
+            <Azione icona="check" tono="cloro" etichetta="Salva l'orario" onclick={salvaOrario} />
+            <Azione icona="chiudi" etichetta="Annulla" onclick={() => (inModifica = null)} />
+          </span>
         {:else}
           <button class="orario m" title="Cambia orario" onclick={() => (inModifica = { id: f.id, inizio: ora(f.inizio), fine: ora(f.fine) })}>{ora(f.inizio)}–{ora(f.fine)}</button>
           {#if assettiDi(v.id).length > 1}
@@ -101,7 +101,7 @@
             </span>
           {/if}
           <span class="grow"></span>
-          <button class="link small rosso" onclick={() => elimina(f)}>{conferma === f.id ? 'Conferma' : 'Elimina'}</button>
+          <Azione icona="cestino" tono="danger" etichetta={`Elimina la fascia ${ora(f.inizio)}–${ora(f.fine)}`} conferma="Elimina?" onclick={() => elimina(f)} />
         {/if}
       </div>
     {:else}
@@ -147,7 +147,6 @@
   .piccolo { width: 110px; height: 36px; font-size: var(--text-md); }
   .assetto { padding: 2px; }
   .assetto button { min-height: 28px; padding: 0 var(--space-10); font-size: var(--text-xs); }
-  .rosso { color: var(--danger); min-height: 32px; }
   .nuova { display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-14); }
   .nuova h3 { margin: 0; }
   select.inp { appearance: auto; }

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from './Azione.svelte';
+  import Icona from './Icona.svelte';
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type Addebito, type Conto, type MetodoPagamento, type PagamentiFamiglia } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
@@ -200,11 +202,11 @@
               <input class="inp m importo" type="number" min="0.01" step="0.01" bind:value={r.importo} aria-label="Importo in euro" readonly={!flessibile}
                      title={flessibile ? '' : 'Per un acconto serve il permesso «Acconti e pagamenti misti»'} />
               {#if metodo(r.metodoId)?.daIncassare}<input class="inp" bind:value={r.riferimento} placeholder="Riferimento (es. CRO)" maxlength="120" aria-label="Riferimento" />{/if}
-              {#if modulo.righe.length > 1}<button type="button" class="link small muted" onclick={() => modulo!.righe.splice(i, 1)}>Togli</button>{/if}
+              {#if modulo.righe.length > 1}<Azione icona="chiudi" etichetta="Togli questo metodo" onclick={() => modulo!.righe.splice(i, 1)} />{/if}
             </div>
           {/each}
-          {#if flessibile}<button type="button" class="link small sx" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: String(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>
-            + un altro metodo (es. parte in contanti, parte con la carta)
+          {#if flessibile}<button type="button" class="btn btn-secondary btn-sm sx" title="Es. parte in contanti, parte con la carta" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: String(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>
+            <Icona nome="piu" />Aggiungi un altro metodo
           </button>{/if}
         </div>
         {#if daPagare.length && totale > 0}
@@ -260,11 +262,11 @@
                 {#each p.metodi as m (m.id)}
                   <span class="tag {m.daIncassare && !m.incassatoIl ? 't-warn' : 't-altro'}">{m.metodo} {p.metodi.length > 1 ? euro(m.importo) : ''}{m.daIncassare ? (m.incassatoIl ? ' · incassato' : ' · da incassare') : ''}</span>
                   {#if m.daIncassare && !m.incassatoIl && !p.annullatoIl && puoPagare}
-                    <button class="link small" onclick={() => esegui(() => api.incassa(m.id), `${m.metodo} di ${euro(m.importo)} segnato incassato.`)}>Segna incassato</button>
+                    <Azione icona="incassato" tono="cloro" etichetta={`Segna incassato: ${m.metodo} di ${euro(m.importo)}`} onclick={() => esegui(() => api.incassa(m.id), `${m.metodo} di ${euro(m.importo)} segnato incassato.`)} />
                   {/if}
                 {/each}
                 {#if p.annullatoIl}<span class="tag t-altro">Annullato</span>
-                {:else if puoAnnullare && annulla?.id !== p.id}<button class="link small muted" onclick={() => (annulla = { tipo: 'pagamento', id: p.id, motivo: '' })}>Annulla</button>{/if}
+                {:else if puoAnnullare && annulla?.id !== p.id}<Azione icona="annulla" etichetta="Annulla il pagamento" onclick={() => (annulla = { tipo: 'pagamento', id: p.id, motivo: '' })} />{/if}
               </div>
               <div class="small muted">{p.voci.map((v) => `${v.personaId !== id && v.persona ? v.persona + ' · ' : ''}${v.descrizione}${p.voci.length > 1 ? ` (${euro(v.importo)})` : ''}`).join(' · ')}{p.note ? ` · ${p.note}` : ''}{p.annullatoIl && p.motivoAnnullamento ? ` · annullato: ${p.motivoAnnullamento}` : ''}</div>
               {#if annulla?.id === p.id}{@render chiediMotivo()}{/if}
@@ -274,7 +276,7 @@
           {/each}
         </ul>
         {#if conto.pagamenti.length > 5}
-          <button class="link small sx" onclick={() => (tuttoLoStorico = !tuttoLoStorico)}>{tuttoLoStorico ? 'Solo gli ultimi' : `Tutti i ${conto.pagamenti.length} pagamenti`}</button>
+          <button class="btn btn-quieto btn-sm sx" aria-expanded={tuttoLoStorico} onclick={() => (tuttoLoStorico = !tuttoLoStorico)}><Icona nome={tuttoLoStorico ? 'su' : 'giu'} />{tuttoLoStorico ? 'Solo gli ultimi' : `Tutti i ${conto.pagamenti.length} pagamenti`}</button>
         {/if}
         {#if chiusi.length}
           <details class="chiusi">
@@ -302,7 +304,7 @@
     <span class="m">{euro(a.stato === 'CREDITO' ? -a.importo : aperto(a) ? a.residuo : a.importo)}</span>
     <span class="tag {st.classe}">{st.nome}</span>
     {#if aperto(a) && a.pagato === 0 && puoAnnullare && annulla?.id !== a.id}
-      <button class="link small muted" onclick={() => (annulla = { tipo: 'addebito', id: a.id, motivo: '' })}>Annulla</button>
+      <Azione icona="annulla" etichetta={`Annulla l'addebito «${a.descrizione}»`} onclick={() => (annulla = { tipo: 'addebito', id: a.id, motivo: '' })} />
     {/if}
     {#if annulla?.id === a.id}{@render chiediMotivo()}{/if}
   </li>
@@ -312,7 +314,7 @@
   <form class="motivo" onsubmit={(e) => { e.preventDefault(); confermaAnnulla(); }}>
     <input class="inp" bind:value={annulla!.motivo} placeholder="Perché si annulla (es. registrato due volte)" maxlength="300" aria-label="Motivo" />
     <button class="btn btn-danger" disabled={!annulla!.motivo.trim()}>Annulla {annulla!.tipo === 'pagamento' ? 'il pagamento' : 'l\'addebito'}</button>
-    <button type="button" class="link small" onclick={() => (annulla = null)}>Lascia</button>
+    <Azione icona="chiudi" etichetta="Lascia com'è" onclick={() => (annulla = null)} />
   </form>
 {/snippet}
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Impianto, type Mansione, type PostazioneGestione, type Spazio } from '../lib/api';
   import Foglio from '../components/Foglio.svelte';
 
@@ -122,7 +124,7 @@
 <section class="page">
   <div class="barra">
     <p class="muted small nomargin grow">Le mansioni sono i ruoli pagati (con la loro tariffa e la colonna nel foglio ore); le postazioni sono le righe della pianificazione.</p>
-    <button class="btn btn-primary compatto" onclick={() => apriMansione(null)}>Nuova mansione…</button>
+    <button class="btn btn-primary compatto" onclick={() => apriMansione(null)}><Icona nome="piu" />Nuova mansione…</button>
   </div>
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
@@ -137,7 +139,7 @@
               {#if impianti.length > 1}{nomeImpianto(m.impiantoId)} · {/if}Foglio ore: {#if m.voceFoglioOre}<span class="tag t-soft">{m.voceFoglioOre}</span>{:else}<span>colonna propria</span>{/if}
             </div>
           </div>
-          <button class="link small" onclick={() => apriMansione(m)}>Modifica</button>
+          <Azione icona="matita" etichetta={`Modifica la mansione ${m.nome}`} onclick={() => apriMansione(m)} />
         </header>
         <table>
           <thead><tr><th class="ord"><span class="sr">Ordine</span></th><th>Postazione</th><th>Spazio</th><th>Stato</th><th></th></tr></thead>
@@ -145,20 +147,22 @@
             {#each m.postazioni as p, i (p.id)}
               <tr class:spenta={!p.attiva}>
                 <td class="ord">
-                  <button class="freccia" aria-label="Sposta su {p.nome}" disabled={i === 0} onclick={() => sposta(m, p, -1)}>↑</button>
-                  <button class="freccia" aria-label="Sposta giù {p.nome}" disabled={i === m.postazioni.length - 1} onclick={() => sposta(m, p, 1)}>↓</button>
+                  <span class="gruppo-azioni">
+                    <Azione icona="su" etichetta={`Sposta su ${p.nome}`} disabled={i === 0} onclick={() => sposta(m, p, -1)} />
+                    <Azione icona="giu" etichetta={`Sposta giù ${p.nome}`} disabled={i === m.postazioni.length - 1} onclick={() => sposta(m, p, 1)} />
+                  </span>
                 </td>
                 <td class="nome">{p.nome}</td>
                 <td class="muted">{nomeSpazio(p.spazioId)}</td>
                 <td>{#if p.attiva}<span class="tag t-soft">attiva</span>{:else}<span class="tag t-altro">disattivata</span>{/if}</td>
-                <td class="azioni"><button class="link small" onclick={() => apriPostazione(m, p)}>Modifica</button></td>
+                <td class="azioni"><Azione icona="matita" etichetta={`Modifica la postazione ${p.nome}`} onclick={() => apriPostazione(m, p)} /></td>
               </tr>
             {:else}
               <tr><td colspan="5" class="muted small">Nessuna postazione.</td></tr>
             {/each}
           </tbody>
         </table>
-        <button class="link small aggiungi" onclick={() => apriPostazione(m, null)}>+ Postazione</button>
+        <button class="btn btn-secondary btn-sm aggiungi" onclick={() => apriPostazione(m, null)}><Icona nome="piu" />Aggiungi una postazione</button>
       </div>
     {:else}
       {#if !caricamento}<p class="muted">Nessuna mansione.</p>{/if}
@@ -217,19 +221,15 @@
   header { display: flex; align-items: flex-start; gap: var(--space-12); }
   h2 { margin: 0; font-size: var(--text-xl); }
   header .tag { height: 20px; }
-  header .link { min-height: 32px; }
   table { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
   th { text-align: left; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: var(--space-6) var(--space-6); border-bottom: 1px solid var(--line); }
   td { padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
   td .tag { height: 20px; }
   .ord { width: 64px; white-space: nowrap; }
-  .freccia { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: var(--radius-xs); background: var(--surface); color: var(--ink); cursor: pointer; font-size: var(--text-sm); }
-  .freccia:disabled { opacity: 0.3; cursor: default; }
   .nome { font-weight: 600; }
   .spenta .nome { color: var(--muted); text-decoration: line-through; }
   .azioni { text-align: right; }
-  .azioni .link { min-height: 32px; }
-  .aggiungi { align-self: flex-start; min-height: 36px; }
+  .aggiungi { align-self: flex-start; }
   .form { display: flex; flex-direction: column; gap: var(--space-14); }
   select.inp { appearance: auto; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

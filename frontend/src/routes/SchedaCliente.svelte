@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { onDestroy, untrack } from 'svelte';
   import {
     api, messaggioErrore,
@@ -332,7 +334,7 @@
             {#each cliente.gruppi as g (g.appartenenzaId)}
               <span class="tag t-soft gruppo">{g.nome}
                 <button class="togli" aria-label={`Togli dal gruppo ${g.nome}`} title="Togli dal gruppo"
-                        onclick={() => confermato('gr' + g.appartenenzaId) && esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}>{conferma === 'gr' + g.appartenenzaId ? 'conferma' : '×'}</button>
+                        onclick={() => confermato('gr' + g.appartenenzaId) && esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}>{#if conferma === 'gr' + g.appartenenzaId}conferma{:else}<Icona nome="chiudi" />{/if}</button>
               </span>
             {:else}
               <span class="muted">—</span>
@@ -345,7 +347,7 @@
             {/if}
           </dd>
         </dl>
-        <button class="link small sx" onclick={modificaAnagrafica}>Modifica</button>
+        <button class="btn btn-secondary btn-sm sx" onclick={modificaAnagrafica}><Icona nome="matita" />Modifica l'anagrafica</button>
       {/if}
       {#if cliente.email.length}
         <div class="sotto">
@@ -378,7 +380,7 @@
               <form class="row" onsubmit={(e) => { e.preventDefault(); esegui(() => api.banna({ braccialettoId: b.id, motivo: banBraccialetto!.motivo, al: null }), `Braccialetto ${b.codice} bannato.`).then((ok) => ok && (banBraccialetto = null)); }}>
                 <input class="inp grow" bind:value={banBraccialetto.motivo} placeholder="Motivo del ban" aria-label="Motivo del ban" />
                 <button class="btn btn-danger" disabled={!banBraccialetto.motivo.trim()}>Banna</button>
-                <button type="button" class="link small" onclick={() => (banBraccialetto = null)}>Annulla</button>
+                <Azione icona="chiudi" etichetta="Annulla" onclick={() => (banBraccialetto = null)} />
               </form>
             {:else if riconsegna?.id === b.id}
               <form class="riconsegna" onsubmit={(e) => { e.preventDefault(); confermaRiconsegna(b); }}>
@@ -414,15 +416,13 @@
             {:else if b.stato !== 'DISATTIVATO' && b.stato !== 'RESTITUITO'}
               <div class="azioni">
                 {#if b.stato === 'ATTIVO'}
-                  <button class="link small" onclick={() => smarrito(b)}>Smarrito</button>
-                  <button class="link small" onclick={() => apriRiconsegna(b)}>Riconsegnato…</button>
-                  {#if !b.bannato}<button class="link small" onclick={() => (banBraccialetto = { id: b.id, motivo: '' })}>Banna</button>{/if}
+                  <Azione icona="smarrito" etichetta={`Segna ${b.codice} come smarrito`} onclick={() => smarrito(b)} />
+                  <Azione icona="riconsegna" etichetta={`Riconsegna ${b.codice}`} onclick={() => apriRiconsegna(b)} />
+                  {#if !b.bannato}<Azione icona="divieto" etichetta={`Banna ${b.codice}`} onclick={() => (banBraccialetto = { id: b.id, motivo: '' })} />{/if}
                 {:else}
-                  <button class="link small" onclick={() => esegui(() => api.statoBraccialetto(b.id, 'ATTIVO'), `${b.codice} ritrovato: di nuovo attivo.`)}>Ritrovato</button>
+                  <Azione icona="ritrovato" tono="cloro" etichetta={`${b.codice} ritrovato: riattivalo`} onclick={() => esegui(() => api.statoBraccialetto(b.id, 'ATTIVO'), `${b.codice} ritrovato: di nuovo attivo.`)} />
                 {/if}
-                <button class="link small rosso" onclick={() => confermato('dis' + b.id) && esegui(() => api.statoBraccialetto(b.id, 'DISATTIVATO'), `${b.codice} disattivato.`)}>
-                  {conferma === 'dis' + b.id ? 'Conferma: disattiva' : 'Disattiva'}
-                </button>
+                <Azione icona="spegni" tono="danger" etichetta={`Disattiva ${b.codice}`} conferma="Disattiva?" onclick={() => esegui(() => api.statoBraccialetto(b.id, 'DISATTIVATO'), `${b.codice} disattivato.`)} />
               </div>
             {/if}
           </li>
@@ -454,7 +454,7 @@
       {#if gp}
         <div class="oro">
           <span><strong>Golden pass</strong> dal {dataBreve(gp.dal)}{gp.al ? ` al ${dataBreve(gp.al)}` : ''}{gp.motivo ? ` · ${gp.motivo}` : ''}</span>
-          {#if daiGolden}<button class="link small" onclick={() => confermato('gp') && esegui(() => api.revocaGoldenPass(gp!.id), 'Golden pass revocato.')}>{conferma === 'gp' ? 'Conferma' : 'Revoca'}</button>{/if}
+          {#if daiGolden}<Azione icona="revoca" tono="danger" etichetta="Revoca il golden pass" conferma="Revoca?" onclick={() => esegui(() => api.revocaGoldenPass(gp!.id), 'Golden pass revocato.')} />{/if}
         </div>
         <p class="muted small nomargin">Salta certificato, tesseramento, abbonamento e orario. Braccialetto smarrito e ban valgono lo stesso.</p>
       {/if}
@@ -465,7 +465,7 @@
               {#if b.tipo === 'SORVEGLIANZA'}<span class="tag oro-t">Sotto controllo</span>{/if}
               <strong>{b.braccialettoId ? `Braccialetto ${b.codice}` : 'Persona'}</strong>{b.tipo === 'BAN' ? (b.braccialettoId ? ' bannato' : ' bannata') : ''}
               dal {dataBreve(b.dal)}{b.al ? ` al ${dataBreve(b.al)}` : ''}: {b.motivo}</span>
-            <button class="link small" onclick={() => confermato('ban' + b.id) && esegui(() => api.revocaBan(b.id), b.tipo === 'BAN' ? 'Ban revocato.' : 'Non è più sotto controllo.')}>{conferma === 'ban' + b.id ? 'Conferma' : 'Revoca'}</button>
+            <Azione icona="revoca" tono="danger" etichetta={b.tipo === 'BAN' ? 'Revoca il ban' : 'Togli la sorveglianza'} conferma="Revoca?" onclick={() => esegui(() => api.revocaBan(b.id), b.tipo === 'BAN' ? 'Ban revocato.' : 'Non è più sotto controllo.')} />
           </li>
         {:else}
           <li class="muted small">Nessun ban, nessuna segnalazione.</li>
@@ -507,7 +507,7 @@
             <span><strong>{a.tipo === 'USCITA_AUTONOMA' ? 'Uscita autonoma' : 'Accompagnatore'}</strong>
               {a.firmataDa ? ` · firmato da ${a.firmataDa}` : ''}{a.firmataIl ? ` il ${dataBreve(a.firmataIl)}` : ''}
               <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.al)}` : ''}</span></span>
-            <button class="link small" onclick={() => confermato('aut' + a.id) && esegui(() => api.revocaAutorizzazione(a.id), 'Permesso revocato.')}>{conferma === 'aut' + a.id ? 'Conferma' : 'Revoca'}</button>
+            <Azione icona="revoca" tono="danger" etichetta="Revoca il permesso" conferma="Revoca?" onclick={() => esegui(() => api.revocaAutorizzazione(a.id), 'Permesso revocato.')} />
           </li>
         {:else}
           <li class="muted small">Nessun permesso.</li>
@@ -533,7 +533,7 @@
           </div>
         </form>
       {:else}
-        <button class="btn btn-secondary" onclick={() => (permesso = { tipo: 'USCITA_AUTONOMA', firmataDa: '', firmataIl: oggi, al: '', note: '' })}>Nuovo permesso…</button>
+        <button class="btn btn-secondary" onclick={() => (permesso = { tipo: 'USCITA_AUTONOMA', firmataDa: '', firmataIl: oggi, al: '', note: '' })}><Icona nome="piu" />Nuovo permesso…</button>
       {/if}
     </section>
 
@@ -545,7 +545,7 @@
           <li class="voce-l" class:spento={i > 0}>
             <span class="grow">{TIPI_CERT[c.tipo]} · scade il <strong>{dataBreve(c.scadenza)}</strong>{c.firmatoDa ? ` · firmato da ${c.firmatoDa}` : ''}</span>
             {#if i === 0}<span class="tag {c.valido ? 't-soft' : 't-warn'}">{c.valido ? 'Valido' : 'Scaduto'}</span>{/if}
-            <button class="link small muted" onclick={() => confermato('cert' + c.id) && esegui(() => api.annullaVoce('certificati', c.id), 'Certificato annullato.')}>{conferma === 'cert' + c.id ? 'Conferma' : 'Annulla'}</button>
+            <Azione icona="annulla" etichetta="Annulla il certificato (registrato per errore)" conferma="Annulla?" onclick={() => esegui(() => api.annullaVoce('certificati', c.id), 'Certificato annullato.')} />
           </li>
         {:else}
           <li class="muted small">Nessun certificato.</li>
@@ -572,7 +572,7 @@
           </div>
         </form>
       {:else}
-        <button class="btn btn-secondary" onclick={() => (certificato = { tipo: 'NON_AGONISTICO', rilasciatoIl: oggi, scadenza: '', firmatoDa: '' })}>Nuovo certificato…</button>
+        <button class="btn btn-secondary" onclick={() => (certificato = { tipo: 'NON_AGONISTICO', rilasciatoIl: oggi, scadenza: '', firmatoDa: '' })}><Icona nome="piu" />Nuovo certificato…</button>
       {/if}
     </section>
 
@@ -585,7 +585,7 @@
             <span class="grow"><strong>{t.stagione}</strong> · {dataBreve(t.dal)} – {dataBreve(t.al)}{t.importo != null ? ` · ${t.importo} €` : ''}</span>
             {#if t.importo}<span class="tag {t.pagatoIl ? 't-soft' : 't-warn'}">{t.pagatoIl ? `Quota pagata il ${dataBreve(t.pagatoIl)}` : 'Quota da pagare'}</span>{/if}
             <span class="tag {t.valido ? 't-soft' : 't-altro'}">{t.valido ? 'Valido' : t.dal > oggi ? 'Non iniziato' : 'Scaduto'}</span>
-            <button class="link small muted" onclick={() => confermato('tes' + t.id) && esegui(() => api.annullaVoce('tesseramenti', t.id), 'Tesseramento annullato.')}>{conferma === 'tes' + t.id ? 'Conferma' : 'Annulla'}</button>
+            <Azione icona="annulla" etichetta={`Annulla il tesseramento ${t.stagione} (registrato per errore)`} conferma="Annulla?" onclick={() => esegui(() => api.annullaVoce('tesseramenti', t.id), 'Tesseramento annullato.')} />
           </li>
         {:else}
           <li class="muted small">Nessun tesseramento.</li>
@@ -617,29 +617,37 @@
               <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.alEffettivo ?? a.al)}` : ''}{a.alEffettivo && a.al && a.alEffettivo !== a.al ? ` (allungato per le sospensioni)` : ''}{a.importo != null ? ` · ${euro(a.importo)}` : ''}</span>
               {#if a.motivoImporto}<span class="small muted riga-info">Proposto {euro(a.importoListino)} · {a.motivoImporto}</span>{/if}
               {#if conferma === 'fin' + a.id}
-                <label class="small riga-info recesso"><input type="checkbox" bind:checked={recesso} />
-                  Recesso: le rate non ancora pagate non sono più dovute{rimborsi[a.id] ? ` · ${rimborsi[a.id]}` : ''}</label>
+                <span class="termina">
+                  <label class="small recesso"><input type="checkbox" bind:checked={recesso} />
+                    Recesso: le rate non ancora pagate non sono più dovute{rimborsi[a.id] ? ` · ${rimborsi[a.id]}` : ''}</label>
+                  <span class="row">
+                    <button class="btn btn-danger btn-sm" onclick={() => terminaOggi(a)}><Icona nome="termina" />Termina oggi</button>
+                    <button class="btn btn-quieto btn-sm" onclick={() => (conferma = '')}>Lascia attivo</button>
+                  </span>
+                </span>
               {/if}
               {#each a.sospensioni as s (s.id)}
                 <span class="sosp small">Sospeso dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.motivo ? ` · ${s.motivo}` : ''}
-                  <button class="link small muted" onclick={() => confermato('sos' + s.id) && esegui(() => api.annullaSospensione(s.id), 'Sospensione annullata.')}>{conferma === 'sos' + s.id ? 'Conferma' : 'Annulla'}</button></span>
+                  <Azione icona="annulla" etichetta="Annulla la sospensione" conferma="Annulla?" onclick={() => esegui(() => api.annullaSospensione(s.id), 'Sospensione annullata.')} /></span>
               {/each}
               {#if sospensione?.abbonamentoId === a.id}
                 <form class="sospendi" onsubmit={(e) => { e.preventDefault(); esegui(() => api.sospendi(a.id, { dal: sospensione!.dal, al: sospensione!.al, motivo: sospensione!.motivo || null }), 'Abbonamento sospeso: la scadenza si allunga di altrettanti giorni.').then((ok) => ok && (sospensione = null)); }}>
                   <input class="inp" type="date" bind:value={sospensione.dal} aria-label="Sospeso dal" />
                   <input class="inp" type="date" bind:value={sospensione.al} min={sospensione.dal} aria-label="Sospeso fino al" />
                   <input class="inp" bind:value={sospensione.motivo} placeholder="Motivo (es. infortunio)" aria-label="Motivo" />
-                  <button class="btn btn-primary" disabled={!sospensione.dal || !sospensione.al}>Sospendi</button>
-                  <button type="button" class="link small" onclick={() => (sospensione = null)}>Annulla</button>
+                  <button class="btn btn-primary" disabled={!sospensione.dal || !sospensione.al}><Icona nome="pausa" />Sospendi</button>
+                  <Azione icona="chiudi" etichetta="Annulla" onclick={() => (sospensione = null)} />
                 </form>
               {/if}
             </span>
             <span class="tag {st.classe}">{st.nome}</span>
-            {#if !sospensione}<button class="link small" onclick={() => (sospensione = { abbonamentoId: a.id, dal: oggi, al: tra(13), motivo: '' })}>Sospendi</button>{/if}
-            {#if !a.al || a.al > oggi}
-              <button class="link small" onclick={() => terminaOggi(a)}>{conferma === 'fin' + a.id ? 'Conferma' : 'Termina oggi'}</button>
-            {/if}
-            <button class="link small muted" onclick={() => confermato('abb' + a.id) && esegui(() => api.annullaVoce('abbonamenti', a.id), 'Abbonamento annullato.')}>{conferma === 'abb' + a.id ? 'Conferma' : 'Annulla'}</button>
+            <span class="gruppo-azioni">
+              {#if !sospensione}<Azione icona="pausa" etichetta="Sospendi l'abbonamento" onclick={() => (sospensione = { abbonamentoId: a.id, dal: oggi, al: tra(13), motivo: '' })} />{/if}
+              {#if (!a.al || a.al > oggi) && conferma !== 'fin' + a.id}
+                <Azione icona="termina" etichetta="Termina oggi l'abbonamento" onclick={() => terminaOggi(a)} />
+              {/if}
+              <Azione icona="annulla" etichetta="Annulla l'abbonamento (registrato per errore)" conferma="Annulla?" onclick={() => esegui(() => api.annullaVoce('abbonamenti', a.id), 'Abbonamento annullato.')} />
+            </span>
           </li>
         {:else}
           <li class="muted small">Nessun abbonamento.</li>
@@ -696,7 +704,7 @@
           </div>
         </form>
       {:else}
-        <button class="btn btn-secondary" onclick={() => (vendita = true)}>Nuovo abbonamento o carnet…</button>
+        <button class="btn btn-secondary" onclick={() => (vendita = true)}><Icona nome="piu" />Nuovo abbonamento o carnet…</button>
       {/if}
 
     </section>
@@ -749,8 +757,7 @@
   .codice { font-size: var(--text-lg); }
   .spento { opacity: 0.6; }
   .bannato { background: var(--ferma-bg); color: var(--ferma-fg); }
-  .azioni { display: flex; gap: var(--space-14); flex-wrap: wrap; }
-  .azioni .link, .voce-l .link, .ban .link { min-height: 32px; }
+  .azioni { display: flex; gap: var(--space-4); flex-wrap: wrap; }
   .rosso { color: var(--danger); }
   .aggiungi { display: flex; flex-direction: column; gap: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--line); }
   .voce-l { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
@@ -772,12 +779,14 @@
   .riga-info { display: block; margin-top: 2px; }
   .riconsegna { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-10); border-radius: var(--radius-md); background: var(--surface-sunken); }
   .spunta { display: flex; align-items: center; gap: var(--space-6); }
+  .termina { display: flex; flex-direction: column; gap: var(--space-8); margin-top: var(--space-6); padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--surface-sunken); }
   .recesso { display: flex; align-items: center; gap: var(--space-6); color: var(--cloro-ink); font-weight: 600; }
   .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
   .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
   .togli { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
     color: inherit; cursor: pointer; font: inherit; padding: 0 4px; min-width: 20px; border-radius: var(--radius-pill); }
   .togli:hover { background: var(--surface-sunken); }
+  .togli :global(.ic) { width: 14px; height: 14px; stroke-width: 2.2; }
   .scegli-gruppo { width: auto; min-height: 30px; height: 30px; padding: 0 var(--space-8); appearance: auto; font-size: var(--text-sm); }
   .tre { display: grid; grid-template-columns: 110px minmax(0, 1fr) 80px; gap: var(--space-10); }
   @media (max-width: 560px) { .due.stretto { grid-template-columns: 1fr; } }

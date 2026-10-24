@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { api, messaggioErrore, type Account, type PaginaRuoli, type PasswordTemporanea } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
@@ -11,7 +13,6 @@
   let ruoli = $state<PaginaRuoli | null>(null);
   let errore = $state('');
   let messaggio = $state('');
-  let conferma = $state('');
   let temporanea = $state<(PasswordTemporanea & { chi: string }) | null>(null);
   let nuovo = $state<{ nome: string; cognome: string; email: string; ruolo: string; impiantoId: string } | null>(null);
   let cerca = $state('');
@@ -37,7 +38,6 @@
   async function esegui(azione: () => Promise<unknown>, fatto: string) {
     errore = '';
     messaggio = '';
-    conferma = '';
     try {
       await azione();
       await carica();
@@ -61,8 +61,6 @@
   }
 
   async function reimposta(a: Account) {
-    if (conferma !== 'pw' + a.id) return (conferma = 'pw' + a.id);
-    conferma = '';
     try {
       const r = await api.reimpostaPassword(a.id);
       temporanea = { ...r, chi: `${a.nome} ${a.cognome}` };
@@ -87,7 +85,7 @@
     <div class="lbl">Password temporanea di {temporanea.chi}</div>
     <div class="pw m">{temporanea.password}</div>
     <p class="small nomargin">Comunicala di persona: accede con <strong>{temporanea.email}</strong> e al primo accesso sceglie la sua. Non verrà più mostrata.</p>
-    <div class="row"><button class="btn btn-secondary" onclick={copia}>Copia</button><button class="btn btn-primary" onclick={() => (temporanea = null)}>Fatto</button></div>
+    <div class="row"><button class="btn btn-secondary" onclick={copia}><Icona nome="copia" />Copia</button><button class="btn btn-primary" onclick={() => (temporanea = null)}>Fatto</button></div>
   </div>
 {/if}
 {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
@@ -97,7 +95,7 @@
   <input class="inp cerca" type="search" bind:value={cerca} placeholder="Cerca per nome o email" aria-label="Cerca" />
   <label class="small spunta"><input type="checkbox" bind:checked={mostraDisattivati} /> Mostra i disattivati</label>
   <span class="grow"></span>
-  {#if !nuovo}<button class="btn btn-primary" onclick={() => (nuovo = { nome: '', cognome: '', email: '', ruolo: 'STAFF', impiantoId: '' })}>Nuovo account…</button>{/if}
+  {#if !nuovo}<button class="btn btn-primary" onclick={() => (nuovo = { nome: '', cognome: '', email: '', ruolo: 'STAFF', impiantoId: '' })}><Icona nome="piu" />Nuovo account…</button>{/if}
 </div>
 
 {#if nuovo}
@@ -149,13 +147,13 @@
       </span>
       <span class="azioni">
         {#if a.attivo}
-          <button class="link small" onclick={() => reimposta(a)}>{conferma === 'pw' + a.id ? 'Conferma: nuova password' : 'Reimposta password'}</button>
+          <Azione icona="chiave" etichetta={`Reimposta la password di ${a.nome} ${a.cognome}`} conferma="Nuova password?" onclick={() => reimposta(a)} />
           {#if a.id !== sessione.utente?.accountId}
-            <button class="link small rosso" onclick={() => conferma === 'dis' + a.id ? esegui(() => api.disattivaAccount(a.id), `Account di ${a.nome} ${a.cognome} disattivato: è uscito da tutti i dispositivi.`) : (conferma = 'dis' + a.id)}>
-              {conferma === 'dis' + a.id ? 'Conferma: disattiva' : 'Disattiva'}</button>
+            <Azione icona="spegni" tono="danger" etichetta={`Disattiva l'account di ${a.nome} ${a.cognome}`} conferma="Disattiva?"
+              onclick={() => esegui(() => api.disattivaAccount(a.id), `Account di ${a.nome} ${a.cognome} disattivato: è uscito da tutti i dispositivi.`)} />
           {/if}
         {:else}
-          <button class="link small" onclick={() => esegui(() => api.riattivaAccount(a.id), `Account di ${a.nome} ${a.cognome} riattivato.`)}>Riattiva</button>
+          <Azione icona="spegni" tono="cloro" etichetta={`Riattiva l'account di ${a.nome} ${a.cognome}`} onclick={() => esegui(() => api.riattivaAccount(a.id), `Account di ${a.nome} ${a.cognome} riattivato.`)} />
         {/if}
       </span>
     </li>
@@ -182,8 +180,6 @@
   .chi { display: flex; flex-direction: column; min-width: 0; }
   .nome { font-weight: 600; }
   .ruoli { display: flex; gap: var(--space-4); flex-wrap: wrap; }
-  .azioni { display: flex; gap: var(--space-12); justify-content: flex-end; flex-wrap: wrap; }
-  .azioni .link { min-height: 32px; }
-  .rosso { color: var(--danger); }
+  .azioni { display: flex; gap: var(--space-4); justify-content: flex-end; flex-wrap: wrap; }
   @media (max-width: 900px) { .elenco li { grid-template-columns: 1fr; } .azioni { justify-content: flex-start; } }
 </style>

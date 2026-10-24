@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type PaginaRuoli, type Permesso } from '../lib/api';
   import { dataBreve } from '../lib/date';
   import { schermo } from '../lib/schermo.svelte';
@@ -115,7 +117,7 @@
           </div>
         </form>
       {:else}
-        <button class="btn btn-secondary" onclick={() => (nuovo = { nome: '', descrizione: '', copiaDa: 'STAFF' })}>Nuovo ruolo…</button>
+        <button class="btn btn-secondary" onclick={() => (nuovo = { nome: '', descrizione: '', copiaDa: 'STAFF' })}><Icona nome="piu" />Nuovo ruolo…</button>
       {/if}
     </aside>
 
@@ -156,8 +158,8 @@
             {/if}
             <span class="grow"></span>
             {#if !ruolo.diSistema}
-              <button class="link small rosso" onclick={() => conferma === 'del' ? esegui(() => api.eliminaRuolo(ruolo.codice), `Ruolo «${ruolo.nome}» eliminato.`, '') : (conferma = 'del')}>
-                {conferma === 'del' ? 'Conferma: elimina il ruolo' : 'Elimina il ruolo'}
+              <button class="btn btn-danger btn-sm" onclick={() => conferma === 'del' ? esegui(() => api.eliminaRuolo(ruolo.codice), `Ruolo «${ruolo.nome}» eliminato.`, '') : (conferma = 'del')}>
+                <Icona nome="cestino" />{conferma === 'del' ? 'Tocca di nuovo per eliminare' : 'Elimina il ruolo'}
               </button>
             {/if}
           </div>
@@ -171,9 +173,8 @@
                 <span class="grow"><strong>{p.cognome} {p.nome}</strong> <span class="muted small">· {p.email}</span></span>
                 <span class="tag t-altro">{nomeImpianto(p.impiantoId)}</span>
                 <span class="muted small">dal {dataBreve(p.dal)}</span>
-                <button class="link small" onclick={() => conferma === p.assegnazioneId
-                  ? esegui(() => api.togliRuolo(p.assegnazioneId), `Ruolo tolto a ${p.nome} ${p.cognome}.`)
-                  : (conferma = p.assegnazioneId)}>{conferma === p.assegnazioneId ? 'Conferma' : 'Togli'}</button>
+                <Azione icona="persona-meno" tono="danger" etichetta={`Togli il ruolo a ${p.nome} ${p.cognome}`} conferma="Togli?"
+                  onclick={() => esegui(() => api.togliRuolo(p.assegnazioneId), `Ruolo tolto a ${p.nome} ${p.cognome}.`)} />
               </li>
             {:else}
               <li class="muted small">Nessuno.</li>
@@ -217,11 +218,9 @@
   .permesso { display: flex; align-items: center; gap: var(--space-12); padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
   .nome-p { font-weight: 600; }
   .azioni { align-items: center; }
-  .rosso { color: var(--danger); }
   .righe { list-style: none; margin: 0; padding: 0; }
   .righe li { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
   .righe li:first-child { border-top: none; }
-  .righe .link { min-height: 32px; }
   .assegna { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-8); }
   @media (min-width: 900px) { .assegna { grid-template-columns: minmax(0, 1fr) 220px auto; } }
   select.inp { appearance: auto; }

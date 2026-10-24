@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { api, messaggioErrore, type Mansione, type PersonaBreve, type Tariffa } from '../lib/api';
   import { dataLunga, euro, iso } from '../lib/date';
   import Foglio from '../components/Foglio.svelte';
@@ -92,7 +94,7 @@
 <section class="page">
   <div class="barra">
     <p class="muted small nomargin grow">Il compenso orario di ogni mansione, con la data da cui vale. Una tariffa per una persona è un'eccezione e vince su quella della mansione.</p>
-    <button class="btn btn-primary compatto" disabled={!mansioni.length} onclick={() => apriNuova()}>Nuova tariffa…</button>
+    <button class="btn btn-primary compatto" disabled={!mansioni.length} onclick={() => apriNuova()}><Icona nome="piu" />Nuova tariffa…</button>
   </div>
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
@@ -104,7 +106,7 @@
     <div class="card gruppo-t">
       <header>
         <h2 class="grow">{g.mansione.nome}</h2>
-        <button class="link small" onclick={() => apriNuova(g.mansione.id)}>+ Tariffa</button>
+        <Azione icona="piu" tono="cloro" etichetta={`Nuova tariffa per ${g.mansione.nome}`} onclick={() => apriNuova(g.mansione.id)} />
       </header>
       <table>
         <colgroup><col style="width: 28%" /><col style="width: 12%" /><col style="width: 20%" /><col style="width: 18%" /><col style="width: 12%" /><col /></colgroup>
@@ -117,7 +119,7 @@
               <td class="dopo-num">{dataLunga(t.dal)}</td>
               <td>{t.al ? dataLunga(t.al) : '—'}</td>
               <td>{#if valida(t)}<span class="tag t-soft">in vigore</span>{:else if futura(t)}<span class="tag t-altro">dal {dataLunga(t.dal)}</span>{:else}<span class="tag t-altro">chiusa</span>{/if}</td>
-              <td class="azioni"><button class="link small" onclick={() => apriCorrezione(t)}>Correggi</button></td>
+              <td class="azioni"><Azione icona="matita" etichetta="Correggi la tariffa" onclick={() => apriCorrezione(t)} /></td>
             </tr>
           {/each}
         </tbody>
@@ -171,7 +173,6 @@
   .gruppo-t { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-8); }
   header { display: flex; align-items: center; gap: var(--space-12); }
   h2 { margin: 0; font-size: var(--text-xl); }
-  header .link { min-height: 32px; }
   table { width: 100%; border-collapse: collapse; font-size: var(--text-md); table-layout: fixed; }
   .dopo-num { padding-left: var(--space-20); }
   th { text-align: left; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: var(--space-6); border-bottom: 1px solid var(--line); }
@@ -180,7 +181,6 @@
   .num { text-align: right; }
   .chiusa td { color: var(--muted); }
   .azioni { text-align: right; }
-  .azioni .link { min-height: 32px; }
   .form { display: flex; flex-direction: column; gap: var(--space-14); }
   select.inp { appearance: auto; }
 </style>

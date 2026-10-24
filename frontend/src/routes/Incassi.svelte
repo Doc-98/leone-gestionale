@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type DaIncassare, type Incassi } from '../lib/api';
   import { aggiungiGiorni, dataBreve, iso, lunedi } from '../lib/date';
   import { euro } from '../lib/listino';
@@ -81,7 +82,7 @@
       </div>
       <label class="field data"><span class="lbl">Dal</span><input class="inp" type="date" bind:value={da} max={oggi} /></label>
       <label class="field data"><span class="lbl">Al</span><input class="inp" type="date" bind:value={a} min={da} max={oggi} /></label>
-      {#if dati?.pagamenti.length}<button class="btn btn-secondary" onclick={esporta}>Esporta (CSV)</button>{/if}
+      {#if dati?.pagamenti.length}<button class="btn btn-secondary" onclick={esporta}><Icona nome="scarica" />Esporta (CSV)</button>{/if}
     </div>
 
     {#if dati}

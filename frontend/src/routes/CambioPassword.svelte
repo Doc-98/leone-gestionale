@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -48,7 +49,7 @@
   {#if problema}<p class="msg err" role="alert">{problema}</p>{/if}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
   <button class="btn btn-primary" disabled={inCorso || !attuale || nuova.length < 10 || nuova !== ripeti}>Salva la nuova password</button>
-  {#if obbligatorio}<button type="button" class="link small" onclick={() => sessione.esci()}>Esci</button>{/if}
+  {#if obbligatorio}<button type="button" class="btn btn-secondary" onclick={() => sessione.esci()}><Icona nome="esci" />Esci</button>{/if}
 </form>
 
 <style>

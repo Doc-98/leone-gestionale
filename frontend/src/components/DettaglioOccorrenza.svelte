@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from './Icona.svelte';
   import type { Occorrenza, SpazioPiano } from '../lib/api';
   import { giornoEsteso, ora } from '../lib/date';
   import { colore, etichettaSpazi, nomeCategoria, STATI } from '../lib/piano';
@@ -57,11 +58,11 @@
             {o.stato === 'SALTATA' ? 'Si tiene regolarmente' : 'Annulla lo spostamento'}
           </button>
         {:else if o.stato === 'REGOLARE'}
-          <button class="btn btn-secondary" onclick={azioni.saltaOSposta}>Salta o sposta questa data…</button>
+          <button class="btn btn-secondary" onclick={azioni.saltaOSposta}><Icona nome="oggi" />Salta o sposta questa data…</button>
         {/if}
-        <button class="btn btn-secondary" onclick={azioni.apriCorso}>Apri il corso</button>
+        <button class="btn btn-secondary" onclick={azioni.apriCorso}><Icona nome="corsi" />Apri il corso</button>
       {:else if o.stato !== 'ANNULLATO'}
-        <button class="btn btn-secondary" onclick={azioni.modificaEvento}>Modifica o annulla l'evento…</button>
+        <button class="btn btn-secondary" onclick={azioni.modificaEvento}><Icona nome="matita" />Modifica o annulla l'evento…</button>
       {/if}
     </div>
   {/if}

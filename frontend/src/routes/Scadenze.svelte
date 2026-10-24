@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Scadenze, type VoceScadenza } from '../lib/api';
   import { dataBreve, dataDi } from '../lib/date';
   import { schermo } from '../lib/schermo.svelte';
@@ -91,8 +92,8 @@
   </div>
   <input class="inp cerca" type="search" bind:value={cerca} placeholder="Cerca per nome" aria-label="Cerca per nome" />
   <span class="grow"></span>
-  <button class="btn btn-secondary" onclick={scarica} disabled={!voci.length}>Scarica elenco</button>
-  <a class="btn btn-secondary" href="#/promemoria">Promemoria email…</a>
+  <button class="btn btn-secondary" onclick={scarica} disabled={!voci.length}><Icona nome="scarica" />Scarica elenco</button>
+  <a class="btn btn-secondary" href="#/promemoria"><Icona nome="promemoria" />Promemoria email…</a>
 </div>
 
 {#if dati && !dati.postaConfigurata}

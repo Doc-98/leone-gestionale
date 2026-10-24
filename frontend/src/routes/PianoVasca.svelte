@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { api, messaggioErrore, type Corso, type Evento, type FasciaOraria, type Occorrenza, type PersonaBreve, type Piano } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
   import Iscritti from './Iscritti.svelte';
@@ -226,12 +228,10 @@
       <button aria-pressed={vista === 'settimana'} onclick={() => (vista = 'settimana')}>Settimana</button>
     </div>
     <div class="nav">
-      <button class="icon-btn" aria-label="Indietro" onclick={() => sposta(-1)}>‹</button>
+      <button class="icon-btn" aria-label="Indietro" onclick={() => sposta(-1)}><Icona nome="sx" /></button>
       <div class="d quando">{titoloCap}</div>
-      <button class="icon-btn" aria-label="Avanti" onclick={() => sposta(1)}>›</button>
-      {#if (vista === 'giorno' && giorno !== oggi) || (vista === 'settimana' && lunedi(giorno) !== lunedi(oggi))}
-        <button class="link small" onclick={() => (giorno = oggi)}>Oggi</button>
-      {/if}
+      <button class="icon-btn" aria-label="Avanti" onclick={() => sposta(1)}><Icona nome="dx" /></button>
+      <Azione cornice icona="oggi" etichetta="Torna a oggi" disabled={vista === 'giorno' ? giorno === oggi : lunedi(giorno) === lunedi(oggi)} onclick={() => (giorno = oggi)} />
     </div>
     {#if schermo.larga && vista === 'giorno'}
       <div class="seg modo" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Come mostrare il giorno">
@@ -244,7 +244,7 @@
       <button class="btn btn-secondary compatto" onclick={() => ((pannello = { tipo: 'fasce' }), (messaggio = ''))}>Fasce…</button>
     {/if}
     {#if gestore}
-      <button class="btn btn-primary compatto" onclick={() => ((pannello = { tipo: 'evento', evento: null, data: giorno }), (messaggio = ''))}>Nuovo evento…</button>
+      <button class="btn btn-primary compatto" onclick={() => ((pannello = { tipo: 'evento', evento: null, data: giorno }), (messaggio = ''))}><Icona nome="piu" />Nuovo evento…</button>
     {/if}
   </div>
 
@@ -285,9 +285,9 @@
             {@const i = fasceGiorno.fasce.indexOf(f)}
             <div class="dettaglio-fascia">
               <div class="testa-fascia">
-                <button class="icon-btn" aria-label="Fascia precedente" disabled={i <= 0} onclick={() => (fasciaScelta = fasceGiorno.fasce[i - 1].chiave)}>‹</button>
+                <button class="icon-btn" aria-label="Fascia precedente" disabled={i <= 0} onclick={() => (fasciaScelta = fasceGiorno.fasce[i - 1].chiave)}><Icona nome="sx" /></button>
                 <h2 class="d">{orarioFascia(f)}</h2>
-                <button class="icon-btn" aria-label="Fascia successiva" disabled={i >= fasceGiorno.fasce.length - 1} onclick={() => (fasciaScelta = fasceGiorno.fasce[i + 1].chiave)}>›</button>
+                <button class="icon-btn" aria-label="Fascia successiva" disabled={i >= fasceGiorno.fasce.length - 1} onclick={() => (fasciaScelta = fasceGiorno.fasce[i + 1].chiave)}><Icona nome="dx" /></button>
               </div>
               <PiantaVasche {spazi} occorrenze={inFascia(f, delGiorno, fasceGiorno.fasciaDi)} fascia={f}
                 definite={definitePerVasca(definiteGiorno, f)}
@@ -446,7 +446,6 @@
   .barra { display: flex; align-items: center; gap: var(--space-12) var(--space-16); flex-wrap: wrap; }
   .vista { width: 220px; }
   .nav { display: flex; align-items: center; gap: var(--space-8); }
-  .nav .icon-btn { font-size: 22px; }
   .quando { font-size: var(--text-xl); font-weight: 800; min-width: 200px; text-align: center; }
   .legenda { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-14); margin-top: calc(-1 * var(--space-6)); }
   .voce-leg { display: inline-flex; align-items: center; gap: var(--space-6); font-size: var(--text-xs); color: var(--muted); }

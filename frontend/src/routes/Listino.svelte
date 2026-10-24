@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import {
     api, messaggioErrore,
     type Corso, type GruppoClienti, type NuovaOfferta, type Offerta, type PaginaListino, type RegolaPrezzo, type Stagione, type TipoOfferta, type TipoRegolaPrezzo,
@@ -24,7 +26,6 @@
   let gruppi = $state<GruppoClienti[]>([]);
   let errore = $state('');
   let messaggio = $state('');
-  let conferma = $state('');
   const oggi = iso(new Date());
   const modifica = $derived(sessione.puo('IMPOSTAZIONI'));
 
@@ -57,7 +58,6 @@
   async function esegui(azione: () => Promise<unknown>, fatto: string) {
     errore = '';
     messaggio = '';
-    conferma = '';
     try {
       await azione();
       await carica();
@@ -227,9 +227,10 @@
                   {/each}
                 </div>
                 {#if modifica && !offerta}
-                  <button class="link small" onclick={() => apri(o)}>Modifica</button>
-                  <button class="link small rosso" onclick={() => (conferma === o.id ? esegui(() => api.eliminaOfferta(o.id), `«${o.nome}» tolta dal listino.`) : (conferma = o.id))}>
-                    {conferma === o.id ? 'Conferma' : 'Elimina'}</button>
+                  <span class="gruppo-azioni">
+                    <Azione icona="matita" etichetta={`Modifica «${o.nome}»`} onclick={() => apri(o)} />
+                    <Azione icona="cestino" tono="danger" etichetta={`Togli «${o.nome}» dal listino`} conferma="Elimina?" onclick={() => esegui(() => api.eliminaOfferta(o.id), `«${o.nome}» tolta dal listino.`)} />
+                  </span>
                 {/if}
               </div>
             {/if}
@@ -260,10 +261,10 @@
                   <span class="small">{r.tipo === 'RECESSO' ? 'Fino al' : 'Dal'}</span>
                   <input class="inp data" type="date" bind:value={s.data} disabled={!modifica} aria-label="Data" />
                   <input class="inp m num" type="number" min="0" max="100" bind:value={s.percentuale} disabled={!modifica} aria-label="Percentuale" /><span>%</span>
-                  {#if modifica}<button class="link small rosso" onclick={() => (b.scaglioni = b.scaglioni.filter((_, j) => j !== i))}>Togli</button>{/if}
+                  {#if modifica}<Azione icona="chiudi" etichetta="Togli questa data" onclick={() => (b.scaglioni = b.scaglioni.filter((_, j) => j !== i))} />{/if}
                 </div>
               {/each}
-              {#if modifica}<button class="link small sx" onclick={() => (b.scaglioni = [...b.scaglioni, { data: '', percentuale: '' }])}>Aggiungi una data</button>{/if}
+              {#if modifica}<button class="btn btn-secondary btn-sm sx" onclick={() => (b.scaglioni = [...b.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi una data</button>{/if}
               {#if r.tipo === 'RECESSO'}<label class="spunta small"><input type="checkbox" bind:checked={b.nelBorsellino} disabled={!modifica} /> Il rimborso va nel borsellino (credito), non in contanti</label>{/if}
             {:else if r.tipo === 'RATE'}
               <div class="riga">
@@ -317,10 +318,10 @@
           {/if}
           <select class="inp gr" bind:value={p.gruppoId} aria-label="Per chi"><option value="">Per tutti</option>{#each gruppi as g (g.id)}<option value={g.id}>{g.nome}</option>{/each}</select>
           <input class="inp m num" type="number" min="0" step="0.01" bind:value={p.importo} placeholder="€" aria-label="Importo" />
-          <button type="button" class="link small rosso" onclick={() => (b.prezzi = b.prezzi.filter((_, j) => j !== i))}>Togli</button>
+          <Azione icona="chiudi" etichetta="Togli questo prezzo" onclick={() => (b.prezzi = b.prezzi.filter((_, j) => j !== i))} />
         </div>
       {/each}
-      <button type="button" class="link small sx" onclick={() => (b.prezzi = [...b.prezzi, { volte: b.tipo === 'CORSO' ? '1' : '', gruppoId: '', importo: '' }])}>Aggiungi un prezzo</button>
+      <button type="button" class="btn btn-secondary btn-sm sx" onclick={() => (b.prezzi = [...b.prezzi, { volte: b.tipo === 'CORSO' ? '1' : '', gruppoId: '', importo: '' }])}><Icona nome="piu" />Aggiungi un prezzo</button>
       <p class="muted small nomargin">Un prezzo per un gruppo vale per chi ne fa parte, se è più basso di quello per tutti.</p>
     </div>
     <div class="riga">
@@ -364,8 +365,6 @@
   .spenta { opacity: 0.75; }
   .spunta { display: flex; align-items: center; gap: var(--space-6); }
   .piccolo { min-height: 36px; padding: 0 var(--space-12); font-size: var(--text-sm); }
-  .link { min-height: 32px; }
   .sx { align-self: flex-start; }
-  .rosso { color: var(--danger); }
   @media (max-width: 700px) { .regole { grid-template-columns: 1fr; } .prezzi { justify-content: flex-start; } .stagione { min-width: 0; width: 100%; } }
 </style>

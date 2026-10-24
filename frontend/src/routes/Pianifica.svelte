@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type EsitoGenerazione, type Modello, type PersonaBreve, type Postazione, type Turno } from '../lib/api';
   import { aggiungiGiorni, formatOre, giornoEsteso, iso, lunedi, meseIso, nomeMese, spostaMese } from '../lib/date';
   import Settimana from '../components/Settimana.svelte';
@@ -132,7 +134,7 @@
       <div class="giorno">
         <div class="intesta">
           <h2 class="lbl">{giornoEsteso(g)}</h2>
-          <button class="link small" onclick={() => (modifica = { turno: null, data: g })}>+ Turno</button>
+          <Azione icona="piu" tono="cloro" etichetta={`Aggiungi un turno ${giornoEsteso(g).toLowerCase()}`} onclick={() => (modifica = { turno: null, data: g })} />
         </div>
         {#each delGiorno as t (t.id)}
           <RigaTurno turno={t} persona onclick={t.stato === 'PIANIFICATO' ? () => ((modifica = { turno: t, data: g }), (messaggio = '')) : undefined} />
@@ -143,9 +145,9 @@
     {/each}
 
     <div class="card voci altre">
-      <a class="voce" href="#/modelli"><span class="voce-txt"><span class="voce-nome">Settimana tipo</span></span><span class="chev">›</span></a>
-      <a class="voce" href="#/postazioni"><span class="voce-txt"><span class="voce-nome">Mansioni e postazioni</span></span><span class="chev">›</span></a>
-      <a class="voce" href="#/tariffe"><span class="voce-txt"><span class="voce-nome">Tariffe</span></span><span class="chev">›</span></a>
+      <a class="voce" href="#/modelli"><span class="voce-txt"><span class="voce-nome">Settimana tipo</span></span><Icona nome="dx" class="chev" /></a>
+      <a class="voce" href="#/postazioni"><span class="voce-txt"><span class="voce-nome">Mansioni e postazioni</span></span><Icona nome="dx" class="chev" /></a>
+      <a class="voce" href="#/tariffe"><span class="voce-txt"><span class="voce-nome">Tariffe</span></span><Icona nome="dx" class="chev" /></a>
     </div>
   {/if}
 </section>
@@ -179,7 +181,6 @@
   .giorno { display: flex; flex-direction: column; gap: var(--space-6); }
   .intesta { display: flex; justify-content: space-between; align-items: center; }
   .intesta h2 { margin: 0; }
-  .intesta .link { min-height: 36px; }
   select.inp { appearance: auto; }
   .barra { display: flex; align-items: center; gap: var(--space-16); flex-wrap: wrap; }
   .sett { min-width: 300px; }

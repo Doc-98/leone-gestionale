@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { onMount } from 'svelte';
   import { api, messaggioErrore, type Corso, type Lezione, type PersonaBreve, type SpazioPiano } from '../lib/api';
   import { dataLunga, GIORNI_BREVI, iso, ora } from '../lib/date';
@@ -23,7 +25,6 @@
   let avvisi = $state<string[]>([]);
   let soloAttivi = $state(true);
   let pannello = $state<Pannello | null>(null);
-  let confermaTogli = $state('');
 
   const oggi = iso(new Date());
 
@@ -74,8 +75,6 @@
   }
 
   async function togli(l: Lezione) {
-    if (confermaTogli !== l.id) return (confermaTogli = l.id);
-    confermaTogli = '';
     try {
       await api.togliLezione(l.id);
       await carica();
@@ -97,7 +96,7 @@
       <button aria-pressed={!soloAttivi} onclick={() => (soloAttivi = false)}>Tutti</button>
     </div>
     <p class="muted small nomargin grow">I corsi e le loro lezioni settimanali: da qui nasce il piano vasca.</p>
-    <button class="btn btn-primary compatto" disabled={!impiantoId} onclick={() => ((pannello = { tipo: 'corso', corso: null }), (messaggio = ''))}>Nuovo corso…</button>
+    <button class="btn btn-primary compatto" disabled={!impiantoId} onclick={() => ((pannello = { tipo: 'corso', corso: null }), (messaggio = ''))}><Icona nome="piu" />Nuovo corso…</button>
   </div>
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#each avvisi as av (av)}<p class="msg err nomargin">Attenzione: {av}</p>{/each}
@@ -146,7 +145,7 @@
     {#if c}
       <div class="sezione">
         <div class="intesta"><h3 class="lbl">Lezioni</h3>
-          <button class="link small" onclick={() => (pannello = { tipo: 'lezione', corso: c, lezione: null })}>+ Lezione</button>
+          <Azione icona="piu" tono="cloro" etichetta="Aggiungi una lezione" onclick={() => (pannello = { tipo: 'lezione', corso: c, lezione: null })} />
         </div>
         {#each c.lezioni as l (l.id)}
           {@const finita = !!l.validaAl && l.validaAl < oggi}
@@ -158,8 +157,8 @@
             </div>
             {#if !finita}
               <div class="azioni">
-                <button class="link small" onclick={() => (pannello = { tipo: 'lezione', corso: c, lezione: l })}>Modifica</button>
-                <button class="link small rosso" onclick={() => togli(l)}>{confermaTogli === l.id ? 'Conferma' : 'Togli'}</button>
+                <Azione icona="matita" etichetta={`Modifica la lezione ${lezioneBreve(l)}`} onclick={() => (pannello = { tipo: 'lezione', corso: c, lezione: l })} />
+                <Azione icona="cestino" tono="danger" etichetta={`Togli la lezione ${lezioneBreve(l)}`} conferma="Togli?" onclick={() => togli(l)} />
               </div>
             {/if}
           </div>
@@ -196,8 +195,7 @@
   .intesta { display: flex; justify-content: space-between; align-items: center; }
   .intesta h3 { margin: 0; }
   .lezione { display: flex; gap: var(--space-12); align-items: flex-start; padding: var(--space-10) var(--space-12); }
-  .azioni { display: flex; flex-direction: column; align-items: flex-end; }
-  .azioni .link { min-height: 30px; }
+  .azioni { display: flex; gap: var(--space-4); align-items: center; }
   .rosso { color: var(--danger); }
   @media (max-width: 1023px) { .filtro { width: 100%; } .barra .btn { width: 100%; } }
 </style>

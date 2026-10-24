@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from './Icona.svelte';
+  import Azione from './Azione.svelte';
   import { api, type Familiare, type PersonaScheda, type Relazione, type SchedaCliente } from '../lib/api';
   import { dataBreve } from '../lib/date';
 
@@ -18,7 +20,6 @@
   const f = $derived(cliente.famiglia);
   const minore = $derived(cliente.persona.eta != null && cliente.persona.eta < 18);
 
-  let conferma = $state('');
   let nuovo = $state<{
     modo: 'esistente' | 'nuovo'; cerca: string; trovate: PersonaScheda[]; scelto: PersonaScheda | null;
     nome: string; cognome: string; codiceFiscale: string; email: string; telefono: string;
@@ -62,8 +63,6 @@
   };
 
   function chiudi(t: Familiare) {
-    if (conferma !== t.legameId) return void (conferma = t.legameId);
-    conferma = '';
     esegui(() => api.chiudiLegame(t.legameId), `${t.nome} ${t.cognome} non è più tra i tutori.`);
   }
 
@@ -89,7 +88,7 @@
               {#each RELAZIONI as r (r.id)}<option value={r.id}>{r.nome}</option>{/each}
             </select>
             <span class="grow"></span>
-            <button class="link small rosso" onclick={() => chiudi(t)}>{conferma === t.legameId ? 'Conferma: togli' : 'Togli'}</button>
+            <Azione icona="scollega" tono="danger" etichetta={`Togli ${t.nome} ${t.cognome} dai tutori`} conferma="Togli?" onclick={() => chiudi(t)} />
           </div>
           <div class="muted small">{[t.email, t.telefono].filter(Boolean).join(' · ') || 'Nessun contatto'}</div>
           <div class="interruttori">
@@ -114,7 +113,7 @@
       {#if nuovo.modo === 'esistente'}
         {#if nuovo.scelto}
           <div class="scelto"><strong>{nuovo.scelto.nome} {nuovo.scelto.cognome}</strong>{nuovo.scelto.dataNascita ? ` · ${dataBreve(nuovo.scelto.dataNascita)}` : ''}
-            <button type="button" class="link small" onclick={() => (nuovo!.scelto = null)}>Cambia</button></div>
+            <Azione icona="chiudi" etichetta="Scegli un'altra persona" onclick={() => (nuovo!.scelto = null)} /></div>
         {:else}
           <input class="inp" type="search" bind:value={nuovo.cerca} oninput={cerca} placeholder="Nome, cognome o codice fiscale" aria-label="Cerca il tutore" autocomplete="off" />
           {#each nuovo.trovate as p (p.id)}
@@ -147,7 +146,7 @@
       </div>
     </form>
   {:else}
-    <button class="btn btn-secondary" onclick={apri}>Aggiungi un tutore…</button>
+    <button class="btn btn-secondary" onclick={apri}><Icona nome="piu" />Aggiungi un tutore…</button>
   {/if}
 
   {#if f.fratelli.length}
@@ -193,7 +192,5 @@
   .trovata:hover { border-color: var(--cloro); }
   .scelto { display: flex; align-items: center; gap: var(--space-10); }
   .sotto { padding-top: var(--space-10); border-top: 1px solid var(--line); }
-  .link { min-height: 32px; }
-  .rosso { color: var(--danger); }
   .manca { color: var(--warn); font-weight: 600; }
 </style>

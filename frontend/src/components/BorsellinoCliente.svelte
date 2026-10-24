@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AzioneIcona from './Azione.svelte';
+  import Icona from './Icona.svelte';
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type MetodoPagamento, type SchedaBorsellino, type Utilizzo } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
@@ -109,7 +111,7 @@
         {#if puoRimborsare && r.restituibile && dati.saldo.euro > 0}
           <button class="btn btn-secondary" onclick={() => (azione = { tipo: 'restituisci', importo: String(dati!.saldo.euro), metodoId: perRestituire[0]?.id ?? '' })}>Restituisci in denaro…</button>
         {/if}
-        {#if puoRimborsare}<button class="link small" onclick={() => (azione = { tipo: 'correggi', saldo: 'CREDITI', quantita: '', motivo: '' })}>Correggi un saldo…</button>{/if}
+        {#if puoRimborsare}<AzioneIcona icona="matita" etichetta="Correggi un saldo" onclick={() => (azione = { tipo: 'correggi', saldo: 'CREDITI', quantita: '', motivo: '' })} />{/if}
       </div>
     {:else}
       <form class="modulo" onsubmit={(e) => { e.preventDefault(); conferma(); }}>
@@ -189,7 +191,7 @@
             <li class="muted small">Nessun movimento.</li>
           {/each}
         </ul>
-        {#if dati.movimenti.length > 8}<button class="link small sx" onclick={() => (tutti = !tutti)}>{tutti ? 'Solo gli ultimi' : `Tutti i movimenti (${dati.movimenti.length})`}</button>{/if}
+        {#if dati.movimenti.length > 8}<button class="btn btn-quieto btn-sm sx" aria-expanded={tutti} onclick={() => (tutti = !tutti)}><Icona nome={tutti ? 'su' : 'giu'} />{tutti ? 'Solo gli ultimi' : `Tutti i movimenti (${dati.movimenti.length})`}</button>{/if}
       </div>
       <div class="col">
         <div class="lbl">Ultimi utilizzi di phon e docce</div>
@@ -232,5 +234,4 @@
   .imp.piu { color: var(--cloro-ink); }
   .rosso { color: var(--danger); }
   .sx { align-self: flex-start; min-height: 32px; }
-  .link { min-height: 32px; }
 </style>

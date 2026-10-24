@@ -37,6 +37,9 @@
   import RegoleBorsellino from './routes/RegoleBorsellino.svelte';
   import ServiziDispositivi from './routes/ServiziDispositivi.svelte';
   import type { Permesso } from './lib/api';
+  import type { NomeIcona } from './lib/icone';
+  import Icona from './components/Icona.svelte';
+  import Azione from './components/Azione.svelte';
 
   type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'borsellino' | 'servizi' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Clienti' | 'Staff' | 'Accessi' | 'Sistema';
@@ -53,75 +56,47 @@
     /** Visibile a chi ha almeno uno di questi permessi; senza, a tutti. */
     permessi?: Permesso[];
     larga?: boolean;
-    icona: string;
+    icona: NomeIcona;
   }
 
   // Icone a tratto, 24×24
-  const I = {
-    turni: 'M4 6h16M4 12h16M4 18h10',
-    richieste: 'M7 7h10l-3-3M17 17H7l3 3',
-    ore: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z',
-    pianifica: 'M4 5h16v15H4zM4 10h16M9 5v15M14 5v15',
-    approva: 'm5 12 4 4 10-10',
-    modelli: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5',
-    postazioni: 'M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5',
-    piano: 'M3 8c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 13c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 18c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0',
-    corsi: 'M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2M8 8h6M8 12h6',
-    tornello: 'M5 4h4v16H5zM15 4h4v16h-4zM9 12h6M12 9l3 3-3 3',
-    clienti: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6',
-    scadenze: 'M12 7v5l3 2M5 3 2 6M19 3l3 3M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z',
-    promemoria: 'M4 6h16v12H4zM4 7l8 6 8-6',
-    societa: 'M4 21V8l8-5 8 5v13M9 21v-6h6v6M4 21h16',
-    listino: 'M5 3h10l4 4v14H5zM9 9h6M9 13h6M9 17h3',
-    incassi: 'M3 7h18v12H3zM3 11h18M7 15h3M16 4H6',
-    metodi: 'M3 6h18v12H3zM3 10h18M7 14h4',
-    macchine: 'M6 3h12v18H6zM9 7h6M12 14a2 2 0 1 0 0 .01M9 18h6',
-    borsellino: 'M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4zM4 7l10-4 2 4M16 13h4',
-    attesa: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
-    account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
-    ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
-    regole: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
-    impostazioni: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z',
-    tariffe: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3',
-  };
-
   const SEZIONI: Sezione[] = [
-    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', icona: I.turni },
-    { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: I.richieste },
-    { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: I.ore },
-    { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: I.piano },
-    { id: 'attesa', nome: 'Liste d\'attesa', breve: 'Attesa', titolo: 'Liste d\'attesa', gruppo: 'Piscina', permessi: ['ISCRIZIONI'], larga: true, icona: I.attesa },
-    { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: I.corsi },
-    { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: I.tornello },
-    { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: I.clienti },
-    { id: 'scadenze', nome: 'Scadenze', breve: 'Scadenze', titolo: 'Scadenze', gruppo: 'Accessi', permessi: ['CLIENTI'], larga: true, icona: I.scadenze },
-    { id: 'incassi', nome: 'Incassi', breve: 'Incassi', titolo: 'Incassi', gruppo: 'Accessi', permessi: ['PAGAMENTI'], larga: true, icona: I.incassi },
-    { id: 'macchine', nome: 'Phon e docce', breve: 'Phon', titolo: 'Phon e docce', gruppo: 'Accessi', permessi: ['BORSELLINO', 'IMPOSTAZIONI'], larga: true, icona: I.macchine },
-    { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.pianifica },
-    { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: I.approva },
-    { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.modelli },
+    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', icona: 'turni' },
+    { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
+    { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: 'ore' },
+    { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: 'piano' },
+    { id: 'attesa', nome: 'Liste d\'attesa', breve: 'Attesa', titolo: 'Liste d\'attesa', gruppo: 'Piscina', permessi: ['ISCRIZIONI'], larga: true, icona: 'attesa' },
+    { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: 'corsi' },
+    { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: 'tornello' },
+    { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: 'clienti' },
+    { id: 'scadenze', nome: 'Scadenze', breve: 'Scadenze', titolo: 'Scadenze', gruppo: 'Accessi', permessi: ['CLIENTI'], larga: true, icona: 'scadenze' },
+    { id: 'incassi', nome: 'Incassi', breve: 'Incassi', titolo: 'Incassi', gruppo: 'Accessi', permessi: ['PAGAMENTI'], larga: true, icona: 'incassi' },
+    { id: 'macchine', nome: 'Phon e docce', breve: 'Phon', titolo: 'Phon e docce', gruppo: 'Accessi', permessi: ['BORSELLINO', 'IMPOSTAZIONI'], larga: true, icona: 'macchine' },
+    { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'pianifica' },
+    { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: 'approva' },
+    { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'modelli' },
     // ── Impostazioni: tutte sotto una voce, per area ──
-    { id: 'societa', nome: 'Società e stagioni', titolo: 'Società e stagioni', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.societa,
+    { id: 'societa', nome: 'Società e stagioni', titolo: 'Società e stagioni', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
       spiega: 'Dati della società, stagioni e quota associativa, gruppi di clienti' },
-    { id: 'listino', nome: 'Listino e prezzi', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: I.listino,
+    { id: 'listino', nome: 'Listino e prezzi', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'listino',
       spiega: 'Offerte della stagione, prezzi, riduzioni, rate e recesso' },
-    { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: I.metodi,
+    { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'metodi',
       spiega: 'Contanti, carta, Satispay, bonifico…: quali si usano e quali si segnano incassati a mano' },
-    { id: 'borsellino', nome: 'Borsellino e braccialetto', titolo: 'Borsellino e braccialetto', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.borsellino,
+    { id: 'borsellino', nome: 'Borsellino e braccialetto', titolo: 'Borsellino e braccialetto', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'borsellino',
       spiega: 'Valore dei crediti, ricarica minima, scadenza e trasferimento del credito, cauzione, riconsegna e smarrimento' },
-    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['CLIENTI'], larga: true, icona: I.promemoria,
+    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['CLIENTI'], larga: true, icona: 'promemoria',
       spiega: 'Quando partono i promemoria delle scadenze e con quale testo' },
-    { id: 'servizi', nome: 'Phon, docce e lettori', titolo: 'Phon, docce e lettori', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: I.macchine,
+    { id: 'servizi', nome: 'Phon, docce e lettori', titolo: 'Phon, docce e lettori', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'macchine',
       spiega: 'Quanti crediti costa ogni servizio, usi gratuiti, le macchine e le loro chiavi' },
-    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole,
+    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: 'regole',
       spiega: 'Quali controlli fa il tornello e con quali tempi' },
-    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.postazioni,
+    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'postazioni',
       spiega: 'Le mansioni dello staff e le postazioni da coprire' },
-    { id: 'tariffe', nome: 'Tariffe orarie', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: I.tariffe,
+    { id: 'tariffe', nome: 'Tariffe orarie', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'tariffe',
       spiega: 'Il compenso orario per mansione' },
-    { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT'], larga: true, icona: I.account,
+    { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT'], larga: true, icona: 'account',
       spiega: 'Chi accede al gestionale, password temporanee, disattivazioni' },
-    { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['RUOLI'], larga: true, icona: I.ruoli,
+    { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['RUOLI'], larga: true, icona: 'ruoli',
       spiega: 'Cosa può fare ogni ruolo, e a chi è assegnato' },
   ];
   const ID = SEZIONI.map((s) => s.id);
@@ -245,8 +220,8 @@
 
 <svelte:window onkeydown={tasto} />
 
-{#snippet icona(d: string)}
-  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg>
+{#snippet icona(nome: NomeIcona)}
+  <Icona {nome} />
 {/snippet}
 
 {#snippet pagina()}
@@ -319,14 +294,14 @@
               <span class="grow"></span>
               {#if impostazioni.length}
                 <a href={`#/${impostazioni[0].id}`} class="voce-nav impostazioni" aria-label="Apri le impostazioni">
-                  {@render icona(I.impostazioni)}<span class="grow">Impostazioni</span>
-                  <svg class="ic freccia-nav" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                  {@render icona('impostazioni')}<span class="grow">Impostazioni</span>
+                  <Icona nome="dx" class="freccia-nav" />
                 </a>
               {/if}
             </nav>
             <nav aria-label="Impostazioni" class="pannello" inert={!inImpostazioni}>
               <button class="indietro-nav" onclick={tornaAlLavoro} aria-label="Torna alle sezioni">
-                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
+                <Icona nome="indietro" />
                 <span class="grow">Impostazioni</span>
               </button>
               {#each areeImpostazioni as a (a.nome)}
@@ -348,15 +323,15 @@
             <span class="io-chi"><span class="io-nome">{sessione.utente.nome} {sessione.utente.cognome}</span><span class="muted small">{ruolo}</span></span>
           </div>
           <div class="io-azioni">
-            <button class="link small" onclick={() => (cambioPassword = true)}>Password</button>
-            <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+            <Azione icona="chiave" etichetta="Cambia la tua password" onclick={() => (cambioPassword = true)} />
+            {#if programma}
+              <Azione icona="server" etichetta="Cambia server" onclick={cambiaServer} />
+              <Azione icona="aggiorna" etichetta="Cerca aggiornamenti del programma" onclick={() => controllaAggiornamento(true)} />
+            {/if}
+            <Azione icona="esci" etichetta="Esci" onclick={() => sessione.esci()} />
           </div>
           {#if programma}
             <div class="programma muted">Programma {programma.versione} · {location.host}</div>
-            <div class="io-azioni">
-              <button class="link small" onclick={cambiaServer}>Cambia server</button>
-              <button class="link small" onclick={() => controllaAggiornamento(true)}>Aggiornamenti</button>
-            </div>
             {#if statoAggiornamento && !aggiornamento}<div class="programma muted">{statoAggiornamento}</div>{/if}
           {/if}
         </div>
@@ -368,7 +343,7 @@
         <div class="aggiornamento" role="status">
           <span class="grow">{statoAggiornamento || `È disponibile la versione ${aggiornamento.versione} del programma (ora hai la ${aggiornamento.attuale}).`}</span>
           <button class="btn btn-primary" onclick={aggiorna}>Aggiorna e riavvia</button>
-          <button class="link small" onclick={() => (aggiornamento = null)}>Più tardi</button>
+          <button class="btn btn-secondary" onclick={() => (aggiornamento = null)}>Più tardi</button>
         </div>
       {/if}
       {#if inImpostazioni && schermo.larga}
@@ -387,7 +362,7 @@
             <div class="lbl">{a.nome}</div>
             <div class="card voci-imp">
               {#each a.voci as s (s.id)}
-                <a href={`#/${s.id}`}>{@render icona(s.icona)}<span class="grow"><span class="nome-imp">{s.nome}</span><span class="muted small">{s.spiega}</span></span><span class="freccia" aria-hidden="true">›</span></a>
+                <a href={`#/${s.id}`}>{@render icona(s.icona)}<span class="grow"><span class="nome-imp">{s.nome}</span><span class="muted small">{s.spiega}</span></span><Icona nome="dx" class="chev" /></a>
               {/each}
             </div>
           </section>
@@ -395,15 +370,15 @@
       {:else}
         <header class="testa">
           <div>
-            {#if !schermo.larga && inImpostazioni}<a class="indietro small" href="#/impostazioni">‹ Impostazioni</a>
+            {#if !schermo.larga && inImpostazioni}<a class="indietro small" href="#/impostazioni"><Icona nome="sx" class="chev" />Impostazioni</a>
             {:else if !schermo.larga}<div class="lbl">{nomeSocieta}</div>{/if}
             <h1 class="page-title">{corrente.titolo}</h1>
           </div>
           {#if !schermo.larga}
             <div class="chi">
               <span class="muted small">{sessione.utente.nome}</span>
-              <button class="link small" onclick={() => (cambioPassword = true)}>Password</button>
-              <button class="link small" onclick={() => sessione.esci()}>Esci</button>
+              <Azione icona="chiave" etichetta="Cambia la tua password" onclick={() => (cambioPassword = true)} />
+              <Azione icona="esci" etichetta="Esci" onclick={() => sessione.esci()} />
             </div>
           {/if}
         </header>
@@ -425,7 +400,7 @@
             <a href={`#/${s.id}`} class:on={scheda === s.id}>{@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}</a>
           {/each}
           {#if impostazioni.length}
-            <a href="#/impostazioni" class="sep" class:on={inImpostazioni}>{@render icona(I.impostazioni)}<span class="grow">Impostazioni</span></a>
+            <a href="#/impostazioni" class="sep" class:on={inImpostazioni}>{@render icona('impostazioni')}<span class="grow">Impostazioni</span></a>
           {/if}
         </div>
       {/if}
@@ -455,8 +430,8 @@
   main.con-nav { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
   .centro { text-align: center; margin-top: 40vh; }
   .testa { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-12); }
-  .chi { display: flex; flex-direction: column; align-items: flex-end; }
-  .chi .link { min-height: 32px; }
+  .chi { display: flex; align-items: center; gap: var(--space-4); }
+  .chi > span { margin-right: var(--space-4); }
 
   /* ── Desktop ─────────────────────────────────────────────── */
   .guscio.desktop { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
@@ -474,10 +449,10 @@
     display: flex; align-items: center; gap: var(--space-10); min-height: 38px; padding: 0 var(--space-10);
     border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; font-size: var(--text-md); font-weight: 500;
   }
-  .voce-nav .ic { width: 18px; height: 18px; color: var(--muted); }
+  .voce-nav :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
   .voce-nav:hover { background: var(--carta); }
   .voce-nav.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; }
-  .voce-nav.on .ic { color: var(--cloro); }
+  .voce-nav.on :global(.ic) { color: var(--cloro); }
   .voce-nav.impostazioni { border-top: 1px solid var(--line-soft); border-radius: 0; min-height: 46px; flex-shrink: 0; }
   .io { border-top: 1px solid var(--line-soft); padding: var(--space-12) var(--space-10) 0; display: flex; flex-direction: column; gap: var(--space-4); }
   .io-riga { display: flex; align-items: center; gap: var(--space-10); }
@@ -485,8 +460,7 @@
     justify-content: center; font-weight: 700; font-size: var(--text-sm); flex-shrink: 0; }
   .io-chi { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
   .io-nome { font-weight: 600; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .io-azioni { display: flex; gap: var(--space-14); flex-wrap: wrap; }
-  .io .link { min-height: 30px; }
+  .io-azioni { display: flex; gap: var(--space-4); margin-left: -10px; }
 
   /* ── Barra che scorre: sezioni di lavoro ⇄ impostazioni ── */
   .scorrevole { flex: 1; overflow: hidden; min-height: 0; }
@@ -494,10 +468,10 @@
   .traccia.imp { transform: translateX(-50%); }
   @media (prefers-reduced-motion: reduce) { .traccia { transition: none; } }
   .pannello { width: 50%; height: 100%; display: flex; flex-direction: column; gap: var(--space-16); overflow-y: auto; box-sizing: border-box; }
-  .freccia-nav { width: 16px; height: 16px; }
+  .voce-nav :global(.freccia-nav) { width: 16px; height: 16px; }
   .indietro-nav { display: flex; align-items: center; gap: var(--space-8); min-height: 44px; padding: 0 var(--space-8); border: none; border-radius: var(--radius-sm);
     background: var(--carta); color: var(--ink); font: inherit; font-size: var(--text-lg); font-weight: 700; cursor: pointer; text-align: left; flex-shrink: 0; }
-  .indietro-nav .ic { width: 20px; height: 20px; color: var(--cloro); }
+  .indietro-nav :global(.ic) { width: 20px; height: 20px; color: var(--cloro); }
   .indietro-nav:hover { background: var(--surface-sunken); }
   .briciole { color: var(--cloro-ink); }
   .spiega { margin-top: var(--space-4); }
@@ -508,11 +482,12 @@
   .voci-imp a { display: flex; align-items: center; gap: var(--space-12); min-height: 60px; padding: var(--space-8) var(--space-14); color: var(--ink);
     text-decoration: none; border-top: 1px solid var(--line-soft); }
   .voci-imp a:first-child { border-top: none; }
-  .voci-imp .ic { width: 20px; height: 20px; color: var(--cloro); flex-shrink: 0; }
+  .voci-imp :global(.ic) { width: 20px; height: 20px; color: var(--cloro); flex-shrink: 0; }
+  .voci-imp :global(.chev) { width: 18px; height: 18px; color: var(--chevron); }
   .voci-imp .grow { display: flex; flex-direction: column; min-width: 0; }
   .nome-imp { font-weight: 600; }
-  .freccia { color: var(--muted); font-size: 22px; }
-  .indietro { color: var(--cloro-ink); text-decoration: none; font-weight: 600; display: inline-flex; min-height: 32px; align-items: center; }
+  .indietro { color: var(--cloro-ink); text-decoration: none; font-weight: 600; display: inline-flex; min-height: 32px; align-items: center; gap: var(--space-2); margin-left: -4px; }
+  .indietro :global(.ic) { color: var(--cloro); }
   .altro a.sep { border-top: 1px solid var(--line-soft); border-radius: 0; margin-top: var(--space-4); }
   .programma { font-size: var(--text-2xs); margin-top: var(--space-6); }
   .aggiornamento { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-10) var(--space-14);
@@ -533,7 +508,7 @@
     display: flex; flex-direction: column; padding: var(--space-6); box-shadow: 0 8px 28px rgba(16, 33, 43, 0.18); }
   .altro a { display: flex; align-items: center; gap: var(--space-10); min-height: 46px; padding: 0 var(--space-10); border-radius: var(--radius-sm);
     color: var(--ink); text-decoration: none; font-weight: 500; }
-  .altro a .ic { width: 18px; height: 18px; color: var(--muted); }
+  .altro a :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
   .altro a.on { background: var(--cloro-soft); color: var(--cloro-ink); }
   .badge { min-width: 18px; height: 18px; border-radius: 9px; background: var(--cloro); color: var(--on-cloro); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
 </style>

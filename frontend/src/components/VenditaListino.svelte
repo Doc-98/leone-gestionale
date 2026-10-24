@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from './Icona.svelte';
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type Corso, type Offerta, type PropostaPrezzo, type SchedaCliente, type Stagione } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
@@ -165,7 +166,7 @@
     <button type="button" class="btn btn-secondary grow" onclick={chiudi}>Annulla</button>
     <button class="btn btn-primary grow" disabled={!proposta || (offerta?.tipo === 'CORSO' && !corsoId) || (cambiato && !motivo.trim())}>Registra</button>
   </div>
-  <button type="button" class="link small sx" onclick={aMano}>Registra a mano, senza listino</button>
+  <button type="button" class="btn btn-quieto btn-sm sx" onclick={aMano}><Icona nome="matita" />Registra a mano, senza listino</button>
 </form>
 
 <style>

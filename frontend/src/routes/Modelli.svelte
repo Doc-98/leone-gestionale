@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { api, messaggioErrore, type Impianto, type Modello, type PersonaBreve, type Postazione, type RigaModello } from '../lib/api';
   import { dataLunga, formatOre, GIORNI_ESTESI, ora, oreTra } from '../lib/date';
   import { COLONNE_SETTIMANA, daRiga } from '../lib/griglia';
@@ -77,7 +79,7 @@
       </div>
       <button class="btn btn-secondary compatto" onclick={() => ((modelloAperto = { modello: scelto }), (messaggio = ''))}>Modifica…</button>
     {/if}
-    <button class="btn btn-primary compatto" onclick={() => ((modelloAperto = { modello: null }), (messaggio = ''))}>Nuovo modello…</button>
+    <button class="btn btn-primary compatto" onclick={() => ((modelloAperto = { modello: null }), (messaggio = ''))}><Icona nome="piu" />Nuovo modello…</button>
   </div>
 
   <p class="muted small nomargin">La settimana tipo da cui si generano i turni del mese (da «Pianificazione» → «Genera un mese»). Ogni riga è una postazione in un giorno, con l'orario e chi di solito la copre.</p>
@@ -95,7 +97,7 @@
         <div class="giorno">
           <div class="intesta">
             <h2 class="lbl">{GIORNI_ESTESI[g]}</h2>
-            <button class="link small" onclick={() => (rigaAperta = { riga: null, giorno: g })}>+ Riga</button>
+            <Azione icona="piu" tono="cloro" etichetta={`Aggiungi una riga il ${GIORNI_ESTESI[g].toLowerCase()}`} onclick={() => (rigaAperta = { riga: null, giorno: g })} />
           </div>
           {#each delGiorno as r (r.id)}
             <button class="card riga" class:scoperta={!r.persona} onclick={() => apriRiga(r.id)}>

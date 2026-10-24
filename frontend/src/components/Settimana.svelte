@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from './Azione.svelte';
   import { aggiungiGiorni, daIso, iso, lunedi, MESI } from '../lib/date';
 
   let { lunediSettimana = $bindable(), sotto = '' }: { lunediSettimana: string; sotto?: string } = $props();
@@ -13,21 +14,21 @@
 </script>
 
 <div class="settimana">
-  <button class="icon-btn" aria-label="Settimana precedente" onclick={() => (lunediSettimana = aggiungiGiorni(lunediSettimana, -7))}>‹</button>
-  <div class="centro">
+  <div class="centro grow">
     <div class="d titolo">{titolo}</div>
     <div class="muted small m">{sotto}</div>
   </div>
-  <button class="icon-btn" aria-label="Settimana successiva" onclick={() => (lunediSettimana = aggiungiGiorni(lunediSettimana, 7))}>›</button>
+  <span class="gruppo-azioni">
+    <Azione cornice icona="oggi" etichetta="Torna a questa settimana" disabled={lunediSettimana === oggi} onclick={() => (lunediSettimana = oggi)} />
+    <Azione cornice icona="sx" etichetta="Settimana precedente" onclick={() => (lunediSettimana = aggiungiGiorni(lunediSettimana, -7))} />
+    <Azione cornice icona="dx" etichetta="Settimana successiva" onclick={() => (lunediSettimana = aggiungiGiorni(lunediSettimana, 7))} />
+  </span>
 </div>
-{#if lunediSettimana !== oggi}
-  <button class="link small torna" onclick={() => (lunediSettimana = oggi)}>Torna a questa settimana</button>
-{/if}
+
+
 
 <style>
   .settimana { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); }
-  .icon-btn { font-size: 22px; }
-  .centro { text-align: center; }
+  .centro { min-width: 0; }
   .titolo { font-size: var(--text-2xl); font-weight: 800; }
-  .torna { align-self: center; margin-top: calc(-1 * var(--space-8)); }
 </style>

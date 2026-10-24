@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from './Azione.svelte';
+  import Icona from './Icona.svelte';
   import { api, type Consenso, type SchedaCliente, type TipoConsenso } from '../lib/api';
   import { dataBreve, dataDi, iso } from '../lib/date';
 
@@ -21,7 +23,6 @@
   const valido = (t: TipoConsenso) => cliente.consensi.find((c) => c.tipo === t && c.valido);
   const storico = $derived(cliente.consensi.filter((c) => !c.valido));
 
-  let conferma = $state('');
   let mostraStorico = $state(false);
   let nuovo = $state<{ tipo: TipoConsenso; firmatoDa: string; datoIl: string; validoFino: string; email: boolean; sms: boolean; cartaceo: boolean } | null>(null);
 
@@ -40,8 +41,6 @@
   }
 
   function revoca(c: Consenso) {
-    if (conferma !== c.id) return void (conferma = c.id);
-    conferma = '';
     esegui(() => api.revocaConsenso(c.id), 'Consenso revocato da oggi.');
   }
 
@@ -59,9 +58,9 @@
           <span class="tag {c ? 't-soft' : t.id === 'TRATTAMENTO' ? 't-warn' : 't-altro'}">{c ? 'Sì' : t.id === 'TRATTAMENTO' ? 'Manca' : 'No'}</span>
           <strong class="grow">{t.nome}</strong>
           {#if c}
-            <button class="link small rosso" onclick={() => revoca(c)}>{conferma === c.id ? 'Conferma: revoca' : 'Revoca'}</button>
+            <Azione icona="revoca" tono="danger" etichetta={`Revoca il consenso «${t.nome}»`} conferma="Revoca?" onclick={() => revoca(c)} />
           {:else if !nuovo}
-            <button class="link small" onclick={() => apri(t.id)}>Registra</button>
+            <Azione icona="firma" tono="cloro" etichetta={`Registra il consenso «${t.nome}»`} onclick={() => apri(t.id)} />
           {/if}
         </div>
         {#if c}
@@ -96,7 +95,7 @@
   {/if}
 
   {#if storico.length}
-    <button class="link small sx" onclick={() => (mostraStorico = !mostraStorico)}>{mostraStorico ? 'Nascondi lo storico' : `Storico (${storico.length})`}</button>
+    <button class="btn btn-quieto btn-sm sx" aria-expanded={mostraStorico} onclick={() => (mostraStorico = !mostraStorico)}><Icona nome="storico" />{mostraStorico ? 'Nascondi lo storico' : `Storico (${storico.length})`}</button>
     {#if mostraStorico}
       {#each storico as c (c.id)}
         <div class="small muted">{nomeTipo(c.tipo)} · firmato il {dataBreve(c.datoIl)} · {c.revocatoIl ? `revocato il ${dataBreve(dataDi(c.revocatoIl))}` : c.validoFino && c.validoFino < oggi ? `scaduto il ${dataBreve(c.validoFino)}` : `dal ${dataBreve(c.datoIl)}`}</div>
@@ -115,7 +114,5 @@
   .riga { display: flex; align-items: center; gap: var(--space-10); }
   .riga .tag { min-width: 56px; justify-content: center; }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding-top: var(--space-10); border-top: 1px solid var(--line); }
-  .link { min-height: 32px; }
   .sx { align-self: flex-start; }
-  .rosso { color: var(--danger); }
 </style>

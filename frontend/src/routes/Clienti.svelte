@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { onMount } from 'svelte';
   import { api, messaggioErrore, type PersonaScheda } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
@@ -92,14 +94,14 @@
           <p class="muted small nomargin">Contatti e tutori arriveranno con la scheda completa.</p>
         </form>
       {:else}
-        <button class="btn btn-secondary" onclick={() => (nuovo = { nome: '', cognome: '', dataNascita: '' })}>Nuovo cliente…</button>
+        <button class="btn btn-secondary" onclick={() => (nuovo = { nome: '', cognome: '', dataNascita: '' })}><Icona nome="piu" />Nuovo cliente…</button>
       {/if}
     </aside>
   {/if}
 
   {#if scelto}
     <div class="scheda">
-      {#if !schermo.larga}<a class="link small" href="#/clienti">‹ Clienti</a>{/if}
+      {#if !schermo.larga}<span><Azione cornice icona="indietro" etichetta="Torna all'elenco dei clienti" href="#/clienti" /></span>{/if}
       {#key scelto}<SchedaCliente personaId={scelto} />{/key}
     </div>
   {:else if schermo.larga}

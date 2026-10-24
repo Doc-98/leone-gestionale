@@ -60,7 +60,8 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 - **Backend**: Java 21, Spring Boot 4, Spring Security (sessioni lato server), Spring Data JPA,
   Flyway per lo schema, Spring Modulith per tenere separati i moduli, OpenAPI per documentare le API,
   test di integrazione su un Postgres vero (Testcontainers).
-- **Frontend**: Svelte 5 + TypeScript + Vite, design system "Corsia" ripreso da ClockWork. Una sola
+- **Frontend**: Svelte 5 + TypeScript + Vite, design system "Corsia" ripreso da ClockWork
+  (`docs/design-system`, ADR 0019). Una sola
   interfaccia con due disposizioni: **desktop** (menu laterale, tabelle, pianificazione ampia) e
   **mobile** (schede in basso). Sul PC è impacchettata con **Tauri** in un programma Windows che accede
   a lettore NFC e stampante; sul telefono è una PWA. Vedi ADR 0006.

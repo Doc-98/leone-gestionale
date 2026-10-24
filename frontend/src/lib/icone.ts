@@ -1,0 +1,92 @@
+/**
+ * Le icone del gestionale, disegnate a mano sulla stessa griglia di ClockWork: 24×24, tratto 1,8 con estremi e
+ * angoli arrotondati, nessun riempimento, colore `currentColor` (lo stile sta in `.ic`, in app.css).
+ * I nomi sono in italiano e dicono il significato, non la forma. Niente librerie di icone, niente emoji:
+ * un'icona nuova si disegna qui, sulla stessa griglia.
+ */
+const p = (d: string) => `<path d="${d}"/>`;
+
+export const ICONE = {
+  // ── azioni ──────────────────────────────────────────────
+  piu: p('M12 5v14M5 12h14'),
+  meno: p('M5 12h14'),
+  matita: p('M5 19h4L19 9l-4-4L5 15v4zM13 7l4 4'),
+  chiudi: p('M6 6l12 12M18 6 6 18'),
+  check: p('m5 12 4 4 10-10'),
+  cestino: p('M4 7h16M10 3h4M6 7l1 13h10l1-13M10 11v6M14 11v6'),
+  annulla: p('M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3'),
+  revoca: '<circle cx="12" cy="12" r="9"/>' + p('m9 9 6 6M15 9l-6 6'),
+  divieto: '<circle cx="12" cy="12" r="9"/>' + p('M5.6 5.6l12.8 12.8'),
+  spegni: p('M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0'),
+  pausa: p('M9 5v14M15 5v14'),
+  termina: p('M5 21V4M5 5h12l-2.5 4L17 13H5'),
+  su: p('m6 15 6-6 6 6'),
+  giu: p('m6 9 6 6 6-6'),
+  sx: p('m15 6-6 6 6 6'),
+  dx: p('m9 6 6 6-6 6'),
+  indietro: p('M19 12H5M11 18l-6-6 6-6'),
+  freccia: p('M5 12h14M13 6l6 6-6 6'),
+  scambio: p('M7 7h11l-3-3M17 17H6l3 3'),
+  aggiorna: p('M20 11a8 8 0 0 0-14.3-4.7L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.7l1.7-2.2M20 20v-4.5h-4.5'),
+  scarica: p('M12 4v11M7 10l5 5 5-5M5 20h14'),
+  copia: '<rect x="8" y="8" width="12" height="12" rx="2"/>' + p('M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3'),
+  salva: p('M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6'),
+  occhio: p('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z') + '<circle cx="12" cy="12" r="3"/>',
+  'occhio-no': p('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z') + '<circle cx="12" cy="12" r="3"/>' + p('M4 4l16 16'),
+  cerca: '<circle cx="11" cy="11" r="6.5"/>' + p('m16 16 4.5 4.5'),
+  campana: p('M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4'),
+  testo: p('M4 6h16M4 10h16M4 14h10M4 18h7'),
+  firma: p('M3 20c2.5-.5 4-5 6-5s.5 5 3 5 3-3 4.5-3 2 1.5 4 1.5M14 3.5l3 3-6 6H8v-3z'),
+  chiave: '<circle cx="8" cy="15" r="4"/>' + p('m11 12 9-9M17 6l3 3M14.5 8.5l2 2'),
+  esci: p('M10 4H5v16h5M14 8l4 4-4 4M18 12H9'),
+  server: '<rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/>' + p('M8 7.5h.01M8 16.5h.01'),
+  qr: p('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18v2M18 14h2'),
+  scollega: p('M9 15l-1.5 1.5a3.5 3.5 0 0 1-5-5L4 10M15 9l1.5-1.5a3.5 3.5 0 0 1 5 5L20 14M8 3v2M3 8h2M16 21v-2M21 16h-2'),
+  storico: p('M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'),
+  oggi: '<rect x="3" y="5" width="18" height="16" rx="2"/>' + p('M3 10h18M8 3v4M16 3v4') + '<circle cx="12" cy="15.5" r="1.6"/>',
+  info: '<circle cx="12" cy="12" r="9"/>' + p('M12 11v5M12 8v.01'),
+  avviso: p('M12 4 2.5 20h19zM12 10v4.5M12 17.2v.1'),
+  telefono: p('M7 3h10v18H7zM11 18h2'),
+  nfc: p('M7 3h10v18H7zM11 18h2M4 9a5 5 0 0 0 0 6M1.5 7a9 9 0 0 0 0 10'),
+
+  // ── persone e cose del dominio ──────────────────────────
+  persona: '<circle cx="12" cy="8" r="4"/>' + p('M4 21c0-4 3.6-7 8-7s8 3 8 7'),
+  'persona-piu': '<circle cx="10" cy="8" r="4"/>' + p('M3 21c0-4 3.1-7 7-7 1.5 0 2.9.4 4 1.2M18 14v6M15 17h6'),
+  'persona-meno': '<circle cx="10" cy="8" r="4"/>' + p('M3 21c0-4 3.1-7 7-7 1.5 0 2.9.4 4 1.2M15 17h6'),
+  persone: p('M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6'),
+  euro: p('M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9'),
+  incassato: '<rect x="3" y="6" width="18" height="12" rx="1.5"/>' + p('m8.5 12 2.5 2.5 4.5-5'),
+  braccialetto: '<ellipse cx="12" cy="12" rx="8" ry="5"/>' + p('M4 12v2c0 2.8 3.6 5 8 5s8-2.2 8-5v-2'),
+  smarrito: '<circle cx="12" cy="12" r="9"/>' + p('M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.5v.7M12 17v.01'),
+  ritrovato: '<circle cx="12" cy="12" r="9"/>' + p('m8 12.5 3 3 5-6'),
+  riconsegna: p('M4 14h4l1.5 3h5l1.5-3h4v6H4zM12 3v9M9 9l3 3 3-3'),
+
+  // ── sezioni (barra laterale) ────────────────────────────
+  turni: p('M4 6h16M4 12h16M4 18h10'),
+  richieste: p('M7 7h10l-3-3M17 17H7l3 3'),
+  ore: p('M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z'),
+  pianifica: p('M4 5h16v15H4zM4 10h16M9 5v15M14 5v15'),
+  approva: p('m5 12 4 4 10-10'),
+  modelli: p('M5 4h14v16H5zM8 8h8M8 12h8M8 16h5'),
+  postazioni: p('M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5'),
+  piano: p('M3 8c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 13c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 18c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0'),
+  corsi: p('M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2M8 8h6M8 12h6'),
+  tornello: p('M5 4h4v16H5zM15 4h4v16h-4zM9 12h6M12 9l3 3-3 3'),
+  clienti: p('M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6'),
+  scadenze: p('M12 7v5l3 2M5 3 2 6M19 3l3 3M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z'),
+  promemoria: p('M4 6h16v12H4zM4 7l8 6 8-6'),
+  societa: p('M4 21V8l8-5 8 5v13M9 21v-6h6v6M4 21h16'),
+  listino: p('M5 3h10l4 4v14H5zM9 9h6M9 13h6M9 17h3'),
+  incassi: p('M3 7h18v12H3zM3 11h18M7 15h3M16 4H6'),
+  metodi: p('M3 6h18v12H3zM3 10h18M7 14h4'),
+  macchine: p('M6 3h12v18H6zM9 7h6M12 14a2 2 0 1 0 0 .01M9 18h6'),
+  borsellino: p('M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4zM4 7l10-4 2 4M16 13h4'),
+  attesa: p('M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9'),
+  account: p('M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6'),
+  ruoli: p('M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4'),
+  regole: p('M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M16 4v4M10 10v4M18 16v4'),
+  impostazioni: p('M10.26 5.01 10.5 2.52h3l.24 2.49 1.97.82 1.93-1.6 2.13 2.13-1.6 1.93.82 1.97 2.49.24v3l-2.49.24-.82 1.97 1.6 1.93-2.13 2.13-1.93-1.6-1.97.82-.24 2.49h-3l-.24-2.49-1.97-.82-1.93 1.6-2.13-2.13 1.6-1.93-.82-1.97-2.49-.24v-3l2.49-.24.82-1.97-1.6-1.93 2.13-2.13 1.93 1.6z') + '<circle cx="12" cy="12" r="3"/>',
+  tariffe: p('M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3'),
+} as const;
+
+export type NomeIcona = keyof typeof ICONE;

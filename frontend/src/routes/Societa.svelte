@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
+  import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type DatiSocieta, type GruppoClienti, type MembroGruppo, type NuovaStagione, type Stagione } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
 
@@ -11,7 +13,6 @@
   let gruppi = $state<GruppoClienti[]>([]);
   let errore = $state('');
   let messaggio = $state('');
-  let conferma = $state('');
 
   type BozzaStagione = { nome: string; dal: string; al: string; quota: string; quotaRimborsabile: boolean };
   let stagione = $state<{ id: string | null; b: BozzaStagione } | null>(null);
@@ -32,7 +33,6 @@
   async function esegui(azione: () => Promise<unknown>, fatto: string) {
     errore = '';
     messaggio = '';
-    conferma = '';
     try {
       await azione();
       await carica();
@@ -149,9 +149,11 @@
                 <strong>{s.nome}</strong>
                 <span class="tag {st.classe}">{st.nome}</span>
                 <span class="grow muted small">{dataBreve(s.dal)} – {dataBreve(s.al)} · quota {s.quota == null ? 'da decidere' : `${s.quota} €`}{s.quotaRimborsabile ? ' (rimborsabile)' : ''}</span>
-                <button class="link small" onclick={() => (stagione = { id: s.id, b: { nome: s.nome, dal: s.dal, al: s.al, quota: s.quota == null ? '' : String(s.quota), quotaRimborsabile: s.quotaRimborsabile } })}>Modifica</button>
-                <button class="link small rosso" onclick={() => (conferma === 'st' + s.id ? esegui(() => api.eliminaStagione(s.id), `Stagione ${s.nome} eliminata.`) : (conferma = 'st' + s.id))}>
-                  {conferma === 'st' + s.id ? 'Conferma: elimina' : 'Elimina'}</button>
+                <span class="gruppo-azioni">
+                  <Azione icona="matita" etichetta={`Modifica la stagione ${s.nome}`} onclick={() => (stagione = { id: s.id, b: { nome: s.nome, dal: s.dal, al: s.al, quota: s.quota == null ? '' : String(s.quota), quotaRimborsabile: s.quotaRimborsabile } })} />
+                  <Azione icona="cestino" tono="danger" etichetta={`Elimina la stagione ${s.nome} (i tesseramenti già registrati restano com'erano)`} conferma="Elimina?"
+                    onclick={() => esegui(() => api.eliminaStagione(s.id), `Stagione ${s.nome} eliminata.`)} />
+                </span>
               </div>
             {/if}
           </li>
@@ -162,9 +164,8 @@
       {#if stagione && !stagione.id}
         {@render moduloStagione()}
       {:else if !stagione}
-        <button class="btn btn-secondary sx" onclick={nuovaStagione}>{stagioni.length ? 'Aggiungi la stagione successiva' : 'Aggiungi la stagione'}</button>
+        <button class="btn btn-secondary sx" onclick={nuovaStagione}><Icona nome="piu" />{stagioni.length ? 'Aggiungi la stagione successiva' : 'Aggiungi la stagione'}</button>
       {/if}
-      {#if conferma.startsWith('st')}<p class="muted small nomargin">Eliminando una stagione i tesseramenti già registrati restano com'erano.</p>{/if}
     </section>
 
     <!-- Gruppi di clienti -->
@@ -182,8 +183,8 @@
                 <strong>{g.nome}</strong>
                 {#if !g.attivo}<span class="tag t-altro">Non attivo</span>{/if}
                 <span class="grow muted small">{g.descrizione ?? ''}</span>
-                <button class="link small" onclick={() => apriMembri(g)}>{g.persone === 1 ? '1 persona' : `${g.persone} persone`}</button>
-                <button class="link small" onclick={() => (gruppo = { id: g.id, nome: g.nome, descrizione: g.descrizione ?? '', attivo: g.attivo })}>Modifica</button>
+                <button class="btn btn-quieto btn-sm" aria-expanded={aperto === g.id} onclick={() => apriMembri(g)}><Icona nome="persone" />{g.persone === 1 ? '1 persona' : `${g.persone} persone`}</button>
+                <Azione icona="matita" etichetta={`Modifica il gruppo ${g.nome}`} onclick={() => (gruppo = { id: g.id, nome: g.nome, descrizione: g.descrizione ?? '', attivo: g.attivo })} />
               </div>
               {#if aperto === g.id}
                 <div class="membri small">
@@ -203,7 +204,7 @@
       {#if gruppo && !gruppo.id}
         {@render moduloGruppo()}
       {:else if !gruppo}
-        <button class="btn btn-secondary sx" onclick={() => (gruppo = { id: null, nome: '', descrizione: '', attivo: true })}>Nuovo gruppo</button>
+        <button class="btn btn-secondary sx" onclick={() => (gruppo = { id: null, nome: '', descrizione: '', attivo: true })}><Icona nome="piu" />Nuovo gruppo</button>
       {/if}
     </section>
   </div>

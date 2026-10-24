@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from './Azione.svelte';
   import { api, ErroreApi, messaggioErrore, type Corso, type SchedaCliente, type TurnoFrequentato, type TurnoPosti } from '../lib/api';
   import { dataBreve, GIORNI_BREVI, iso, ora } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
@@ -15,7 +16,6 @@
   const id = $derived(cliente.persona.id);
   const puo = $derived(sessione.puo('ISCRIZIONI'));
 
-  let conferma = $state('');
   let scelta = $state<{ cambio: TurnoFrequentato | null; corsoId: string; dal: string; turni: TurnoPosti[] | null } | null>(null);
   let errore = $state('');
   let pieno = $state<{ turno: TurnoPosti; riprova: () => Promise<void> } | null>(null);
@@ -74,14 +74,10 @@
   }
 
   function ritira(t: TurnoFrequentato) {
-    if (conferma !== 'rit' + t.iscrizioneId) return void (conferma = 'rit' + t.iscrizioneId);
-    conferma = '';
     esegui(() => api.terminaIscrizione(t.iscrizioneId, oggi), `Ritirato da ${t.corso} ${quando(t)}: oggi è l'ultimo giorno.`);
   }
 
   function togli(attesaId: string) {
-    if (conferma !== 'att' + attesaId) return void (conferma = 'att' + attesaId);
-    conferma = '';
     esegui(() => api.rinunciaAttesa(attesaId), 'Tolto dalla lista d\'attesa.');
   }
 
@@ -98,8 +94,10 @@
         <span class="grow"><strong>{t.corso}</strong> · <span class="m">{quando(t)}</span>
           <span class="muted small">{t.dal > oggi ? ` · dal ${dataBreve(t.dal)}` : ''}{t.al ? ` · fino al ${dataBreve(t.al)}` : ''}</span></span>
         {#if puo && (!t.al || t.al >= oggi)}
-          <button class="link small" onclick={() => apri(t)}>Cambia turno</button>
-          {#if !t.al}<button class="link small rosso" onclick={() => ritira(t)}>{conferma === 'rit' + t.iscrizioneId ? 'Conferma ritiro' : 'Ritira'}</button>{/if}
+          <span class="gruppo-azioni">
+            <Azione icona="scambio" etichetta={`Cambia turno di ${t.corso}`} onclick={() => apri(t)} />
+            {#if !t.al}<Azione icona="persona-meno" tono="danger" etichetta={`Ritira da ${t.corso}`} conferma="Ritira?" onclick={() => ritira(t)} />{/if}
+          </span>
         {/if}
       </li>
     {:else}
@@ -114,7 +112,7 @@
         <div class="voce-l small">
           <span class="grow">{a.corso} · <span class="m">{quando(a)}</span> · <strong>{a.posizione}° in lista</strong>
             {#if a.liberi != null && a.liberi > 0}<span class="tag t-soft">posto libero</span>{/if}</span>
-          {#if puo}<button class="link small rosso" onclick={() => togli(a.attesaId)}>{conferma === 'att' + a.attesaId ? 'Conferma' : 'Togli'}</button>{/if}
+          {#if puo}<Azione icona="cestino" tono="danger" etichetta={`Togli dalla lista d'attesa di ${a.corso}`} conferma="Togli?" onclick={() => togli(a.attesaId)} />{/if}
         </div>
       {/each}
       {#if puo}<a class="small" href="#/attesa">Liste d'attesa</a>{/if}
@@ -181,8 +179,6 @@
   .righe > li { padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
   .righe > li:first-child { border-top: none; }
   .voce-l { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
-  .link { min-height: 32px; }
-  .rosso { color: var(--danger); }
   .sotto { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-10); border-top: 1px solid var(--line); }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding-top: var(--space-10); border-top: 1px solid var(--line); }
   select.inp { appearance: auto; }
