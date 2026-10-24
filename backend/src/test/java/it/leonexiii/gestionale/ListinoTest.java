@@ -107,10 +107,26 @@ class ListinoTest {
         assertThat(cassa.post("/api/clienti/" + persona + "/abbonamenti",
             "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":1,\"dal\":\"2050-10-01\",\"importo\":1,\"motivoImporto\":\"Sconto\"}").statusCode()).isEqualTo(403);
 
+        // la vendita ha creato due rate da 225 €; il rimborso si calcola su quanto è stato pagato
+        @SuppressWarnings("unchecked")
+        var rate = ((List<Map<String, Object>>) json(segr.get("/api/pagamenti/persone/" + persona)).get("addebiti")).stream()
+            .filter(x -> abb.equals(x.get("riferimentoId"))).toList();
+        assertThat(rate).hasSize(2);
+        assertThat(rate.get(1)).containsEntry("importo", 225.00).containsEntry("scadenza", "2050-09-15").containsEntry("rata", 2);
+        assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb + "/recesso?data=2050-10-15"))).containsEntry("importo", 0.00);
+        @SuppressWarnings("unchecked")
+        String contanti = (String) ((List<Map<String, Object>>) (List<?>) JsonParserFactory.getJsonParser().parseList(segr.get("/api/pagamenti/metodi").body()))
+            .getFirst().get("id");
+        crea(segr, "/api/pagamenti", "{\"addebiti\":[\"" + rate.get(0).get("id") + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":225}]}");
+
         // recesso: rimborso secondo la regola, nel borsellino
         var rimborso = json(segr.get("/api/clienti/abbonamenti/" + abb + "/recesso?data=2050-10-15"));
-        assertThat(rimborso).containsEntry("percentuale", 50).containsEntry("importo", 225.00).containsEntry("nelBorsellino", true);
+        assertThat(rimborso).containsEntry("percentuale", 50).containsEntry("importo", 112.50).containsEntry("nelBorsellino", true);
         assertThat(segr.get("/api/clienti/abbonamenti/" + abb + "/recesso?data=2051-02-01").body()).contains("\"percentuale\":0");
+        // con il recesso la seconda rata non è più dovuta e il rimborso diventa un credito
+        var esito = json(segr.post("/api/clienti/abbonamenti/" + abb + "/termina", "{\"al\":\"2050-10-15\",\"recesso\":true}"));
+        assertThat(esito).containsEntry("annullato", 225.00);
+        assertThat(json(segr.get("/api/pagamenti/persone/" + persona)).get("totali").toString()).contains("credito=112.5");
 
         // un'offerta già venduta non si elimina; il listino si copia nella stagione nuova con l'aumento
         assertThat(admin.delete("/api/listino/offerte/" + offerta).statusCode()).isEqualTo(409);

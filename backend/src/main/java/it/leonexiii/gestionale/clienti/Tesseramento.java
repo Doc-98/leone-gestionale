@@ -51,6 +51,11 @@ class Tesseramento {
         this.registratoIl = ora;
     }
 
+    /** Dagli addebiti: pagato tutto il «il», o non più (null). */
+    void segnaPagato(LocalDate il) {
+        this.pagatoIl = il;
+    }
+
     void annulla(Instant ora) {
         if (annullatoIl == null) annullatoIl = ora;
     }

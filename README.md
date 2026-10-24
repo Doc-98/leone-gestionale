@@ -230,6 +230,13 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   alunni dell'Istituto 460 €, nuoto libero, carnet) e le regole (riduzione per iscrizione tardiva, rate, recesso).
   Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
   «Cambiare l'importo proposto» e un motivo. «Termina oggi» mostra il rimborso secondo la regola di recesso.
+- **Addebiti e pagamenti** (ADR 0018, parte 5): nella scheda, «Pagamenti» mostra cosa c'è da pagare e entro quando
+  (quota, rate, altri importi), i familiari con qualcosa da pagare e lo storico. «Registra pagamento…»: chi paga (anche
+  il genitore, per più figli insieme), uno o più metodi (parte contanti, parte carta), anche un acconto. Il bonifico
+  resta «da incassare» finché non si segna arrivato. Pagina «Incassi» con i totali per metodo, l'esportazione CSV e i
+  bonifici da incassare; «Impostazioni → Metodi di pagamento». Annullare pagamenti e addebiti richiede il permesso
+  «Annullare pagamenti» (demo: coordinatore) e il motivo. Prova Tommaso Neri (`D0000002`): la seconda rata è scaduta,
+  la paga la mamma. Con «Termina oggi» e il recesso, le rate non pagate si annullano e il rimborso diventa un credito.
 - **Impostazioni** (società e stagioni, listino, promemoria, regole del tornello, mansioni e tariffe, account, ruoli): tutte
   sotto la voce «Impostazioni» in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area
   («← Impostazioni» torna indietro); sul telefono da «Altro».
@@ -466,6 +473,12 @@ la CI su Windows.
 | GET · POST · PUT · DELETE | `/api/listino?stagione=` · `/api/listino/offerte` · `/offerte/{id}` | listino della stagione (modifica: IMPOSTAZIONI) |
 | PUT · POST | `/api/listino/regole/{stagione}/{tipo}` · `/api/listino/copia` `{da, a, aumentoPercentuale}` | regole di prezzo; copia del listino |
 | GET | `/api/clienti/{id}/proposta?offertaId=&volte=&dal=` · `/api/clienti/abbonamenti/{id}/recesso?data=` | importo proposto; rimborso per recesso |
+| POST | `/api/clienti/abbonamenti/{id}/termina` `{al, recesso}` | termina; con il recesso annulla le rate non pagate e accredita il rimborso |
+| GET | `/api/pagamenti/persone/{id}` | conto: addebiti, pagamenti, famiglia, chi può pagare (CLIENTI o PAGAMENTI) |
+| POST | `/api/pagamenti` `{paganteId, addebiti, metodi, importo?, data?, note?}` · `/api/pagamenti/addebiti` | pagamento (anche misto); addebito a mano (PAGAMENTI) |
+| POST | `/api/pagamenti/{id}/annulla` · `/api/pagamenti/addebiti/{id}/annulla` `{motivo}` | annullamenti (PAGAMENTI_ANNULLA) |
+| GET · POST | `/api/pagamenti/incassi?da=&a=` · `/api/pagamenti/da-incassare` · `/api/pagamenti/metodi-usati/{id}/incassa` | incassi e bonifici da incassare (PAGAMENTI) |
+| GET · POST · PUT | `/api/pagamenti/metodi` · `/{id}` | metodi di pagamento (modifica: IMPOSTAZIONI) |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
 | POST · GET | `/api/clienti` · `/{id}` | segreteria: nuovo cliente; scheda (registra la consultazione) |
 | POST | `/api/clienti/{id}/certificati` · `/tesseramenti` · `/abbonamenti` · `/abbonamenti/{id}/termina` · `/{tipo}/{id}/annulla` | segreteria |

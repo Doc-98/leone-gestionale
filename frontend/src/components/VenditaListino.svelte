@@ -8,7 +8,7 @@
   /**
    * Vendita dal listino (ADR 0018): si sceglie l'offerta della stagione e la frequenza; il gestionale propone l'importo
    * (prezzo per frequenza e gruppo, riduzione per iscrizione tardiva, rate). Chi ha il permesso lo può cambiare,
-   * scrivendo il motivo.
+   * scrivendo il motivo. Gli «altri importi» del listino (es. quota agonistica) diventano un addebito da pagare.
    */
   let { cliente, corsi, esegui, chiudi, aMano }: {
     cliente: SchedaCliente; corsi: Corso[]; esegui: (azione: () => Promise<unknown>, fatto: string) => Promise<boolean>;
@@ -38,7 +38,7 @@
     const s = stagione;
     if (!s) return void ((offerte = []), (caricato = stagioni.length > 0));
     api.listino(s.id).then((p) => {
-      offerte = p.offerte.filter((o) => o.attiva && o.tipo !== 'ALTRO');
+      offerte = p.offerte.filter((o) => o.attiva && (o.tipo !== 'ALTRO' || sessione.puo('PAGAMENTI')));
       caricato = true;
       if (!offerte.some((o) => o.id === offertaId)) scegliOfferta(predefinita());
     }).catch((e) => (errore = messaggioErrore(e)));
@@ -47,7 +47,7 @@
   /** L'offerta che comprende il corso che la persona frequenta, altrimenti la prima. */
   function predefinita(): Offerta | undefined {
     const suoi = cliente.turni.map((t) => t.corsoId);
-    return offerte.find((o) => o.corsi.some((c) => suoi.includes(c))) ?? offerte[0];
+    return offerte.find((o) => o.corsi.some((c) => suoi.includes(c))) ?? offerte.find((o) => o.tipo !== 'ALTRO') ?? offerte[0];
   }
 
   const offerta = $derived(offerte.find((o) => o.id === offertaId));
@@ -90,6 +90,13 @@
 
   async function vendi() {
     const o = offerta!;
+    if (o.tipo === 'ALTRO') {
+      const imp = cambiato ? Number(importo) : proposta!.proposto;
+      const ok = await esegui(() => api.nuovoAddebito({ personaId: id, descrizione: o.nome, importo: imp, scadenza: dal, offertaId: o.id,
+        note: cambiato ? `Proposto ${euro(proposta!.proposto)} · ${motivo.trim()}` : null }), `${o.nome}: ${euro(imp)} da pagare.`);
+      if (ok) chiudi();
+      return;
+    }
     const ok = await esegui(() => api.nuovoAbbonamento(id, {
       offertaId: o.id, volteASettimana: o.tipo === 'CORSO' ? volte : null, corsoId: o.tipo === 'CORSO' ? corsoId || null : null,
       dal, al: al || null, importo: cambiato ? Number(importo) : null, motivoImporto: cambiato ? motivo : null,
@@ -106,6 +113,7 @@
         {#if !offerte.length}<option value="">—</option>{/if}
         {#if offerte.some((o) => o.tipo === 'CORSO')}<optgroup label="Abbonamenti ai corsi">{#each offerte.filter((o) => o.tipo === 'CORSO') as o (o.id)}<option value={o.id}>{o.nome}</option>{/each}</optgroup>{/if}
         {#if offerte.some((o) => o.tipo === 'CARNET')}<optgroup label="Carnet">{#each offerte.filter((o) => o.tipo === 'CARNET') as o (o.id)}<option value={o.id}>{o.nome}</option>{/each}</optgroup>{/if}
+        {#if offerte.some((o) => o.tipo === 'ALTRO')}<optgroup label="Altri importi (diventano un addebito)">{#each offerte.filter((o) => o.tipo === 'ALTRO') as o (o.id)}<option value={o.id}>{o.nome}</option>{/each}</optgroup>{/if}
       </select>
     </label>
   </div>
@@ -135,7 +143,7 @@
         <div class="voce"><span>Iscrizione a stagione iniziata (−{proposta.riduzionePercentuale}%)</span><span>−{euro(proposta.riduzione)}</span></div>
       {/if}
       <div class="voce totale"><span>Proposto</span><strong>{euro(proposta.proposto)}</strong></div>
-      {#if proposta.rate.length}
+      {#if proposta.rate.length && offerta?.tipo !== 'ALTRO'}
         <div class="rate small">
           {#each proposta.rate as r (r.numero)}<span>{r.numero === 1 ? 'All\'iscrizione' : r.scadenza ? `Entro il ${dataBreve(r.scadenza)}` : `Rata ${r.numero}`}: {euro(r.importo)}</span>{/each}
         </div>
@@ -145,7 +153,7 @@
       <label class="field"><span class="lbl">Importo (€)</span>
         <input class="inp m" type="number" min="0" step="0.01" bind:value={importo} disabled={!puoCambiare}
                title={puoCambiare ? '' : 'Per cambiarlo serve il permesso «Cambiare l\'importo proposto»'} /></label>
-      <label class="field"><span class="lbl">Fino al</span><input class="inp" type="date" bind:value={al} min={dal} /></label>
+      {#if offerta?.tipo !== 'ALTRO'}<label class="field"><span class="lbl">Fino al</span><input class="inp" type="date" bind:value={al} min={dal} /></label>{/if}
     </div>
     {#if cambiato}
       <label class="field"><span class="lbl">Perché l'importo è diverso</span><input class="inp" bind:value={motivo} placeholder="Es. fratello già iscritto, accordo con la direzione" maxlength="300" /></label>

@@ -31,9 +31,11 @@
   import Societa from './routes/Societa.svelte';
   import Promemoria from './routes/Promemoria.svelte';
   import Account from './routes/Account.svelte';
+  import Incassi from './routes/Incassi.svelte';
+  import MetodiPagamento from './routes/MetodiPagamento.svelte';
   import type { Permesso } from './lib/api';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'impostazioni';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'metodi' | 'incassi' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Clienti' | 'Staff' | 'Accessi' | 'Sistema';
   interface Sezione {
     id: Scheda;
@@ -68,6 +70,8 @@
     promemoria: 'M4 6h16v12H4zM4 7l8 6 8-6',
     societa: 'M4 21V8l8-5 8 5v13M9 21v-6h6v6M4 21h16',
     listino: 'M5 3h10l4 4v14H5zM9 9h6M9 13h6M9 17h3',
+    incassi: 'M3 7h18v12H3zM3 11h18M7 15h3M16 4H6',
+    metodi: 'M3 6h18v12H3zM3 10h18M7 14h4',
     attesa: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
     account: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 11-5.7M17 14v6M14 17h6',
     ruoli: 'M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3ZM9 12l2 2 4-4',
@@ -86,6 +90,7 @@
     { id: 'tornello', nome: 'Tornello', breve: 'Tornello', titolo: 'Tornello', gruppo: 'Accessi', larga: true, icona: I.tornello },
     { id: 'clienti', nome: 'Clienti', breve: 'Clienti', titolo: 'Clienti', gruppo: 'Accessi', permessi: ['CLIENTI', 'BRACCIALETTI'], larga: true, icona: I.clienti },
     { id: 'scadenze', nome: 'Scadenze', breve: 'Scadenze', titolo: 'Scadenze', gruppo: 'Accessi', permessi: ['CLIENTI'], larga: true, icona: I.scadenze },
+    { id: 'incassi', nome: 'Incassi', breve: 'Incassi', titolo: 'Incassi', gruppo: 'Accessi', permessi: ['PAGAMENTI'], larga: true, icona: I.incassi },
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.pianifica },
     { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: I.approva },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: I.modelli },
@@ -94,6 +99,8 @@
       spiega: 'Dati della società, stagioni e quota associativa, gruppi di clienti' },
     { id: 'listino', nome: 'Listino e prezzi', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: I.listino,
       spiega: 'Offerte della stagione, prezzi, riduzioni, rate e recesso' },
+    { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: I.metodi,
+      spiega: 'Contanti, carta, Satispay, bonifico…: quali si usano e quali si segnano incassati a mano' },
     { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['CLIENTI'], larga: true, icona: I.promemoria,
       spiega: 'Quando partono i promemoria delle scadenze e con quale testo' },
     { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: I.regole,
@@ -252,6 +259,8 @@
     {:else if corrente.id === 'attesa'}<ListaAttesa />
     {:else if corrente.id === 'societa'}<Societa />
     {:else if corrente.id === 'listino'}<Listino />
+    {:else if corrente.id === 'metodi'}<MetodiPagamento />
+    {:else if corrente.id === 'incassi'}<Incassi />
     {:else if corrente.id === 'promemoria'}<Promemoria />
     {:else if corrente.id === 'account'}<Account />{/if}
   {/key}

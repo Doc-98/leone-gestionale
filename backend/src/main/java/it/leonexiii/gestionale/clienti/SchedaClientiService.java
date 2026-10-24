@@ -6,6 +6,7 @@ import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.identita.Utente;
 import it.leonexiii.gestionale.listino.Listino;
+import it.leonexiii.gestionale.pagamenti.Pagamenti;
 import it.leonexiii.gestionale.pianovasca.Frequenze;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -74,7 +75,10 @@ class SchedaClientiService {
     record NuovoAbbonamento(String tipo, UUID corsoId, Integer volteASettimana, Integer ingressi, LocalDate dal, LocalDate al, BigDecimal importo, String note,
                             UUID offertaId, String motivoImporto) {}
 
-    record Termine(LocalDate al) {}
+    record Termine(LocalDate al, Boolean recesso) {}
+
+    /** Quanto non è più dovuto (rate annullate) e il rimborso accreditato, se c'è. */
+    record EsitoTermine(BigDecimal annullato, Listino.Rimborso rimborso) {}
 
     private final Persone persone;
     private final Clienti clienti;
@@ -90,11 +94,13 @@ class SchedaClientiService {
     private final it.leonexiii.gestionale.societa.Societa societa;
     private final Listino listino;
     private final Autorizzazioni autorizzazioni;
+    private final Pagamenti pagamenti;
 
     SchedaClientiService(Persone persone, Clienti clienti, Frequenze frequenze, CertificatoRepository certificati, TesseramentoRepository tesseramenti,
                          AbbonamentoRepository abbonamenti, ConsultazioneRepository consultazioni, SospensioneRepository sospensioni,
                          ConsensoRepository consensi, it.leonexiii.gestionale.notifiche.Posta posta, Clock orologio,
-                         it.leonexiii.gestionale.societa.Societa societa, Listino listino, Autorizzazioni autorizzazioni) {
+                         it.leonexiii.gestionale.societa.Societa societa, Listino listino, Autorizzazioni autorizzazioni, Pagamenti pagamenti) {
+        this.pagamenti = pagamenti;
         this.listino = listino;
         this.autorizzazioni = autorizzazioni;
         this.societa = societa;
@@ -218,8 +224,12 @@ class SchedaClientiService {
         LocalDate dal = in.dal() != null ? in.dal() : s.get().dal();
         LocalDate al = in.al() != null ? in.al() : s.get().al();
         BigDecimal importo = in.importo() != null ? in.importo() : s.map(it.leonexiii.gestionale.societa.Societa.Stagione::quota).orElse(null);
-        LocalDate pagato = in.pagatoIl() != null ? in.pagatoIl() : LocalDate.now(orologio);
-        return tesseramenti.saveAndFlush(new Tesseramento(personaId, nome, dal, al, importo, pagato, u.personaId(), orologio.instant())).getId();
+        // con «pagatoIl» è già pagato fuori dal gestionale (es. dati importati); altrimenti la quota diventa un addebito
+        UUID id = tesseramenti.saveAndFlush(new Tesseramento(personaId, nome, dal, al, importo, in.pagatoIl(), u.personaId(), orologio.instant())).getId();
+        if (in.pagatoIl() == null && importo != null && importo.signum() > 0)
+            pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(personaId, "Quota associativa " + nome, importo, max(dal, oggi),
+                Pagamenti.Origine.TESSERAMENTO, id, null, null, null, null)), u.personaId());
+        return id;
     }
 
     @Transactional
@@ -234,7 +244,11 @@ class SchedaClientiService {
         else if (Abbonamento.CORSO.equals(in.tipo())) {
             a = Abbonamento.corso(personaId, in.corsoId(), in.volteASettimana(), dal, in.al(), in.importo(), in.note(), u.personaId(), orologio.instant());
         } else throw new IllegalArgumentException("Scegli il tipo: abbonamento al corso o carnet.");
-        return abbonamenti.saveAndFlush(a).getId();
+        UUID id = abbonamenti.saveAndFlush(a).getId();
+        if (in.importo() != null && in.importo().signum() > 0)
+            pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(personaId, descrizione(a, null), in.importo(), dal, Pagamenti.Origine.ABBONAMENTO, id,
+                null, null, null, null)), u.personaId());
+        return id;
     }
 
     /** L'importo proposto dal listino per questa persona (con i suoi gruppi) e questa data d'inizio. */
@@ -272,7 +286,35 @@ class SchedaClientiService {
             default -> throw new IllegalArgumentException("«" + o.nome() + "» non è un abbonamento né un carnet: si addebita con i pagamenti.");
         };
         a.daListino(o.id(), p.proposto(), importo.compareTo(p.proposto()) != 0 ? motivo : null);
-        return abbonamenti.saveAndFlush(a).getId();
+        UUID id = abbonamenti.saveAndFlush(a).getId();
+        addebitaVendita(u, a, id, o.nome(), importo.compareTo(p.proposto()) == 0 ? p.rate() : listino.rate(o.id(), importo, dal), importo, dal);
+        return id;
+    }
+
+    /** L'addebito della vendita: in un'unica soluzione all'inizio, o diviso nelle rate del listino. */
+    private void addebitaVendita(Utente u, Abbonamento a, UUID id, String offerta, List<Listino.Rata> rate, BigDecimal importo, LocalDate dal) {
+        if (importo.signum() <= 0) return;
+        String descr = descrizione(a, offerta);
+        List<Pagamenti.NuovoAddebito> voci = rate.isEmpty()
+            ? List.of(new Pagamenti.NuovoAddebito(a.getPersonaId(), descr, importo, dal, Pagamenti.Origine.ABBONAMENTO, id, a.getOffertaId(), null, null, null))
+            : rate.stream().map(r -> new Pagamenti.NuovoAddebito(a.getPersonaId(), descr + " · rata " + r.numero() + " di " + rate.size(), r.importo(),
+                r.scadenza() == null ? dal : max(r.scadenza(), dal), Pagamenti.Origine.ABBONAMENTO, id, a.getOffertaId(), r.numero(), rate.size(), null)).toList();
+        pagamenti.addebita(voci, u.personaId());
+    }
+
+    /** Es. «Delfino Giallo · 2 volte a settimana», «Nuoto libero 10 ingressi · carnet da 10 ingressi». */
+    private String descrizione(Abbonamento a, String offerta) {
+        String corso = a.getCorsoId() == null ? null
+            : frequenze.corsi().stream().filter(c -> c.id().equals(a.getCorsoId())).map(c -> c.nome()).findFirst().orElse(null);
+        String cosa = Abbonamento.CARNET.equals(a.getTipo())
+            ? "Carnet da " + a.getIngressi() + " ingressi" + (corso == null ? "" : " · " + corso)
+            : (corso == null ? "Abbonamento" : corso) + " · " + (a.getVolteASettimana() == 7 ? "open" : a.getVolteASettimana() + (a.getVolteASettimana() == 1 ? " volta" : " volte") + " a settimana");
+        String testo = offerta == null || cosa.startsWith(offerta) ? cosa : offerta + " · " + cosa;
+        return testo.length() > 200 ? testo.substring(0, 200) : testo;
+    }
+
+    private static LocalDate max(LocalDate a, LocalDate b) {
+        return a.isAfter(b) ? a : b;
     }
 
     /** Quanto si rimborserebbe recedendo in quella data, secondo la regola della stagione dell'offerta (vuoto se non c'è). */
@@ -280,16 +322,37 @@ class SchedaClientiService {
     Optional<Listino.Rimborso> recesso(UUID abbonamentoId, LocalDate data) {
         Abbonamento a = abbonamenti.findById(abbonamentoId).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
         if (a.getOffertaId() == null) return Optional.empty();
-        return listino.recesso(listino.stagioneDi(a.getOffertaId()), a.getImporto(), data != null ? data : LocalDate.now(orologio));
+        return listino.recesso(listino.stagioneDi(a.getOffertaId()), pagato(a), data != null ? data : LocalDate.now(orologio));
+    }
+
+    /** Quanto è stato pagato: dai pagamenti; per gli abbonamenti di prima dei pagamenti (senza addebiti) l'importo scritto. */
+    private BigDecimal pagato(Abbonamento a) {
+        if (!pagamenti.haAddebiti(Pagamenti.Origine.ABBONAMENTO, a.getId())) return a.getImporto() == null ? BigDecimal.ZERO : a.getImporto();
+        return pagamenti.pagatoPer(Pagamenti.Origine.ABBONAMENTO, a.getId());
     }
 
     private Set<UUID> gruppiDi(UUID personaId) {
         return clienti.gruppiDi(personaId).stream().map(Clienti.GruppoDi::gruppoId).collect(Collectors.toSet());
     }
 
+    /**
+     * Termina l'abbonamento; con il recesso le rate non ancora pagate non sono più dovute e il rimborso secondo la regola
+     * della stagione diventa un credito della persona (andrà nel borsellino).
+     */
     @Transactional
-    void terminaAbbonamento(UUID id, Termine in) {
-        abbonamenti.findById(id).orElseThrow(() -> new NonTrovato("Abbonamento non trovato.")).termina(in.al() != null ? in.al() : LocalDate.now(orologio));
+    EsitoTermine terminaAbbonamento(Utente u, UUID id, Termine in) {
+        Abbonamento a = abbonamenti.findById(id).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
+        LocalDate al = in.al() != null ? in.al() : LocalDate.now(orologio);
+        a.termina(al);
+        if (!Boolean.TRUE.equals(in.recesso())) return new EsitoTermine(BigDecimal.ZERO, null);
+        BigDecimal pagato = pagato(a);
+        BigDecimal annullato = pagamenti.chiudi(Pagamenti.Origine.ABBONAMENTO, id, "Recesso dal " + al.plusDays(1), u.personaId());
+        Listino.Rimborso r = a.getOffertaId() == null ? null : listino.recesso(listino.stagioneDi(a.getOffertaId()), pagato, al).orElse(null);
+        if (r != null && r.importo().signum() > 0)
+            pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(a.getPersonaId(), "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)",
+                r.importo().negate(), al, Pagamenti.Origine.RIMBORSO, id, a.getOffertaId(), null, null,
+                r.nelBorsellino() ? "Va nel borsellino" : "Da restituire")), u.personaId());
+        return new EsitoTermine(annullato, r);
     }
 
     /** Sospende l'abbonamento (es. infortunio): non vale in quei giorni e la scadenza si allunga di altrettanti. */
@@ -312,12 +375,20 @@ class SchedaClientiService {
 
     /** Per gli errori di inserimento: la riga resta nello storico ma non conta più. */
     @Transactional
-    void annulla(String cosa, UUID id) {
+    void annulla(Utente u, String cosa, UUID id) {
         Instant ora = orologio.instant();
         switch (cosa) {
             case "certificati" -> certificati.findById(id).orElseThrow(() -> new NonTrovato("Certificato non trovato.")).annulla(ora);
-            case "tesseramenti" -> tesseramenti.findById(id).orElseThrow(() -> new NonTrovato("Tesseramento non trovato.")).annulla(ora);
-            case "abbonamenti" -> abbonamenti.findById(id).orElseThrow(() -> new NonTrovato("Abbonamento non trovato.")).annulla(ora);
+            case "tesseramenti" -> {
+                var t = tesseramenti.findById(id).orElseThrow(() -> new NonTrovato("Tesseramento non trovato."));
+                pagamenti.annullaDi(Pagamenti.Origine.TESSERAMENTO, id, "Tesseramento annullato", u.personaId());
+                t.annulla(ora);
+            }
+            case "abbonamenti" -> {
+                var a = abbonamenti.findById(id).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
+                pagamenti.annullaDi(Pagamenti.Origine.ABBONAMENTO, id, "Abbonamento annullato", u.personaId());
+                a.annulla(ora);
+            }
             default -> throw new NonTrovato("Non trovato.");
         }
     }

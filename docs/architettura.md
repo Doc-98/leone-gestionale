@@ -217,7 +217,11 @@ erDiagram
   `offerta_prezzo` (anche per gruppo), `regola_prezzo` (riduzione tardiva, rate, recesso, sospensione); l'abbonamento
   ricorda offerta, importo proposto e motivo se cambiato.
 - `promemoria` (regole e testi) e `invio_promemoria` (cosa è stato mandato a chi); `email_inviata` (modulo notifiche).
-- `pagamento`: da fare (quote, ricevute).
+- Modulo `pagamenti` (ADR 0018, parte 5): `addebito` (cosa una persona deve e entro quando: quota, rate di un
+  abbonamento, altri importi; negativo = credito, es. rimborso per recesso), `pagamento` (chi paga, anche un genitore
+  per più figli) con `pagamento_metodo` (anche più metodi insieme; «da incassare» finché il bonifico non arriva) e
+  `pagamento_addebito` (quanto di ogni addebito), `metodo_pagamento` (elenco modificabile). Il tesseramento sa di
+  essere pagato dall'evento `Pagamenti.Saldato`. Ricevute e cassa: parti 10–11.
 
 **Accessi** (ADR 0009)
 - `braccialetto`: codice normalizzato → persona; attivo, smarrito o disattivato; più di uno per persona.

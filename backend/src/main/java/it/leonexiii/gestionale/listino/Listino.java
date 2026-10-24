@@ -103,6 +103,13 @@ public class Listino {
             riduzione, proposto, rate, al);
     }
 
+    /** Le rate di un importo diverso da quello proposto (es. scontato), con la regola della stagione dell'offerta. */
+    @Transactional(readOnly = true)
+    public List<Rata> rate(UUID offertaId, BigDecimal totale, LocalDate dal) {
+        Offerta o = trova(offertaId);
+        return regola(o.getStagioneId(), "RATE").map(r -> rate(r, totale, dal)).orElse(List.of());
+    }
+
     /** Quanto si rimborsa recedendo in quella data (null se la regola di recesso della stagione è spenta). */
     @Transactional(readOnly = true)
     public Optional<Rimborso> recesso(UUID stagioneId, BigDecimal pagato, LocalDate data) {

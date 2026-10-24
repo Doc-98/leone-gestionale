@@ -10,7 +10,7 @@ export type Ruolo = string;
 export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
   | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
-  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI'
+  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI' | 'PAGAMENTI' | 'PAGAMENTI_ANNULLA'
   | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT' | 'IMPOSTAZIONI';
 
 export interface Me {
@@ -755,7 +755,22 @@ export const api = {
   nuovoTesseramento: (personaId: string, t: { stagione?: string; dal?: string; al?: string; importo?: number | null; pagatoIl?: string | null }) =>
     richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/tesseramenti`, t),
   nuovoAbbonamento: (personaId: string, a: AbbonamentoInput) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/abbonamenti`, a),
-  terminaAbbonamento: (id: string, al: string) => richiesta<void>('POST', `/api/clienti/abbonamenti/${id}/termina`, { al }),
+  terminaAbbonamento: (id: string, al: string, recesso = false) =>
+    richiesta<EsitoTermine>('POST', `/api/clienti/abbonamenti/${id}/termina`, { al, recesso }),
+
+  // ── Pagamenti (ADR 0018, parte 5) ──
+  conto: (personaId: string) => richiesta<Conto>('GET', `/api/pagamenti/persone/${personaId}`),
+  registraPagamento: (p: NuovoPagamento) => richiesta<{ id: string }>('POST', '/api/pagamenti', p),
+  annullaPagamento: (id: string, motivo: string) => richiesta<void>('POST', `/api/pagamenti/${id}/annulla`, { motivo }),
+  nuovoAddebito: (a: { personaId: string; descrizione: string; importo: number; scadenza?: string | null; offertaId?: string | null; note?: string | null }) =>
+    richiesta<{ id: string }>('POST', '/api/pagamenti/addebiti', a),
+  annullaAddebito: (id: string, motivo: string) => richiesta<void>('POST', `/api/pagamenti/addebiti/${id}/annulla`, { motivo }),
+  incassa: (metodoUsatoId: string, il?: string) => richiesta<void>('POST', `/api/pagamenti/metodi-usati/${metodoUsatoId}/incassa`, { il: il ?? null }),
+  incassi: (da: string, a: string) => richiesta<Incassi>('GET', `/api/pagamenti/incassi?da=${da}&a=${a}`),
+  daIncassare: () => richiesta<DaIncassare[]>('GET', '/api/pagamenti/da-incassare'),
+  metodiPagamento: () => richiesta<MetodoPagamento[]>('GET', '/api/pagamenti/metodi'),
+  creaMetodoPagamento: (m: NuovoMetodoPagamento) => richiesta<MetodoPagamento>('POST', '/api/pagamenti/metodi', m),
+  modificaMetodoPagamento: (id: string, m: NuovoMetodoPagamento) => richiesta<MetodoPagamento>('PUT', `/api/pagamenti/metodi/${id}`, m),
   annullaVoce: (cosa: 'certificati' | 'tesseramenti' | 'abbonamenti', id: string) => richiesta<void>('POST', `/api/clienti/${cosa}/${id}/annulla`, {}),
   generaMese: (modelloId: string, mese: string) => richiesta<EsitoGenerazione>('POST', `/api/modelli/${modelloId}/genera`, { mese }),
   creaRichiesta: (r: NuovaRichiesta) => richiesta<Richiesta>('POST', '/api/richieste', r),
@@ -1194,3 +1209,117 @@ export const STATI_RICHIESTA: Record<StatoRichiesta, string> = {
   RESPINTA: 'Respinta',
   ANNULLATA: 'Annullata',
 };
+
+// ── Pagamenti ──
+
+export interface EsitoTermine {
+  annullato: number;
+  rimborso: Rimborso | null;
+}
+
+export type StatoAddebito = 'DA_PAGARE' | 'SCADUTO' | 'PAGATO' | 'ANNULLATO' | 'CREDITO';
+
+export interface Addebito {
+  id: string;
+  personaId: string;
+  persona: string | null;
+  descrizione: string;
+  importo: number;
+  pagato: number;
+  residuo: number;
+  scadenza: string;
+  stato: StatoAddebito;
+  origine: 'ABBONAMENTO' | 'TESSERAMENTO' | 'ALTRO' | 'RIMBORSO';
+  riferimentoId: string | null;
+  rata: number | null;
+  rate: number | null;
+  note: string | null;
+  annullatoIl: string | null;
+  motivoAnnullamento: string | null;
+  pagamenti: { pagamentoId: string; data: string; importo: number }[];
+}
+
+export interface MetodoUsato {
+  id: string;
+  metodoId: string;
+  metodo: string;
+  importo: number;
+  daIncassare: boolean;
+  incassatoIl: string | null;
+  riferimento: string | null;
+}
+
+export interface PagamentoRegistrato {
+  id: string;
+  data: string;
+  importo: number;
+  paganteId: string;
+  pagante: string | null;
+  metodi: MetodoUsato[];
+  voci: { addebitoId: string; descrizione: string; personaId: string | null; persona: string | null; importo: number }[];
+  note: string | null;
+  registratoDa: string | null;
+  registratoIl: string;
+  annullatoIl: string | null;
+  motivoAnnullamento: string | null;
+}
+
+export interface TotaliConto {
+  daPagare: number;
+  scaduto: number;
+  credito: number;
+  daIncassare: number;
+}
+
+export interface Conto {
+  personaId: string;
+  totali: TotaliConto;
+  addebiti: Addebito[];
+  pagamenti: PagamentoRegistrato[];
+  famiglia: { personaId: string; nome: string; relazione: string | null; totali: TotaliConto; aperti: Addebito[] }[];
+  paganti: { personaId: string; nome: string; relazione: string | null }[];
+}
+
+export interface NuovoPagamento {
+  paganteId: string;
+  data?: string | null;
+  importo?: number | null;
+  addebiti: string[];
+  metodi: { metodoId: string; importo: number; riferimento?: string | null }[];
+  note?: string | null;
+}
+
+export interface MetodoPagamento {
+  id: string;
+  nome: string;
+  daIncassare: boolean;
+  attivo: boolean;
+  ordine: number;
+}
+
+export interface NuovoMetodoPagamento {
+  nome: string;
+  daIncassare?: boolean;
+  attivo?: boolean;
+  ordine?: number;
+}
+
+export interface Incassi {
+  da: string;
+  a: string;
+  totale: number;
+  perMetodo: { metodoId: string; metodo: string; importo: number; daIncassare: number }[];
+  pagamenti: PagamentoRegistrato[];
+}
+
+export interface DaIncassare {
+  id: string;
+  pagamentoId: string;
+  data: string;
+  paganteId: string;
+  pagante: string | null;
+  metodo: string;
+  importo: number;
+  riferimento: string | null;
+  per: string[];
+}

@@ -116,10 +116,10 @@ class ClientiController {
             .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
     }
 
+    /** {"al", "recesso"}: con il recesso le rate non pagate si annullano e il rimborso della regola diventa un credito. */
     @PostMapping("/abbonamenti/{id}/termina")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    void termina(@PathVariable UUID id, @RequestBody SchedaClientiService.Termine in) {
-        schede.terminaAbbonamento(id, in);
+    SchedaClientiService.EsitoTermine termina(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody SchedaClientiService.Termine in) {
+        return schede.terminaAbbonamento(u, id, in);
     }
 
     /** {"dal", "al", "motivo"}: l'abbonamento non vale in quei giorni e la scadenza si allunga. */
@@ -138,7 +138,7 @@ class ClientiController {
     /** cosa: certificati, tesseramenti, abbonamenti */
     @PostMapping("/{cosa}/{id}/annulla")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void annulla(@PathVariable String cosa, @PathVariable UUID id) {
-        schede.annulla(cosa, id);
+    void annulla(@AuthenticationPrincipal Utente u, @PathVariable String cosa, @PathVariable UUID id) {
+        schede.annulla(u, cosa, id);
     }
 }

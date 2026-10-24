@@ -2,7 +2,7 @@
 
 **Stato.** Accettata il 23/10/2026, si costruisce un pezzo alla volta. Fatte: parti 1 (impostazioni della società e
 stagioni), 2 (gruppi di clienti), 3–4 (listino e regole, con l'importo proposto alla vendita e il rimborso calcolato
-al recesso; rate, recesso e sospensione si registreranno davvero con i pagamenti).
+al recesso), 5 (addebiti e pagamenti, 24/10/2026: vedi «Come è fatta la parte 5» in fondo).
 
 **Contesto.** Il gestionale deve servire a una società sportiva qualsiasi (vedi «Principi» in `docs/architettura.md`):
 listino, sconti, rate, rimborsi e regole cambiano da una società all'altra e da una stagione all'altra. Le regole della
@@ -56,6 +56,25 @@ un'opzione con i suoi tempi, o un permesso.
 **Ordine proposto.** 1–2 (impostazioni e gruppi) → 3–4 (listino e regole, con l'importo proposto all'iscrizione) →
 5 (addebiti e pagamenti) → 7–9 (borsellino, braccialetto, servizi, con un simulatore della macchina) → 6 (chi non
 paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
+
+**Come è fatta la parte 5.**
+- Modulo `pagamenti`. La vendita di un abbonamento (dal listino: nelle rate della regola, anche con l'importo
+  scontato), il tesseramento (la quota della stagione) e le offerte «altro importo» creano gli addebiti. Gli addebiti
+  si possono anche scrivere a mano (es. cuffia).
+- Un pagamento salda uno o più addebiti, anche di più familiari (genitori e fratelli dalla scheda), nell'ordine scelto
+  (di base prima quelli che scadono prima); può essere un acconto, ma non più di quanto si deve. I metodi possono
+  essere più d'uno insieme. Quelli «da incassare» (bonifico) restano nell'elenco «Da incassare» finché qualcuno non li
+  segna arrivati.
+- Permessi: «Pagamenti» (registrare pagamenti e addebiti, incassi; segreteria e coordinatori) e «Annullare pagamenti»
+  (coordinatori), sempre con il motivo. Un addebito pagato non si annulla: prima si annulla il pagamento. I metodi di
+  pagamento sono un'impostazione della società.
+- Il tesseramento ricorda la data in cui la quota è stata pagata tutta (evento `Pagamenti.Saldato`, ascoltato dal modulo
+  clienti); con «pagatoIl» indicato a mano (es. dati importati) non si crea l'addebito.
+- Recesso («Termina oggi» con «Recesso»): gli addebiti non pagati si annullano, quelli pagati in parte scendono al
+  pagato; il rimborso secondo la regola si calcola su quanto è stato pagato davvero e, finché non c'è il borsellino
+  (parte 7), si registra come credito (addebito negativo, origine RIMBORSO).
+- Pagina «Incassi»: pagamenti di un giorno o periodo con i totali per metodo, esportazione CSV, pagamenti da incassare.
+  La chiusura di cassa vera (fondo cassa, contati) è la parte 11.
 
 **Conseguenze.** Molte tabelle nuove e un modulo `pagamenti`; gli abbonamenti attuali (ADR 0009) diventano righe del
 listino vendute a una persona. Le parti 10–11 dipendono da risposte ancora aperte (formato delle ricevute, fattura

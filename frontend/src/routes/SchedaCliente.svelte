@@ -9,6 +9,7 @@
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
   import ConsensiCliente from '../components/ConsensiCliente.svelte';
+  import ContoCliente from '../components/ContoCliente.svelte';
   import EsitoTornello from '../components/EsitoTornello.svelte';
   import FamigliaCliente from '../components/FamigliaCliente.svelte';
   import TurniCliente from '../components/TurniCliente.svelte';
@@ -31,6 +32,8 @@
   let errore = $state('');
   let messaggio = $state('');
   let conferma = $state('');
+  /** Cresce a ogni registrazione: il conto dei pagamenti si ricarica (un abbonamento venduto crea i suoi addebiti). */
+  let versione = $state(0);
 
   const daiGolden = $derived(sessione.puo('GOLDEN_PASS'));
 
@@ -62,6 +65,7 @@
     try {
       await azione();
       await carica();
+      versione++;
       messaggio = fatto;
       return true;
     } catch (e) {
@@ -159,18 +163,27 @@
   // vendita dal listino (di base) o a mano
   let vendita = $state(false);
   let rimborsi = $state<Record<string, string>>({});
+  /** Con il recesso (di base sì): le rate non pagate non sono più dovute e il rimborso diventa un credito. */
+  let recesso = $state(true);
   /** Al primo clic su «Termina oggi»: quanto si rimborserebbe secondo la regola di recesso della stagione. */
   async function terminaOggi(a: Abbonamento) {
     if (!confermato('fin' + a.id)) {
+      recesso = true;
       try {
         const r = await api.recesso(a.id, oggi);
-        rimborsi[a.id] = r ? `Recesso oggi: rimborso del ${r.percentuale}% di ${euro(r.base)} = ${euro(r.importo)}${r.nelBorsellino ? ', nel borsellino' : ''} (da registrare con i pagamenti).` : '';
+        rimborsi[a.id] = r ? `Rimborso del ${r.percentuale}% di ${euro(r.base)} pagati = ${euro(r.importo)}${r.nelBorsellino ? ', come credito nel borsellino' : ''}.` : '';
       } catch {
         rimborsi[a.id] = '';
       }
       return;
     }
-    esegui(() => api.terminaAbbonamento(a.id, oggi), 'Abbonamento terminato oggi.');
+    const conRecesso = recesso;
+    let esito: Awaited<ReturnType<typeof api.terminaAbbonamento>> | undefined;
+    await esegui(async () => (esito = await api.terminaAbbonamento(a.id, oggi, conRecesso)), 'Abbonamento terminato oggi.');
+    if (esito && conRecesso) {
+      const parti = [esito.annullato > 0 ? `${euro(esito.annullato)} di rate non più dovute` : '', esito.rimborso && esito.rimborso.importo > 0 ? `${euro(esito.rimborso.importo)} di credito` : ''].filter(Boolean);
+      if (parti.length) messaggio = `Abbonamento terminato oggi con il recesso: ${parti.join(' e ')}.`;
+    }
   }
 
   function nuovoAbbonamento() {
@@ -491,6 +504,7 @@
         {#each cliente.tesseramenti as t (t.id)}
           <li class="voce-l">
             <span class="grow"><strong>{t.stagione}</strong> · {dataBreve(t.dal)} – {dataBreve(t.al)}{t.importo != null ? ` · ${t.importo} €` : ''}</span>
+            {#if t.importo}<span class="tag {t.pagatoIl ? 't-soft' : 't-warn'}">{t.pagatoIl ? `Quota pagata il ${dataBreve(t.pagatoIl)}` : 'Quota da pagare'}</span>{/if}
             <span class="tag {t.valido ? 't-soft' : 't-altro'}">{t.valido ? 'Valido' : t.dal > oggi ? 'Non iniziato' : 'Scaduto'}</span>
             <button class="link small muted" onclick={() => confermato('tes' + t.id) && esegui(() => api.annullaVoce('tesseramenti', t.id), 'Tesseramento annullato.')}>{conferma === 'tes' + t.id ? 'Conferma' : 'Annulla'}</button>
           </li>
@@ -503,7 +517,7 @@
           <button class="btn btn-secondary" onclick={() => esegui(() => api.nuovoTesseramento(id, { stagione: s.stagione }), `Tesseramento ${s.stagione} registrato.`)}>
             Registra il tesseramento {s.stagione}{s.importo != null ? ` · ${s.importo} €` : ''}
           </button>
-          <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}, pagato oggi.</p>
+          <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.importo ? '; la quota va tra i pagamenti, qui sotto' : ''}.</p>
         </div>
       {/each}
       {#if !cliente.stagioniTesseramento.length}
@@ -523,7 +537,10 @@
               {:else}<strong>Carnet {a.ingressi} ingressi</strong> · {a.corso ? `negli orari di ${a.corso}` : 'entrata libera'} · {a.residui} rimasti{a.ultimoIngresso ? `, ultimo il ${dataBreve(dataDi(a.ultimoIngresso))}` : ''}{/if}
               <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.alEffettivo ?? a.al)}` : ''}{a.alEffettivo && a.al && a.alEffettivo !== a.al ? ` (allungato per le sospensioni)` : ''}{a.importo != null ? ` · ${euro(a.importo)}` : ''}</span>
               {#if a.motivoImporto}<span class="small muted riga-info">Proposto {euro(a.importoListino)} · {a.motivoImporto}</span>{/if}
-              {#if conferma === 'fin' + a.id && rimborsi[a.id]}<span class="small riga-info rimborso">{rimborsi[a.id]}</span>{/if}
+              {#if conferma === 'fin' + a.id}
+                <label class="small riga-info recesso"><input type="checkbox" bind:checked={recesso} />
+                  Recesso: le rate non ancora pagate non sono più dovute{rimborsi[a.id] ? ` · ${rimborsi[a.id]}` : ''}</label>
+              {/if}
               {#each a.sospensioni as s (s.id)}
                 <span class="sosp small">Sospeso dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.motivo ? ` · ${s.motivo}` : ''}
                   <button class="link small muted" onclick={() => confermato('sos' + s.id) && esegui(() => api.annullaSospensione(s.id), 'Sospensione annullata.')}>{conferma === 'sos' + s.id ? 'Conferma' : 'Annulla'}</button></span>
@@ -605,6 +622,8 @@
 
     </section>
 
+    <div class="largo-g"><ContoCliente personaId={id} {versione} cambiato={carica} /></div>
+
     <div class="largo-g"><TurniCliente {cliente} {corsi} {esegui} /></div>
 
     <!-- Passaggi -->
@@ -670,7 +689,7 @@
   .sx { align-self: flex-start; }
   .tess { display: flex; flex-direction: column; gap: var(--space-4); }
   .riga-info { display: block; margin-top: 2px; }
-  .rimborso { color: var(--cloro-ink); font-weight: 600; }
+  .recesso { display: flex; align-items: center; gap: var(--space-6); color: var(--cloro-ink); font-weight: 600; }
   .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
   .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
   .togli { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
