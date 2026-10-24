@@ -80,6 +80,20 @@ le docce hanno lettori simili e la prima doccia della giornata è gratuita. Il b
 serie: probabilmente le macchine sono in rete e leggono e scalano i crediti dal gestionale sul server (da verificare
 con il tecnico: marca, modello e come parlano con il gestionale attuale).
 
+**Macchine e lettori (dalle foto del 24/10/2026)**:
+- *Tornello*: tripode SAIMA con due lettori RFID «TeamSystem Wellness» (uno per verso, LED verde/rosso), collegati al
+  gestionale attuale (TeamSystem Wellness). Il cartello dice che il braccialetto non serve solo per il phon. Per
+  sostituire il gestionale servirebbero lettori nostri e un comando di apertura verso il tornello (i tripodi di solito
+  si aprono con un contatto/impulso: da verificare sul modello SAIMA).
+- *Phon*: centralina «Romano Control Systems S.r.l.» (romanoattrezzature.it) in una cassetta a muro: lettore di card
+  RFID con display («Avvicinare card»), display a due cifre con il numero del phon e tre pulsanti (indietro, avanti,
+  conferma) per sceglierlo, due gettoniere da 20 centesimi. I phon (numerati 3, 4, 5…) sono alimentati dalla
+  centralina, che accende la presa del phon scelto.
+- *Docce*: un piccolo lettore per doccia, della stessa marca (foto da fare).
+- Da capire: se il credito sta **sul braccialetto** (chip scritto dalla centralina e da un ricaricatore in
+  segreteria) o **su un server** (centralina in rete con un programma Romano o con TeamSystem). Cambia tutto per
+  l'integrazione (vedi ADR 0018, punto 9).
+
 **Ricevute** (segreteria): il POS stampa la sua ricevuta; le ricevute della società le fa il gestionale e le stampa su
 una stampante A4 collegata al PC. Sono numerate e la numerazione riparte a ogni stagione. Si può chiedere la fattura.
 Le famiglie chiedono ricevute per rimborsi, welfare e detrazioni fiscali.
