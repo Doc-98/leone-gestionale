@@ -235,7 +235,9 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   il genitore, per più figli insieme), uno o più metodi (parte contanti, parte carta), anche un acconto. Il bonifico
   resta «da incassare» finché non si segna arrivato. Pagina «Incassi» con i totali per metodo, l'esportazione CSV e i
   bonifici da incassare; «Impostazioni → Metodi di pagamento». Annullare pagamenti e addebiti richiede il permesso
-  «Annullare pagamenti» (demo: coordinatore) e il motivo. Prova Tommaso Neri (`D0000002`): la seconda rata è scaduta,
+  «Annullare pagamenti» (demo: coordinatore) e il motivo; acconti e pagamenti divisi tra più metodi il permesso «Acconti
+  e pagamenti misti». Per due fratelli insieme: un pagamento unico, uno per ciascuno o a scelta, secondo «Impostazioni →
+  Società e stagioni». Prova Tommaso Neri (`D0000002`): la seconda rata è scaduta,
   la paga la mamma. Con «Termina oggi» e il recesso, le rate non pagate si annullano e il rimborso diventa un credito.
 - **Impostazioni** (società e stagioni, listino, promemoria, regole del tornello, mansioni e tariffe, account, ruoli): tutte
   sotto la voce «Impostazioni» in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area

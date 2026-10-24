@@ -47,8 +47,10 @@ un'opzione con i suoi tempi, o un permesso.
     impostabile; PDF A4 da stampare o mandare per email; intestate a chi paga (spesso il genitore) con il beneficiario
     e i codici fiscali, come servono per detrazioni e welfare. La fattura: dati del cliente e numerazione propria;
     l'invio allo SdI (fattura elettronica) è da decidere con chi la emette oggi.
-11. **Cassa**: apertura con fondo cassa, chiusura a fine giornata con totali per metodo, contanti attesi e contati,
-    differenza; elenco degli incassi esportabile per l'amministrazione.
+11. **Cassa**: apertura con fondo cassa, chiusura (alla Leone la fa chi è in segreteria, a fine turno) con totali per
+    metodo, contanti attesi e contati, differenza; elenco degli incassi esportabile per l'amministrazione. Da
+    impostare: una cassa unica o una per postazione (la Leone ha due postazioni), fondo cassa fisso o scritto a ogni
+    apertura, chiusura per turno o per giornata.
 12. **Precedenza nei rinnovi**: periodo di prelazione per la stagione nuova; le richieste di iscrizione vanno in coda
     in ordine di arrivo, prima chi era iscritto nella stagione precedente e i gruppi con precedenza (es. alunni), poi
     gli altri. Riusa la lista d'attesa (ADR 0015).
@@ -65,9 +67,13 @@ paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
   (di base prima quelli che scadono prima); può essere un acconto, ma non più di quanto si deve. I metodi possono
   essere più d'uno insieme. Quelli «da incassare» (bonifico) restano nell'elenco «Da incassare» finché qualcuno non li
   segna arrivati.
-- Permessi: «Pagamenti» (registrare pagamenti e addebiti, incassi; segreteria e coordinatori) e «Annullare pagamenti»
-  (coordinatori), sempre con il motivo. Un addebito pagato non si annulla: prima si annulla il pagamento. I metodi di
-  pagamento sono un'impostazione della società.
+- Permessi: «Pagamenti» (registrare pagamenti e addebiti, incassi; segreteria e coordinatori), «Acconti e pagamenti
+  misti» (pagare solo una parte, dividere tra più metodi; senza, si paga per intero con un metodo solo; di partenza a
+  segreteria e coordinatori) e «Annullare pagamenti» (coordinatori), sempre con il motivo. Un addebito pagato non si
+  annulla: prima si annulla il pagamento. I metodi di pagamento sono un'impostazione della società.
+- Più familiari insieme (es. due fratelli): impostazione della società «pagamenti di famiglia»: sempre un pagamento
+  unico, sempre uno per persona (i metodi si consumano in ordine, il primo copre il primo pagamento), oppure si sceglie
+  ogni volta (di partenza). Così le ricevute (parte 10) potranno essere una per famiglia o una per figlio.
 - Il tesseramento ricorda la data in cui la quota è stata pagata tutta (evento `Pagamenti.Saldato`, ascoltato dal modulo
   clienti); con «pagatoIl» indicato a mano (es. dati importati) non si crea l'addebito.
 - Recesso («Termina oggi» con «Recesso»): gli addebiti non pagati si annullano, quelli pagati in parte scendono al

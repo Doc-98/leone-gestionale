@@ -30,7 +30,10 @@ class GestioneErrori {
 
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail vietato(AccessDeniedException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Non hai i permessi per questa operazione.");
+        // i messaggi scritti nel codice (es. quale permesso serve) si mostrano; quello generico di Spring no
+        String m = e.getMessage();
+        boolean nostro = m != null && !m.isBlank() && !m.startsWith("Access Denied") && !m.startsWith("Access is denied");
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, nostro ? m : "Non hai i permessi per questa operazione.");
     }
 
     /** Ultima difesa: i vincoli del database (es. due turni sovrapposti salvati nello stesso istante). */

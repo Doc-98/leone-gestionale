@@ -1,5 +1,7 @@
 package it.leonexiii.gestionale.pagamenti;
 
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.time.LocalDate;
 import java.util.List;
@@ -27,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 class PagamentiController {
 
     private final Pagamenti pagamenti;
+    private final Autorizzazioni autorizzazioni;
 
-    PagamentiController(Pagamenti pagamenti) {
+    PagamentiController(Pagamenti pagamenti, Autorizzazioni autorizzazioni) {
         this.pagamenti = pagamenti;
+        this.autorizzazioni = autorizzazioni;
     }
 
     @GetMapping("/persone/{id}")
@@ -41,8 +45,9 @@ class PagamentiController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI')")
-    Map<String, UUID> registra(@AuthenticationPrincipal Utente u, @RequestBody Pagamenti.NuovoPagamento in) {
-        return Map.of("id", pagamenti.registra(in, u.personaId()));
+    Map<String, Object> registra(@AuthenticationPrincipal Utente u, @RequestBody Pagamenti.NuovoPagamento in) {
+        List<UUID> ids = pagamenti.registra(in, u.personaId(), autorizzazioni.puo(u, Permesso.PAGAMENTI_FLESSIBILI));
+        return Map.of("id", ids.getFirst(), "ids", ids);
     }
 
     @PostMapping("/{id}/annulla")

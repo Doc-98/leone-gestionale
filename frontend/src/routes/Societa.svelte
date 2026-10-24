@@ -124,6 +124,13 @@
       <label class="field"><span class="lbl">Tesseramento della stagione nuova: proponilo da</span>
         <span class="riga"><input class="inp m num" type="number" min="0" max="365" bind:value={dati.giorniAnticipo} /> <span>giorni prima del suo inizio</span></span>
       </label>
+      <label class="field"><span class="lbl">Una famiglia paga per più persone insieme (es. due fratelli)</span>
+        <select class="inp" bind:value={dati.pagamentiFamiglia}>
+          <option value="A_SCELTA">Si sceglie ogni volta: un pagamento unico o uno per persona</option>
+          <option value="INSIEME">Sempre un pagamento unico per la famiglia</option>
+          <option value="PER_PERSONA">Sempre un pagamento per ogni persona</option>
+        </select>
+      </label>
       <div class="row"><button class="btn btn-primary">Salva</button></div>
     </form>
 

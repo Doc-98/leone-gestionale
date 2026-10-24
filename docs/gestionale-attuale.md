@@ -90,17 +90,21 @@ gestionale.
 **Precedenza nei rinnovi**: gli alunni dell'Istituto e chi frequentava nella stagione precedente hanno la precedenza
 sui nuovi; le richieste si mettono in coda in ordine di arrivo.
 
+**Risposte del 24/10/2026**: acconti e pagamenti divisi tra più metodi si prevedono comunque, con un permesso da
+dare ai ruoli; per i fratelli entrambe le soluzioni, con un'impostazione (vedi ADR 0018). I crediti per phon e docce
+si ricaricano solo in segreteria; il phon accetta anche monete. La chiusura di cassa la fa chi è in segreteria a fine
+turno; le postazioni sono due (non è chiaro se con una cassa ciascuna); il fondo cassa dovrebbe essere sempre lo
+stesso, ma va reso impostabile. L'importazione da TeamSystem si affronterà solo se la società adotterà il gestionale.
+
 ## Domande ancora aperte (aggiornate al 24/10/2026)
 
-Pagamenti (per confermare la parte 5, già costruita in modo flessibile):
-- Pagamenti misti (parte contanti, parte carta) e acconti che non corrispondono a una rata: si fanno?
-- Fratelli: un pagamento e una ricevuta unici per la famiglia, o uno per figlio?
+Pagamenti:
 - Bonifici: chi controlla l'estratto conto e ogni quanto; serve segnare il riferimento (CRO)?
 
 Borsellino, braccialetto, phon e docce:
 - Il credito per recesso vale un anno: da quando? Si può restituire in denaro?
-- I crediti per phon e docce si ricaricano solo in segreteria o anche alle macchine?
-- Phon e docce: marca, modello, tecnico, collegamento con il gestionale attuale.
+- Phon e docce: marca e modello (dalla foto della targhetta), come leggono il braccialetto e come parlano con il
+  gestionale attuale (rete, server, programma), se si possono collegare a un altro server, documentazione.
 
 Ricevute e fatture:
 - Una ricevuta di esempio (dati oscurati): intestazione, dicitura per le detrazioni, codici fiscali di genitore e figlio.
@@ -109,9 +113,8 @@ Ricevute e fatture:
 - Chi emette oggi le fatture (gestionale, commercialista) e se elettroniche (SdI).
 
 Cassa:
-- Chi fa la chiusura; una cassa o più postazioni; fondo cassa fisso?
+- Le due postazioni hanno una cassa ciascuna?
 - Cosa serve all'amministrazione dalla chiusura (stampa, file, solo totali per metodo).
 
-Rinnovi e importazione:
+Rinnovi:
 - Date del periodo di prelazione; preiscrizione online e Satispay «entro 7 giorni».
-- Come esportare i dati da TeamSystem per l'importazione.

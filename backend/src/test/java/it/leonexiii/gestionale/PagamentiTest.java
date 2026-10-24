@@ -133,6 +133,58 @@ class PagamentiTest {
     }
 
     @Test
+    void famigliaInsiemeOPerPersonaEPagamentiSemplici() throws Exception {
+        var admin = come("admin@demo.leone");
+        var segr = come("segreteria@demo.leone");
+        String papa = crea(segr, "/api/clienti", "{\"nome\":\"Papà\",\"cognome\":\"Famiglia\"}");
+        String uno = crea(segr, "/api/clienti", "{\"nome\":\"Uno\",\"cognome\":\"Famiglia\",\"dataNascita\":\"2017-01-01\"}");
+        String due = crea(segr, "/api/clienti", "{\"nome\":\"Due\",\"cognome\":\"Famiglia\",\"dataNascita\":\"2019-01-01\"}");
+        for (String figlio : List.of(uno, due))
+            crea(segr, "/api/clienti/" + figlio + "/tutori", "{\"tutoreId\":\"" + papa + "\",\"relazione\":\"PADRE\"}");
+        String a1 = crea(segr, "/api/pagamenti/addebiti", "{\"personaId\":\"" + uno + "\",\"descrizione\":\"Corso uno\",\"importo\":100}");
+        String a2 = crea(segr, "/api/pagamenti/addebiti", "{\"personaId\":\"" + due + "\",\"descrizione\":\"Corso due\",\"importo\":80}");
+        String b1 = crea(segr, "/api/pagamenti/addebiti", "{\"personaId\":\"" + uno + "\",\"descrizione\":\"Cuffia uno\",\"importo\":10}");
+        String b2 = crea(segr, "/api/pagamenti/addebiti", "{\"personaId\":\"" + due + "\",\"descrizione\":\"Cuffia due\",\"importo\":10}");
+        String contanti = metodo(segr, "Contanti"), carta = metodo(segr, "Carta di credito");
+
+        // di partenza si sceglie ogni volta: separati = un pagamento per figlio; i metodi si consumano in ordine
+        var r = json(segr.post("/api/pagamenti", """
+            {"paganteId":"%s","addebiti":["%s","%s"],"separati":true,"metodi":[{"metodoId":"%s","importo":120},{"metodoId":"%s","importo":60}]}"""
+            .formatted(papa, a1, a2, contanti, carta)));
+        assertThat((List<?>) r.get("ids")).hasSize(2);
+        var pagUno = lista(conto(segr, uno).get("pagamenti")).getFirst();
+        assertThat(pagUno).containsEntry("importo", 100.00);
+        assertThat(pagUno.get("metodi").toString()).contains("metodo=Contanti, importo=100.0").doesNotContain("Carta");
+        var pagDue = lista(conto(segr, due).get("pagamenti")).getFirst();
+        assertThat(pagDue.get("metodi").toString()).contains("metodo=Contanti, importo=20.0").contains("metodo=Carta di credito, importo=60.0");
+
+        // con l'impostazione «insieme» il pagamento resta unico anche se si chiede di separarlo
+        String dati = admin.get("/api/societa").body();
+        assertThat(dati).contains("\"pagamentiFamiglia\":\"A_SCELTA\"");
+        assertThat(admin.put("/api/societa", dati.replace("\"A_SCELTA\"", "\"INSIEME\"")).statusCode()).isEqualTo(200);
+        var unico = json(segr.post("/api/pagamenti", """
+            {"paganteId":"%s","addebiti":["%s","%s"],"separati":true,"metodi":[{"metodoId":"%s","importo":20}]}""".formatted(papa, b1, b2, contanti)));
+        assertThat((List<?>) unico.get("ids")).hasSize(1);
+        assertThat(admin.put("/api/societa", dati).statusCode()).isEqualTo(200);
+
+        // senza il permesso «Acconti e pagamenti misti»: per intero e con un solo metodo
+        String nuovo = crea(segr, "/api/pagamenti/addebiti", "{\"personaId\":\"" + uno + "\",\"descrizione\":\"Gara\",\"importo\":30}");
+        var ruolo = json(admin.post("/api/ruoli", "{\"nome\":\"Cassa semplice\",\"copiaDa\":\"STAFF\"}"));
+        String codice = (String) ruolo.get("codice");
+        assertThat(admin.put("/api/ruoli/" + codice, "{\"nome\":\"Cassa semplice\",\"permessi\":[\"CLIENTI\",\"PAGAMENTI\"]}").statusCode()).isEqualTo(204);
+        var silvia = JsonParserFactory.getJsonParser().parseList(admin.get("/api/account").body()).stream().map(PagamentiTest::mappa)
+            .filter(x -> "silvia.brambilla@demo.leone".equals(x.get("email"))).findFirst().orElseThrow();
+        assertThat(admin.post("/api/ruoli/" + codice + "/assegnazioni", "{\"accountId\":\"" + silvia.get("id") + "\"}").statusCode()).isEqualTo(201);
+        var cassa = come("silvia.brambilla@demo.leone");
+        var acconto = cassa.post("/api/pagamenti", "{\"addebiti\":[\"" + nuovo + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":10}]}");
+        assertThat(acconto.statusCode()).isEqualTo(403);
+        assertThat(acconto.body()).contains("Acconti e pagamenti misti");
+        assertThat(cassa.post("/api/pagamenti", "{\"addebiti\":[\"" + nuovo + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":20},{\"metodoId\":\"" + carta + "\",\"importo\":10}]}")
+            .statusCode()).isEqualTo(403);
+        crea(cassa, "/api/pagamenti", "{\"addebiti\":[\"" + nuovo + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":30}]}");
+    }
+
+    @Test
     void metodiDiPagamentoModificabili() throws Exception {
         var admin = come("admin@demo.leone");
         assertThat(come("segreteria@demo.leone").post("/api/pagamenti/metodi", "{\"nome\":\"Buono welfare\"}").statusCode()).isEqualTo(403);

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { api, messaggioErrore, type Addebito, type Conto, type MetodoPagamento } from '../lib/api';
+  import { api, messaggioErrore, type Addebito, type Conto, type MetodoPagamento, type PagamentiFamiglia } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
   import { euro } from '../lib/listino';
   import { STATI_ADDEBITO, aperto, inOrdineDiScadenza, ripartisci, somma } from '../lib/pagamenti';
@@ -23,6 +23,10 @@
 
   const puoPagare = $derived(sessione.puo('PAGAMENTI'));
   const puoAnnullare = $derived(sessione.puo('PAGAMENTI_ANNULLA'));
+  /** Senza «Acconti e pagamenti misti» si paga per intero, con un solo metodo. */
+  const flessibile = $derived(sessione.puo('PAGAMENTI_FLESSIBILI'));
+  let famiglia = $state<PagamentiFamiglia>('A_SCELTA');
+  api.societa().then((d) => (famiglia = d.pagamentiFamiglia)).catch(() => {});
 
   async function carica() {
     try {
@@ -60,7 +64,7 @@
   let scelti = $state<string[]>([]);
 
   type Riga = { metodoId: string; importo: string; riferimento: string };
-  let modulo = $state<{ paganteId: string; data: string; righe: Riga[]; note: string } | null>(null);
+  let modulo = $state<{ paganteId: string; data: string; righe: Riga[]; note: string; separati: boolean } | null>(null);
 
   const daPagare = $derived(inOrdineDiScadenza([...propri, ...deiFamiliari].filter((a) => scelti.includes(a.id))));
   const residuoScelto = $derived(somma(daPagare.map((a) => a.residuo)));
@@ -71,7 +75,7 @@
   function apriPagamento(soloScaduti = false) {
     if (!scelti.length) scelti = propri.filter((a) => !soloScaduti || a.stato === 'SCADUTO').map((a) => a.id);
     const tutore = conto!.paganti.find((p) => p.personaId !== id);
-    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi[0]?.id ?? '', importo: '', riferimento: '' }], note: '' };
+    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi[0]?.id ?? '', importo: '', riferimento: '' }], note: '', separati: false };
   }
 
   // l'importo della prima riga segue quanto si sceglie di pagare, finché c'è un solo metodo
@@ -87,7 +91,8 @@
   }
 
   const metodo = (mid: string) => metodi.find((m) => m.id === mid);
-  const modValido = $derived(!!modulo && daPagare.length > 0 && totale > 0 && totale <= residuoScelto
+  const persone = $derived(new Set(daPagare.map((a) => a.personaId)).size);
+  const modValido = $derived(!!modulo && daPagare.length > 0 && totale > 0 && totale <= residuoScelto && (flessibile || totale === residuoScelto)
     && modulo.righe.every((r) => r.metodoId && Number(r.importo) > 0));
 
   async function registra() {
@@ -95,8 +100,9 @@
     const ok = await esegui(() => api.registraPagamento({
       paganteId: m.paganteId, data: m.data, importo: totale, addebiti: daPagare.map((a) => a.id),
       metodi: m.righe.map((r) => ({ metodoId: r.metodoId, importo: Number(r.importo), riferimento: r.riferimento.trim() || null })),
-      note: m.note.trim() || null,
-    }), `Pagamento di ${euro(totale)} registrato.`);
+      note: m.note.trim() || null, separati: m.separati,
+    }), persone > 1 && (famiglia === 'PER_PERSONA' || (famiglia === 'A_SCELTA' && m.separati))
+      ? `Pagamento di ${euro(totale)} registrato: uno per ogni persona.` : `Pagamento di ${euro(totale)} registrato.`);
     if (ok) {
       modulo = null;
       scelti = [];
@@ -188,14 +194,15 @@
               <select class="inp" bind:value={r.metodoId} aria-label="Metodo">
                 {#each attivi as m (m.id)}<option value={m.id}>{m.nome}</option>{/each}
               </select>
-              <input class="inp m importo" type="number" min="0.01" step="0.01" bind:value={r.importo} aria-label="Importo in euro" />
+              <input class="inp m importo" type="number" min="0.01" step="0.01" bind:value={r.importo} aria-label="Importo in euro" readonly={!flessibile}
+                     title={flessibile ? '' : 'Per un acconto serve il permesso «Acconti e pagamenti misti»'} />
               {#if metodo(r.metodoId)?.daIncassare}<input class="inp" bind:value={r.riferimento} placeholder="Riferimento (es. CRO)" maxlength="120" aria-label="Riferimento" />{/if}
               {#if modulo.righe.length > 1}<button type="button" class="link small muted" onclick={() => modulo!.righe.splice(i, 1)}>Togli</button>{/if}
             </div>
           {/each}
-          <button type="button" class="link small sx" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: String(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>
+          {#if flessibile}<button type="button" class="link small sx" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: String(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>
             + un altro metodo (es. parte in contanti, parte con la carta)
-          </button>
+          </button>{/if}
         </div>
         {#if daPagare.length && totale > 0}
           <div class="riepilogo small" aria-live="polite">
@@ -206,6 +213,11 @@
             {/each}
             {#if totale > residuoScelto}<p class="msg err nomargin">Il pagamento supera quanto c'è da pagare ({euro(residuoScelto)}).</p>{/if}
           </div>
+        {/if}
+        {#if persone > 1 && famiglia === 'A_SCELTA'}
+          <label class="small spunta"><input type="checkbox" bind:checked={modulo.separati} /> Un pagamento per ogni persona (ricevute separate)</label>
+        {:else if persone > 1}
+          <p class="muted small nomargin">{famiglia === 'PER_PERSONA' ? 'Si registra un pagamento per ogni persona (impostazione della società).' : 'Si registra un pagamento unico per la famiglia (impostazione della società).'}</p>
         {/if}
         <input class="inp" bind:value={modulo.note} placeholder="Note (facoltative)" maxlength="300" aria-label="Note" />
         <div class="row">
@@ -333,4 +345,5 @@
   .sx { align-self: flex-start; min-height: 32px; }
   .chiusi summary { cursor: pointer; color: var(--muted); padding: var(--space-6) 0; }
   .link { min-height: 32px; }
+  .spunta { display: flex; align-items: center; gap: var(--space-6); }
 </style>

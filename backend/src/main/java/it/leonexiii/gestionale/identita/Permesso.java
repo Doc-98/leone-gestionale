@@ -19,6 +19,7 @@ public enum Permesso {
     GOLDEN_PASS("Clienti e accessi", "Golden pass", "Dare e togliere il golden pass", true),
     SCONTI("Clienti e accessi", "Cambiare l'importo proposto", "Scontare o cambiare l'importo proposto dal listino, scrivendo il motivo", true),
     PAGAMENTI("Clienti e accessi", "Pagamenti", "Registrare pagamenti e addebiti, segnare incassati i bonifici, vedere gli incassi", true),
+    PAGAMENTI_FLESSIBILI("Clienti e accessi", "Acconti e pagamenti misti", "Pagare solo una parte di quanto dovuto o dividere un pagamento tra più metodi", true),
     PAGAMENTI_ANNULLA("Clienti e accessi", "Annullare pagamenti", "Annullare un pagamento o un addebito già registrato, scrivendo il motivo", true),
     REGOLE_TORNELLO("Sistema", "Regole del tornello", "Accendere, spegnere e configurare i controlli del tornello", true),
     RUOLI("Sistema", "Ruoli e permessi", "Creare ruoli, cambiarne i permessi e assegnarli alle persone", true),

@@ -28,6 +28,8 @@ class DatiSocieta {
     private String telefono;
     @Column(name = "giorni_anticipo", nullable = false)
     private short giorniAnticipo;
+    @Column(name = "pagamenti_famiglia", nullable = false)
+    private String pagamentiFamiglia;
 
     protected DatiSocieta() {}
 
@@ -50,10 +52,15 @@ class DatiSocieta {
         this.email = testo(d.email());
         this.telefono = testo(d.telefono());
         this.giorniAnticipo = (short) d.giorniAnticipo();
+        if (d.pagamentiFamiglia() != null) {
+            if (!Societa.Dati.PAGAMENTI_FAMIGLIA.contains(d.pagamentiFamiglia()))
+                throw new IllegalArgumentException("Pagamenti di famiglia: INSIEME, PER_PERSONA o A_SCELTA.");
+            this.pagamentiFamiglia = d.pagamentiFamiglia();
+        }
     }
 
     Societa.Dati dati() {
-        return new Societa.Dati(nome, ragioneSociale, partitaIva, codiceFiscale, indirizzo, cap, citta, provincia, email, telefono, giorniAnticipo);
+        return new Societa.Dati(nome, ragioneSociale, partitaIva, codiceFiscale, indirizzo, cap, citta, provincia, email, telefono, giorniAnticipo, pagamentiFamiglia);
     }
 
     private static String testo(String s) {

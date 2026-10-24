@@ -32,6 +32,9 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
   dall'interno, non valori nel codice. I numeri della Leone XIII Sport servono solo come dati demo.
 - **Libertà per chi lo usa**: ogni automatismo che limita (blocchi, applicazione automatica di regole, solleciti) è
   un'opzione che si accende o si spegne, con i suoi tempi impostabili, e/o un permesso che si dà o no a un ruolo.
+- **Davanti a un bivio, tutte le strade**: quando le società possono lavorare in modi diversi (es. un pagamento unico
+  per due fratelli o uno per ciascuno), il gestionale le prevede tutte e un'impostazione sceglie quale usare, compresa,
+  se ha senso, «si sceglie ogni volta». Non si costruisce solo il modo della Leone.
 
 ## Architettura
 

@@ -72,7 +72,11 @@ public class Pagamenti {
     record MetodoIn(UUID metodoId, BigDecimal importo, String riferimento) {}
 
     /** Gli addebiti nell'ordine in cui pagarli (di base: prima quelli che scadono prima); importo vuoto = somma dei metodi. */
-    record NuovoPagamento(UUID paganteId, LocalDate data, BigDecimal importo, List<UUID> addebiti, List<MetodoIn> metodi, String note) {}
+    /**
+     * «separati»: con addebiti di più persone, un pagamento per persona invece di uno unico (conta solo se la società
+     * lascia scegliere: impostazione «pagamenti di famiglia»).
+     */
+    record NuovoPagamento(UUID paganteId, LocalDate data, BigDecimal importo, List<UUID> addebiti, List<MetodoIn> metodi, String note, Boolean separati) {}
 
     record Motivo(String motivo) {}
 
@@ -95,9 +99,11 @@ public class Pagamenti {
     private final Persone persone;
     private final ApplicationEventPublisher eventi;
     private final Clock orologio;
+    private final it.leonexiii.gestionale.societa.Societa societa;
 
     Pagamenti(AddebitoRepository addebiti, PagamentoRepository pagamenti, MetodoRepository metodi, Persone persone,
-              ApplicationEventPublisher eventi, Clock orologio) {
+              ApplicationEventPublisher eventi, Clock orologio, it.leonexiii.gestionale.societa.Societa societa) {
+        this.societa = societa;
         this.addebiti = addebiti;
         this.pagamenti = pagamenti;
         this.metodi = metodi;
@@ -293,7 +299,7 @@ public class Pagamenti {
     // ── Pagamenti ───────────────────────────────────────────────────────────
 
     @Transactional
-    UUID registra(NuovoPagamento in, UUID da) {
+    List<UUID> registra(NuovoPagamento in, UUID da, boolean flessibile) {
         LocalDate oggi = LocalDate.now(orologio);
         LocalDate data = in.data() != null ? in.data() : oggi;
         if (data.isAfter(oggi)) throw new IllegalArgumentException("Il pagamento non può essere nel futuro.");
@@ -331,27 +337,54 @@ public class Pagamenti {
         BigDecimal residuo = daPagare.stream().map(a -> a.getImporto().subtract(pagato.getOrDefault(a.getId(), ZERO))).reduce(ZERO, BigDecimal::add);
         if (importo.compareTo(residuo) > 0)
             throw new IllegalArgumentException("Il pagamento (" + importo + " €) supera quanto c'è da pagare (" + residuo + " €).");
+        if (!flessibile && (in.metodi().size() > 1 || importo.compareTo(residuo) < 0))
+            throw new org.springframework.security.access.AccessDeniedException(
+                "Acconti e pagamenti divisi tra più metodi richiedono il permesso «Acconti e pagamenti misti»: si paga per intero (" + residuo + " €) con un solo metodo.");
 
         UUID pagante = in.paganteId() != null ? in.paganteId() : daPagare.getFirst().getPersonaId();
         if (persone.nomiCompleti(List.of(pagante)).isEmpty()) throw new NonTrovato("Chi paga non è tra le persone registrate.");
 
-        Pagamento p = new Pagamento(pagante, data, importo, in.note(), da, orologio.instant());
-        for (MetodoIn m : in.metodi()) {
-            MetodoPagamento mp = met.get(m.metodoId());
-            p.aggiungiMetodo(new PagamentoMetodo(mp.getId(), m.importo(), mp.isDaIncassare() ? null : data, m.riferimento()));
-        }
         // si salda nell'ordine scelto: il primo addebito per intero, poi il successivo, fino a esaurire l'importo
+        Map<UUID, BigDecimal> quote = new LinkedHashMap<>();
         BigDecimal resto = importo;
         for (Addebito a : daPagare) {
             if (resto.signum() == 0) break;
             BigDecimal quota = a.getImporto().subtract(pagato.getOrDefault(a.getId(), ZERO)).min(resto);
-            p.aggiungiVoce(a.getId(), quota);
+            quote.put(a.getId(), quota);
             resto = resto.subtract(quota);
         }
-        pagamenti.saveAndFlush(p);
+        // un pagamento unico, o uno per ogni persona (impostazione della società, o scelta di chi registra)
+        Map<UUID, List<Addebito>> perPersona = new LinkedHashMap<>();
+        daPagare.stream().filter(a -> quote.containsKey(a.getId())).forEach(a -> perPersona.computeIfAbsent(a.getPersonaId(), k -> new ArrayList<>()).add(a));
+        String modo = societa.dati().pagamentiFamiglia();
+        boolean separa = perPersona.size() > 1 && ("PER_PERSONA".equals(modo) || ("A_SCELTA".equals(modo) && Boolean.TRUE.equals(in.separati())));
+        List<List<Addebito>> gruppi = separa ? new ArrayList<>(perPersona.values())
+            : List.of(daPagare.stream().filter(a -> quote.containsKey(a.getId())).toList());
+
+        // i metodi si consumano in ordine: il primo copre il primo pagamento, poi il resto passa al successivo
+        List<BigDecimal> restiMetodi = new ArrayList<>(in.metodi().stream().map(MetodoIn::importo).toList());
+        List<UUID> ids = new ArrayList<>();
+        for (List<Addebito> gruppo : gruppi) {
+            BigDecimal totale = gruppo.stream().map(a -> quote.get(a.getId())).reduce(ZERO, BigDecimal::add);
+            Pagamento p = new Pagamento(pagante, data, totale, in.note(), da, orologio.instant());
+            BigDecimal manca = totale;
+            for (int i = 0; i < in.metodi().size() && manca.signum() > 0; i++) {
+                BigDecimal parte = restiMetodi.get(i).min(manca);
+                if (parte.signum() == 0) continue;
+                MetodoIn m = in.metodi().get(i);
+                MetodoPagamento mp = met.get(m.metodoId());
+                p.aggiungiMetodo(new PagamentoMetodo(mp.getId(), parte, mp.isDaIncassare() ? null : data, m.riferimento()));
+                restiMetodi.set(i, restiMetodi.get(i).subtract(parte));
+                manca = manca.subtract(parte);
+            }
+            gruppo.forEach(a -> p.aggiungiVoce(a.getId(), quote.get(a.getId())));
+            pagamenti.save(p);
+            ids.add(p.getId());
+        }
+        pagamenti.flush();
         daPagare.stream().filter(a -> a.getOrigine() == Origine.TESSERAMENTO && a.getRiferimentoId() != null)
             .map(Addebito::getRiferimentoId).distinct().forEach(r -> pubblicaSaldato(Origine.TESSERAMENTO, r));
-        return p.getId();
+        return ids;
     }
 
     @Transactional

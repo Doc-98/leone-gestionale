@@ -10,7 +10,7 @@ export type Ruolo = string;
 export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
   | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
-  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI' | 'PAGAMENTI' | 'PAGAMENTI_ANNULLA'
+  | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI' | 'PAGAMENTI' | 'PAGAMENTI_FLESSIBILI' | 'PAGAMENTI_ANNULLA'
   | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT' | 'IMPOSTAZIONI';
 
 export interface Me {
@@ -760,7 +760,7 @@ export const api = {
 
   // ── Pagamenti (ADR 0018, parte 5) ──
   conto: (personaId: string) => richiesta<Conto>('GET', `/api/pagamenti/persone/${personaId}`),
-  registraPagamento: (p: NuovoPagamento) => richiesta<{ id: string }>('POST', '/api/pagamenti', p),
+  registraPagamento: (p: NuovoPagamento) => richiesta<{ id: string; ids: string[] }>('POST', '/api/pagamenti', p),
   annullaPagamento: (id: string, motivo: string) => richiesta<void>('POST', `/api/pagamenti/${id}/annulla`, { motivo }),
   nuovoAddebito: (a: { personaId: string; descrizione: string; importo: number; scadenza?: string | null; offertaId?: string | null; note?: string | null }) =>
     richiesta<{ id: string }>('POST', '/api/pagamenti/addebiti', a),
@@ -1060,6 +1060,8 @@ export interface DatiSocieta {
   email: string | null;
   telefono: string | null;
   giorniAnticipo: number;
+  /** pagamenti di più familiari insieme: uno unico, uno per persona, o si sceglie ogni volta */
+  pagamentiFamiglia: PagamentiFamiglia;
 }
 export interface Stagione {
   id: string;
@@ -1287,7 +1289,11 @@ export interface NuovoPagamento {
   addebiti: string[];
   metodi: { metodoId: string; importo: number; riferimento?: string | null }[];
   note?: string | null;
+  /** con addebiti di più persone: un pagamento per persona (se la società lascia scegliere) */
+  separati?: boolean;
 }
+
+export type PagamentiFamiglia = 'INSIEME' | 'PER_PERSONA' | 'A_SCELTA';
 
 export interface MetodoPagamento {
   id: string;

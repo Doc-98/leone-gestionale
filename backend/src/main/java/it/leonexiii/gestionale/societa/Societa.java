@@ -19,7 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class Societa {
 
     public record Dati(String nome, String ragioneSociale, String partitaIva, String codiceFiscale, String indirizzo, String cap, String citta,
-                       String provincia, String email, String telefono, int giorniAnticipo) {}
+                       String provincia, String email, String telefono, int giorniAnticipo, String pagamentiFamiglia) {
+
+        /** Pagamenti di più familiari insieme: un pagamento unico, uno per persona, o si sceglie ogni volta. */
+        public static final java.util.Set<String> PAGAMENTI_FAMIGLIA = java.util.Set.of("INSIEME", "PER_PERSONA", "A_SCELTA");
+    }
 
     public record Stagione(UUID id, String nome, LocalDate dal, LocalDate al, BigDecimal quota, boolean quotaRimborsabile) {
         public boolean contiene(LocalDate g) {
