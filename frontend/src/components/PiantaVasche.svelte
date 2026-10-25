@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { FasciaOraria, Occorrenza, SpazioPiano } from '../lib/api';
   import { ora } from '../lib/date';
-  import { colore, minuti, pianta, STATI, type Fascia } from '../lib/piano';
+  import { colore, minuti, nomeCategoria, pianta, STATI, type Fascia } from '../lib/piano';
+  import Icona from './Icona.svelte';
 
   /**
-   * Le vasche viste dall'alto in una fascia: una striscia per corsia con il corso che la occupa (colore del
-   * livello, istruttore, età), le corsie libere, la vasca piccola come riquadro a parte.
+   * Le vasche viste dall'alto in una fascia: una striscia per corsia con il corso che la occupa, nella tinta della sua
+   * categoria (con il pallino del colore del livello, istruttore, età, iscritti), le corsie libere, la vasca piccola come
+   * riquadro a parte. Chi si sovrappone lo dice a parole.
    */
   let { spazi, occorrenze, fascia, definite = new Map(), compatta = false, apri, libera, iscritti, vedeIscritti = () => true, cambiaAssetto }: {
     spazi: SpazioPiano[];
@@ -34,29 +36,26 @@
 </script>
 
 {#snippet scheda(o: Occorrenza)}
-  <button class="scheda {colore(o.categoria)}" class:spento={spento(o)} class:conflitto={o.conflitti.length > 0}
-          style={o.colore ? `--livello: ${o.colore}` : ''} onclick={() => apri(o)}>
-    <span class="riga1">
-      <span class="tit">{o.titolo}</span>
-      {#if o.conflitti.length}<span class="avviso" aria-label="si sovrappone"></span>{/if}
-    </span>
-    <span class="riga2">
-      {#if spento(o)}{STATI[o.stato]}{:else}{[o.istruttore?.nome, o.dettaglio].filter(Boolean).join(' · ')}{/if}
-    </span>
-    {#if fuoriOrario(o) || o.iscritti != null}
-      <span class="riga3">
-        {#if o.iscritti != null}
-          <span class="posti m" class:pieno={o.posti != null && o.iscritti >= o.posti}>{o.iscritti}{o.posti != null ? `/${o.posti}` : ''} iscritti</span>
-        {/if}
-        {#if fuoriOrario(o)}<span class="m orario">{ora(o.inizio)}–{ora(o.fine)}</span>{/if}
+  {@const pieno = o.posti != null && o.iscritti != null && o.iscritti >= o.posti}
+  <div class="lez {colore(o.categoria)}" class:spento={spento(o)} class:conflitto={o.conflitti.length > 0}>
+    <button class="apri" onclick={() => apri(o)}>
+      <span class="riga1">
+        {#if o.colore}<span class="livello" style="background: {o.colore}" aria-hidden="true"></span>{/if}
+        <span class="tit">{o.titolo}</span>
       </span>
-    {/if}
-  </button>
-  {#if iscritti && o.lezioneId && vedeIscritti(o)}
-    <button class="lista" onclick={() => iscritti(o)} aria-label="Iscritti di {o.titolo}" title="Iscritti e presenze">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 11h5M17 15h5M19 7h3" /></svg>
+      <span class="riga2">
+        {#if spento(o)}{STATI[o.stato]}{:else}{[compatta ? '' : nomeCategoria(o), o.istruttore?.nome, o.dettaglio].filter(Boolean).join(' · ')}{/if}
+      </span>
+      {#if o.conflitti.length}<span class="insieme"><span class="avviso" aria-hidden="true"></span>Insieme a {o.conflitti.join(', ')}</span>{/if}
     </button>
-  {/if}
+    {#if fuoriOrario(o)}<span class="m orario">{ora(o.inizio)}–{ora(o.fine)}</span>{/if}
+    {#if o.iscritti != null}
+      <span class="posti m" class:pieno title={pieno ? 'Al completo' : undefined}>{o.iscritti}{o.posti != null ? `/${o.posti}` : ''}</span>
+    {/if}
+    {#if iscritti && o.lezioneId && vedeIscritti(o)}
+      <button class="azione" onclick={() => iscritti(o)} aria-label="Iscritti di {o.titolo}" title="Iscritti e presenze"><Icona nome="persone" /></button>
+    {/if}
+  </div>
 {/snippet}
 
 <div class="pianta" class:compatta>
@@ -83,7 +82,7 @@
             <div class="corsia" style="grid-row: {i + 1}" class:ultima={i === v.corsie.length - 1}>
               {#if !v.pezzi.some((p) => i >= p.da && i < p.da + p.quante)}
                 {#if libera}
-                  <button class="libera" onclick={() => libera(c.id)}>Corsia libera <span aria-hidden="true">+</span></button>
+                  <button class="libera" onclick={() => libera(c.id)}><Icona nome="piu" />Corsia libera: aggiungi un turno o un evento</button>
                 {:else}
                   <span class="libera">Corsia libera</span>
                 {/if}
@@ -91,7 +90,7 @@
             </div>
           {/each}
           {#each v.pezzi as p (p.occorrenza.chiave + ':' + p.da)}
-            <div class="pezzo" class:con-lista={!!iscritti && !!p.occorrenza.lezioneId && vedeIscritti(p.occorrenza)} style="grid-row: {p.da + 1} / span {p.quante}; grid-column: {2 + p.colonna} / span {p.colonne === 1 ? 'var(--colonne)' : 1}">
+            <div class="pezzo" style="grid-row: {p.da + 1} / span {p.quante}; grid-column: {2 + p.colonna} / span {p.colonne === 1 ? 'var(--colonne)' : 1}">
               {@render scheda(p.occorrenza)}
             </div>
           {/each}
@@ -99,7 +98,7 @@
       {:else}
         <div class="acqua piccola">
           {#each v.pezzi as p (p.occorrenza.chiave)}<div class="pezzo">{@render scheda(p.occorrenza)}</div>{:else}
-            {#if libera}<button class="libera" onclick={() => libera(v.id)}>Libera <span aria-hidden="true">+</span></button>{:else}<span class="libera">Libera</span>{/if}
+            {#if libera}<button class="libera" onclick={() => libera(v.id)}><Icona nome="piu" />Libera: aggiungi un turno o un evento</button>{:else}<span class="libera">Libera</span>{/if}
           {/each}
         </div>
       {/if}
@@ -135,42 +134,38 @@
     grid-column: 1; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 600;
     color: var(--cloro-ink); background: color-mix(in srgb, var(--cloro) 18%, var(--acqua)); border-bottom: 2px dashed color-mix(in srgb, var(--cloro) 35%, transparent);
   }
-  .corsia { grid-column: 2 / -1; border-bottom: 2px dashed color-mix(in srgb, var(--cloro) 35%, transparent); display: flex; align-items: center; padding: 0 var(--space-12); }
+  .corsia { grid-column: 2 / -1; border-bottom: 2px dashed color-mix(in srgb, var(--cloro) 35%, transparent); display: flex; align-items: center; padding: var(--space-6); }
   .corsia.ultima, .acqua > .numero:nth-last-child(n) { border-bottom-style: dashed; }
   .libera { font-size: var(--text-sm); color: var(--muted); background: none; border: none; font: inherit; font-size: var(--text-sm); padding: var(--space-6) 0; }
-  button.libera { cursor: pointer; display: inline-flex; gap: var(--space-6); }
-  button.libera:hover { color: var(--cloro); }
+  button.libera { cursor: pointer; display: flex; align-items: center; gap: var(--space-6); width: 100%; min-height: 44px; padding: 0 var(--space-12);
+    border: 1.5px dashed color-mix(in srgb, var(--cloro) 40%, transparent); border-radius: var(--radius-md); color: var(--cloro-ink); }
+  button.libera:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
   .pezzo { padding: var(--space-6); display: flex; gap: 2px; z-index: 1; min-width: 0; }
-  .lista {
-    flex-shrink: 0; width: 38px; border: none; border-radius: var(--radius-sm); background: var(--surface); color: var(--cloro);
-    box-shadow: 0 1px 2px rgba(16, 33, 43, 0.12); display: flex; align-items: center; justify-content: center; cursor: pointer;
-  }
-  .lista:hover { background: var(--cloro-soft); }
-  .lista .ic { width: 18px; height: 18px; }
   .assetto { padding: 2px; }
   .assetto button { min-height: 28px; padding: 0 var(--space-10); font-size: var(--text-xs); }
-  .riga3 { display: flex; gap: var(--space-6); align-items: center; margin-top: 2px; }
-  .posti { font-size: var(--text-2xs); color: var(--cloro-ink); background: var(--cloro-soft); padding: 0 var(--space-6); border-radius: var(--radius-pill); }
-  .posti.pieno { color: var(--warn); background: var(--warn-bg); }
   .acqua.piccola { display: flex; flex-wrap: wrap; gap: var(--space-8); padding: var(--space-8); min-height: 64px; align-items: stretch; }
   .acqua.piccola > .pezzo { flex: 1 1 260px; padding: 0; }
   .altrove { display: flex; flex-wrap: wrap; gap: var(--space-8); }
   .altrove > .pezzo { flex: 1 1 260px; padding: 0; }
 
-  .scheda {
-    --livello: var(--c-line);
-    flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; min-width: 0; min-height: 50px;
-    padding: var(--space-6) var(--space-10) var(--space-6) var(--space-14); border: none; border-radius: var(--radius-sm);
-    background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; position: relative;
-    box-shadow: 0 1px 2px rgba(16, 33, 43, 0.12), inset 6px 0 0 var(--livello);
-  }
-  .scheda:hover { box-shadow: 0 2px 6px rgba(16, 33, 43, 0.18), inset 6px 0 0 var(--livello); }
+  /* La lezione: tutta nella tinta della sua categoria (non una barra a sinistra) */
+  .lez { flex: 1; display: flex; align-items: center; gap: var(--space-8); min-width: 0; min-height: 50px; padding: 0 var(--space-4) 0 0;
+    border-radius: var(--radius-md); background: var(--c-bg); color: var(--c-fg); border: 1px solid rgba(16, 33, 43, 0.06); }
+  .apri { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+    padding: var(--space-6) 0 var(--space-6) var(--space-12); border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-md); }
+  .apri:hover .tit { text-decoration: underline; }
   .riga1 { display: flex; align-items: center; gap: var(--space-6); max-width: 100%; }
-  .tit { font-weight: 700; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .riga2 { font-size: var(--text-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-  .orario { font-size: var(--text-2xs); color: var(--c-fg); background: var(--c-bg); padding: 0 var(--space-6); border-radius: var(--radius-pill); }
+  .livello { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(16, 33, 43, 0.25); }
+  .tit { font-weight: 700; font-size: var(--text-md); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .riga2 { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .insieme { display: inline-flex; align-items: center; gap: var(--space-4); font-size: var(--text-xs); font-weight: 600; color: var(--warn); }
+  .posti { flex-shrink: 0; font-size: var(--text-xs); padding: 2px var(--space-8); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--surface) 75%, transparent); color: var(--ink); }
+  .posti.pieno { background: var(--warn-bg); color: var(--warn); }
+  .orario { flex-shrink: 0; font-size: var(--text-2xs); padding: 2px var(--space-6); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--surface) 75%, transparent); color: var(--ink); }
+  .lez .azione { color: var(--c-fg); }
+  .lez .azione:hover { background: color-mix(in srgb, var(--surface) 65%, transparent); color: var(--ink); }
   .spento { opacity: 0.6; }
   .spento .tit { text-decoration: line-through; }
-  .conflitto { outline: 2px solid var(--danger); outline-offset: -2px; }
-  .avviso { width: 13px; height: 13px; flex-shrink: 0; background: var(--danger); -webkit-mask: var(--icona-avviso) center / contain no-repeat; mask: var(--icona-avviso) center / contain no-repeat; }
+  .conflitto { border: 2px solid var(--warn); }
+  .avviso { width: 13px; height: 13px; flex-shrink: 0; background: var(--warn); -webkit-mask: var(--icona-avviso) center / contain no-repeat; mask: var(--icona-avviso) center / contain no-repeat; }
 </style>

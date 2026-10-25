@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Occorrenza, SpazioPiano } from './api';
-import { colonneSpazi, definitePerVasca, disponi, etichettaSpazi, fasceDefiniteIl, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce } from './piano';
+import { colonneSpazi, definitePerVasca, disponi, etichettaSpazi, fasceDefiniteIl, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce, tratti } from './piano';
 
 const sp = (id: string, nome: string, tipo: string, padreId: string | null = null): SpazioPiano => ({ id, impiantoId: 'i', nome, tipo, padreId, assetto: null });
 const SPAZI = [
@@ -138,5 +138,25 @@ describe('fasce definite', () => {
     const per = definitePerVasca(lunedi, { chiave: 'x', inizio: 17 * 60, fine: 17 * 60 + 45 });
     expect(per.get('vg')?.id).toBe('lun');
     expect(per.get('vp')?.id).toBe('p1');
+  });
+});
+
+describe('griglia oraria compatta', () => {
+  const h = (x: number) => x * 60;
+  it('chiude i buchi lunghi e lascia quelli brevi', () => {
+    const t = tratti([[h(7), h(10) + 20], [h(12) + 20, h(14) + 10], [h(16) + 10, h(21) + 15]], [h(7), h(22)]);
+    expect(t).toEqual([
+      { da: h(7), a: h(10) + 30, vuoto: false },
+      { da: h(10) + 30, a: h(12) + 15, vuoto: true },
+      { da: h(12) + 15, a: h(14) + 15, vuoto: false },
+      { da: h(14) + 15, a: h(16), vuoto: true },
+      { da: h(16), a: h(22), vuoto: false },
+    ]);
+  });
+  it('senza buchi lunghi resta un tratto solo', () => {
+    expect(tratti([[h(8), h(9)], [h(10), h(11)]], [h(8), h(11)])).toEqual([{ da: h(8), a: h(11), vuoto: false }]);
+  });
+  it('chiude anche la fine della giornata vuota', () => {
+    expect(tratti([[h(8), h(10)]], [h(8), h(21)])).toEqual([{ da: h(8), a: h(10), vuoto: false }, { da: h(10), a: h(21), vuoto: true }]);
   });
 });

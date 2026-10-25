@@ -50,6 +50,14 @@ Il testo che fa anche da pulsante (i vecchi link «Modifica», «Annulla», «To
 
 **Il pulsante-icona porta sempre un'etichetta** (`etichetta`): diventa il nome per lo screen reader e il suggerimento al passaggio del mouse. **Conferma in due tocchi** (`conferma="Elimina?"`): il primo tocco arma il pulsante, che mostra la domanda; il secondo esegue; si disarma dopo 5 secondi o uscendo dal pulsante. **Interruttori** (`premuto`): per le cose che si accendono e si spengono restando lì (il QR del telefono, «Da incassare a mano», il testo di un promemoria), con `aria-pressed`.
 
+## Attività in calendario
+
+Un corso, un turno o un evento si mostra sempre come un **riquadro nella tinta della sua categoria** (`.cat-*`: sfondo `--c-bg`, testo secondario `--c-fg`), senza bordo laterale: il titolo resta in `ink`, il pallino del livello (se il corso ne ha uno) sta davanti al titolo, corsie e iscritti in `mono` piccolo. Pieno → numeri in `warn`; sovrapposto → bordo interno `warn` di 2px; sospeso → mezzo trasparente e barrato. Lo stesso riquadro vale nella pianta delle vasche, nell'orario per corsia, nella settimana e nell'agenda del telefono.
+
+Lo spazio libero è un riquadro **tratteggiato** (`--line-dashed`): se chi guarda può pianificare, è un pulsante che al passaggio si colora di `cloro-soft` e mostra il `piu`; il clic apre un piccolo menu («Turno di un corso…», «Evento…») che porta al modulo già compilato con giorno, orario e corsia.
+
+**Viste a scelta.** Quando la stessa informazione ha due letture utili (il piano vasca: una fascia alla volta o tutto il giorno; la settimana in riquadri o per corsia) si offre un selettore segmentato nella barra, e la scelta si ricorda per ogni account sul dispositivo (`lib/preferenze.ts`). Il predefinito dipende dal ruolo quando i ruoli lavorano in modo diverso: in segreteria i riquadri, per chi coordina la vista per corsia.
+
 ## Iconografia
 
 Settantasette icone disegnate a mano, nella stessa famiglia di ClockWork, in `src/lib/icone.ts`: griglia 24×24, tratto 1,8 con estremi e angoli arrotondati, nessun riempimento, `currentColor`. Si mostrano a 22px nei pulsanti grandi e nella barra laterale (18px), 20px nei pulsanti-icona, 18px nei pulsanti piccoli. Sono sempre `aria-hidden`: il nome sta nel controllo. I nomi sono in italiano e dicono il significato, non la forma, e sono un tipo TypeScript (`NomeIcona`): un nome sbagliato non compila.

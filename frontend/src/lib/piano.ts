@@ -387,3 +387,45 @@ export function definitePerVasca<T extends { vascaId: string; inizio: string; fi
   }
   return out;
 }
+
+// ── Griglia oraria compatta ────────────────────────────────────────────────
+
+/** Un pezzo della giornata nella griglia oraria: con attività (in scala) o vuoto (mostrato come una striscia stretta). */
+export interface Tratto {
+  da: number;
+  a: number;
+  vuoto: boolean;
+}
+
+/**
+ * Divide la finestra oraria in tratti: un buco senza attività lungo almeno «soglia» minuti (arrotondato al quarto
+ * d'ora) diventa un tratto vuoto, così la giornata intera sta in uno schermo senza ore bianche da scorrere.
+ */
+export function tratti(intervalli: [number, number][], finestra: [number, number], soglia = 90): Tratto[] {
+  const iv = intervalli
+    .map(([a, b]) => [Math.max(a, finestra[0]), Math.min(b, finestra[1])] as [number, number])
+    .filter(([a, b]) => b > a)
+    .sort((x, y) => x[0] - y[0]);
+  const unione: [number, number][] = [];
+  for (const [a, b] of iv) {
+    const ultimo = unione[unione.length - 1];
+    if (ultimo && a <= ultimo[1]) ultimo[1] = Math.max(ultimo[1], b);
+    else unione.push([a, b]);
+  }
+  const out: Tratto[] = [];
+  let t = finestra[0];
+  const buco = (fine: number, inizio: number) => {
+    const x = Math.ceil(fine / 15) * 15;
+    const y = Math.floor(inizio / 15) * 15;
+    if (y - x < soglia) return;
+    if (x > t) out.push({ da: t, a: x, vuoto: false });
+    out.push({ da: x, a: y, vuoto: true });
+    t = y;
+  };
+  for (let i = 0; i < unione.length; i++) {
+    if (i === 0 && unione[0][0] - finestra[0] >= soglia) buco(finestra[0], unione[0][0]);
+    buco(unione[i][1], i + 1 < unione.length ? unione[i + 1][0] : finestra[1]);
+  }
+  if (t < finestra[1]) out.push({ da: t, a: finestra[1], vuoto: false });
+  return out;
+}
