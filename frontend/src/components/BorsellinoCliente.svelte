@@ -27,6 +27,10 @@
   async function carica() {
     try {
       [dati, utilizzi] = await Promise.all([api.borsellino(id), api.utilizzi({ personaId: id, quanti: 10 }).catch(() => [])]);
+      if (daAprire) {
+        daAprire = false;
+        apriRicarica();
+      }
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco a caricare il borsellino.');
     }
@@ -81,6 +85,17 @@
   const ESITI: Record<string, string> = { OK: 'Usato', GRATIS: 'Gratis', CREDITI_FINITI: 'Crediti finiti', SCONOSCIUTO: 'Sconosciuto', NON_ATTIVO: 'Non attivo', SERVIZIO_SPENTO: 'Spento' };
   const movimenti = $derived(tutti ? dati?.movimenti ?? [] : (dati?.movimenti ?? []).slice(0, 8));
   const segno = (n: number) => (n > 0 ? '+' : '−');
+
+  function apriRicarica() {
+    if (!dati) return;
+    azione = { tipo: 'ricarica', importo: String(Math.max(dati.regole.ricaricaMinima, 5)), metodoId: perPagare.find((m) => !m.borsellino)?.id ?? '', paganteId: id };
+  }
+  /** Dal riassunto della scheda: apre la ricarica appena il borsellino è caricato. */
+  let daAprire = false;
+  export function avviaRicarica() {
+    if (dati) apriRicarica();
+    else daAprire = true;
+  }
 </script>
 
 <section class="card blocco largo">
@@ -103,7 +118,7 @@
     {#if !azione}
       <div class="azioni">
         {#if puoRicaricare}
-          <button class="btn btn-primary" onclick={() => (azione = { tipo: 'ricarica', importo: String(Math.max(r.ricaricaMinima, 5)), metodoId: perPagare.find((m) => !m.borsellino)?.id ?? '', paganteId: id })}>Ricarica crediti…</button>
+          <button class="btn btn-primary" onclick={apriRicarica}><Icona nome="macchine" />Ricarica crediti…</button>
           {#if r.trasferibile && dati.trasferibileA.length && dati.saldo.euro > 0}
             <button class="btn btn-secondary" onclick={() => (azione = { tipo: 'trasferisci', a: dati!.trasferibileA[0].personaId, importo: '' })}>Trasferisci a un familiare…</button>
           {/if}

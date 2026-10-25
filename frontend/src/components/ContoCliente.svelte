@@ -33,6 +33,10 @@
   async function carica() {
     try {
       conto = await api.conto(id);
+      if (daAprire) {
+        daAprire = false;
+        apriPagamento();
+      }
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco a caricare i pagamenti.');
     }
@@ -73,6 +77,13 @@
   const totale = $derived(modulo ? somma(modulo.righe.map((r) => r.importo)) : 0);
   const ripartizione = $derived(ripartisci(totale, daPagare));
   const quotaDi = (a: Addebito) => ripartizione.find((r) => r.id === a.id)?.quota ?? 0;
+
+  /** Dal riassunto della scheda: apre il pagamento appena il conto è caricato. */
+  let daAprire = false;
+  export function avviaPagamento() {
+    if (conto) apriPagamento();
+    else daAprire = true;
+  }
 
   function apriPagamento(soloScaduti = false) {
     if (!scelti.length) scelti = propri.filter((a) => !soloScaduti || a.stato === 'SCADUTO').map((a) => a.id);

@@ -58,6 +58,8 @@ const SEGNI: [string, string][] = [
   // le icone dei pulsanti-icona sono segni: muted, cloro e danger su card e pagina
   ['muted', 'surface'], ['muted', 'carta'], ['danger', 'surface'], ['cloro', 'surface-sunken'],
   ['passa', 'surface'], ['ferma', 'surface'],
+  // spunta e croce dell'esito del tornello, disegnate nel colore della superficie
+  ['surface', 'passa'], ['surface', 'ferma'],
 ];
 
 describe.each(Object.entries(temi))('tema %s', (_, t) => {

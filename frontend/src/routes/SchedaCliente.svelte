@@ -1,11 +1,11 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import {
     api, messaggioErrore,
-    type Abbonamento, type Braccialetto, type Corso, type GruppoClienti, type MetodoPagamento, type ModoRestituzione, type RegoleBorsellino,
-    type SchedaAccessi, type SchedaCliente, type Sesso,
+    type Abbonamento, type Braccialetto, type Conto, type Corso, type GruppoClienti, type MetodoPagamento, type ModoRestituzione, type RegoleBorsellino,
+    type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
@@ -22,9 +22,10 @@
   import { lettoreTelefono } from '../lib/lettore.svelte';
 
   /**
-   * La scheda di un cliente per la segreteria: come andrebbe adesso al tornello, anagrafica e contatti, famiglia,
-   * consensi, braccialetti, ban e golden pass, certificato medico, tesseramento, abbonamenti, turni frequentati e liste
-   * d'attesa, ultimi passaggi. Ogni apertura si registra.
+   * La scheda di un cliente per la segreteria. In alto il riassunto, sempre visibile: chi è, come andrebbe adesso al
+   * tornello, quanto deve, credito e crediti, braccialetto, e le azioni di tutti i giorni (pagamento, abbonamento,
+   * ricarica; le rare in «Altre azioni»). Sotto, cinque schede: corsi e abbonamenti, pagamenti e borsellino, accessi,
+   * anagrafica e famiglia, documenti; ognuna segnala se c'è qualcosa da fare. Ogni apertura si registra.
    */
   let { personaId }: { personaId: string } = $props();
   const id = untrack(() => personaId);
@@ -260,29 +261,218 @@
   const eta = (n: number | null) => (n == null ? '' : n === 1 ? '1 anno' : `${n} anni`);
   // le stagioni proposte per cui manca ancora il tesseramento
   const daTesserare = $derived(cliente?.stagioniTesseramento.filter((s) => !cliente!.tesseramenti.some((t) => t.stagione === s.stagione)) ?? []);
+
+  // ── Riassunto ─────────────────────────────────────────────────────────
+  let conto = $state<Conto | null>(null);
+  let borsellino = $state<SchedaBorsellino | null>(null);
+  async function caricaRiassunto() {
+    const [c, b] = await Promise.all([api.conto(id).catch(() => null), api.borsellino(id).catch(() => null)]);
+    conto = c;
+    borsellino = b;
+  }
+  $effect(() => {
+    void versione;
+    untrack(caricaRiassunto);
+  });
+  const puoPagare = $derived(sessione.puo('PAGAMENTI'));
+  const puoRicaricare = $derived(sessione.puo('BORSELLINO'));
+  const daPagare = $derived(conto?.totali.daPagare ?? 0);
+  const qualcosaDaPagare = $derived(!!conto && (conto.addebiti.some((a) => a.stato === 'DA_PAGARE' || a.stato === 'SCADUTO') || conto.famiglia.some((f) => f.aperti.length > 0)));
+  const braccialetto = $derived(accessi?.braccialetti.find((b) => b.stato === 'ATTIVO') ?? accessi?.braccialetti.find((b) => b.stato === 'SMARRITO'));
+  const tesseramentoValido = $derived(cliente?.tesseramenti.find((t) => t.valido));
+
+  // i pannelli di pagamento e ricarica stanno nella scheda «Pagamenti e borsellino»: ci si va e si aprono
+  let contoEl = $state<{ avviaPagamento: () => void }>();
+  let borsEl = $state<{ avviaRicarica: () => void }>();
+  async function registraPagamento() {
+    vai('pagamenti');
+    await tick();
+    contoEl?.avviaPagamento();
+  }
+  async function ricaricaCrediti() {
+    vai('pagamenti');
+    await tick();
+    borsEl?.avviaRicarica();
+  }
+
+  // ── Schede ────────────────────────────────────────────────────────────
+  type Scheda = 'corsi' | 'pagamenti' | 'accessi' | 'anagrafica' | 'documenti';
+  const SCHEDE: { id: Scheda; nome: string }[] = [
+    { id: 'corsi', nome: 'Corsi e abbonamenti' },
+    { id: 'pagamenti', nome: 'Pagamenti e borsellino' },
+    { id: 'accessi', nome: 'Accessi' },
+    { id: 'anagrafica', nome: 'Anagrafica e famiglia' },
+    { id: 'documenti', nome: 'Documenti' },
+  ];
+  // la scheda aperta resta la stessa passando da un cliente all'altro (solo in questa finestra)
+  function schedaSalvata(): Scheda {
+    try {
+      const v = sessionStorage.getItem('scheda-cliente');
+      if (SCHEDE.some((x) => x.id === v)) return v as Scheda;
+    } catch { /* senza storage si parte dalla prima */ }
+    return 'corsi';
+  }
+  let scheda = $state<Scheda>(schedaSalvata());
+  function vai(s: Scheda) {
+    scheda = s;
+    try { sessionStorage.setItem('scheda-cliente', s); } catch { /* niente */ }
+  }
+  /** Frecce, Inizio e Fine si spostano tra le schede, come in ogni elenco di schede. */
+  async function tastiSchede(e: KeyboardEvent) {
+    const i = SCHEDE.findIndex((x) => x.id === scheda);
+    const j = e.key === 'ArrowRight' ? (i + 1) % SCHEDE.length : e.key === 'ArrowLeft' ? (i - 1 + SCHEDE.length) % SCHEDE.length
+      : e.key === 'Home' ? 0 : e.key === 'End' ? SCHEDE.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault();
+    vai(SCHEDE[j].id);
+    await tick();
+    document.getElementById(`tab-${SCHEDE[j].id}`)?.focus();
+  }
+
+  /** Il segno accanto al nome della scheda: quante cose ci sono, o cosa manca. */
+  const segni = $derived.by(() => {
+    const r: Partial<Record<Scheda, { testo: string; warn: boolean }>> = {};
+    if (!cliente || !accessi) return r;
+    const corsiAttivi = cliente.abbonamenti.filter((a) => statoAbbonamento(a).classe === 't-soft').length + cliente.turni.filter((t) => !t.al || t.al >= oggi).length;
+    if (corsiAttivi) r.corsi = { testo: String(corsiAttivi), warn: false };
+    if (daPagare > 0) r.pagamenti = { testo: 'da pagare', warn: true };
+    const ban = attivi.filter((b) => b.tipo === 'BAN').length;
+    if (ban) r.accessi = { testo: ban === 1 ? '1 ban' : `${ban} ban`, warn: true };
+    else if (braccialetto?.stato === 'SMARRITO') r.accessi = { testo: 'smarrito', warn: true };
+    if (cliente.persona.eta != null && cliente.persona.eta < 18 && !cliente.famiglia.tutori.length) r.anagrafica = { testo: 'manca un tutore', warn: true };
+    const daFare = (cliente.certificati[0]?.valido ? 0 : 1) + daTesserare.length + (cliente.consensi.some((c) => c.tipo === 'TRATTAMENTO' && c.valido) ? 0 : 1);
+    if (daFare) r.documenti = { testo: `${daFare} da fare`, warn: true };
+    return r;
+  });
+
+  // ── Altre azioni ──────────────────────────────────────────────────────
+  let menu = $state(false);
+  let menuEl = $state<HTMLElement>();
+  const chiudiMenu = (e: MouseEvent) => {
+    if (menu && menuEl && !menuEl.contains(e.target as Node)) menu = false;
+  };
+  function altra(s: Scheda, fai: () => void) {
+    menu = false;
+    vai(s);
+    fai();
+  }
+  const nuovoPermesso = () => (permesso = { tipo: 'USCITA_AUTONOMA', firmataDa: '', firmataIl: oggi, al: '', note: '' });
+  const nuovoCertificato = () => (certificato = { tipo: 'NON_AGONISTICO', rilasciatoIl: oggi, scadenza: '', firmatoDa: '' });
 </script>
 
 {#if cliente && accessi}
   {@const p = cliente.persona}
-  <header class="testa">
-    <div>
-      <h2 class="d nome">{p.nome} {p.cognome}</h2>
-      <div class="muted">{eta(p.eta)}{p.dataNascita ? ` · nat${cliente.anagrafica.sesso === 'F' ? 'a' : 'o'} il ${dataBreve(p.dataNascita)}` : ''}{cliente.anagrafica.luogoNascita ? ` a ${cliente.anagrafica.luogoNascita}` : ''}</div>
+  <!-- Riassunto: chi è, se entra, cosa deve, e le azioni di tutti i giorni -->
+  <section class="card riassunto">
+    <div class="r-testa">
+      <div class="r-chi">
+        <h2 class="d nome">{p.nome} {p.cognome}</h2>
+        <div class="muted">{eta(p.eta)}{p.dataNascita ? ` · nat${cliente.anagrafica.sesso === 'F' ? 'a' : 'o'} il ${dataBreve(p.dataNascita)}` : ''}{cliente.anagrafica.luogoNascita ? ` a ${cliente.anagrafica.luogoNascita}` : ''}</div>
+        <div class="r-tag">
+          {#if tesseramentoValido}<span class="tag t-soft">Tesserato {tesseramentoValido.stagione}</span>{:else}<span class="tag t-warn">Non tesserato</span>{/if}
+          {#if gp}<span class="tag oro-t">Golden pass</span>{/if}
+          {#each cliente.gruppi as g (g.appartenenzaId)}<span class="tag t-altro">{g.nome}</span>{/each}
+        </div>
+      </div>
+      <div class="r-esito">
+        <EsitoTornello esito={accessi.adesso} simulato />
+      </div>
     </div>
-  </header>
+
+    <div class="kpis">
+      <div class="kpi" class:warn={daPagare > 0}>
+        <span class="lbl">Da pagare</span>
+        <span class="val m">{conto ? euro(daPagare) : '…'}</span>
+        <span class="kpi-nota">{!conto ? '' : conto.totali.scaduto > 0 ? `di cui ${euro(conto.totali.scaduto)} scaduti` : daPagare > 0 ? 'Da registrare' : 'In regola'}</span>
+      </div>
+      <div class="kpi">
+        <span class="lbl">Credito</span>
+        <span class="val m">{borsellino ? euro(borsellino.saldo.euro) : '…'}</span>
+        <span class="kpi-nota">{borsellino?.saldo.inScadenza && borsellino.saldo.prossimaScadenza ? `${euro(borsellino.saldo.inScadenza)} scadono il ${dataBreve(borsellino.saldo.prossimaScadenza)}` : 'Nel borsellino'}</span>
+      </div>
+      <div class="kpi">
+        <span class="lbl">Phon e docce</span>
+        <span class="val m">{borsellino ? `${borsellino.saldo.crediti} crediti` : '…'}</span>
+        <span class="kpi-nota">{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span>
+      </div>
+      <div class="kpi" class:warn={!braccialetto || braccialetto.stato !== 'ATTIVO'}>
+        <span class="lbl">Braccialetto</span>
+        <span class="val m">{braccialetto?.codice ?? 'Nessuno'}</span>
+        <span class="kpi-nota">{braccialetto ? `${STATI[braccialetto.stato].nome} dal ${dataBreve(dataDi(braccialetto.statoDal))}` : 'Da assegnare'}</span>
+      </div>
+    </div>
+
+    <div class="r-azioni">
+      {#if puoPagare}
+        <button class="btn btn-primary" disabled={!conto || !qualcosaDaPagare} title={conto && !qualcosaDaPagare ? 'Niente da pagare' : undefined} onclick={registraPagamento}><Icona nome="euro" />Registra pagamento…</button>
+      {/if}
+      <button class="btn btn-secondary" onclick={() => { vai('corsi'); abbonamento = null; vendita = true; }}><Icona nome="piu" />Nuovo abbonamento…</button>
+      {#if puoRicaricare}<button class="btn btn-secondary" onclick={ricaricaCrediti}><Icona nome="macchine" />Ricarica crediti…</button>{/if}
+      <span class="grow"></span>
+      <div class="menu-wrap" bind:this={menuEl}>
+        <Azione cornice icona="altro" etichetta="Altre azioni" premuto={menu} onclick={() => (menu = !menu)} />
+        {#if menu}
+          <div class="menu-azioni" role="menu" aria-label="Altre azioni">
+            <button role="menuitem" onclick={() => altra('anagrafica', modificaAnagrafica)}><Icona nome="matita" />Modifica l'anagrafica</button>
+            <button role="menuitem" onclick={() => altra('documenti', nuovoCertificato)}><Icona nome="piu" />Nuovo certificato…</button>
+            <button role="menuitem" onclick={() => altra('documenti', nuovoPermesso)}><Icona nome="firma" />Nuovo permesso firmato…</button>
+            <div class="sep" role="separator"></div>
+            {#if daiGolden && !gp}<button role="menuitem" onclick={() => altra('accessi', () => (golden = { motivo: '' }))}><Icona nome="golden" />Golden pass…</button>{/if}
+            <button role="menuitem" onclick={() => altra('accessi', () => (banPersona = { tipo: 'SORVEGLIANZA', motivo: '', al: '' }))}><Icona nome="occhio" />Sotto controllo…</button>
+            <button role="menuitem" class="danger" onclick={() => altra('accessi', () => (banPersona = { tipo: 'BAN', motivo: '', al: '' }))}><Icona nome="divieto" />Banna la persona…</button>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </section>
 
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
 
-  <div class="adesso">
-    <div class="lbl">Adesso al tornello</div>
-    <EsitoTornello esito={accessi.adesso} simulato />
+  <!-- Schede -->
+  <div class="schede" role="tablist" aria-label="Sezioni della scheda" tabindex="-1" onkeydown={tastiSchede}>
+    {#each SCHEDE as t (t.id)}
+      {@const segno = segni[t.id]}
+      <button id={`tab-${t.id}`} class="scheda-tab" role="tab" aria-selected={scheda === t.id} aria-controls={`pannello-${t.id}`} tabindex={scheda === t.id ? 0 : -1} onclick={() => vai(t.id)}>
+        {t.nome}{#if segno}<span class="conta" class:warn={segno.warn}>{segno.testo}</span>{/if}
+      </button>
+    {/each}
   </div>
 
-  <div class="griglia">
+  <div class="pannello" id={`pannello-${scheda}`} role="tabpanel" aria-labelledby={`tab-${scheda}`}>
+    {#if scheda === 'corsi'}
+      {@render sAbbonamenti(cliente, accessi)}
+      <TurniCliente {cliente} {corsi} {esegui} />
+    {:else if scheda === 'pagamenti'}
+      <div class="largo-g"><ContoCliente bind:this={contoEl} personaId={id} {versione} cambiato={() => { carica(); caricaRiassunto(); }} /></div>
+      <div class="largo-g"><BorsellinoCliente bind:this={borsEl} personaId={id} {versione} cambiato={() => versione++} /></div>
+    {:else if scheda === 'accessi'}
+      {@render sBraccialetti(cliente, accessi)}
+      {@render sBan(cliente, accessi)}
+      {@render sPassaggi(cliente, accessi)}
+    {:else if scheda === 'anagrafica'}
+      {@render sAnagrafica(cliente, accessi)}
+      <FamigliaCliente {cliente} {esegui} />
+    {:else}
+      {@render sCertificato(cliente, accessi)}
+      {@render sTesseramento(cliente, accessi)}
+      <ConsensiCliente {cliente} {esegui} />
+      {@render sPermessi(cliente, accessi)}
+    {/if}
+  </div>
+{:else if errore}
+  <p class="msg err" role="alert">{errore}</p>
+{:else}
+  <p class="muted">Caricamento…</p>
+{/if}
+
+<svelte:window onclick={chiudiMenu} onkeydown={(e) => e.key === 'Escape' && (menu = false)} />
+
+{#snippet sAnagrafica(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Anagrafica e contatti -->
     <section class="card blocco">
-      <h3>Anagrafica e contatti</h3>
+      <div class="testa-card"><h3>Anagrafica e contatti</h3>
+        {#if !anag}<Azione icona="matita" etichetta="Modifica l'anagrafica" onclick={modificaAnagrafica} />{/if}</div>
       {#if anag}
         <form class="modulo" onsubmit={(e) => { e.preventDefault(); salvaAnagrafica(); }}>
           <div class="due">
@@ -347,7 +537,6 @@
             {/if}
           </dd>
         </dl>
-        <button class="btn btn-secondary btn-sm sx" onclick={modificaAnagrafica}><Icona nome="matita" />Modifica l'anagrafica</button>
       {/if}
       {#if cliente.email.length}
         <div class="sotto">
@@ -359,10 +548,9 @@
         </div>
       {/if}
     </section>
+{/snippet}
 
-    <FamigliaCliente {cliente} {esegui} />
-    <ConsensiCliente {cliente} {esegui} />
-
+{#snippet sBraccialetti(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Braccialetti -->
     <section class="card blocco">
       <h3>Braccialetti</h3>
@@ -447,7 +635,9 @@
       </form>
       {#if !nfcDisponibile()}<LettoreTelefonoPc compatto />{/if}
     </section>
+{/snippet}
 
+{#snippet sBan(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Ban e golden pass -->
     <section class="card blocco">
       <h3>Ban e golden pass</h3>
@@ -468,7 +658,7 @@
             <Azione icona="revoca" tono="danger" etichetta={b.tipo === 'BAN' ? 'Revoca il ban' : 'Togli la sorveglianza'} conferma="Revoca?" onclick={() => esegui(() => api.revocaBan(b.id), b.tipo === 'BAN' ? 'Ban revocato.' : 'Non è più sotto controllo.')} />
           </li>
         {:else}
-          <li class="muted small">Nessun ban, nessuna segnalazione.</li>
+          <li class="muted small">Nessun ban, nessuna segnalazione.{#if !banPersona && !golden} Ban, sorveglianza e golden pass si danno da «Altre azioni», in alto.{/if}</li>
         {/each}
       </ul>
       {#if banPersona}
@@ -489,18 +679,15 @@
             <button class="btn btn-primary grow">Attiva il golden pass</button>
           </div>
         </form>
-      {:else}
-        <div class="row a-capo">
-          <button class="btn btn-secondary grow" onclick={() => (banPersona = { tipo: 'BAN', motivo: '', al: '' })}>Banna la persona…</button>
-          <button class="btn btn-secondary grow" onclick={() => (banPersona = { tipo: 'SORVEGLIANZA', motivo: '', al: '' })}>Sotto controllo…</button>
-          {#if daiGolden && !gp}<button class="btn btn-secondary grow" onclick={() => (golden = { motivo: '' })}>Golden pass…</button>{/if}
-        </div>
       {/if}
     </section>
+{/snippet}
 
+{#snippet sPermessi(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Permessi firmati -->
     <section class="card blocco">
-      <h3>Permessi firmati</h3>
+      <div class="testa-card"><h3>Permessi firmati</h3>
+        {#if !permesso}<Azione icona="piu" tono="cloro" etichetta="Nuovo permesso firmato" onclick={nuovoPermesso} />{/if}</div>
       <ul class="righe">
         {#each accessi.autorizzazioni.filter((a) => a.attiva) as a (a.id)}
           <li class="ban">
@@ -510,7 +697,7 @@
             <Azione icona="revoca" tono="danger" etichetta="Revoca il permesso" conferma="Revoca?" onclick={() => esegui(() => api.revocaAutorizzazione(a.id), 'Permesso revocato.')} />
           </li>
         {:else}
-          <li class="muted small">Nessun permesso.</li>
+          <li class="muted small">Nessun permesso: uscita autonoma e accompagnatore si registrano col «+».</li>
         {/each}
       </ul>
       {#if permesso}
@@ -532,14 +719,15 @@
             <button class="btn btn-primary grow" disabled={permesso.tipo === 'USCITA_AUTONOMA' && !permesso.firmataDa.trim()}>Registra</button>
           </div>
         </form>
-      {:else}
-        <button class="btn btn-secondary" onclick={() => (permesso = { tipo: 'USCITA_AUTONOMA', firmataDa: '', firmataIl: oggi, al: '', note: '' })}><Icona nome="piu" />Nuovo permesso…</button>
       {/if}
     </section>
+{/snippet}
 
+{#snippet sCertificato(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Certificato medico -->
     <section class="card blocco">
-      <h3>Certificato medico</h3>
+      <div class="testa-card"><h3>Certificato medico</h3>
+        {#if !certificato}<Azione icona="piu" tono="cloro" etichetta="Nuovo certificato" onclick={nuovoCertificato} />{/if}</div>
       <ul class="righe">
         {#each cliente.certificati as c, i (c.id)}
           <li class="voce-l" class:spento={i > 0}>
@@ -548,7 +736,7 @@
             <Azione icona="annulla" etichetta="Annulla il certificato (registrato per errore)" conferma="Annulla?" onclick={() => esegui(() => api.annullaVoce('certificati', c.id), 'Certificato annullato.')} />
           </li>
         {:else}
-          <li class="muted small">Nessun certificato.</li>
+          <li class="muted small">Nessun certificato: al tornello darà rosso.</li>
         {/each}
       </ul>
       {#if certificato}
@@ -571,11 +759,11 @@
             <button class="btn btn-primary grow" disabled={!certificato.scadenza}>Registra</button>
           </div>
         </form>
-      {:else}
-        <button class="btn btn-secondary" onclick={() => (certificato = { tipo: 'NON_AGONISTICO', rilasciatoIl: oggi, scadenza: '', firmatoDa: '' })}><Icona nome="piu" />Nuovo certificato…</button>
       {/if}
     </section>
+{/snippet}
 
+{#snippet sTesseramento(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Tesseramento -->
     <section class="card blocco">
       <h3>Tesseramento</h3>
@@ -593,20 +781,23 @@
       </ul>
       {#each daTesserare as s (s.stagione)}
         <div class="tess">
-          <button class="btn btn-secondary" onclick={() => esegui(() => api.nuovoTesseramento(id, { stagione: s.stagione }), `Tesseramento ${s.stagione} registrato.`)}>
-            Registra il tesseramento {s.stagione}{s.importo != null ? ` · ${s.importo} €` : ''}
+          <button class="btn btn-secondary btn-sm sx" onclick={() => esegui(() => api.nuovoTesseramento(id, { stagione: s.stagione }), `Tesseramento ${s.stagione} registrato.`)}>
+            <Icona nome="piu" />Registra il tesseramento {s.stagione}{s.importo != null ? ` · ${s.importo} €` : ''}
           </button>
-          <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.importo ? '; la quota va tra i pagamenti, qui sotto' : ''}.</p>
+          <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.importo ? '; la quota va tra i pagamenti' : ''}.</p>
         </div>
       {/each}
       {#if !cliente.stagioniTesseramento.length}
         <p class="muted small nomargin">Nessuna stagione in corso: le stagioni si impostano in «Impostazioni della società».</p>
       {/if}
     </section>
+{/snippet}
 
+{#snippet sAbbonamenti(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Abbonamenti -->
-    <section class="card blocco largo">
-      <h3>Abbonamenti</h3>
+    <section class="card blocco">
+      <div class="testa-card"><h3>Abbonamenti</h3>
+        {#if !vendita && !abbonamento}<Azione icona="piu" tono="cloro" etichetta="Nuovo abbonamento o carnet" onclick={() => (vendita = true)} />{/if}</div>
       <ul class="righe">
         {#each cliente.abbonamenti as a (a.id)}
           {@const st = statoAbbonamento(a)}
@@ -703,20 +894,14 @@
             <button class="btn btn-primary grow" disabled={abbonamento.tipo === 'CORSO' || abbonamento.aOrario ? !abbonamento.corsoId : !numero(abbonamento.ingressi)}>Registra</button>
           </div>
         </form>
-      {:else}
-        <button class="btn btn-secondary" onclick={() => (vendita = true)}><Icona nome="piu" />Nuovo abbonamento o carnet…</button>
       {/if}
 
     </section>
+{/snippet}
 
-    <div class="largo-g"><ContoCliente personaId={id} {versione} cambiato={carica} /></div>
-
-    <div class="largo-g"><BorsellinoCliente personaId={id} {versione} cambiato={() => versione++} /></div>
-
-    <div class="largo-g"><TurniCliente {cliente} {corsi} {esegui} /></div>
-
+{#snippet sPassaggi(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Passaggi -->
-    <section class="card blocco largo">
+    <section class="card blocco">
       <h3>Ultimi passaggi</h3>
       <ul class="righe">
         {#each accessi.passaggi as x (x.id)}
@@ -731,22 +916,49 @@
         {/each}
       </ul>
     </section>
-  </div>
-{:else if errore}
-  <p class="msg err" role="alert">{errore}</p>
-{:else}
-  <p class="muted">Caricamento…</p>
-{/if}
+{/snippet}
 
 <style>
   .testa { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-12); }
   .nome { margin: 0; font-size: 28px; font-weight: 800; line-height: 1.1; }
-  .adesso { display: flex; flex-direction: column; gap: var(--space-6); }
-  .griglia { display: grid; grid-template-columns: 1fr; gap: var(--space-14); }
-  @media (min-width: 1180px) {
-    .griglia { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .blocco.largo, .largo-g { grid-column: 1 / -1; }
-  }
+  /* Riassunto */
+  .riassunto { display: flex; flex-direction: column; gap: var(--space-16); padding: var(--space-16) var(--space-20) var(--space-20); }
+  .r-testa { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-16); }
+  .r-chi { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; flex: 1 1 260px; }
+  .r-tag { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-4); }
+  .r-esito { flex: 0 1 340px; min-width: 260px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-10); }
+  .kpi { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--carta); min-width: 0; }
+  .kpi .val { font-size: var(--text-2xl); overflow-wrap: anywhere; }
+  .kpi-nota { font-size: var(--text-xs); color: var(--muted); }
+  .kpi.warn { background: var(--warn-bg); }
+  .kpi.warn .val, .kpi.warn .kpi-nota, .kpi.warn .lbl { color: var(--warn); }
+  .r-azioni { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+  .menu-wrap { position: relative; }
+  @media (max-width: 600px) { .r-azioni > .btn { flex: 1 1 100%; } .r-esito { flex-basis: 100%; min-width: 0; } }
+  .menu-azioni { position: absolute; right: 0; top: calc(100% + var(--space-6)); z-index: 10; width: 270px; padding: var(--space-6); display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(16, 33, 43, 0.14); }
+  .menu-azioni button { display: flex; align-items: center; gap: var(--space-10); min-height: 44px; padding: 0 var(--space-10); border: none; background: none;
+    border-radius: var(--radius-sm); font: inherit; font-size: var(--text-md); color: var(--ink); cursor: pointer; text-align: left; }
+  .menu-azioni button:hover { background: var(--carta); }
+  .menu-azioni button :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
+  .menu-azioni button.danger, .menu-azioni button.danger :global(.ic) { color: var(--danger); }
+  .menu-azioni .sep { height: 1px; background: var(--line-soft); margin: var(--space-4) var(--space-6); }
+
+  /* Schede */
+  .schede { display: flex; gap: var(--space-4); border-bottom: 1px solid var(--line); overflow-x: auto; margin-bottom: calc(-1 * var(--space-4)); }
+  .scheda-tab { position: relative; display: inline-flex; align-items: center; gap: var(--space-8); min-height: 46px; padding: 0 var(--space-14); border: none; background: none;
+    color: var(--muted); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; white-space: nowrap; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .scheda-tab:hover { color: var(--ink); background: var(--surface-sunken); }
+  .scheda-tab[aria-selected='true'] { color: var(--cloro-ink); }
+  .scheda-tab[aria-selected='true']::after { content: ''; position: absolute; left: var(--space-10); right: var(--space-10); bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--cloro); }
+  .scheda-tab:focus-visible { outline-offset: -2px; }
+  .conta { min-width: 20px; height: 20px; padding: 0 var(--space-6); border-radius: var(--radius-pill); background: var(--surface-sunken); color: var(--ink);
+    font-size: var(--text-2xs); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .conta.warn { background: var(--warn-bg); color: var(--warn); }
+  .pannello { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: var(--space-14); align-items: start; }
+  .largo-g { grid-column: 1 / -1; }
+  .testa-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-height: 40px; margin: calc(-1 * var(--space-6)) 0; }
   .blocco { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }
   h3 { margin: 0; font-size: var(--text-xl); }
   .righe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -764,8 +976,6 @@
   .ban { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
   .oro { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); padding: var(--space-8) var(--space-12);
     border-radius: var(--radius-md); background: var(--oro-bg); color: var(--oro-fg); border: 1px solid var(--oro); }
-  .a-capo { flex-wrap: wrap; }
-  .a-capo .btn { min-width: 180px; }
   .oro-t { background: var(--oro-bg); color: var(--oro-fg); margin-right: var(--space-4); }
   .sosp { display: flex; align-items: center; gap: var(--space-8); color: var(--warn); margin-top: 2px; }
   .sospendi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; margin-top: var(--space-6); }

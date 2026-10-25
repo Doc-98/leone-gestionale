@@ -71,7 +71,7 @@
   .simulato { border-width: 1px; border-radius: var(--radius); }
   .stato { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
   .segno { width: 40px; height: 40px; border-radius: 50%; background: var(--b); display: grid; place-items: center; flex-shrink: 0; }
-  .segno svg { width: 24px; height: 24px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .segno svg { width: 24px; height: 24px; fill: none; stroke: var(--surface); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
   .simulato .segno { width: 28px; height: 28px; }
   .simulato .segno svg { width: 17px; height: 17px; }
   .parola { font-family: var(--font-display); font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
