@@ -70,6 +70,35 @@ export function colonneSpazi(spazi: SpazioPiano[]): ColonnaSpazio[] {
   return out;
 }
 
+/**
+ * Le colonne di un giorno: di ogni vasca solo le corsie degli assetti in uso quel giorno (dalle attività
+ * o dalle fasce definite); se nessuno lo dice, l'assetto con più corsie.
+ */
+export function colonneDelGiorno(spazi: SpazioPiano[], occ: { spazi: string[] }[], assettiDefiniti: { vascaId: string; assetto: number | null }[] = []): ColonnaSpazio[] {
+  const perId = new Map(spazi.map((s) => [s.id, s]));
+  const inUso = new Map<string, Set<number>>();
+  const segna = (vascaId: string, assetto: number | null | undefined) => {
+    if (assetto == null) return;
+    if (!inUso.has(vascaId)) inUso.set(vascaId, new Set());
+    inUso.get(vascaId)!.add(assetto);
+  };
+  for (const o of occ)
+    for (const id of o.spazi) {
+      const c = perId.get(id);
+      if (c?.padreId) segna(c.padreId, c.assetto);
+    }
+  for (const d of assettiDefiniti) segna(d.vascaId, d.assetto);
+  return colonneSpazi(spazi).filter((col) => {
+    if (col.id === col.vascaId) return true;
+    const assetto = perId.get(col.id)?.assetto;
+    if (assetto == null) return true;
+    const usati = inUso.get(col.vascaId);
+    if (usati?.size) return usati.has(assetto);
+    const tutti = spazi.filter((s) => s.padreId === col.vascaId).map((s) => s.assetto ?? 0);
+    return assetto === Math.max(...tutti);
+  });
+}
+
 /** Gli intervalli di colonne (inizio incluso, fine esclusa) occupati da un insieme di spazi: una vasca intera copre tutte le sue corsie. */
 export function intervalliColonne(ids: string[], colonne: ColonnaSpazio[]): [number, number][] {
   const indici = new Set<number>();

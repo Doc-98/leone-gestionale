@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Occorrenza, SpazioPiano } from './api';
-import { colonneSpazi, definitePerVasca, disponi, etichettaSpazi, fasceDefiniteIl, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce, tratti } from './piano';
+import { colonneDelGiorno, colonneSpazi, definitePerVasca, disponi, etichettaSpazi, fasceDefiniteIl, finestraOraria, inFascia, intervalliColonne, pianta, raggruppaFasce, tratti } from './piano';
 
 const sp = (id: string, nome: string, tipo: string, padreId: string | null = null): SpazioPiano => ({ id, impiantoId: 'i', nome, tipo, padreId, assetto: null });
 const SPAZI = [
@@ -158,5 +158,28 @@ describe('griglia oraria compatta', () => {
   });
   it('chiude anche la fine della giornata vuota', () => {
     expect(tratti([[h(8), h(10)]], [h(8), h(21)])).toEqual([{ da: h(8), a: h(10), vuoto: false }, { da: h(10), a: h(21), vuoto: true }]);
+  });
+});
+
+describe('colonneDelGiorno', () => {
+  const sp = (id: string, padreId: string | null, assetto: number | null = null): SpazioPiano =>
+    ({ id, impiantoId: 'i', nome: padreId ? `Corsia ${id.slice(-1)}` : id, tipo: padreId ? 'CORSIA' : 'VASCA', padreId, assetto });
+  const spazi = [
+    sp('G', null), ...[1, 2, 3, 4, 5, 6].map((n) => sp(`G6-${n}`, 'G', 6)), ...[1, 2, 3, 4, 5].map((n) => sp(`G5-${n}`, 'G', 5)),
+    sp('P', null),
+  ];
+  const ids = (c: { id: string }[]) => c.map((x) => x.id);
+
+  it('senza indicazioni mostra l\'assetto con più corsie', () => {
+    expect(ids(colonneDelGiorno(spazi, []))).toEqual(['G6-1', 'G6-2', 'G6-3', 'G6-4', 'G6-5', 'G6-6', 'P']);
+  });
+  it('segue l\'assetto delle attività del giorno', () => {
+    expect(ids(colonneDelGiorno(spazi, [{ spazi: ['G5-2'] }]))).toEqual(['G5-1', 'G5-2', 'G5-3', 'G5-4', 'G5-5', 'P']);
+  });
+  it('se il giorno usa due assetti li mostra entrambi', () => {
+    expect(colonneDelGiorno(spazi, [{ spazi: ['G5-2'] }], [{ vascaId: 'G', assetto: 6 }])).toHaveLength(12);
+  });
+  it('una vasca intera non decide l\'assetto', () => {
+    expect(colonneDelGiorno(spazi, [{ spazi: ['G'] }])).toHaveLength(7);
   });
 });

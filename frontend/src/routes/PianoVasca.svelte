@@ -8,7 +8,7 @@
   import LezioneForm from './LezioneForm.svelte';
   import { aggiungiGiorni, daIso, GIORNI_ESTESI, giornoEsteso, iso, lunedi, MESI, ora } from '../lib/date';
   import {
-    colonneSpazi, colore, disponi, etichettaSpazi, finestraOraria, inAttivita, inFascia, intervalliColonne, minuti, nomeCategoria,
+    colonneDelGiorno, colore, disponi, etichettaSpazi, finestraOraria, inAttivita, inFascia, intervalliColonne, minuti, nomeCategoria,
     orarioFascia, pianta, raggruppaFasce, STATI, fasceDefiniteIl, definitePerVasca, type Banda, type Fascia, type Intestazione,
   } from '../lib/piano';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
@@ -81,14 +81,15 @@
   const gestore = $derived(!!piano?.impiantiGestiti.length);
   const spazi = $derived(piano?.spazi ?? []);
   const occorrenze = $derived(piano?.occorrenze ?? []);
-  const colSpazi = $derived(colonneSpazi(spazi));
   const giorni = $derived(Array.from({ length: 7 }, (_, i) => aggiungiGiorni(lunedi(giorno), i)));
 
   // ── Vista giorno: una colonna per corsia (o vasca senza corsie), più «Altro» se serve ──
   const delGiorno = $derived(occorrenze.filter((o) => o.data === giorno));
-  const senzaColonna = $derived(delGiorno.filter((o) => o.categoria !== 'CHIUSURA' && !intervalliColonne(o.spazi, colSpazi).length));
+  // nel giorno solo le corsie degli assetti in uso (la vasca grande non compare due volte, a 6 e a 5 corsie)
+  const colDelGiorno = $derived(colonneDelGiorno(spazi, delGiorno.filter((o) => o.categoria !== 'CHIUSURA'), fasceDefiniteIl(piano?.fasce ?? [], giorno)));
+  const senzaColonna = $derived(delGiorno.filter((o) => o.categoria !== 'CHIUSURA' && !intervalliColonne(o.spazi, colDelGiorno).length));
   const colonneGiorno = $derived<Intestazione[]>([
-    ...colSpazi.map((c) => ({ chiave: c.id, titolo: c.id === c.vascaId ? 'Tutta la vasca' : c.nome.replace(/^Corsia\s*/i, 'Corsia '), sopra: c.vasca })),
+    ...colDelGiorno.map((c) => ({ chiave: c.id, titolo: c.id === c.vascaId ? 'Tutta la vasca' : c.nome.replace(/^Corsia\s*/i, 'Corsia '), sopra: c.vasca })),
     ...(senzaColonna.length ? [{ chiave: 'altro', titolo: 'Senza spazio', sopra: 'Altro' }] : []),
   ]);
   const riquadriGiorno = $derived(
@@ -96,8 +97,8 @@
       delGiorno
         .filter((o) => o.categoria !== 'CHIUSURA')
         .flatMap((o) => {
-          const iv = intervalliColonne(o.spazi, colSpazi);
-          return iv.length ? iv.map(([x, y]) => ({ occorrenza: o, colonna: x, ampiezza: y - x })) : [{ occorrenza: o, colonna: colSpazi.length, ampiezza: 1 }];
+          const iv = intervalliColonne(o.spazi, colDelGiorno);
+          return iv.length ? iv.map(([x, y]) => ({ occorrenza: o, colonna: x, ampiezza: y - x })) : [{ occorrenza: o, colonna: colDelGiorno.length, ampiezza: 1 }];
         }),
     ),
   );
@@ -105,7 +106,7 @@
     delGiorno
       .filter((o) => o.categoria === 'CHIUSURA' && o.stato !== 'ANNULLATO')
       .flatMap((o) => {
-        const iv = o.spazi.length ? intervalliColonne(o.spazi, colSpazi) : [[0, colonneGiorno.length] as [number, number]];
+        const iv = o.spazi.length ? intervalliColonne(o.spazi, colDelGiorno) : [[0, colonneGiorno.length] as [number, number]];
         return iv.map(([x, y]) => ({ chiave: o.chiave + x, colonna: x, ampiezza: y - x, inizio: minuti(o.inizio), fine: minuti(o.fine), titolo: o.titolo }));
       }),
   );
@@ -366,7 +367,7 @@
               apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
               iscritti={apriIscritti} vedeIscritti={vediIscritti}
               cambiaAssetto={gestore && schermo.larga ? cambiaAssetto : undefined}
-              libera={gestore ? (spazio) => inCorsia(giorno, f, spazio) : undefined} />
+              libera={gestore && giorno >= oggi ? (spazio) => inCorsia(giorno, f, spazio) : undefined} />
           </section>
         {/if}
       {/if}
@@ -374,7 +375,7 @@
       <OrarioGriglia colonne={colonneGiorno} riquadri={riquadriGiorno} bande={bandeGiorno} {finestra} {adesso} comprimi
         etichetta="Piano vasca del giorno per spazio" sotto={sottoGiorno}
         apri={(o) => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}
-        vuoto={gestore ? (c, m) => {
+        vuoto={gestore && giorno >= oggi ? (c, m) => {
           const spazio = colonneGiorno[c]?.chiave;
           pannello = { tipo: 'evento', evento: null, data: giorno, inizio: hhmm(m), spazio: spazio === 'altro' ? '' : spazio };
           messaggio = '';
@@ -424,7 +425,7 @@
                                 {#each v.corsie as c, i (c.id)}
                                   {#if !v.pezzi.some((p) => i >= p.da && i < p.da + p.quante)}
                                     {@const chiave = `${g}|${f.chiave}|${c.id}`}
-                                    {#if gestore}
+                                    {#if gestore && g >= oggi}
                                       <button class="slot libero" style="grid-row: {i + 1}; grid-column: 1 / -1" aria-expanded={rapido?.chiave === chiave}
                                               aria-label="Corsia {c.numero} libera, {giornoEsteso(g)} {orarioFascia(f)}: aggiungi"
                                               onclick={() => (rapido = rapido?.chiave === chiave ? null : { chiave, data: g, fascia: f, spazio: c.id, nome: `Corsia ${c.numero}` })}>
