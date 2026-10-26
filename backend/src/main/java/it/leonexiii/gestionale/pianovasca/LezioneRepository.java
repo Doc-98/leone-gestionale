@@ -16,7 +16,7 @@ interface LezioneRepository extends JpaRepository<Lezione, UUID> {
         """)
     List<Lezione> deiCorsiAttivi(Collection<UUID> impianti);
 
-    @Query("select distinct l from Lezione l join fetch l.corso c left join fetch l.spazi where c.id in :corsi")
+    @Query("select distinct l from Lezione l join fetch l.corso c left join fetch l.spazi left join fetch l.istruttori where c.id in :corsi")
     List<Lezione> deiCorsi(Collection<UUID> corsi);
 
     @Query("select l from Lezione l join fetch l.corso left join fetch l.spazi left join fetch l.eccezioni where l.id = :id")

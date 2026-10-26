@@ -56,6 +56,8 @@ Un corso, un turno o un evento si mostra sempre come un **riquadro nella tinta d
 
 Lo spazio libero è un riquadro **tratteggiato** (`--line-dashed`): se chi guarda può pianificare, è un pulsante che al passaggio si colora di `cloro-soft` e mostra il `piu`; il clic apre un piccolo menu («Turno di un corso…», «Evento…») che porta al modulo già compilato con giorno, orario e corsia.
 
+**Menu rapido.** Un piccolo pannello sopra la griglia per creare qualcosa al volo da una casella libera (un turno nella scheda del corso): intestazione su fondo `hero` con «Nuovo turno» e il quando, poi le scelte una sotto l'altra con l'etichetta sopra e una linea `line-soft` tra l'una e l'altra (pillole per le scelte, corsie occupate tratteggiate e spente), in fondo un piede su `carta` con il riepilogo di cosa verrà creato e il pulsante primario che lo dice («Aggiungi 2 turni»). Il titolo segue le scelte; tutto il resto si cambia dopo, dalla pagina della cosa creata, che si apre subito.
+
 **Viste a scelta.** Quando la stessa informazione ha due letture utili (il piano vasca: una fascia alla volta o tutto il giorno; la settimana in riquadri o per corsia) si offre un selettore segmentato nella barra, e la scelta si ricorda per ogni account sul dispositivo (`lib/preferenze.ts`). Il predefinito dipende dal ruolo quando i ruoli lavorano in modo diverso: in segreteria i riquadri, per chi coordina la vista per corsia.
 
 ## Iconografia

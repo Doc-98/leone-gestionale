@@ -28,17 +28,22 @@ class GestionePianoService {
 
     private static final ZoneId FUSO = ZoneId.of("Europe/Rome");
 
+    /** Un turno, con gli iscritti di oggi e quanti aspettano un posto. */
     record LezioneDto(UUID id, int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl,
-                      List<UUID> spazi, PersonaBreve istruttore, Integer posti) {}
+                      List<UUID> spazi, PersonaBreve istruttore, List<PersonaBreve> istruttori, Cadenza cadenza, Integer posti,
+                      int iscritti, int inAttesa) {}
 
+    /** Un corso con il suo parco istruttori ({@code istruttore} è il primo, per compatibilità) e i turni. */
     record CorsoDto(UUID id, UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA,
-                    PersonaBreve istruttore, String note, boolean attivo, String colore, List<LezioneDto> lezioni) {}
+                    PersonaBreve istruttore, List<PersonaBreve> istruttori, String note, boolean attivo, String colore, List<LezioneDto> lezioni) {}
 
+    /** {@code istruttori} è il parco; se manca vale {@code istruttoreId} (un solo istruttore, come prima). */
     record CorsoInput(UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA, UUID istruttoreId,
-                      String note, Boolean attivo, String colore) {}
+                      List<UUID> istruttori, String note, Boolean attivo, String colore) {}
 
+    /** {@code istruttori}: chi tiene il turno (se manca vale {@code istruttoreId}); {@code cadenza}: di base ogni settimana. */
     record LezioneInput(int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl,
-                        List<UUID> spazi, UUID istruttoreId, Integer posti) {}
+                        List<UUID> spazi, UUID istruttoreId, List<UUID> istruttori, Cadenza cadenza, Integer posti) {}
 
     record EccezioneInput(LocalDate data, TipoEccezione tipo, LocalDate nuovaData, LocalTime nuovoInizio, LocalTime nuovoFine, String motivo) {}
 
@@ -61,11 +66,13 @@ class GestionePianoService {
     private final AccessoPiano accesso;
     private final FasceService fasce;
     private final IscrizioneRepository iscrizioni;
+    private final AttesaRepository attese;
 
     GestionePianoService(CorsoRepository corsi, LezioneRepository lezioni, EccezioneRepository eccezioni, EventoRepository eventi,
                          PianoService piano, Impianti impianti, Persone persone, AccessoPiano accesso, FasceService fasce,
-                         IscrizioneRepository iscrizioni) {
+                         IscrizioneRepository iscrizioni, AttesaRepository attese) {
         this.iscrizioni = iscrizioni;
+        this.attese = attese;
         this.fasce = fasce;
         this.corsi = corsi;
         this.lezioni = lezioni;
@@ -88,29 +95,33 @@ class GestionePianoService {
         if (elenco.isEmpty()) return List.of();
         Map<UUID, List<Lezione>> perCorso = new LinkedHashMap<>();
         lezioni.deiCorsi(elenco.stream().map(Corso::getId).toList()).forEach(l -> perCorso.computeIfAbsent(l.getCorso().getId(), k -> new ArrayList<>()).add(l));
-        Map<UUID, String> nomi = nomi(elenco, perCorso.values().stream().flatMap(List::stream).toList());
-        return elenco.stream().map(c -> dto(c, perCorso.getOrDefault(c.getId(), List.of()), nomi)).toList();
+        List<Lezione> tutte = perCorso.values().stream().flatMap(List::stream).toList();
+        Map<UUID, String> nomi = nomi(elenco, tutte);
+        Numeri numeri = numeri(tutte);
+        return elenco.stream().map(c -> dto(c, perCorso.getOrDefault(c.getId(), List.of()), nomi, numeri)).toList();
     }
 
     @Transactional
     CorsoDto creaCorso(Utente u, CorsoInput in) {
         if (in.impiantoId() == null) throw new IllegalArgumentException("Scegli l'impianto.");
         accesso.richiediGestione(u, in.impiantoId());
-        controllaIstruttore(in.istruttoreId(), in.impiantoId());
+        List<UUID> parco = elenco(in.istruttori(), in.istruttoreId());
+        parco.forEach(p -> controllaIstruttore(p, in.impiantoId()));
         Corso c = new Corso(in.impiantoId());
-        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), in.istruttoreId(), in.note(), in.attivo() == null || in.attivo(), in.colore());
+        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), parco, in.note(), in.attivo() == null || in.attivo(), in.colore());
         corsi.saveAndFlush(c);
-        return dto(c, List.of(), nomi(List.of(c), List.of()));
+        return dto(c, List.of(), nomi(List.of(c), List.of()), Numeri.NESSUNO);
     }
 
     @Transactional
     CorsoDto modificaCorso(Utente u, UUID id, CorsoInput in) {
         Corso c = corso(u, id);
-        controllaIstruttore(in.istruttoreId(), c.getImpiantoId());
-        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), in.istruttoreId(), in.note(), in.attivo() == null ? c.isAttivo() : in.attivo(), in.colore());
+        List<UUID> parco = elenco(in.istruttori(), in.istruttoreId());
+        parco.forEach(p -> controllaIstruttore(p, c.getImpiantoId()));
+        c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), parco, in.note(), in.attivo() == null ? c.isAttivo() : in.attivo(), in.colore());
         corsi.flush();
         List<Lezione> sue = lezioni.deiCorsi(List.of(id));
-        return dto(c, sue, nomi(List.of(c), sue));
+        return dto(c, sue, nomi(List.of(c), sue), numeri(sue));
     }
 
     // ── Lezioni ─────────────────────────────────────────────────────────────
@@ -121,7 +132,7 @@ class GestionePianoService {
         Lezione l = new Lezione(c);
         applica(l, c, in);
         lezioni.saveAndFlush(l);
-        return new Esito<>(dto(l, nomi(List.of(c), List.of(l))), avvisiLezione(l));
+        return new Esito<>(dto(l, nomi(List.of(c), List.of(l)), numeri(List.of(l))), avvisiLezione(l));
     }
 
     @Transactional
@@ -129,7 +140,7 @@ class GestionePianoService {
         Lezione l = lezione(u, id);
         applica(l, l.getCorso(), in);
         lezioni.flush();
-        return new Esito<>(dto(l, nomi(List.of(l.getCorso()), List.of(l))), avvisiLezione(l));
+        return new Esito<>(dto(l, nomi(List.of(l.getCorso()), List.of(l)), numeri(List.of(l))), avvisiLezione(l));
     }
 
     /**
@@ -205,9 +216,11 @@ class GestionePianoService {
     private void applica(Lezione l, Corso c, LezioneInput in) {
         Set<UUID> spazi = in.spazi() == null ? Set.of() : new HashSet<>(in.spazi());
         controllaSpazi(spazi, c.getImpiantoId());
-        controllaIstruttore(in.istruttoreId(), c.getImpiantoId());
-        l.modifica(in.giornoSettimana(), in.inizio(), in.fine(), in.validaDal(), in.validaAl(), spazi, in.istruttoreId());
+        List<UUID> suoi = elenco(in.istruttori(), in.istruttoreId());
+        suoi.forEach(p -> controllaIstruttore(p, c.getImpiantoId()));
+        l.modifica(in.giornoSettimana(), in.inizio(), in.fine(), in.validaDal(), in.validaAl(), spazi, suoi, in.cadenza());
         l.posti(in.posti());
+        c.aggiungiAlParco(new HashSet<>(suoi));
         controllaAssettoFascia(spazi, c.getImpiantoId(), in);
     }
 
@@ -297,24 +310,55 @@ class GestionePianoService {
     }
 
     private Map<UUID, String> nomi(List<Corso> c, List<Lezione> l) {
-        return persone.nomiCompleti(Stream.concat(c.stream().map(Corso::getIstruttoreId), l.stream().map(Lezione::getIstruttoreId))
+        return persone.nomiCompleti(Stream.concat(
+                Stream.concat(c.stream().map(Corso::getIstruttoreId), c.stream().flatMap(x -> x.getIstruttori().stream())),
+                Stream.concat(l.stream().map(Lezione::getIstruttoreId), l.stream().flatMap(x -> x.getIstruttori().stream())))
             .filter(Objects::nonNull).distinct().toList());
+    }
+
+    /** L'elenco di istruttori dalla richiesta: quello nuovo se c'è, altrimenti il vecchio campo singolo. */
+    private static List<UUID> elenco(List<UUID> istruttori, UUID istruttoreId) {
+        if (istruttori != null) return istruttori.stream().filter(Objects::nonNull).distinct().toList();
+        return istruttoreId == null ? List.of() : List.of(istruttoreId);
+    }
+
+    /** Iscritti di oggi e persone in lista d'attesa, per turno. */
+    private record Numeri(Map<UUID, Integer> iscritti, Map<UUID, Integer> inAttesa) {
+        static final Numeri NESSUNO = new Numeri(Map.of(), Map.of());
+    }
+
+    private Numeri numeri(List<Lezione> turni) {
+        if (turni.isEmpty()) return Numeri.NESSUNO;
+        List<UUID> ids = turni.stream().map(Lezione::getId).toList();
+        LocalDate oggi = LocalDate.now(FUSO);
+        Map<UUID, Integer> isc = new java.util.HashMap<>();
+        iscrizioni.nelPeriodo(ids, oggi, oggi).forEach(i -> isc.merge(i.getLezioneId(), 1, Integer::sum));
+        Map<UUID, Integer> att = new java.util.HashMap<>();
+        attese.inAttesa(ids).forEach(a -> att.merge(a.getLezioneId(), 1, Integer::sum));
+        return new Numeri(isc, att);
+    }
+
+    private static List<PersonaBreve> brevi(java.util.Collection<UUID> ids, UUID primo, Map<UUID, String> nomi) {
+        return ids.stream().filter(Objects::nonNull).distinct()
+            .sorted(Comparator.comparing((UUID id) -> !id.equals(primo)).thenComparing(id -> nomi.getOrDefault(id, "?")))
+            .map(id -> breve(id, nomi)).toList();
     }
 
     private static PersonaBreve breve(UUID id, Map<UUID, String> nomi) {
         return id == null ? null : new PersonaBreve(id, nomi.getOrDefault(id, "?"));
     }
 
-    private CorsoDto dto(Corso c, List<Lezione> sue, Map<UUID, String> nomi) {
+    private CorsoDto dto(Corso c, List<Lezione> sue, Map<UUID, String> nomi, Numeri numeri) {
         return new CorsoDto(c.getId(), c.getImpiantoId(), c.getNome(), c.getTipo(), c.getLivello(), c.getEtaDa(), c.getEtaA(),
-            breve(c.getIstruttoreId(), nomi), c.getNote(), c.isAttivo(), c.getColore(),
+            breve(c.getIstruttoreId(), nomi), brevi(c.getIstruttori(), c.getIstruttoreId(), nomi), c.getNote(), c.isAttivo(), c.getColore(),
             sue.stream().sorted(Comparator.comparing(Lezione::getGiornoSettimana).thenComparing(Lezione::getInizio))
-                .map(l -> dto(l, nomi)).toList());
+                .map(l -> dto(l, nomi, numeri)).toList());
     }
 
-    private static LezioneDto dto(Lezione l, Map<UUID, String> nomi) {
+    private static LezioneDto dto(Lezione l, Map<UUID, String> nomi, Numeri numeri) {
         return new LezioneDto(l.getId(), l.getGiornoSettimana(), l.getInizio(), l.getFine(), l.getValidaDal(), l.getValidaAl(),
-            l.getSpazi().stream().sorted().toList(), breve(l.getIstruttoreId(), nomi), l.getPosti());
+            l.getSpazi().stream().sorted().toList(), breve(l.getIstruttoreId(), nomi), brevi(l.getIstruttori(), l.getIstruttoreId(), nomi),
+            l.getCadenza(), l.getPosti(), numeri.iscritti().getOrDefault(l.getId(), 0), numeri.inAttesa().getOrDefault(l.getId(), 0));
     }
 
     private EventoDto dto(Evento e) {

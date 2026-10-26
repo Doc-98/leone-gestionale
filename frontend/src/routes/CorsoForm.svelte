@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type Corso, type PersonaBreve, type TipoCorso } from '../lib/api';
   import { TIPI_CORSO } from '../lib/piano';
+  import SceltaIstruttori from '../components/SceltaIstruttori.svelte';
 
   let { corso, impiantoId, personale, fatto }: {
     corso: Corso | null;
@@ -16,7 +17,7 @@
   let livello = $state(c?.livello ?? '');
   let etaDa = $state<number | string | null>(c?.etaDa ?? null);
   let etaA = $state<number | string | null>(c?.etaA ?? null);
-  let istruttoreId = $state(c?.istruttore?.id ?? '');
+  let istruttori = $state<string[]>(c?.istruttori?.map((p) => p.id) ?? (c?.istruttore ? [c.istruttore.id] : []));
   let note = $state(c?.note ?? '');
   let attivo = $state(c?.attivo ?? true);
   let colore = $state(c?.colore ?? '');
@@ -33,7 +34,7 @@
     errore = '';
     lavoro = true;
     const dati = { impiantoId: c?.impiantoId ?? impiantoId, nome, tipo, livello: livello || null, etaDa: numero(etaDa), etaA: numero(etaA),
-      istruttoreId: istruttoreId || null, note: note || null, attivo, colore: colore || null };
+      istruttori, note: note || null, attivo, colore: colore || null };
     try {
       const salvato = corso ? await api.modificaCorso(corso.id, dati) : await api.creaCorso(dati);
       fatto(salvato, corso ? 'Corso aggiornato.' : 'Corso creato: ora aggiungi le lezioni.');
@@ -57,12 +58,10 @@
     <label class="field"><span class="lbl">Età da</span><input class="inp m" type="number" min="0" max="120" bind:value={etaDa} /></label>
     <label class="field"><span class="lbl">Età fino a</span><input class="inp m" type="number" min="0" max="120" bind:value={etaA} /></label>
   </div>
-  <label class="field"><span class="lbl">Istruttore</span>
-    <select class="inp" bind:value={istruttoreId}>
-      <option value="">—</option>
-      {#each personale as p (p.id)}<option value={p.id}>{p.nome}</option>{/each}
-    </select>
-  </label>
+  <div class="field"><span class="lbl">Istruttori del corso</span>
+    <SceltaIstruttori bind:scelti={istruttori} proposte={c?.istruttori ?? []} altri={personale} etichetta="Istruttori del corso" />
+    <span class="muted small">Il parco istruttori: ogni turno ne ha assegnati uno o più, scelti tra questi. Il primo acceso è quello di riferimento.</span>
+  </div>
   <div class="field">
     <span class="lbl">Colore del livello (facoltativo)</span>
     <div class="colori" role="radiogroup" aria-label="Colore">

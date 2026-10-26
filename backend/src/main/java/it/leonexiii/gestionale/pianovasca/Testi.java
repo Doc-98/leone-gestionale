@@ -17,4 +17,11 @@ final class Testi {
         if (t.length() > massimo) throw new IllegalArgumentException("Testo troppo lungo per " + cosa + " (al massimo " + massimo + " caratteri).");
         return t;
     }
+
+    private static final String[] GIORNI = {"", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"};
+
+    /** 1 → «lunedì» … 7 → «domenica». */
+    static String giorno(int giornoSettimana) {
+        return giornoSettimana >= 1 && giornoSettimana <= 7 ? GIORNI[giornoSettimana] : "?";
+    }
 }

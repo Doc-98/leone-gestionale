@@ -5,6 +5,8 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -14,11 +16,16 @@ import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/** Una lezione che si ripete ogni settimana nel giorno indicato, nel periodo di validità, su uno o più spazi. */
+/**
+ * Un turno del corso: si ripete nel giorno della settimana indicato (ogni settimana, oppure una volta al mese nella
+ * stessa posizione del mese della prima data), nel periodo di validità, su uno o più spazi, con i suoi istruttori.
+ */
 @Entity
 @Table(name = "lezione")
 class Lezione {
@@ -45,8 +52,18 @@ class Lezione {
     @Column(name = "valida_al")
     private LocalDate validaAl;
 
+    /** Il primo istruttore del turno (compatibilità); l'elenco completo è in {@link #istruttori}. */
     @Column(name = "istruttore_id")
     private UUID istruttoreId;
+
+    @ElementCollection
+    @CollectionTable(name = "lezione_istruttore", joinColumns = @JoinColumn(name = "lezione_id"))
+    @Column(name = "persona_id")
+    private Set<UUID> istruttori = new LinkedHashSet<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Cadenza cadenza = Cadenza.SETTIMANALE;
 
     /** Quanti iscritti al massimo (facoltativo). */
     private Short posti;
@@ -66,7 +83,8 @@ class Lezione {
         this.corso = corso;
     }
 
-    void modifica(int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl, Set<UUID> spazi, UUID istruttoreId) {
+    void modifica(int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl, Set<UUID> spazi,
+                  List<UUID> istruttori, Cadenza cadenza) {
         if (giornoSettimana < 1 || giornoSettimana > 7) throw new IllegalArgumentException("Giorno della settimana tra 1 (lunedì) e 7 (domenica).");
         if (inizio == null || fine == null || !fine.isAfter(inizio)) throw new IllegalArgumentException("La fine della lezione deve essere dopo l'inizio.");
         if (validaDal == null) throw new IllegalArgumentException("Indica da quando vale la lezione.");
@@ -79,12 +97,24 @@ class Lezione {
         this.validaAl = validaAl;
         this.spazi.clear();
         this.spazi.addAll(spazi);
-        this.istruttoreId = istruttoreId;
+        List<UUID> suoi = istruttori == null ? List.of() : istruttori.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        this.istruttoreId = suoi.isEmpty() ? null : suoi.get(0);
+        this.istruttori.clear();
+        this.istruttori.addAll(suoi);
+        this.cadenza = cadenza == null ? Cadenza.SETTIMANALE : cadenza;
+        if (this.cadenza == Cadenza.MENSILE && validaDal.getDayOfWeek().getValue() != giornoSettimana)
+            throw new IllegalArgumentException("Per un turno mensile la prima data deve cadere di " + Testi.giorno(giornoSettimana) + ".");
     }
 
     /** La lezione cade in quella data (giorno della settimana e validità)? */
     boolean cadeIl(LocalDate data) {
-        return data.getDayOfWeek().getValue() == giornoSettimana && !data.isBefore(validaDal) && (validaAl == null || !data.isAfter(validaAl));
+        if (data.getDayOfWeek().getValue() != giornoSettimana || data.isBefore(validaDal) || validaAl != null && data.isAfter(validaAl)) return false;
+        return cadenza != Cadenza.MENSILE || settimanaDelMese(data) == settimanaDelMese(validaDal);
+    }
+
+    /** 1 per i primi sette giorni del mese, 2 per i sette dopo, e così via (il «quarto mercoledì» è la 4). */
+    static int settimanaDelMese(LocalDate data) {
+        return (data.getDayOfMonth() - 1) / 7 + 1;
     }
 
     /** Non si tiene più dal giorno indicato (le date passate restano nello storico). */
@@ -132,10 +162,19 @@ class Lezione {
         this.fine = fine;
     }
 
-    /** L'istruttore di questo turno: il suo, oppure quello del corso. */
+    /** L'istruttore di questo turno: il primo dei suoi, oppure quello del corso. */
     UUID istruttoreEffettivo() {
         return istruttoreId != null ? istruttoreId : corso.getIstruttoreId();
     }
+
+    /** La persona tiene questo turno (è tra i suoi istruttori, o è l'istruttore del corso se il turno non ne ha)? */
+    boolean tenutoDa(UUID personaId) {
+        if (personaId == null) return false;
+        return istruttori.isEmpty() ? personaId.equals(corso.getIstruttoreId()) : istruttori.contains(personaId);
+    }
+
+    Set<UUID> getIstruttori() { return istruttori; }
+    Cadenza getCadenza() { return cadenza; }
     Set<UUID> getSpazi() { return spazi; }
     Set<Eccezione> getEccezioni() { return eccezioni; }
 }

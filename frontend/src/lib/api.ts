@@ -415,9 +415,20 @@ export interface Lezione {
   validaDal: string;
   validaAl: string | null;
   spazi: string[];
+  /** il primo istruttore del turno (compatibilità) */
   istruttore: PersonaBreve | null;
+  /** chi tiene il turno: uno o più, dal parco del corso; vuoto = l'istruttore del corso */
+  istruttori: PersonaBreve[];
+  /** ogni settimana, oppure una volta al mese nella stessa posizione del mese della prima data */
+  cadenza: Cadenza;
   posti: number | null;
+  /** iscritti di oggi */
+  iscritti: number;
+  /** persone in lista d'attesa */
+  inAttesa: number;
 }
+
+export type Cadenza = 'SETTIMANALE' | 'MENSILE';
 
 export interface Corso {
   id: string;
@@ -427,7 +438,10 @@ export interface Corso {
   livello: string | null;
   etaDa: number | null;
   etaA: number | null;
+  /** il primo del parco */
   istruttore: PersonaBreve | null;
+  /** il parco istruttori: chi lavora per questo corso */
+  istruttori: PersonaBreve[];
   note: string | null;
   attivo: boolean;
   colore: string | null;
@@ -441,7 +455,8 @@ export interface CorsoInput {
   livello: string | null;
   etaDa: number | null;
   etaA: number | null;
-  istruttoreId: string | null;
+  /** il parco istruttori (il primo è quello del corso) */
+  istruttori: string[];
   note: string | null;
   attivo: boolean;
   colore: string | null;
@@ -454,7 +469,8 @@ export interface LezioneInput {
   validaDal: string;
   validaAl: string | null;
   spazi: string[];
-  istruttoreId: string | null;
+  istruttori: string[];
+  cadenza?: Cadenza;
   posti: number | null;
 }
 

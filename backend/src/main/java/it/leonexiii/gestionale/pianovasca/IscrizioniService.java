@@ -75,7 +75,7 @@ class IscrizioniService {
     ElencoIscritti elenco(Utente u, UUID lezioneId, LocalDate data) {
         Lezione l = lezione(lezioneId);
         boolean iscrive = accesso.gestisceIscrizioni(u, impianto(l));
-        boolean istruttore = u.personaId().equals(l.istruttoreEffettivo());
+        boolean istruttore = l.tenutoDa(u.personaId());
         boolean coordinatore = accesso.segnaTutteLePresenze(u, impianto(l));
         if (!iscrive && !istruttore && !coordinatore)
             throw new AccessDeniedException("La lista degli iscritti la vedono l'istruttore del turno e chi gestisce iscrizioni o presenze.");
@@ -171,7 +171,7 @@ class IscrizioniService {
     @Transactional
     ElencoIscritti segnaPresenze(Utente u, UUID lezioneId, Presenze in) {
         Lezione l = lezione(lezioneId);
-        boolean istruttore = u.personaId().equals(l.istruttoreEffettivo());
+        boolean istruttore = l.tenutoDa(u.personaId());
         if (!istruttore && !accesso.segnaTutteLePresenze(u, impianto(l)))
             throw new AccessDeniedException("Le presenze le segna l'istruttore del turno (o chi ha «Presenze di tutti»).");
         LocalDate g = in.data();

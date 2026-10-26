@@ -217,7 +217,7 @@ export function eta(da: number | null, a: number | null): string | null {
   if (da == null && a == null) return null;
   if (a == null) return `dai ${da} anni`;
   if (da == null) return `fino a ${a} anni`;
-  return `${da}–${a} anni`;
+  return da === a ? `${da} ${da === 1 ? 'anno' : 'anni'}` : `${da}–${a} anni`;
 }
 
 // ── Fasce ──────────────────────────────────────────────────────────────────

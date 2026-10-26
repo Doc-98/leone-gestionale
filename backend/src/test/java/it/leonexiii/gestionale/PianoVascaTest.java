@@ -91,6 +91,44 @@ class PianoVascaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void parcoIstruttoriTurniMensiliEUnaVoltaSola() throws Exception {
+        var coord = come("coordinatore@demo.leone");
+        String altro = "00000000-0000-0000-0000-000000000104";
+        var corso = crea(coord, "/api/corsi", """
+            {"impiantoId":"%s","nome":"Corso del parco","tipo":"ALTRO","istruttori":["%s","%s"]}""".formatted(IMPIANTO, LUCA, altro));
+        String corsoId = (String) corso.get("id");
+        assertThat((List<?>) corso.get("istruttori")).hasSize(2);
+        assertThat(mappa(corso.get("istruttore"))).containsEntry("id", LUCA);
+
+        // il quarto mercoledì del mese, alle 6 in corsia 6, tenuto dal secondo istruttore
+        var mensile = crea(coord, "/api/corsi/" + corsoId + "/lezioni", """
+            {"giornoSettimana":3,"inizio":"06:00","fine":"06:45","validaDal":"2028-03-22","validaAl":"2028-06-30","spazi":["%s"],
+             "istruttori":["%s"],"cadenza":"MENSILE","posti":6}""".formatted(CORSIA_6, altro));
+        var turno = mappa(mensile.get("valore"));
+        assertThat(turno).containsEntry("cadenza", "MENSILE").containsEntry("iscritti", 0).containsEntry("inAttesa", 0);
+        assertThat(((List<Object>) turno.get("istruttori")).stream().map(o -> mappa(o).get("id")).toList()).containsExactly(altro);
+        // un turno mensile deve partire nel suo giorno della settimana
+        assertThat(coord.post("/api/corsi/" + corsoId + "/lezioni", """
+            {"giornoSettimana":3,"inizio":"06:00","fine":"06:45","validaDal":"2028-03-21","spazi":["%s"],"cadenza":"MENSILE"}""".formatted(CORSIA_6))
+            .statusCode()).isEqualTo(400);
+        // una volta sola: lunedì 13 marzo
+        crea(coord, "/api/corsi/" + corsoId + "/lezioni", """
+            {"giornoSettimana":1,"inizio":"06:00","fine":"06:45","validaDal":"2028-03-13","validaAl":"2028-03-13","spazi":["%s"],"istruttori":["%s"]}"""
+            .formatted(CORSIA_6, LUCA));
+
+        var date = occorrenze(coord, "2028-03-06", "2028-04-30").stream().filter(o -> "Corso del parco".equals(o.get("titolo")))
+            .map(o -> (String) o.get("data")).sorted().toList();
+        assertThat(date).containsExactly("2028-03-13", "2028-03-22", "2028-04-26");
+
+        // nell'elenco dei corsi il parco resta di due, i turni portano i loro istruttori
+        var elenco = (List<Object>) JsonParserFactory.getJsonParser().parseList(coord.get("/api/corsi").body());
+        var questo = elenco.stream().map(PianoVascaTest::mappa).filter(c -> corsoId.equals(c.get("id"))).findFirst().orElseThrow();
+        assertThat((List<?>) questo.get("istruttori")).hasSize(2);
+        assertThat((List<?>) questo.get("lezioni")).hasSize(2);
+    }
+
+    @Test
     void lezioniSovrapposteSaltateESpostate() throws Exception {
         var coord = come("coordinatore@demo.leone");
         var corso = crea(coord, "/api/corsi", """

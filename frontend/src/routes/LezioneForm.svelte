@@ -3,6 +3,7 @@
   import { api, messaggioErrore, type Corso, type Lezione, type PersonaBreve, type SpazioPiano } from '../lib/api';
   import { GIORNI_ESTESI, iso, ora } from '../lib/date';
   import SceltaSpazi from '../components/SceltaSpazi.svelte';
+  import SceltaIstruttori from '../components/SceltaIstruttori.svelte';
 
   /**
    * Un turno del corso: giorno, orario, dove, posti. Dalla scheda del corso il corso è dato; dalla pianta della vasca
@@ -27,7 +28,8 @@
   let validaDal = $state(l?.validaDal ?? p?.dal ?? iso(new Date()));
   let validaAl = $state(l?.validaAl ?? '');
   let scelti = $state<string[]>(l?.spazi ?? (p?.spazio ? [p.spazio] : []));
-  let istruttoreId = $state(l?.istruttore?.id ?? '');
+  let istruttori = $state<string[]>(l?.istruttori?.map((x) => x.id) ?? []);
+  let mensile = $state(l?.cadenza === 'MENSILE');
   let posti = $state<number | string | null>(l?.posti ?? null);
   let errore = $state('');
   let lavoro = $state(false);
@@ -42,7 +44,7 @@
     lavoro = true;
     const dati = {
       giornoSettimana: Number(giornoSettimana), inizio, fine, validaDal, validaAl: validaAl || null, spazi: scelti,
-      istruttoreId: istruttoreId || null, posti: posti === '' || posti == null ? null : Number(posti),
+      istruttori, cadenza: mensile ? ('MENSILE' as const) : ('SETTIMANALE' as const), posti: posti === '' || posti == null ? null : Number(posti),
     };
     try {
       const esito = lezione ? await api.modificaLezione(lezione.id, dati) : await api.aggiungiLezione(corsoScelto.id, dati);
@@ -74,15 +76,15 @@
     <label class="field"><span class="lbl">Fine</span><input class="inp m" type="time" bind:value={fine} required /></label>
   </div>
   <div class="field"><span class="lbl">Dove</span><SceltaSpazi {spazi} bind:scelti /></div>
-  <div class="due">
-    <label class="field"><span class="lbl">Posti (facoltativo)</span><input class="inp m" type="number" min="1" max="500" bind:value={posti} placeholder="senza limite" /></label>
-    <label class="field"><span class="lbl">Istruttore</span>
-      <select class="inp" bind:value={istruttoreId}>
-        <option value="">Del corso{corsoScelto?.istruttore ? ` (${corsoScelto.istruttore.nome})` : ''}</option>
-        {#each personale as p (p.id)}<option value={p.id}>{p.nome}</option>{/each}
-      </select>
-    </label>
+  <label class="field"><span class="lbl">Posti (facoltativo)</span><input class="inp m" type="number" min="1" max="500" bind:value={posti} placeholder="senza limite" /></label>
+  <div class="field"><span class="lbl">Istruttori del turno</span>
+    <SceltaIstruttori bind:scelti={istruttori} proposte={corsoScelto?.istruttori ?? []} altri={personale} etichetta="Istruttori del turno" />
+    {#if !istruttori.length}<span class="muted small">Nessuno scelto: vale l'istruttore del corso{corsoScelto?.istruttore ? ` (${corsoScelto.istruttore.nome})` : ''}.</span>{/if}
   </div>
+  <label class="riga-switch">
+    <span>Una volta al mese<br /><span class="muted small">Lo stesso giorno della settimana nella stessa posizione del mese della prima data (per esempio il quarto mercoledì).</span></span>
+    <button type="button" class="switch" role="switch" aria-checked={mensile} aria-label="Una volta al mese" onclick={() => (mensile = !mensile)}><span></span></button>
+  </label>
   <div class="due">
     <label class="field"><span class="lbl">Dal</span><input class="inp" type="date" bind:value={validaDal} required /></label>
     <label class="field"><span class="lbl">Fino al (facoltativo)</span><input class="inp" type="date" bind:value={validaAl} min={validaDal} /></label>
