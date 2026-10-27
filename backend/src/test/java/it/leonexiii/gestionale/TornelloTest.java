@@ -403,4 +403,56 @@ class TornelloTest {
         assertThat(codici(passa(d.staff, "2028-03-11T12:00", codL))).containsExactly("ABBONAMENTO_SCADUTO");
         assertThat(d.segr.get("/api/clienti/" + nuovo).body()).contains("\"alEffettivo\":\"2028-03-10\"");
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void laGiornataAlBancoContaIFermatiEISistemati() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var staff = come("staff@demo.leone");
+        var coord = come("coordinatore@demo.leone");
+        orologio.alle("2028-06-11T08:00"); // una domenica in cui nessun altro test passa dal tornello
+
+        String persona = crea(segr, "/api/clienti", "{\"nome\":\"Ornella\",\"cognome\":\"Banco\",\"dataNascita\":\"1990-05-01\"}");
+        String codice = nuovoCodice();
+        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        String sconosciuto = nuovoCodice();
+        // passando il braccialetto nella ricerca dei clienti si apre la sua scheda
+        assertThat(json(segr.get("/api/accessi/braccialetti?codice=" + codice)).get("personaId")).isEqualTo(persona);
+        assertThat(json(segr.get("/api/accessi/braccialetti?codice=" + sconosciuto)).get("personaId")).isNull();
+        assertThat(staff.get("/api/accessi/braccialetti?codice=" + codice).statusCode()).isEqualTo(403);
+
+        // due rossi di fila e un braccialetto che non è di nessuno: tre passaggi, due «da sistemare»
+        assertThat(passa(staff, "2028-06-11T09:00", codice).get("verde")).isEqualTo(false);
+        assertThat(passa(staff, "2028-06-11T09:05", codice).get("verde")).isEqualTo(false);
+        assertThat(passa(staff, "2028-06-11T09:06", sconosciuto).get("verde")).isEqualTo(false);
+        var g = json(staff.get("/api/accessi/giornata"));
+        var fuori = (List<Map<String, Object>>) g.get("daSistemare");
+        assertThat(fuori).hasSize(2);
+        assertThat(fuori.get(0).get("codice")).isEqualTo(sconosciuto); // il più recente per primo
+        assertThat(fuori.get(0).get("persona")).isNull();
+        assertThat(fuori.get(1).get("volte")).isEqualTo(2);
+        assertThat((String) fuori.get(1).get("primaVolta")).startsWith("2028-06-11T07:00"); // le 9 a Roma, in UTC
+        assertThat(((Map<String, Object>) fuori.get(1).get("persona")).get("nome")).isEqualTo("Ornella");
+        assertThat((List<?>) g.get("linea")).hasSize(3);
+        assertThat(((Map<String, Object>) g.get("conteggi")).get("fermati")).isEqualTo(3);
+
+        // con il golden pass passa in verde: non è più da sistemare, è tra i sistemati
+        crea(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova del banco\"}");
+        assertThat(passa(staff, "2028-06-11T09:10", codice).get("verde")).isEqualTo(true);
+        g = json(staff.get("/api/accessi/giornata"));
+        assertThat((List<?>) g.get("daSistemare")).hasSize(1);
+        var sistemati = (List<Map<String, Object>>) g.get("sistemati");
+        assertThat(sistemati).hasSize(1);
+        assertThat((String) sistemati.get(0).get("fermatoIl")).startsWith("2028-06-11T07:05");
+        assertThat((List<?>) sistemati.get(0).get("motivi")).isNotEmpty();
+        var conti = (Map<String, Object>) g.get("conteggi");
+        assertThat(conti.get("entrati")).isEqualTo(1);
+        assertThat(conti.get("dentro")).isNull(); // nessuno è passato dall'uscita: non si sa chi è dentro
+
+        // all'uscita: dentro non c'è più nessuno
+        assertThat(esci(staff, "2028-06-11T11:00", codice).get("verde")).isEqualTo(true);
+        conti = (Map<String, Object>) json(staff.get("/api/accessi/giornata")).get("conteggi");
+        assertThat(conti.get("dentro")).isEqualTo(0);
+        assertThat(conti.get("uscite")).isEqualTo(1);
+    }
 }

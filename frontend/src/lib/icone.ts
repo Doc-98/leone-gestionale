@@ -58,6 +58,7 @@ export const ICONE = {
   euro: p('M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9'),
   incassato: '<rect x="3" y="6" width="18" height="12" rx="1.5"/>' + p('m8.5 12 2.5 2.5 4.5-5'),
   golden: p('M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z'),
+  certificato: p('M6 3h9l3 3v15H6zM14 3v4h4M9 11h6M9 15h6M9 19h3'),
   braccialetto: '<ellipse cx="12" cy="12" rx="8" ry="5"/>' + p('M4 12v2c0 2.8 3.6 5 8 5s8-2.2 8-5v-2'),
   smarrito: '<circle cx="12" cy="12" r="9"/>' + p('M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.5v.7M12 17v.01'),
   ritrovato: '<circle cx="12" cy="12" r="9"/>' + p('m8 12.5 3 3 5-6'),

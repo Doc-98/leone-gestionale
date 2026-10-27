@@ -115,7 +115,7 @@ class GestioneAccessiService {
             PageRequest.of(0, Math.clamp(quanti, 1, 100))));
     }
 
-    private List<PassaggioDto> dto(List<Passaggio> lista) {
+    List<PassaggioDto> dto(List<Passaggio> lista) {
         Set<UUID> ids = new HashSet<>();
         lista.forEach(p -> { if (p.getPersonaId() != null) ids.add(p.getPersonaId()); });
         Map<UUID, Persone.PersonaScheda> schede = persone.schede(ids);
@@ -129,6 +129,13 @@ class GestioneAccessiService {
     }
 
     // ── Braccialetti ────────────────────────────────────────────────────────
+
+    /** Di chi è il braccialetto (quello in uso con quel codice), per aprirne la scheda passandolo sul lettore; null se di nessuno. */
+    @Transactional(readOnly = true)
+    UUID diChi(String codice) {
+        String c = Codici.normalizza(codice);
+        return braccialetti.findByCodiceOrderByAssegnatoIlDesc(c).stream().filter(b -> !b.stato().libero()).map(Braccialetto::getPersonaId).findFirst().orElse(null);
+    }
 
     @Transactional
     BraccialettoDto assegna(Utente u, UUID personaId, NuovoBraccialetto in) {

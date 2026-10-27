@@ -27,10 +27,12 @@ class AccessiController {
 
     private final VerificaAccessi verifica;
     private final GestioneAccessiService gestione;
+    private final GiornataAlBanco giornata;
 
-    AccessiController(VerificaAccessi verifica, GestioneAccessiService gestione) {
+    AccessiController(VerificaAccessi verifica, GestioneAccessiService gestione, GiornataAlBanco giornata) {
         this.verifica = verifica;
         this.gestione = gestione;
+        this.giornata = giornata;
     }
 
     record Lettura(String codice, Verso verso) {}
@@ -66,6 +68,21 @@ class AccessiController {
     @GetMapping("/passaggi")
     List<GestioneAccessiService.PassaggioDto> passaggi(@RequestParam(defaultValue = "20") int quanti) {
         return gestione.ultimiPassaggi(quanti);
+    }
+
+    /** La giornata al banco: conteggi, linea dei passaggi, ultimi passaggi con i turni di oggi, da sistemare e sistemati. */
+    @GetMapping("/giornata")
+    GiornataAlBanco.Giornata giornata(@RequestParam(defaultValue = "60") int quanti) {
+        return giornata.oggi(quanti);
+    }
+
+    /** Di chi è un braccialetto: {"personaId": …} o {"personaId": null}. */
+    @GetMapping("/braccialetti")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'BRACCIALETTI')")
+    Map<String, UUID> diChi(@RequestParam String codice) {
+        var m = new java.util.HashMap<String, UUID>();
+        m.put("personaId", gestione.diChi(codice));
+        return m;
     }
 
     @GetMapping("/persone/{id}")

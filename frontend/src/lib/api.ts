@@ -745,6 +745,8 @@ export const api = {
   sospendi: (abbonamentoId: string, s: { dal: string; al: string; motivo: string | null }) => richiesta<{ id: string }>('POST', `/api/clienti/abbonamenti/${abbonamentoId}/sospensioni`, s),
   annullaSospensione: (id: string) => richiesta<void>('POST', `/api/clienti/sospensioni/${id}/annulla`, {}),
   passaggi: (quanti = 20) => richiesta<Passaggio[]>('GET', `/api/accessi/passaggi?quanti=${quanti}`),
+  braccialettoDiChi: (codice: string) => richiesta<{ personaId: string | null }>('GET', `/api/accessi/braccialetti?codice=${encodeURIComponent(codice)}`),
+  giornataBanco: (quanti = 60) => richiesta<GiornataBanco>('GET', `/api/accessi/giornata?quanti=${quanti}`),
   schedaAccessi: (personaId: string) => richiesta<SchedaAccessi>('GET', `/api/accessi/persone/${personaId}`),
   assegnaBraccialetto: (personaId: string, codice: string, note?: string, cauzione = true) =>
     richiesta<Braccialetto>('POST', `/api/accessi/persone/${personaId}/braccialetti`, { codice, note: note ?? null, cauzione }),
@@ -874,6 +876,36 @@ export interface Passaggio {
   persona: PersonaEsito | null;
   motivi: Motivo[];
   carnetScalato: boolean;
+}
+
+/** Un turno di oggi visto dal banco: corso, categoria (tipo), colore del livello, orario, iscritti di oggi. */
+export interface TurnoAlBanco {
+  lezioneId: string;
+  corsoId: string;
+  corso: string;
+  tipo: TipoCorso | null;
+  colore: string | null;
+  inizio: string;
+  fine: string;
+  iscritti: number;
+}
+
+/** La giornata al banco del tornello. */
+export interface GiornataBanco {
+  /** dentro: entrati e non usciti; null se oggi nessuno è passato dall'uscita */
+  conteggi: { entrati: number; conCarnet: number; dentro: number | null; entrate: number; uscite: number; fermati: number };
+  /** un segno per passaggio, dal primo all'ultimo; per i rossi anche chi e perché */
+  linea: { id: string; istante: string; verde: boolean; verso: Verso; chi: string | null; motivo: string | null }[];
+  /** gli ultimi passaggi, il più recente per primo */
+  passaggi: Passaggio[];
+  /** per persona: i turni di oggi */
+  turni: Record<string, TurnoAlBanco[]>;
+  /** per turno di oggi: quanti iscritti sono già entrati */
+  arrivati: Record<string, number>;
+  /** chi ha preso un rosso in entrata e non è più passato in verde, il più recente per primo */
+  daSistemare: { passaggioId: string; istante: string; primaVolta: string; volte: number; codice: string; persona: PersonaEsito | null; motivi: Motivo[] }[];
+  /** chi era fuori ed è poi passato in verde, il più recente per primo */
+  sistemati: { passaggioId: string; fermatoIl: string; passatoIl: string; codice: string; persona: PersonaEsito | null; motivi: Motivo[] }[];
 }
 
 export type StatoBraccialetto = 'ATTIVO' | 'SMARRITO' | 'DISATTIVATO' | 'RESTITUITO';

@@ -11,6 +11,7 @@
   import { euro } from '../lib/listino';
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
+  import { ricordaAperto } from '../lib/recenti';
   import ConsensiCliente from '../components/ConsensiCliente.svelte';
   import BorsellinoCliente from '../components/BorsellinoCliente.svelte';
   import ContoCliente from '../components/ContoCliente.svelte';
@@ -45,6 +46,8 @@
   async function carica() {
     try {
       [cliente, accessi] = await Promise.all([api.schedaCliente(id), api.schedaAccessi(id)]);
+      const p = cliente.persona;
+      ricordaAperto({ id: p.id, nome: p.nome, cognome: p.cognome, eta: p.eta });
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco ad aprire la scheda.');
     }

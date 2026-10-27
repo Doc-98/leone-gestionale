@@ -3,7 +3,9 @@ package it.leonexiii.gestionale.pianovasca;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -94,6 +96,42 @@ public class Frequenze {
                 out.add(new TurnoDelGiorno(c.getId(), c.getCorso().getId(), c.getCorso().getNome(), c.getInizio(), c.getFine()));
         }
         out.sort(Comparator.comparing(TurnoDelGiorno::inizio));
+        return out;
+    }
+
+    /**
+     * Un turno di una giornata visto dal banco del tornello: il corso con la sua categoria (tipo) e il colore del livello,
+     * l'orario effettivo e quanti iscritti ha quel giorno.
+     */
+    public record TurnoAlBanco(UUID lezioneId, UUID corsoId, String corso, String tipo, String colore, LocalTime inizio, LocalTime fine, int iscritti) {}
+
+    /**
+     * Per ognuna delle persone, i turni a cui è iscritta in quella data e che quel giorno si tengono (come
+     * {@link #turniIl}, ma per molte persone insieme: le iscrizioni e i turni si leggono una volta sola).
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, List<TurnoAlBanco>> alBanco(Collection<UUID> persone, LocalDate data) {
+        if (persone.isEmpty()) return Map.of();
+        List<Iscrizione> attive = iscrizioni.findByPersonaIdIn(persone).stream().filter(i -> i.attivaIl(data)).toList();
+        Map<UUID, Lezione> perId = lezioniDi(attive);
+        Map<UUID, List<Iscrizione>> diLezione = perId.isEmpty() ? Map.of()
+            : iscrizioni.nelPeriodo(perId.keySet(), data, data).stream().collect(Collectors.groupingBy(Iscrizione::getLezioneId));
+        Map<UUID, List<TurnoAlBanco>> out = new HashMap<>();
+        for (Iscrizione i : attive) {
+            Lezione l = perId.get(i.getLezioneId());
+            if (l == null) continue;
+            int quanti = (int) diLezione.getOrDefault(l.getId(), List.of()).stream().filter(x -> x.attivaIl(data)).count();
+            Corso c = l.getCorso();
+            String tipo = c.getTipo() == null ? null : c.getTipo().name();
+            List<TurnoAlBanco> suoi = out.computeIfAbsent(i.getPersonaId(), k -> new ArrayList<>());
+            for (Eccezione e : l.getEccezioni())
+                if (e.getTipo() == TipoEccezione.SPOSTATA && data.equals(e.getNuovaData()))
+                    suoi.add(new TurnoAlBanco(l.getId(), c.getId(), c.getNome(), tipo, c.getColore(), e.getNuovoInizio(), e.getNuovoFine(), quanti));
+            if (l.cadeIl(data) && l.eccezioneIl(data).isEmpty())
+                suoi.add(new TurnoAlBanco(l.getId(), c.getId(), c.getNome(), tipo, c.getColore(), l.getInizio(), l.getFine(), quanti));
+        }
+        out.values().forEach(v -> v.sort(Comparator.comparing(TurnoAlBanco::inizio)));
+        out.values().removeIf(List::isEmpty);
         return out;
     }
 

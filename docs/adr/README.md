@@ -24,3 +24,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0018](0018-pagamenti-proposta.md) | Pagamenti, listino, borsellino e ricevute | accettata, in costruzione (parti 1–5 e 7–9 fatte) |
 | [0019](0019-icone-e-azioni.md) | Sistema visivo: icone al posto dei link-testo, quattro forme di azione | accettata |
 | [0020](0020-corsi-parco-istruttori-cadenza.md) | Corsi: parco istruttori, istruttori per turno, turni mensili | accettata |
+| [0021](0021-banco-del-tornello.md) | Il banco del tornello: la giornata, chi è da sistemare, viste a scelta | accettata |
