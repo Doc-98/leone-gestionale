@@ -1392,7 +1392,7 @@ export interface Incassi {
   perMetodo: { metodoId: string; metodo: string; importo: number; daIncassare: number; uscite: number }[];
   pagamenti: PagamentoRegistrato[];
   /** soldi restituiti (cauzione, credito in denaro) */
-  uscite: { id: string; data: string; personaId: string; persona: string | null; metodo: string; importo: number; descrizione: string; registratoDa: string | null }[];
+  uscite: { id: string; data: string; personaId: string; persona: string | null; metodo: string; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string }[];
 }
 
 export interface DaIncassare {

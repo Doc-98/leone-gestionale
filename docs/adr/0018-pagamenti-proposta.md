@@ -87,7 +87,10 @@ paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
   pagato; il rimborso secondo la regola si calcola su quanto è stato pagato davvero e, finché non c'è il borsellino
   (parte 7), si registra come credito (addebito negativo, origine RIMBORSO).
 - Pagina «Incassi»: pagamenti di un giorno o periodo con i totali per metodo, esportazione CSV, pagamenti da incassare.
-  La chiusura di cassa vera (fondo cassa, contati) è la parte 11.
+  La chiusura di cassa vera (fondo cassa, contati) è la parte 11. Da ottobre 2026 la pagina ha tre viste a scelta
+  (cassa del giorno, periodo, registro) e mostra già il riquadro della chiusura: fondo e contati si scrivono e la
+  differenza si calcola sul momento, ma non si salva niente e i pulsanti dicono che la funzione è in sviluppo, finché
+  la segreteria non spiega come si chiude la cassa oggi.
 
 **Come sono fatte le parti 7–9.**
 - Il credito sta **sul server**, non sul braccialetto (che porta solo il numero di serie, come quello della Leone): i

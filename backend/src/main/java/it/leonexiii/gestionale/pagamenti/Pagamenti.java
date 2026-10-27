@@ -88,7 +88,7 @@ public class Pagamenti {
     /** Per metodo: incassato, di cui da incassare, e uscito (soldi restituiti). */
     record TotaleMetodo(UUID metodoId, String metodo, BigDecimal importo, BigDecimal daIncassare, BigDecimal uscite) {}
 
-    record UscitaDto(UUID id, LocalDate data, UUID personaId, String persona, String metodo, BigDecimal importo, String descrizione, String registratoDa) {}
+    record UscitaDto(UUID id, LocalDate data, UUID personaId, String persona, String metodo, BigDecimal importo, String descrizione, String registratoDa, Instant registratoIl) {}
 
     record Incassi(LocalDate da, LocalDate a, BigDecimal totale, List<TotaleMetodo> perMetodo, List<PagamentoDto> pagamenti, List<UscitaDto> uscite) {}
 
@@ -450,7 +450,7 @@ public class Pagamenti {
         BigDecimal totale = tot.values().stream().map(TotaleMetodo::importo).reduce(ZERO, BigDecimal::add);
         var usciteDto = out.stream().map(u -> new UscitaDto(u.getId(), u.getData(), u.getPersonaId(), nomi.get(u.getPersonaId()),
             met.containsKey(u.getMetodoId()) ? met.get(u.getMetodoId()).getNome() : "?", u.getImporto(), u.getDescrizione(),
-            u.getRegistratoDa() == null ? null : nomi.get(u.getRegistratoDa()))).toList();
+            u.getRegistratoDa() == null ? null : nomi.get(u.getRegistratoDa()), u.getRegistratoIl())).toList();
         return new Incassi(inizio, fine, totale, tot.values().stream().filter(t -> t.importo().signum() > 0 || t.uscite().signum() > 0).toList(), lista, usciteDto);
     }
 
