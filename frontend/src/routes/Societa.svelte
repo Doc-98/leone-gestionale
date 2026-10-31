@@ -44,7 +44,7 @@
     }
   }
 
-  const salvaDati = () => esegui(() => api.modificaSocieta({ ...dati!, giorniAnticipo: Number(dati!.giorniAnticipo) }), 'Dati della società salvati.');
+  const salvaDati = () => esegui(() => api.modificaSocieta({ ...dati!, giorniAnticipo: Number(dati!.giorniAnticipo), giorniRispostaAttesa: Number(dati!.giorniRispostaAttesa) }), 'Dati della società salvati.');
 
   // ── Stagioni ──────────────────────────────────────────────────────────
   const piuUnGiorno = (d: string) => iso(new Date(Date.parse(d + 'T12:00:00') + 86400000));
@@ -123,6 +123,9 @@
       </div>
       <label class="field"><span class="lbl">Tesseramento della stagione nuova: proponilo da</span>
         <span class="riga"><input class="inp m num" type="number" min="0" max="365" bind:value={dati.giorniAnticipo} /> <span>giorni prima del suo inizio</span></span>
+      </label>
+      <label class="field"><span class="lbl">Lista d'attesa: chi è avvisato di un posto ha</span>
+        <span class="riga"><input class="inp m num" type="number" min="1" max="30" bind:value={dati.giorniRispostaAttesa} /> <span>giorni per rispondere, poi tocca al prossimo</span></span>
       </label>
       <label class="field"><span class="lbl">Una famiglia paga per più persone insieme (es. due fratelli)</span>
         <select class="inp" bind:value={dati.pagamentiFamiglia}>

@@ -66,6 +66,29 @@ class AttesaController {
         return attesa.avvisa(u, id, in);
     }
 
+    @PostMapping("/attesa/{id}/avvisata-a-voce")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void avvisataAVoce(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        attesa.avvisataAVoce(u, id);
+    }
+
+    @PostMapping("/attesa/{id}/senza-risposta")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void senzaRisposta(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        attesa.senzaRisposta(u, id);
+    }
+
+    @PostMapping("/attesa/{id}/confermata")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void confermata(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        attesa.confermata(u, id);
+    }
+
+    @PostMapping("/attesa/chiedi-conferma")
+    AttesaService.ConfermeChieste chiediConferma(@AuthenticationPrincipal Utente u, @RequestBody AttesaService.ChiediConferma in) {
+        return attesa.chiediConferma(u, in);
+    }
+
     @PostMapping("/iscrizioni/{id}/cambia")
     IscrizioniService.CambioFatto cambia(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody IscrizioniService.Cambio in) {
         return iscrizioni.cambia(u, id, in);

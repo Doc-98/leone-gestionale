@@ -30,6 +30,8 @@ class DatiSocieta {
     private short giorniAnticipo;
     @Column(name = "pagamenti_famiglia", nullable = false)
     private String pagamentiFamiglia;
+    @Column(name = "giorni_risposta_attesa", nullable = false)
+    private short giorniRispostaAttesa;
 
     protected DatiSocieta() {}
 
@@ -57,10 +59,15 @@ class DatiSocieta {
                 throw new IllegalArgumentException("Pagamenti di famiglia: INSIEME, PER_PERSONA o A_SCELTA.");
             this.pagamentiFamiglia = d.pagamentiFamiglia();
         }
+        if (d.giorniRispostaAttesa() != null) {
+            if (d.giorniRispostaAttesa() < 1 || d.giorniRispostaAttesa() > 30)
+                throw new IllegalArgumentException("I giorni per rispondere a un avviso della lista d'attesa vanno da 1 a 30.");
+            this.giorniRispostaAttesa = d.giorniRispostaAttesa().shortValue();
+        }
     }
 
     Societa.Dati dati() {
-        return new Societa.Dati(nome, ragioneSociale, partitaIva, codiceFiscale, indirizzo, cap, citta, provincia, email, telefono, giorniAnticipo, pagamentiFamiglia);
+        return new Societa.Dati(nome, ragioneSociale, partitaIva, codiceFiscale, indirizzo, cap, citta, provincia, email, telefono, giorniAnticipo, pagamentiFamiglia, (int) giorniRispostaAttesa);
     }
 
     private static String testo(String s) {

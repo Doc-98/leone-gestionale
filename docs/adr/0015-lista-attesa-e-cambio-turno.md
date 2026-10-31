@@ -32,3 +32,16 @@ passaggio a un altro corso) oggi sono due operazioni a mano: ritiro e nuova iscr
 - Niente avvisi automatici: la segreteria decide chi chiamare (fratelli, età, preferenze nelle note). Si potrà
   aggiungere un promemoria quando un posto resta libero da qualche giorno.
 - Le richieste di cambio da parte delle famiglie (dall'area clienti) arriveranno con l'area per tutori e clienti.
+
+**Aggiornamento (ottobre 2026): avvisi con tempo per rispondere e storico.**
+
+- Chi è avvisato di un posto (per email o «a voce», cioè per telefono o di persona) ha un numero di giorni per
+  rispondere: un'impostazione della società (di partenza 3). Il giorno limite si salva con l'avviso.
+- Se non risponde in tempo, la segreteria può proporre il posto al prossimo: la voce resta in lista con la sua
+  posizione (segnata «senza risposta») e non tocca più a lei per quel posto. «Ha rinunciato» la toglie dalla lista.
+- Si può chiedere a più persone insieme se aspettano ancora (una sola email per persona, anche se è in più liste) e
+  segnare che aspettano ancora. Chi non ha un'email va nell'elenco da chiamare.
+- Ogni azione sulla lista (aggiunta, avvisi, nessuna risposta, conferme, iscrizione, uscita) finisce in uno storico con
+  chi l'ha fatta; la pagina mostra le ultime.
+- La pagina ha due viste a scelta (interruttore in alto, ricordato per account): «Posti da assegnare» e «Persone in
+  attesa». Gli avvisi restano decisi dalla segreteria: nessun invio automatico.

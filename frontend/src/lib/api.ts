@@ -316,7 +316,15 @@ export interface VoceAttesa {
   eta: number | null;
   aggiuntaIl: string;
   note: string | null;
+  /** l'ultimo avviso: quando, se a voce (telefonata) e il giorno entro cui rispondere */
   avvisataIl: string | null;
+  avvisoAVoce: boolean;
+  rispostaEntro: string | null;
+  /** avvisata e senza risposta: resta in lista, ma il posto si propone al prossimo */
+  senzaRispostaIl: string | null;
+  confermaChiestaIl: string | null;
+  /** ha detto che aspetta ancora */
+  confermataIl: string | null;
   posizione: number;
   contatti: string[];
 }
@@ -325,6 +333,9 @@ export interface TurnoPosti {
   lezioneId: string;
   corsoId: string;
   corso: string;
+  /** categoria del corso (SCUOLA_NUOTO…) e colore del livello */
+  tipo: string | null;
+  colore: string | null;
   etaDa: number | null;
   etaA: number | null;
   giornoSettimana: number;
@@ -340,7 +351,28 @@ export interface TurnoPosti {
 export interface PaginaAttesa {
   oggi: string;
   societa: string;
+  /** giorni per rispondere a un avviso (impostazione della società) */
+  giorniRisposta: number;
   turni: TurnoPosti[];
+  storico: EventoAttesa[];
+}
+export type TipoEventoAttesa = 'AGGIUNTA' | 'AVVISATA' | 'AVVISATA_A_VOCE' | 'SENZA_RISPOSTA' | 'CONFERMA_CHIESTA' | 'CONFERMATA' | 'ISCRITTA' | 'RINUNCIA';
+/** Una riga dello storico delle liste d'attesa. */
+export interface EventoAttesa {
+  quando: string;
+  tipo: TipoEventoAttesa;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  corso: string;
+  giornoSettimana: number;
+  inizio: string;
+  da: string | null;
+}
+export interface ConfermeChieste {
+  inviate: number;
+  nonInviate: number;
+  daChiamare: string[];
 }
 export interface InAttesa {
   attesaId: string;
@@ -707,6 +739,10 @@ export const api = {
   aggiungiAttesa: (lezioneId: string, a: Chi & { note?: string | null }) => richiesta<VoceAttesa>('POST', `/api/lezioni/${lezioneId}/attesa`, a),
   iscriviDaAttesa: (attesaId: string, i: { dal: string; forza?: boolean }) => richiesta<Iscritto>('POST', `/api/attesa/${attesaId}/iscrivi`, i),
   rinunciaAttesa: (attesaId: string) => richiesta<void>('POST', `/api/attesa/${attesaId}/rinuncia`, {}),
+  avvisataAVoce: (attesaId: string) => richiesta<void>('POST', `/api/attesa/${attesaId}/avvisata-a-voce`, {}),
+  senzaRisposta: (attesaId: string) => richiesta<void>('POST', `/api/attesa/${attesaId}/senza-risposta`, {}),
+  confermataAttesa: (attesaId: string) => richiesta<void>('POST', `/api/attesa/${attesaId}/confermata`, {}),
+  chiediConfermaAttesa: (c: { ids: string[]; oggetto: string; testo: string }) => richiesta<ConfermeChieste>('POST', '/api/attesa/chiedi-conferma', c),
   avvisaAttesa: (attesaId: string, a: { oggetto: string; testo: string }) =>
     richiesta<{ emailId: string; stato: StatoEmail; errore: string | null }>('POST', `/api/attesa/${attesaId}/avvisa`, a),
   segnaPresenze: (lezioneId: string, data: string, presenze: { personaId: string; presente: boolean }[]) =>
@@ -1134,6 +1170,8 @@ export interface DatiSocieta {
   giorniAnticipo: number;
   /** pagamenti di più familiari insieme: uno unico, uno per persona, o si sceglie ogni volta */
   pagamentiFamiglia: PagamentiFamiglia;
+  /** giorni per rispondere a un avviso della lista d'attesa */
+  giorniRispostaAttesa: number;
 }
 export interface Stagione {
   id: string;

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.json.JsonParserFactory;
@@ -90,7 +91,23 @@ class AttesaTest {
         assertThat(json(segr.post("/api/attesa/" + secondo.get("id") + "/avvisa", avviso))).containsEntry("stato", "SENZA_EMAIL");
         assertThat(segr.put("/api/clienti/" + secondo.get("personaId") + "/contatti", "{\"email\":\"secondo.attesa@example.org\"}").statusCode()).isEqualTo(200);
         assertThat(json(segr.post("/api/attesa/" + secondo.get("id") + "/avvisa", avviso))).containsEntry("stato", "NON_INVIATA");
-        assertThat(segr.get("/api/lezioni/" + a + "/attesa").body()).contains("\"avvisataIl\":\"").contains("secondo.attesa@example.org");
+        assertThat(segr.get("/api/lezioni/" + a + "/attesa").body()).contains("\"avvisataIl\":\"").contains("secondo.attesa@example.org")
+            .contains("\"avvisoAVoce\":false").contains("\"rispostaEntro\":\"" + oggi.plusDays(3) + "\"");
+
+        // Terzo: non ancora avvisato non può «non aver risposto»; avvisato a voce, non risponde, poi conferma che aspetta
+        assertThat(segr.post("/api/attesa/" + terzo.get("id") + "/senza-risposta", "{}").statusCode()).isEqualTo(400);
+        assertThat(segr.post("/api/attesa/" + terzo.get("id") + "/avvisata-a-voce", "{}").statusCode()).isEqualTo(204);
+        assertThat(segr.post("/api/attesa/" + terzo.get("id") + "/senza-risposta", "{}").statusCode()).isEqualTo(204);
+        assertThat(segr.post("/api/attesa/" + terzo.get("id") + "/confermata", "{}").statusCode()).isEqualTo(204);
+        var conferme = json(segr.post("/api/attesa/chiedi-conferma",
+            "{\"ids\":[\"" + secondo.get("id") + "\",\"" + terzo.get("id") + "\"],\"oggetto\":\"Aspettate ancora?\",\"testo\":\"Buongiorno {nome}, aspettate ancora?\"}"));
+        assertThat(conferme).containsEntry("inviate", 0).containsEntry("nonInviate", 2);
+        assertThat((List<?>) conferme.get("daChiamare")).hasSize(2);
+        String conTerzo = segr.get("/api/lezioni/" + a + "/attesa").body();
+        assertThat(conTerzo).contains("\"avvisoAVoce\":true").contains("\"senzaRispostaIl\":\"").contains("\"confermataIl\":\"").contains("\"confermaChiestaIl\":\"");
+        String conStorico = segr.get("/api/attesa").body();
+        assertThat(conStorico).contains("\"giorniRisposta\":3").contains("\"tipo\":\"AVVISATA_A_VOCE\"").contains("\"tipo\":\"SENZA_RISPOSTA\"")
+            .contains("\"tipo\":\"AGGIUNTA\"").contains("\"da\":\"");
 
         // oggi il turno è ancora pieno; dal giorno in cui si libera, Secondo si iscrive ed esce dalla lista
         assertThat(segr.post("/api/attesa/" + secondo.get("id") + "/iscrivi", "{}").statusCode()).isEqualTo(409);

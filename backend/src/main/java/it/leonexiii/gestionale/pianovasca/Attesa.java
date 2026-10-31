@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /** Una persona in lista d'attesa per un turno del corso pieno: chi arriva prima, passa prima. */
@@ -43,6 +44,25 @@ class Attesa {
     @Column(name = "chiusa_il")
     private Instant chiusaIl;
 
+    /** L'ultimo avviso è stato una telefonata (o di persona) e non un'email. */
+    @Column(name = "avviso_a_voce", nullable = false)
+    private boolean avvisoAVoce;
+
+    /** Entro quando deve rispondere all'ultimo avviso. */
+    @Column(name = "risposta_entro")
+    private LocalDate rispostaEntro;
+
+    /** Avvisata, non ha risposto in tempo: resta in lista, ma il posto si propone al prossimo. */
+    @Column(name = "senza_risposta_il")
+    private Instant senzaRispostaIl;
+
+    @Column(name = "conferma_chiesta_il")
+    private Instant confermaChiestaIl;
+
+    /** Ha detto che aspetta ancora (dopo la domanda della segreteria o di sua iniziativa). */
+    @Column(name = "confermata_il")
+    private Instant confermataIl;
+
     protected Attesa() {}
 
     Attesa(UUID lezioneId, UUID personaId, String note, UUID aggiuntaDa, Instant adesso) {
@@ -62,8 +82,24 @@ class Attesa {
         this.chiusaIl = adesso;
     }
 
-    void avvisata(Instant adesso) {
+    void avvisata(Instant adesso, boolean aVoce, LocalDate entro) {
         this.avvisataIl = adesso;
+        this.avvisoAVoce = aVoce;
+        this.rispostaEntro = entro;
+        this.senzaRispostaIl = null;
+    }
+
+    void senzaRisposta(Instant adesso) {
+        if (avvisataIl == null) throw new IllegalStateException("Non è stata avvisata.");
+        this.senzaRispostaIl = adesso;
+    }
+
+    void confermaChiesta(Instant adesso) {
+        this.confermaChiestaIl = adesso;
+    }
+
+    void confermata(Instant adesso) {
+        this.confermataIl = adesso;
     }
 
     UUID getId() { return id; }
@@ -73,5 +109,11 @@ class Attesa {
     String getNote() { return note; }
     Instant getAvvisataIl() { return avvisataIl; }
     Stato getStato() { return stato; }
+    boolean isAvvisoAVoce() { return avvisoAVoce; }
+    LocalDate getRispostaEntro() { return rispostaEntro; }
+    Instant getSenzaRispostaIl() { return senzaRispostaIl; }
+    Instant getConfermaChiestaIl() { return confermaChiestaIl; }
+    Instant getConfermataIl() { return confermataIl; }
+    Instant getChiusaIl() { return chiusaIl; }
     boolean inAttesa() { return stato == Stato.IN_ATTESA; }
 }

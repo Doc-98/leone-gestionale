@@ -57,11 +57,13 @@ class IscrizioniService {
     private final Persone persone;
     private final AccessoPiano accesso;
     private final AttesaRepository attese;
+    private final AttesaEventoRepository eventiAttesa;
     private final java.time.Clock orologio;
 
     IscrizioniService(LezioneRepository lezioni, IscrizioneRepository iscrizioni, PresenzaRepository presenze, Persone persone, AccessoPiano accesso,
-                      AttesaRepository attese, java.time.Clock orologio) {
+                      AttesaRepository attese, AttesaEventoRepository eventiAttesa, java.time.Clock orologio) {
         this.attese = attese;
+        this.eventiAttesa = eventiAttesa;
         this.orologio = orologio;
         this.lezioni = lezioni;
         this.iscrizioni = iscrizioni;
@@ -112,7 +114,7 @@ class IscrizioniService {
             p = persone.crea(in.nuovaPersona().nome(), in.nuovaPersona().cognome(), in.nuovaPersona().dataNascita());
         } else throw new IllegalArgumentException("Scegli chi iscrivere.");
         Iscrizione i = iscrizioni.saveAndFlush(new Iscrizione(lezioneId, p.id(), dal));
-        chiudiAttesa(lezioneId, p.id());
+        chiudiAttesa(u, lezioneId, p.id());
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), dal).getYears();
         return new IscrittoDto(i.getId(), p.id(), p.nome(), p.cognome(), p.dataNascita(), eta, i.getDal(), null, null);
     }
@@ -147,7 +149,7 @@ class IscrizioniService {
         Iscrizione nuova = new Iscrizione(a.getId(), vecchia.getPersonaId(), dal);
         if (fine != null) nuova.termina(fine);
         iscrizioni.saveAndFlush(nuova);
-        chiudiAttesa(a.getId(), vecchia.getPersonaId());
+        chiudiAttesa(u, a.getId(), vecchia.getPersonaId());
         Persone.PersonaScheda p = persone.schede(List.of(vecchia.getPersonaId())).get(vecchia.getPersonaId());
         Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), dal).getYears();
         var dto = new IscrittoDto(nuova.getId(), p.id(), p.nome(), p.cognome(), p.dataNascita(), eta, nuova.getDal(), nuova.getAl(), null);
@@ -164,8 +166,11 @@ class IscrizioniService {
     }
 
     /** Chi viene iscritto esce dalla lista d'attesa di quel turno. */
-    private void chiudiAttesa(UUID lezioneId, UUID personaId) {
-        attese.inAttesa(lezioneId, personaId).ifPresent(x -> x.chiudi(Attesa.Stato.ISCRITTA, orologio.instant()));
+    private void chiudiAttesa(Utente u, UUID lezioneId, UUID personaId) {
+        attese.inAttesa(lezioneId, personaId).ifPresent(x -> {
+            x.chiudi(Attesa.Stato.ISCRITTA, orologio.instant());
+            eventiAttesa.save(new AttesaEvento(x.getId(), AttesaEvento.Tipo.ISCRITTA, orologio.instant(), u.personaId()));
+        });
     }
 
     @Transactional
