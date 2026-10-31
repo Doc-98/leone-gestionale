@@ -19,14 +19,16 @@ public record RichiestaDto(
     String messaggio,
     Instant creataIl,
     Instant decisaIl,
-    String notaDecisione
+    String notaDecisione,
+    /** il coordinatore che ha proposto la sostituzione al collega (null se l'ha chiesta chi è assente) */
+    PersonaBreve propostaDa
 ) {
     static RichiestaDto da(RichiestaTurno r, Map<UUID, String> nomi) {
         return new RichiestaDto(r.getId(), r.getTipo(), r.getStato(),
             TurnoDto.conPersona(r.getTurno(), nomi),
             r.getTurnoCollega() == null ? null : TurnoDto.conPersona(r.getTurnoCollega(), nomi),
             breve(r.getRichiedenteId(), nomi), breve(r.getCollegaId(), nomi),
-            r.getNuovoInizio(), r.getNuovoFine(), r.getMessaggio(), r.getCreataIl(), r.getDecisaIl(), r.getNotaDecisione());
+            r.getNuovoInizio(), r.getNuovoFine(), r.getMessaggio(), r.getCreataIl(), r.getDecisaIl(), r.getNotaDecisione(), breve(r.getPropostaDa(), nomi));
     }
 
     private static PersonaBreve breve(UUID id, Map<UUID, String> nomi) {

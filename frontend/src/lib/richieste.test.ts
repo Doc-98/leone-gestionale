@@ -9,7 +9,7 @@ const turno = (data: string): Turno => ({
 const base = (x: Partial<Richiesta>): Richiesta => ({
   id: 'r', tipo: 'SOSTITUZIONE', stato: 'IN_ATTESA_COLLEGA', turno: turno('2026-10-19'), turnoCollega: null,
   richiedente: { id: 'luca', nome: 'Luca Bianchi' }, collega: null, nuovoInizio: null, nuovoFine: null,
-  messaggio: null, creataIl: '', decisaIl: null, notaDecisione: null, ...x,
+  messaggio: null, creataIl: '', decisaIl: null, notaDecisione: null, propostaDa: null, ...x,
 });
 
 describe('descrivi', () => {
@@ -23,6 +23,8 @@ describe('descrivi', () => {
     expect(descrivi(r, 'marta').titolo).toBe('Luca Bianchi ti chiede di sostituirlo');
     expect(descrivi(r, 'luca').titolo).toBe('Marta Ricci ti sostituisce');
     expect(descrivi(r, 'paolo').titolo).toBe('Marta Ricci sostituisce Luca Bianchi');
+    const proposta = base({ collega: { id: 'marta', nome: 'Marta Ricci' }, propostaDa: { id: 'c', nome: 'Paolo Neri' } });
+    expect(descrivi(proposta, 'marta').titolo).toBe('Paolo Neri ti propone di sostituire Luca Bianchi');
   });
   it('cambio orario', () => {
     const r = base({ tipo: 'CAMBIO_ORARIO', nuovoInizio: '16:00:00', nuovoFine: '19:00:00' });
@@ -35,7 +37,7 @@ describe('area personale', () => {
     mansione: 'm', postazione: 'Spogliatoio M', stato: 'PIANIFICATO' as const, note: null, persona: null });
   const r = (o: Partial<Richiesta>): Richiesta => ({ id: 'r', tipo: 'SOSTITUZIONE', stato: 'IN_ATTESA_COLLEGA', turno: turno('2026-11-03', '17:00:00', '20:30:00'),
     turnoCollega: null, richiedente: { id: 'io', nome: 'Luca Ferraris' }, collega: null, nuovoInizio: null, nuovoFine: null, messaggio: null,
-    creataIl: '', decisaIl: null, notaDecisione: null, ...o });
+    creataIl: '', decisaIl: null, notaDecisione: null, propostaDa: null, ...o });
 
   it('passi ed esito', () => {
     expect(passi(r({})).map((p) => `${p.nome}:${p.stato}`)).toEqual(['Inviata:fatto', 'Un collega:ora', 'Coordinatore:']);

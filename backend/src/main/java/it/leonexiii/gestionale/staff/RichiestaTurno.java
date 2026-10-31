@@ -64,6 +64,10 @@ class RichiestaTurno {
     @Column(name = "nota_decisione")
     private String notaDecisione;
 
+    /** Sostituzione proposta dal coordinatore a un collega preciso (ADR 0022): accettandola è già approvata. */
+    @Column(name = "proposta_da")
+    private UUID propostaDa;
+
     protected RichiestaTurno() {}
 
     private RichiestaTurno(TipoRichiesta tipo, Turno turno, UUID richiedenteId, String messaggio, StatoRichiesta stato) {
@@ -105,9 +109,32 @@ class RichiestaTurno {
         this.stato = StatoRichiesta.IN_ATTESA_APPROVAZIONE;
     }
 
+    /** Chi rifiuta uno scambio lo chiude; chi non può fare una sostituzione la rimette aperta a tutti (l'assenza resta). */
     void rifiutaDalCollega(UUID collega) {
         richiedi(StatoRichiesta.IN_ATTESA_COLLEGA);
+        if (tipo == TipoRichiesta.SOSTITUZIONE) {
+            this.collegaId = null;
+            this.propostaDa = null;
+            return;
+        }
         chiudi(StatoRichiesta.RESPINTA, collega, "Rifiutata dal collega.");
+    }
+
+    /** Il coordinatore propone la sostituzione a un collega preciso, anche se era aperta o già presa da un altro. */
+    void proponiA(UUID collega, UUID coordinatore) {
+        if (tipo != TipoRichiesta.SOSTITUZIONE) throw new Conflitto("Si propongono solo le sostituzioni.");
+        if (!stato.aperta()) throw new Conflitto("La richiesta è già chiusa.");
+        this.collegaId = collega;
+        this.propostaDa = coordinatore;
+        this.stato = StatoRichiesta.IN_ATTESA_COLLEGA;
+    }
+
+    /** Nessuno può sostituire: la sostituzione si chiude e il turno resta da assegnare. */
+    void lasciaScoperto(UUID decisore, String nota) {
+        if (tipo != TipoRichiesta.SOSTITUZIONE) throw new Conflitto("Solo una sostituzione lascia il turno scoperto.");
+        if (!stato.aperta()) throw new Conflitto("La richiesta è già chiusa.");
+        this.collegaId = null;
+        chiudi(StatoRichiesta.APPROVATA, decisore, nota);
     }
 
     void annulla() {
@@ -122,6 +149,8 @@ class RichiestaTurno {
     }
 
     void respingi(UUID decisore, String nota) {
+        if (tipo == TipoRichiesta.SOSTITUZIONE)
+            throw new Conflitto("Una sostituzione non si respinge: chi la chiede ha avvisato che sarà assente. Proponila a un collega o lascia il turno scoperto.");
         richiedi(StatoRichiesta.IN_ATTESA_APPROVAZIONE);
         chiudi(StatoRichiesta.RESPINTA, decisore, nota);
     }
@@ -150,4 +179,5 @@ class RichiestaTurno {
     Instant getCreataIl() { return creataIl; }
     Instant getDecisaIl() { return decisaIl; }
     String getNotaDecisione() { return notaDecisione; }
+    UUID getPropostaDa() { return propostaDa; }
 }

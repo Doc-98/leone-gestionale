@@ -568,6 +568,14 @@ export interface Richiesta {
   creataIl: string;
   decisaIl: string | null;
   notaDecisione: string | null;
+  /** il coordinatore che ha proposto la sostituzione al collega: accettandola è già approvata (ADR 0022) */
+  propostaDa: PersonaBreve | null;
+}
+
+/** A chi proporre una sostituzione: occupato = il turno che ha già in quell'orario («09:00–12:00 · Atrio»), null se è libero. */
+export interface Candidato {
+  persona: PersonaBreve;
+  occupato: string | null;
 }
 
 export interface NuovaRichiesta {
@@ -874,6 +882,11 @@ export const api = {
   richiesteMie: () => richiesta<Richiesta[]>('GET', '/api/richieste/mie'),
   richiesteAperte: () => richiesta<Richiesta[]>('GET', '/api/richieste/aperte'),
   richiesteDaApprovare: () => richiesta<Richiesta[]>('GET', '/api/richieste'),
+  /** per il coordinatore: da approvare e sostituzioni ancora senza sostituto */
+  richiesteDaGestire: () => richiesta<Richiesta[]>('GET', '/api/richieste?stato=IN_ATTESA_APPROVAZIONE&stato=IN_ATTESA_COLLEGA'),
+  candidati: (id: string) => richiesta<Candidato[]>('GET', `/api/richieste/${id}/candidati`),
+  proponi: (id: string, collegaId: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/proponi`, { collegaId }),
+  senzaSostituto: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/senza-sostituto`, { nota: nota ?? null }),
   accetta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/accetta`),
   rifiuta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/rifiuta`),
   annullaRichiesta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/annulla`),

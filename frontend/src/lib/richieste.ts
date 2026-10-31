@@ -19,7 +19,9 @@ export function descrivi(r: Richiesta, io?: string): { titolo: string; dettaglio
     case 'SOSTITUZIONE':
       return {
         titolo: r.collega
-          ? mia ? `${r.collega.nome} ti sostituisce` : rivoltaAMe ? `${r.richiedente.nome} ti chiede di sostituirlo` : `${r.collega.nome} sostituisce ${r.richiedente.nome}`
+          ? mia ? `${r.collega.nome} ti sostituisce`
+            : rivoltaAMe ? (r.propostaDa ? `${r.propostaDa.nome} ti propone di sostituire ${r.richiedente.nome}` : `${r.richiedente.nome} ti chiede di sostituirlo`)
+            : `${r.collega.nome} sostituisce ${r.richiedente.nome}`
           : mia ? 'Cerchi un sostituto' : `${r.richiedente.nome} cerca un sostituto`,
         dettaglio: `${quando(t)} · ${t.postazione}`,
       };
@@ -84,3 +86,4 @@ export function ordinaDaCoprire(aperte: Richiesta[], occupato: (r: Richiesta) =>
   const perData = (a: Richiesta, b: Richiesta) => a.turno.data.localeCompare(b.turno.data) || a.turno.inizio.localeCompare(b.turno.inizio);
   return { liberi: aperte.filter((r) => !occupato(r)).sort(perData), occupati: aperte.filter(occupato).sort(perData) };
 }
+

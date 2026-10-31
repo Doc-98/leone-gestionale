@@ -73,7 +73,10 @@
   }
 
   const iniziali = (n: string) => n.split(' ').map((x) => x[0]).join('').slice(0, 2);
-  const cosaChiede = (r: Richiesta) => (r.tipo === 'SCAMBIO' ? 'ti propone uno scambio' : r.collega?.id === io ? 'ti chiede di sostituirlo' : 'chiede una sostituzione');
+  const cosaChiede = (r: Richiesta) => (r.tipo === 'SCAMBIO' ? 'ti propone uno scambio' : r.propostaDa ? `ti propone di sostituire ${r.richiedente.nome}`
+    : r.collega?.id === io ? 'ti chiede di sostituirlo' : 'chiede una sostituzione');
+  // chi «parla» nella scheda: il coordinatore, se la sostituzione l'ha proposta lui
+  const chiChiede = (r: Richiesta) => r.propostaDa ?? r.richiedente;
   const ICONA = { SOSTITUZIONE: 'persona', SCAMBIO: 'scambio', CAMBIO_ORARIO: 'ore' } as const;
 </script>
 
@@ -89,14 +92,16 @@
 
 {#snippet pulsantiPerTe(r: Richiesta)}
   <div class="bottoni">
-    <button class="btn btn-secondary" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.rifiuta(r.id), 'Hai risposto che non puoi.')}>Non posso</button>
-    <button class="btn btn-primary" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.accetta(r.id), 'Accettata: ora decide il coordinatore.')}>Accetto</button>
+    <button class="btn btn-secondary" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.rifiuta(r.id),
+      r.tipo === 'SOSTITUZIONE' ? 'Hai risposto che non puoi: la richiesta torna aperta agli altri.' : 'Hai risposto che non puoi.')}>Non posso</button>
+    <button class="btn btn-primary" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.accetta(r.id),
+      r.propostaDa ? 'Accettata: il turno ora è tuo.' : 'Accettata: ora decide il coordinatore.')}>Accetto</button>
   </div>
 {/snippet}
 
 {#snippet schedaPerTe(r: Richiesta)}
   <article class="card scheda">
-    <span class="riga"><span class="av">{iniziali(r.richiedente.nome)}</span><span class="grow"><b>{r.richiedente.nome}</b> {cosaChiede(r)}</span><span class="tipo">{NOMI_TIPO[r.tipo]}</span></span>
+    <span class="riga"><span class="av">{iniziali(chiChiede(r).nome)}</span><span class="grow"><b>{chiChiede(r).nome}</b>{r.propostaDa ? ' (coordinatore)' : ''} {cosaChiede(r)}</span><span class="tipo">{NOMI_TIPO[r.tipo]}</span></span>
     {#if r.tipo === 'SCAMBIO' && r.turnoCollega}
       {@render miniTurno(r.turno, 'il suo')}{@render miniTurno(r.turnoCollega, 'il tuo')}
     {:else}
@@ -208,7 +213,7 @@
           <button type="button" class="riga-r" aria-expanded={aperto === r.id} onclick={() => (aperto = aperto === r.id ? null : r.id)}>
             <span class="ico" class:warn-i={scheda === 'perte' || (scheda === 'mie' && e.tono === 'warn')} class:cloro-i={scheda === 'coprire' && !occ}><Icona nome={scheda === 'coprire' ? 'piu' : ICONA[r.tipo]} /></span>
             <span class="grow testo">
-              <b>{scheda === 'perte' ? `${r.richiedente.nome.split(' ')[0]} ${cosaChiede(r)}` : scheda === 'coprire' ? `${giornoCorto(r.turno.data)} · ${ora(r.turno.inizio)}–${ora(r.turno.fine)}` : NOMI_TIPO[r.tipo]}</b>
+              <b>{scheda === 'perte' ? `${chiChiede(r).nome.split(' ')[0]} ${cosaChiede(r)}` : scheda === 'coprire' ? `${giornoCorto(r.turno.data)} · ${ora(r.turno.inizio)}–${ora(r.turno.fine)}` : NOMI_TIPO[r.tipo]}</b>
               <span class="muted small">{scheda === 'coprire' ? `${r.turno.postazione} · chiede ${r.richiedente.nome}` : cosaCambia(r, io)}</span>
             </span>
             <span class="stato {occ ? 'muted' : e.tono}">{occ ? 'sei in turno' : scheda === 'coprire' ? 'sei libero' : e.testo}</span>

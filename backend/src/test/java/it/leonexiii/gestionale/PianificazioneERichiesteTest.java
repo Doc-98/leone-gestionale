@@ -138,6 +138,44 @@ class PianificazioneERichiesteTest {
     }
 
     @Test
+    void sostituzioneNonSiRespingeSiProponeOSiLasciaScoperta() throws Exception {
+        var coord = come("coordinatore@demo.leone");
+        String t = creaTurno(coord, SPOGL_M_1, "2027-04-06", "09:00", "10:00", LUCA);
+        var luca = come("staff@demo.leone");
+        String id = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t + "\"}")).get("id");
+
+        // il coordinatore la vede tra le aperte, non la può respingere, la propone a Marta
+        assertThat(coord.get("/api/richieste?stato=IN_ATTESA_COLLEGA").body()).contains(id);
+        assertThat(coord.post("/api/richieste/" + id + "/respingi", "{}").statusCode()).isEqualTo(409);
+        String candidati = coord.get("/api/richieste/" + id + "/candidati").body();
+        assertThat(candidati).contains(MARTA).doesNotContain(LUCA);
+        assertThat(luca.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + MARTA + "\"}").statusCode()).isEqualTo(403);
+        var p = json(coord.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + MARTA + "\"}"));
+        assertThat(mappa(p.get("collega"))).containsEntry("id", MARTA);
+        assertThat(mappa(p.get("propostaDa")).get("nome")).isNotEqualTo("?");
+
+        // Marta non può: torna aperta a tutti, senza proposta
+        var marta = come("marta@demo.leone");
+        var rif = json(marta.post("/api/richieste/" + id + "/rifiuta", ""));
+        assertThat(rif).containsEntry("stato", "IN_ATTESA_COLLEGA").containsEntry("collega", null).containsEntry("propostaDa", null);
+
+        // proposta a Giulia, che accetta: è già approvata e il turno passa a lei
+        coord.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + GIULIA + "\"}");
+        assertThat(json(come("giulia@demo.leone").post("/api/richieste/" + id + "/accetta", ""))).containsEntry("stato", "APPROVATA");
+        var turno = lista(coord.get("/api/turni?da=2027-04-06&a=2027-04-06")).stream().map(PianificazioneERichiesteTest::mappa)
+            .filter(x -> x.get("id").equals(t)).findFirst().orElseThrow();
+        assertThat(mappa(turno.get("persona"))).containsEntry("id", GIULIA);
+
+        // un'altra che nessuno prende: il coordinatore lascia il turno scoperto
+        String t2 = creaTurno(coord, SPOGL_M_1, "2027-04-07", "09:00", "10:00", LUCA);
+        String id2 = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t2 + "\"}")).get("id");
+        assertThat(json(coord.post("/api/richieste/" + id2 + "/senza-sostituto", ""))).containsEntry("stato", "APPROVATA");
+        var t2dopo = lista(coord.get("/api/turni?da=2027-04-07&a=2027-04-07")).stream().map(PianificazioneERichiesteTest::mappa)
+            .filter(x -> x.get("id").equals(t2)).findFirst().orElseThrow();
+        assertThat(t2dopo.get("persona")).isNull();
+    }
+
+    @Test
     void scambioTraDueColleghi() throws Exception {
         var coord = come("coordinatore@demo.leone");
         String tLuca = creaTurno(coord, SPOGL_M_1, "2027-04-12", "09:00", "10:00", LUCA);

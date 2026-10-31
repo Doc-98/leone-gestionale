@@ -2,6 +2,7 @@ package it.leonexiii.gestionale.staff;
 
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
+import it.leonexiii.gestionale.identita.PersonaBreve;
 import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
@@ -107,6 +108,52 @@ class RichiesteService {
             case CAMBIO_ORARIO -> throw new Conflitto("Un cambio orario non va accettato da un collega.");
         }
         r.accettaDa(io);
+        // proposta dal coordinatore: accettandola è già approvata
+        if (r.getTipo() == TipoRichiesta.SOSTITUZIONE && r.getPropostaDa() != null) applica(r, r.getPropostaDa(), null);
+        return dto(r);
+    }
+
+    /** A chi si può proporre una sostituzione, con il turno che ha già in quell'orario (occupato = null se è libero). */
+    record Candidato(PersonaBreve persona, String occupato) {}
+
+    /** Lo staff dell'impianto tranne chi è assente: prima i liberi in quell'orario, poi chi è già in turno. */
+    @Transactional(readOnly = true)
+    List<Candidato> candidati(Utente u, UUID id) {
+        RichiestaTurno r = richiesta(id);
+        Turno t = r.getTurno();
+        permessi.richiedi(u, Permesso.APPROVAZIONI, t.impiantoId());
+        return persone.conPermesso(Permesso.TURNI, t.impiantoId()).stream()
+            .filter(p -> !p.id().equals(r.getRichiedenteId()))
+            .map(p -> new Candidato(p, turni.diPersona(p.id(), t.getData(), t.getData()).stream()
+                .filter(x -> x.pianificato() && x.getInizio().isBefore(t.getFine()) && x.getFine().isAfter(t.getInizio()))
+                .findFirst().map(x -> x.getInizio() + "–" + x.getFine() + " · " + x.getPostazione().getNome()).orElse(null)))
+            .sorted(java.util.Comparator.comparing((Candidato c) -> c.occupato() != null).thenComparing(c -> c.persona().nome()))
+            .toList();
+    }
+
+    /** Il coordinatore propone la sostituzione a un collega preciso (libero in quell'orario). */
+    @Transactional
+    RichiestaDto proponi(Utente u, UUID id, UUID collegaId) {
+        RichiestaTurno r = richiesta(id);
+        permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
+        if (collegaId == null) throw new IllegalArgumentException("Scegli a chi proporla.");
+        Turno t = r.getTurno();
+        controllaCollega(collegaId, r.getRichiedenteId(), t);
+        if (turni.sovrapposto(collegaId, t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
+            throw new Conflitto("Il collega ha già un turno in quell'orario.");
+        r.proponiA(collegaId, u.personaId());
+        return dto(r);
+    }
+
+    /** Nessuno può sostituire: la richiesta si chiude e il turno resta da assegnare (scoperto). */
+    @Transactional
+    RichiestaDto senzaSostituto(Utente u, UUID id, String nota) {
+        RichiestaTurno r = richiesta(id);
+        permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
+        Turno t = r.getTurno();
+        if (t.pianificato() && r.getRichiedenteId().equals(t.getPersonaId())) t.assegna(null);
+        r.lasciaScoperto(u.personaId(), nota == null || nota.isBlank() ? "Nessun sostituto: il turno resta da assegnare." : nota);
+        turni.flush();
         return dto(r);
     }
 
@@ -131,6 +178,12 @@ class RichiesteService {
         RichiestaTurno r = richiesta(id);
         permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
         if (r.getStato() != StatoRichiesta.IN_ATTESA_APPROVAZIONE) throw new Conflitto("La richiesta non è in attesa di approvazione.");
+        applica(r, u.personaId(), nota);
+        return dto(r);
+    }
+
+    /** Applica la richiesta ai turni e la chiude come approvata. */
+    private void applica(RichiestaTurno r, UUID decisore, String nota) {
         Turno t = r.getTurno();
         if (!t.pianificato() || !r.getRichiedenteId().equals(t.getPersonaId()))
             throw new Conflitto("Il turno è cambiato dopo la richiesta: non si può più applicare.");
@@ -160,9 +213,8 @@ class RichiesteService {
                 t.assegna(r.getCollegaId());
             }
         }
-        r.approva(u.personaId(), nota);
+        r.approva(decisore, nota);
         turni.flush();
-        return dto(r);
     }
 
     @Transactional
@@ -200,7 +252,7 @@ class RichiesteService {
 
     private List<RichiestaDto> dto(List<RichiestaTurno> elenco) {
         Map<UUID, String> nomi = persone.nomiCompleti(elenco.stream()
-            .flatMap(r -> Stream.of(r.getRichiedenteId(), r.getCollegaId(), r.getTurno().getPersonaId(),
+            .flatMap(r -> Stream.of(r.getRichiedenteId(), r.getCollegaId(), r.getPropostaDa(), r.getTurno().getPersonaId(),
                 r.getTurnoCollega() == null ? null : r.getTurnoCollega().getPersonaId()))
             .filter(Objects::nonNull).distinct().toList());
         return elenco.stream().map(r -> RichiestaDto.da(r, nomi)).toList();

@@ -32,5 +32,13 @@ Gli assistenti sono collaboratori (co.co.co.): chiedere una sostituzione vuol di
 - Senza coordinatori indicati non cambia niente: chi ha il permesso vede tutti i gruppi del suo impianto, come prima.
 - Una persona che lavora in più gruppi compare in ognuno per le ore fatte lì; nell'elenco di tutto il personale sta sotto
   il gruppo in cui ha fatto più ore.
-- Restano da fare con le pagine di gestione: proporre una sostituzione a un collega preciso dalla pagina «Da approvare»
-  e togliere da lì il «respingi» per le sostituzioni.
+- Una sostituzione **non si respinge** (il server risponde 409). Dalla pagina «Da approvare» il coordinatore:
+  - conferma chi l'ha presa;
+  - la **propone a un collega preciso** (`POST /api/richieste/{id}/proponi`, anche se un altro l'aveva già presa):
+    l'elenco (`GET /api/richieste/{id}/candidati`) è lo staff dell'impianto, prima i liberi in quell'orario, chi è
+    già in turno non si può scegliere. Chi riceve la proposta vede «Paolo (coordinatore) ti propone di sostituire …»;
+    se accetta la sostituzione è già approvata, se non può torna aperta a tutti (`richiesta_turno.proposta_da`, V21);
+  - se nessuno può, **lascia il turno scoperto** (`POST /api/richieste/{id}/senza-sostituto`): la richiesta si chiude
+    e il turno resta senza persona, da riassegnare nella pianificazione.
+- Anche un collega che rifiuta una sostituzione chiesta a lui non la chiude: torna aperta a tutti. Scambi e cambi
+  d'orario invece restano richieste vere e proprie: il collega o il coordinatore possono dire di no.

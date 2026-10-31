@@ -2,6 +2,7 @@ package it.leonexiii.gestionale.staff;
 
 import it.leonexiii.gestionale.identita.Utente;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -72,6 +73,29 @@ class RichiesteController {
     @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
     RichiestaDto approva(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody(required = false) Decisione d) {
         return service.approva(utente, id, d == null ? null : d.nota());
+    }
+
+    record Proposta(UUID collegaId) {}
+
+    /** Il coordinatore propone una sostituzione a un collega preciso. */
+    @PostMapping("/{id}/proponi")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
+    RichiestaDto proponi(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody Proposta in) {
+        return service.proponi(utente, id, in.collegaId());
+    }
+
+    /** A chi proporre la sostituzione: lo staff dell'impianto, liberi prima. */
+    @GetMapping("/{id}/candidati")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
+    List<RichiesteService.Candidato> candidati(@AuthenticationPrincipal Utente utente, @PathVariable UUID id) {
+        return service.candidati(utente, id);
+    }
+
+    /** Nessuno può sostituire: il turno resta da assegnare. */
+    @PostMapping("/{id}/senza-sostituto")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
+    RichiestaDto senzaSostituto(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody(required = false) Map<String, String> in) {
+        return service.senzaSostituto(utente, id, in == null ? null : in.get("nota"));
     }
 
     @PostMapping("/{id}/respingi")
