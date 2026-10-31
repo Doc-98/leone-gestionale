@@ -1,13 +1,14 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
-  import { api, messaggioErrore, type Impianto, type Mansione, type PostazioneGestione, type Spazio } from '../lib/api';
+  import { api, messaggioErrore, type Impianto, type Mansione, type PersonaBreve, type PostazioneGestione, type Spazio } from '../lib/api';
   import Foglio from '../components/Foglio.svelte';
 
   let mansioni = $state<Mansione[]>([]);
   let spazi = $state<Spazio[]>([]);
   let impianti = $state<Impianto[]>([]);
   let voci = $state<string[]>([]);
+  let personale = $state<PersonaBreve[]>([]);
   let caricamento = $state(true);
   let errore = $state('');
   let messaggio = $state('');
@@ -22,6 +23,7 @@
   let fImpianto = $state('');
   let fSpazio = $state('');
   let fAttiva = $state(true);
+  let fCoordinatori = $state<string[]>([]);
   let fErrore = $state('');
   let lavoro = $state(false);
 
@@ -34,6 +36,7 @@
     })
     .catch((e) => (errore = messaggioErrore(e)))
     .finally(() => (caricamento = false));
+  api.personale().then((p) => (personale = p)).catch(() => {});
 
   const nomeSpazio = (id: string | null) => spazi.find((s) => s.id === id)?.nome ?? '—';
   const nomeImpianto = (id: string) => impianti.find((i) => i.id === id)?.nome ?? '';
@@ -44,6 +47,7 @@
     fNome = m?.nome ?? '';
     fVoce = m?.voceFoglioOre ?? '';
     fImpianto = m?.impiantoId ?? impianti[0]?.id ?? '';
+    fCoordinatori = m?.coordinatori.map((c) => c.id) ?? [];
     mansioneAperta = { mansione: m };
   }
 
@@ -63,7 +67,8 @@
     fErrore = '';
     try {
       const m = mansioneAperta.mansione;
-      const nuova = m ? await api.modificaMansione(m.id, fNome, fVoce || null) : await api.creaMansione(fImpianto, fNome, fVoce || null);
+      let nuova = m ? await api.modificaMansione(m.id, fNome, fVoce || null, fCoordinatori) : await api.creaMansione(fImpianto, fNome, fVoce || null);
+      if (!m && fCoordinatori.length) nuova = await api.modificaMansione(nuova.id, fNome, fVoce || null, fCoordinatori);
       mansioni = m ? mansioni.map((x) => (x.id === nuova.id ? nuova : x)) : [...mansioni, nuova];
       messaggio = m ? 'Mansione aggiornata.' : 'Mansione creata: ora aggiungi le sue postazioni.';
       mansioneAperta = null;
@@ -137,6 +142,7 @@
             <h2>{m.nome}</h2>
             <div class="muted small">
               {#if impianti.length > 1}{nomeImpianto(m.impiantoId)} · {/if}Foglio ore: {#if m.voceFoglioOre}<span class="tag t-soft">{m.voceFoglioOre}</span>{:else}<span>colonna propria</span>{/if}
+              · Coordina: {m.coordinatori.length ? m.coordinatori.map((c) => c.nome).join(', ') : 'chi ha il permesso «Ore dello staff»'}
             </div>
           </div>
           <Azione icona="matita" etichetta={`Modifica la mansione ${m.nome}`} onclick={() => apriMansione(m)} />
@@ -185,6 +191,16 @@
           {#each voci as v (v)}<option value={v}>{v}</option>{/each}
         </select>
       </label>
+      <div class="field">
+        <span class="lbl">Chi coordina il gruppo</span>
+        <span class="muted small">Con il permesso «Ore dello staff», chi coordina dei gruppi vede le ore solo di quelli. Chi ha il permesso senza coordinare nessun gruppo (la direzione) li vede tutti.</span>
+        <div class="coordinatori">
+          {#each personale as p (p.id)}
+            <label class="spunta"><input type="checkbox" checked={fCoordinatori.includes(p.id)}
+              onchange={(e) => (fCoordinatori = e.currentTarget.checked ? [...fCoordinatori, p.id] : fCoordinatori.filter((x) => x !== p.id))} />{p.nome}</label>
+          {/each}
+        </div>
+      </div>
       {#if fErrore}<p class="msg err" role="alert">{fErrore}</p>{/if}
       <button class="btn btn-primary" disabled={lavoro}>{mansioneAperta.mansione ? 'Salva' : 'Crea la mansione'}</button>
     </form>
@@ -217,6 +233,8 @@
   .barra { display: flex; align-items: center; gap: var(--space-16); }
   .compatto { height: 40px; font-size: var(--text-md); padding: 0 var(--space-14); }
   .mansioni { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: var(--space-16); align-items: start; }
+  .coordinatori { display: flex; flex-direction: column; gap: var(--space-4); max-height: 220px; overflow-y: auto; padding: var(--space-6) var(--space-10); border: 1px solid var(--line); border-radius: var(--radius-md); }
+  .spunta { display: flex; align-items: center; gap: var(--space-8); min-height: 36px; font-size: var(--text-md); }
   .mansione { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-8); }
   header { display: flex; align-items: flex-start; gap: var(--space-12); }
   h2 { margin: 0; font-size: var(--text-xl); }

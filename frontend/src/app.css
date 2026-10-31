@@ -339,3 +339,11 @@ label:has(> input[type='file']:focus-visible) { outline: 2px solid var(--cloro);
 .cat-gara { --c-bg: var(--warn-bg); --c-fg: var(--warn); --c-line: var(--warn); }
 .cat-curricolare, .cat-nuoto-libero, .cat-altro, .cat-chiusura { --c-bg: var(--area-x-bg); --c-fg: var(--area-x-fg); --c-line: var(--area-x); }
 .pallino { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c-line); flex-shrink: 0; }
+
+/* Aree dello staff (spogliatoio maschile, femminile, piccoli, atrio): un colore per area, nei turni e nelle ore. */
+.ar-m { --a: var(--area-m); --a-bg: var(--area-m-bg); --a-fg: var(--area-m-fg); }
+.ar-f { --a: var(--area-f); --a-bg: var(--area-f-bg); --a-fg: var(--area-f-fg); }
+.ar-p { --a: var(--area-p); --a-bg: var(--area-p-bg); --a-fg: var(--area-p-fg); }
+.ar-a { --a: var(--area-a); --a-bg: var(--area-a-bg); --a-fg: var(--area-a-fg); }
+.ar-x { --a: var(--area-x); --a-bg: var(--area-x-bg); --a-fg: var(--area-x-fg); }
+.segno-area { display: inline-block; width: 9px; height: 9px; border-radius: 3px; background: var(--a); flex-shrink: 0; }

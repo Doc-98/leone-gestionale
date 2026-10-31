@@ -37,9 +37,12 @@ class AnagraficheService {
 
     record PostazioneGestioneDto(UUID id, UUID mansioneId, String nome, UUID spazioId, int ordine, boolean attiva) {}
 
-    record MansioneDto(UUID id, UUID impiantoId, String codice, String nome, String voceFoglioOre, List<PostazioneGestioneDto> postazioni) {}
+    /** coordinatori: chi coordina il gruppo di staff e ne vede le ore (ADR 0022). */
+    record MansioneDto(UUID id, UUID impiantoId, String codice, String nome, String voceFoglioOre, List<PostazioneGestioneDto> postazioni,
+                       List<PersonaBreve> coordinatori) {}
 
-    record MansioneInput(UUID impiantoId, String nome, String voceFoglioOre) {}
+    /** coordinatori null = non cambiano. */
+    record MansioneInput(UUID impiantoId, String nome, String voceFoglioOre, List<UUID> coordinatori) {}
 
     record PostazioneInput(String nome, UUID spazioId, Boolean attiva) {}
 
@@ -87,6 +90,21 @@ class AnagraficheService {
 
     // ── Mansioni e postazioni ───────────────────────────────────────────────
 
+    private List<PersonaBreve> coordinatori(Mansione m) {
+        if (m.getCoordinatori().isEmpty()) return List.of();
+        Map<UUID, String> nomi = persone.nomiCompleti(m.getCoordinatori());
+        return m.getCoordinatori().stream().map(id -> new PersonaBreve(id, nomi.getOrDefault(id, "?")))
+            .sorted(java.util.Comparator.comparing(PersonaBreve::nome)).toList();
+    }
+
+    private java.util.Set<UUID> coordinatoriValidi(List<UUID> ids) {
+        java.util.Set<UUID> scelti = new java.util.HashSet<>(ids);
+        if (scelti.size() > 10) throw new IllegalArgumentException("Al massimo 10 coordinatori per gruppo.");
+        Map<UUID, String> nomi = persone.nomiCompleti(scelti);
+        if (!nomi.keySet().containsAll(scelti)) throw new IllegalArgumentException("Coordinatore non trovato.");
+        return scelti;
+    }
+
     @Transactional(readOnly = true)
     List<MansioneDto> mansioni(Utente u) {
         Set<UUID> gestiti = permessi.impianti(u, Permesso.PIANIFICAZIONE, Permesso.ANAGRAFICHE_STAFF);
@@ -95,7 +113,7 @@ class AnagraficheService {
             .collect(java.util.stream.Collectors.groupingBy(p -> p.getMansione().getId()));
         return mansioni.findByImpiantoIdInOrderByNome(gestiti).stream()
             .map(m -> new MansioneDto(m.getId(), m.getImpiantoId(), m.getCodice(), m.getNome(), m.getVoceFoglioOre(),
-                perMansione.getOrDefault(m.getId(), List.of()).stream().map(AnagraficheService::dto).toList()))
+                perMansione.getOrDefault(m.getId(), List.of()).stream().map(AnagraficheService::dto).toList(), coordinatori(m)))
             .toList();
     }
 
@@ -107,8 +125,9 @@ class AnagraficheService {
         String codice = codiceLibero(in.impiantoId(), codice(nome));
         Mansione nuova = new Mansione(in.impiantoId(), codice, nome);
         nuova.voceFoglioOre(foglioOre.voceValida(in.voceFoglioOre()));
+        if (in.coordinatori() != null) nuova.coordinatori(coordinatoriValidi(in.coordinatori()));
         Mansione m = mansioni.saveAndFlush(nuova);
-        return new MansioneDto(m.getId(), m.getImpiantoId(), m.getCodice(), m.getNome(), m.getVoceFoglioOre(), List.of());
+        return new MansioneDto(m.getId(), m.getImpiantoId(), m.getCodice(), m.getNome(), m.getVoceFoglioOre(), List.of(), coordinatori(m));
     }
 
     @Transactional
@@ -116,8 +135,10 @@ class AnagraficheService {
         Mansione m = mansione(u, id);
         m.rinomina(in.nome());
         m.voceFoglioOre(foglioOre.voceValida(in.voceFoglioOre()));
+        if (in.coordinatori() != null) m.coordinatori(coordinatoriValidi(in.coordinatori()));
         return new MansioneDto(m.getId(), m.getImpiantoId(), m.getCodice(), m.getNome(), m.getVoceFoglioOre(),
-            postazioni.diImpianti(Set.of(m.getImpiantoId())).stream().filter(p -> p.getMansione().getId().equals(id)).map(AnagraficheService::dto).toList());
+            postazioni.diImpianti(Set.of(m.getImpiantoId())).stream().filter(p -> p.getMansione().getId().equals(id)).map(AnagraficheService::dto).toList(),
+            coordinatori(m));
     }
 
     @Transactional

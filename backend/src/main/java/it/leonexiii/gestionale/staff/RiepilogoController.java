@@ -4,6 +4,7 @@ import it.leonexiii.gestionale.identita.Utente;
 import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.util.UUID;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,8 +28,9 @@ class RiepilogoController {
 
     @GetMapping
     @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
-    RiepilogoService.Riepilogo impianti(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) String mese) {
-        return service.diImpianti(utente, mese(mese));
+    RiepilogoService.Riepilogo impianti(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) String mese,
+                                        @RequestParam(required = false) UUID gruppo) {
+        return service.diImpianti(utente, mese(mese), gruppo);
     }
 
     @GetMapping("/mio")
@@ -38,9 +40,10 @@ class RiepilogoController {
 
     @GetMapping(value = "/csv")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
-    ResponseEntity<byte[]> csv(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) String mese) {
+    ResponseEntity<byte[]> csv(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) String mese,
+                               @RequestParam(required = false) UUID gruppo) {
         YearMonth m = mese(mese);
-        byte[] corpo = RiepilogoService.csv(service.diImpianti(utente, m)).getBytes(StandardCharsets.UTF_8);
+        byte[] corpo = RiepilogoService.csv(service.diImpianti(utente, m, gruppo)).getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok()
             .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"riepilogo-ore-" + m + ".csv\"")

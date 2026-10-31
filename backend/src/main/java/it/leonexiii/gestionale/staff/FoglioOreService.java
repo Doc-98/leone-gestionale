@@ -40,8 +40,10 @@ class FoglioOreService {
     private final Persone persone;
     private final Permessi permessi;
     private final ModelloFoglioOre modello;
+    private final GruppiStaff gruppiStaff;
 
-    FoglioOreService(TurnoRepository turni, RichiestaRepository richieste, Persone persone, Permessi permessi, ModelloFoglioOre modello) {
+    FoglioOreService(TurnoRepository turni, RichiestaRepository richieste, Persone persone, Permessi permessi, ModelloFoglioOre modello, GruppiStaff gruppiStaff) {
+        this.gruppiStaff = gruppiStaff;
         this.turni = turni;
         this.richieste = richieste;
         this.persone = persone;
@@ -70,9 +72,10 @@ class FoglioOreService {
 
     /** Un archivio .zip con il foglio ore di ognuno dello staff che ha lavorato nel mese. */
     @Transactional(readOnly = true)
-    File tutti(Utente u, YearMonth mese) {
+    File tutti(Utente u, YearMonth mese, UUID gruppo) {
         Map<UUID, List<Turno>> perPersona = new LinkedHashMap<>();
-        for (Turno t : turniGestiti(u, mese)) if (t.getPersonaId() != null) perPersona.computeIfAbsent(t.getPersonaId(), k -> new ArrayList<>()).add(t);
+        List<Turno> elenco = turniGestiti(u, mese).stream().filter(t -> gruppo == null || gruppo.equals(t.getPostazione().getMansione().getId())).toList();
+        for (Turno t : elenco) if (t.getPersonaId() != null) perPersona.computeIfAbsent(t.getPersonaId(), k -> new ArrayList<>()).add(t);
         if (perPersona.isEmpty()) throw new NonTrovato("Nessun turno assegnato nel mese.");
         try (var buffer = new ByteArrayOutputStream(); var zip = new ZipOutputStream(buffer)) {
             for (var e : perPersona.entrySet()) {
@@ -88,10 +91,13 @@ class FoglioOreService {
         }
     }
 
+    /** I turni del mese nei gruppi di staff che l'utente vede (ADR 0022). */
     private List<Turno> turniGestiti(Utente u, YearMonth mese) {
+        Set<UUID> gruppi = gruppiStaff.idVisibili(u);
         Set<UUID> impianti = permessi.impianti(u, Permesso.ORE_STAFF);
-        if (impianti.isEmpty()) return List.of();
-        return turni.nelPeriodo(mese.atDay(1), mese.atEndOfMonth(), impianti);
+        if (impianti.isEmpty() || gruppi.isEmpty()) return List.of();
+        return turni.nelPeriodo(mese.atDay(1), mese.atEndOfMonth(), impianti).stream()
+            .filter(t -> gruppi.contains(t.getPostazione().getMansione().getId())).toList();
     }
 
     private File foglio(UUID personaId, YearMonth mese, List<Turno> elenco) {

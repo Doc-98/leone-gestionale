@@ -1,103 +1,88 @@
 <script lang="ts">
-  import Icona from '../components/Icona.svelte';
-  import { api, messaggioErrore, type Riepilogo } from '../lib/api';
-  import { sessione } from '../lib/sessione.svelte';
-  import { euro, formatOre, meseIso } from '../lib/date';
   import Mese from '../components/Mese.svelte';
+  import MieOre from '../components/ore/MieOre.svelte';
+  import OreStaff from '../components/ore/OreStaff.svelte';
+  import { api, messaggioErrore, type Riepilogo, type Turno } from '../lib/api';
+  import { aggiungiGiorni, meseIso, spostaMese } from '../lib/date';
+  import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
+  import { sessione } from '../lib/sessione.svelte';
 
-  let mese = $state(meseIso(new Date()));
-  let mio = $state<Riepilogo | null>(null);
-  let staff = $state<Riepilogo | null>(null);
-  let errore = $state('');
-  let aperto = $state<string | null>(null);
+  /**
+   * Ore e compensi (ADR 0022): «Le mie ore» per chiunque lavori; con il permesso «Ore dello staff» anche «Lo staff»,
+   * con l'interruttore in alto. Lo staff si vede per gruppo (le mansioni che si coordinano) o, per chi li vede tutti,
+   * anche tutti insieme.
+   */
   const coordinatore = $derived(sessione.puo('ORE_STAFF'));
+  let vista = $state<'mie' | 'staff'>(leggiPreferenza<'mie' | 'staff'>('ore.vista', 'mie', ['mie', 'staff']));
+  const efficace = $derived(coordinatore ? vista : 'mie');
+  let mese = $state(meseIso(new Date()));
+  let errore = $state('');
+
+  let mio = $state<Riepilogo | null>(null);
+  let mioPrima = $state<Riepilogo | null>(null);
+  let turni = $state<Turno[]>([]);
+  let tutti = $state<Riepilogo | null>(null);
+  let tuttiPrima = $state<Riepilogo | null>(null);
+  let delGruppo = $state<Riepilogo | null>(null);
+  let gruppo = $state<string | null>(null);
 
   $effect(() => {
     const m = mese;
     errore = '';
-    api.riepilogoMio(m).then((r) => (mio = r)).catch((e) => (errore = messaggioErrore(e)));
-    if (coordinatore) api.riepilogo(m).then((r) => (staff = r)).catch((e) => (errore = messaggioErrore(e)));
+    if (efficace === 'mie') {
+      const fine = aggiungiGiorni(`${spostaMese(m, 1)}-01`, -1);
+      api.riepilogoMio(m).then((r) => (mio = r)).catch((e) => (errore = messaggioErrore(e)));
+      api.riepilogoMio(spostaMese(m, -1)).then((r) => (mioPrima = r)).catch(() => (mioPrima = null));
+      api.turniMiei(`${m}-01`, fine).then((t) => (turni = t)).catch(() => (turni = []));
+    } else {
+      api.riepilogo(m).then((r) => {
+        tutti = r;
+        if (gruppo && !r.gruppi.some((g) => g.id === gruppo)) gruppo = null;
+      }).catch((e) => (errore = messaggioErrore(e)));
+      api.riepilogo(spostaMese(m, -1)).then((r) => (tuttiPrima = r)).catch(() => (tuttiPrima = null));
+    }
   });
-  const mia = $derived(mio?.righe[0]);
+  $effect(() => {
+    const g = gruppo;
+    const m = mese;
+    delGruppo = null;
+    if (efficace === 'staff' && g) api.riepilogo(m, g).then((r) => (delGruppo = r)).catch((e) => (errore = messaggioErrore(e)));
+  });
+
+  function cambia(v: 'mie' | 'staff') {
+    vista = v;
+    salvaPreferenza('ore.vista', v);
+  }
 </script>
 
 <section class="page ore">
-  <div class="tutta"><Mese bind:mese /></div>
-  {#if errore}<p class="msg err tutta" role="alert">{errore}</p>{/if}
-
-  <div class="card box">
-    <div class="lbl">Le tue ore</div>
-    <div class="numeri">
-      <div><span class="d grande">{formatOre(mia?.ore ?? 0)}</span> <span class="muted">h</span></div>
-      <div class="m">{euro(mia?.compenso ?? 0)}</div>
-    </div>
-    <div class="muted small">{mia ? `${mia.turni} turni` : 'Nessun turno nel mese'}{mia?.tariffaMancante ? ' · per qualche turno manca la tariffa' : ''}</div>
-    {#each mia?.voci ?? [] as v (v.mansione + v.euroOra)}
-      <div class="voce small"><span>{v.mansione}</span><span class="m muted">{formatOre(v.ore)} h × {v.euroOra == null ? '—' : euro(v.euroOra)}</span></div>
-    {/each}
-    {#if mia}<a class="btn btn-secondary btn-sm scarica" href={api.urlFoglioOreMio(mese)} download><Icona nome="scarica" />Scarica il foglio ore (.xlsx)</a>{/if}
+  <div class="testa">
+    {#if coordinatore}
+      <div class="seg vista" role="group" aria-label="Quali ore">
+        <button type="button" aria-pressed={efficace === 'mie'} onclick={() => cambia('mie')}>Le mie ore</button>
+        <button type="button" aria-pressed={efficace === 'staff'} onclick={() => cambia('staff')}>Lo staff</button>
+      </div>
+    {/if}
+    <span class="grow"></span>
+    <div class="mese"><Mese bind:mese /></div>
   </div>
+  {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
 
-  {#if coordinatore && staff}
-  <div class="staff">
-    <div class="intesta">
-      <h2 class="lbl">Tutto lo staff</h2>
-      <span class="row scarichi">
-        {#if staff.righe.length}<a class="btn btn-secondary btn-sm" href={api.urlFogliOreTutti(mese)} download><Icona nome="scarica" />Tutti i fogli ore (.zip)</a>{/if}
-        <a class="btn btn-secondary btn-sm" href={api.urlCsv(mese)} download><Icona nome="scarica" />Riepilogo CSV</a>
-      </span>
-    </div>
-    {#if staff.turniScoperti}<p class="msg err nomargin">{staff.turniScoperti === 1 ? 'Un turno del mese è ancora da assegnare.' : `${staff.turniScoperti} turni del mese sono ancora da assegnare.`}</p>{/if}
-    <div class="card elenco">
-      {#each staff.righe as r (r.persona.id)}
-        <button class="riga" aria-expanded={aperto === r.persona.id} onclick={() => (aperto = aperto === r.persona.id ? null : r.persona.id)}>
-          <span class="nome">{r.persona.nome}{#if r.tariffaMancante}<span class="tag t-warn manca">tariffa mancante</span>{/if}</span>
-          <span class="m">{formatOre(r.ore)} h</span>
-          <span class="m soldi">{euro(r.compenso)}</span>
-        </button>
-        {#if aperto === r.persona.id}
-          <div class="dettagli">
-            {#each r.voci as v (v.mansione + v.euroOra)}
-              <div class="voce small"><span>{v.mansione}</span><span class="m muted">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euro(v.euroOra)} = {euro(v.compenso)}</span></div>
-            {/each}
-            <a class="btn btn-secondary btn-sm scarica" href={api.urlFoglioOrePersona(r.persona.id, mese)} download><Icona nome="scarica" />Foglio ore di {r.persona.nome} (.xlsx)</a>
-          </div>
-        {/if}
-      {:else}
-        <p class="muted small vuoto">Nessun turno nel mese.</p>
-      {/each}
-      <div class="riga totale"><span class="nome">Totale</span><span class="m">{formatOre(staff.totaleOre)} h</span><span class="m soldi">{euro(staff.totaleCompenso)}</span></div>
-    </div>
-  </div>
+  {#if efficace === 'mie'}
+    <MieOre {mese} {mio} prima={mioPrima} {turni} />
+  {:else if tutti}
+    <OreStaff {mese} {tutti} {delGruppo} prima={tuttiPrima} bind:gruppo puoTariffe={sessione.puo('ANAGRAFICHE_STAFF')} />
+  {:else if !errore}
+    <p class="muted">Caricamento…</p>
   {/if}
 </section>
 
 <style>
-  .staff { display: flex; flex-direction: column; gap: var(--space-12); }
-  /* Sul PC: le mie ore a sinistra, lo staff a destra */
-  @media (min-width: 1024px) {
-    .ore { display: grid; grid-template-columns: 340px minmax(0, 860px); align-items: start; column-gap: var(--space-20); }
-    .tutta { grid-column: 1 / -1; max-width: 420px; }
-    .msg.tutta { max-width: none; }
-    .staff .intesta { margin-top: 0; }
-  }
-  .box { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-6); }
-  .numeri { display: flex; justify-content: space-between; align-items: baseline; }
-  .grande { font-size: var(--text-4xl); font-weight: 800; }
-  .numeri .m { font-size: var(--text-2xl); }
-  .voce { display: flex; justify-content: space-between; gap: var(--space-8); }
-  .intesta { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-8); }
-  .intesta h2 { margin: 0; }
-  .elenco { overflow: hidden; }
-  .riga { display: grid; grid-template-columns: 1fr auto 96px; gap: var(--space-12); align-items: center; width: 100%; min-height: 48px; padding: var(--space-8) var(--space-14); border: none; border-top: 1px solid var(--line-soft); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-  .riga:first-child { border-top: none; }
-  .soldi { text-align: right; }
-  .totale { font-weight: 700; cursor: default; background: var(--surface-sunken); }
-  .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dettagli { padding: 0 var(--space-14) var(--space-10); display: flex; flex-direction: column; gap: var(--space-4); }
-  .manca { margin-left: var(--space-6); height: 20px; }
-  .scarica { align-self: flex-start; text-decoration: none; }
-  .scarichi a { text-decoration: none; }
-  .scarichi { gap: var(--space-16); }
-  .vuoto { padding: var(--space-12) var(--space-14); margin: 0; }
+  .ore { max-width: 1400px; }
+  .testa { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-12); }
+  .vista { grid-template-columns: 1fr 1fr; }
+  .vista button { padding: 0 var(--space-16); white-space: nowrap; }
+  .mese { min-width: 280px; }
+  .nomargin { margin: 0; }
+  @media (max-width: 600px) { .vista, .mese { width: 100%; } }
 </style>

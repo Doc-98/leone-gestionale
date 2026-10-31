@@ -51,8 +51,9 @@ class FoglioOreController {
 
     @GetMapping("/tutti")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'ORE_STAFF')")
-    ResponseEntity<byte[]> tutti(@AuthenticationPrincipal Utente u, @RequestParam(required = false) String mese) {
-        return scarica(service.tutti(u, mese(mese)), MediaType.parseMediaType("application/zip"));
+    ResponseEntity<byte[]> tutti(@AuthenticationPrincipal Utente u, @RequestParam(required = false) String mese,
+                                 @RequestParam(required = false) UUID gruppo) {
+        return scarica(service.tutti(u, mese(mese), gruppo), MediaType.parseMediaType("application/zip"));
     }
 
     private static ResponseEntity<byte[]> scarica(FoglioOreService.File f, MediaType tipo) {

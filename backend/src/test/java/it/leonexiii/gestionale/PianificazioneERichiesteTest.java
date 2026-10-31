@@ -216,7 +216,33 @@ class PianificazioneERichiesteTest {
 
         var csv = coord.get("/api/riepilogo/csv?mese=" + mese);
         assertThat(csv.headers().firstValue("content-type").orElse("")).startsWith("text/csv");
-        assertThat(csv.body()).contains("Persona;Turni;Ore;Compenso").contains("Paolo Galli;");
+        assertThat(csv.body()).contains("Persona;Gruppo;Turni;Ore;Compenso").contains("Paolo Galli;Assistente atrio;");
+
+        // gruppi di staff (ADR 0022): senza coordinatori indicati, il coordinatore vede tutti i gruppi dell'impianto
+        var gruppi = ((List<?>) r.get("gruppi")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        assertThat(gruppi).extracting(g -> g.get("nome")).contains("Assistente spogliatoio", "Assistente atrio");
+        assertThat(paolo).containsEntry("gruppo", "Assistente atrio");
+        var mansioni = lista(coord.get("/api/staff/mansioni")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        var spogliatoio = mansioni.stream().filter(m -> m.get("nome").equals("Assistente spogliatoio")).findFirst().orElseThrow();
+        var atrio = mansioni.stream().filter(m -> m.get("nome").equals("Assistente atrio")).findFirst().orElseThrow();
+        String io = (String) json(coord.get("/api/me")).get("personaId");
+        String corpo = "{\"nome\":\"Assistente spogliatoio\",\"voceFoglioOre\":%s,\"coordinatori\":[%s]}";
+        String colonna = spogliatoio.get("voceFoglioOre") == null ? "null" : "\"" + spogliatoio.get("voceFoglioOre") + "\"";
+        try {
+            var agg = coord.put("/api/staff/mansioni/" + spogliatoio.get("id"), corpo.formatted(colonna, "\"" + io + "\""));
+            assertThat(agg.statusCode()).as(agg.body()).isEqualTo(200);
+            assertThat(agg.body()).contains("\"coordinatori\":[{\"id\":\"" + io + "\"");
+            // ora coordina solo lo spogliatoio: l'atrio (e Paolo) spariscono, anche dal CSV e dai fogli ore
+            var solo = json(coord.get("/api/riepilogo?mese=" + mese));
+            assertThat(((List<?>) solo.get("gruppi"))).hasSize(1);
+            assertThat(coord.get("/api/riepilogo?mese=" + mese).body()).doesNotContain(PAOLO);
+            assertThat(coord.get("/api/riepilogo?mese=" + mese + "&gruppo=" + atrio.get("id")).statusCode()).isEqualTo(403);
+            assertThat(coord.get("/api/riepilogo/csv?mese=" + mese).body()).doesNotContain("Paolo Galli");
+            assertThat(coord.get("/api/riepilogo?mese=" + mese + "&gruppo=" + spogliatoio.get("id")).statusCode()).isEqualTo(200);
+        } finally {
+            coord.put("/api/staff/mansioni/" + spogliatoio.get("id"), corpo.formatted(colonna, ""));
+        }
+        assertThat(((List<?>) json(coord.get("/api/riepilogo?mese=" + mese)).get("gruppi")).size()).isGreaterThanOrEqualTo(2);
     }
 
     @Test

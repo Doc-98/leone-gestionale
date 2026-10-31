@@ -1,9 +1,15 @@
 package it.leonexiii.gestionale.staff;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /** Es. «Assistente spogliatoio», «Assistente atrio», «Istruttore». */
@@ -27,6 +33,12 @@ class Mansione {
     @Column(name = "voce_foglio_ore")
     private String voceFoglioOre;
 
+    /** Chi coordina questo gruppo di staff: vede le ore del gruppo (ADR 0022). */
+    @ElementCollection
+    @CollectionTable(name = "mansione_coordinatore", joinColumns = @JoinColumn(name = "mansione_id"))
+    @Column(name = "persona_id")
+    private Set<UUID> coordinatori = new HashSet<>();
+
     protected Mansione() {}
 
     Mansione(UUID impiantoId, String codice, String nome) {
@@ -44,7 +56,13 @@ class Mansione {
         this.voceFoglioOre = voce == null || voce.isBlank() ? null : voce;
     }
 
+    void coordinatori(Collection<UUID> persone) {
+        coordinatori.clear();
+        coordinatori.addAll(persone);
+    }
+
     UUID getId() { return id; }
+    Set<UUID> getCoordinatori() { return Set.copyOf(coordinatori); }
     UUID getImpiantoId() { return impiantoId; }
     String getCodice() { return codice; }
     String getNome() { return nome; }

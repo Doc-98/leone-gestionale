@@ -61,7 +61,7 @@
 
   // Icone a tratto, 24×24
   const SEZIONI: Sezione[] = [
-    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', icona: 'turni' },
+    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', larga: true, icona: 'turni' },
     { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: 'ore' },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: 'piano' },

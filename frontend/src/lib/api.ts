@@ -212,6 +212,8 @@ export interface Mansione {
   nome: string;
   voceFoglioOre: string | null;
   postazioni: PostazioneGestione[];
+  /** chi coordina il gruppo di staff e ne vede le ore (ADR 0022) */
+  coordinatori: PersonaBreve[];
 }
 
 export interface Tariffa {
@@ -592,6 +594,21 @@ export interface RigaRiepilogo {
   compenso: number;
   tariffaMancante: boolean;
   voci: VoceRiepilogo[];
+  /** il gruppo di staff (la mansione) in cui ha fatto più ore */
+  gruppoId: string | null;
+  gruppo: string | null;
+}
+
+/** Un gruppo di staff nel mese (ADR 0022). */
+export interface GruppoRiepilogo {
+  id: string;
+  nome: string;
+  coordinatori: string[];
+  persone: number;
+  ore: number;
+  compenso: number;
+  turniScoperti: number;
+  tariffeMancanti: number;
 }
 
 export interface Riepilogo {
@@ -600,6 +617,8 @@ export interface Riepilogo {
   totaleOre: number;
   totaleCompenso: number;
   turniScoperti: number;
+  /** i gruppi visibili (vuoto nel riepilogo personale) */
+  gruppi: GruppoRiepilogo[];
 }
 
 export class NonAutenticato extends Error {}
@@ -665,8 +684,8 @@ export const api = {
   mansioni: () => richiesta<Mansione[]>('GET', '/api/staff/mansioni'),
   creaMansione: (impiantoId: string, nome: string, voceFoglioOre: string | null) =>
     richiesta<Mansione>('POST', '/api/staff/mansioni', { impiantoId, nome, voceFoglioOre }),
-  modificaMansione: (id: string, nome: string, voceFoglioOre: string | null) =>
-    richiesta<Mansione>('PUT', `/api/staff/mansioni/${id}`, { nome, voceFoglioOre }),
+  modificaMansione: (id: string, nome: string, voceFoglioOre: string | null, coordinatori?: string[]) =>
+    richiesta<Mansione>('PUT', `/api/staff/mansioni/${id}`, { nome, voceFoglioOre, coordinatori: coordinatori ?? null }),
   creaPostazione: (mansioneId: string, nome: string, spazioId: string | null) =>
     richiesta<PostazioneGestione>('POST', `/api/staff/mansioni/${mansioneId}/postazioni`, { nome, spazioId }),
   modificaPostazione: (id: string, nome: string, spazioId: string | null, attiva: boolean) =>
@@ -678,7 +697,7 @@ export const api = {
   vociFoglioOre: () => richiesta<string[]>('GET', '/api/foglio-ore/voci'),
   urlFoglioOreMio: (mese: string) => `/api/foglio-ore/mio?mese=${mese}`,
   urlFoglioOrePersona: (personaId: string, mese: string) => `/api/foglio-ore/persone/${personaId}?mese=${mese}`,
-  urlFogliOreTutti: (mese: string) => `/api/foglio-ore/tutti?mese=${mese}`,
+  urlFogliOreTutti: (mese: string, gruppo?: string | null) => `/api/foglio-ore/tutti?mese=${mese}${gruppo ? `&gruppo=${gruppo}` : ''}`,
   piano: (da: string, a: string) => richiesta<Piano>('GET', `/api/piano?da=${da}&a=${a}`),
   corsi: () => richiesta<Corso[]>('GET', '/api/corsi'),
   creaCorso: (c: CorsoInput) => richiesta<Corso>('POST', '/api/corsi', c),
@@ -861,8 +880,8 @@ export const api = {
   approva: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/approva`, { nota: nota ?? null }),
   respingi: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/respingi`, { nota: nota ?? null }),
   riepilogoMio: (mese: string) => richiesta<Riepilogo>('GET', `/api/riepilogo/mio?mese=${mese}`),
-  riepilogo: (mese: string) => richiesta<Riepilogo>('GET', `/api/riepilogo?mese=${mese}`),
-  urlCsv: (mese: string) => `/api/riepilogo/csv?mese=${mese}`,
+  riepilogo: (mese: string, gruppo?: string | null) => richiesta<Riepilogo>('GET', `/api/riepilogo?mese=${mese}${gruppo ? `&gruppo=${gruppo}` : ''}`),
+  urlCsv: (mese: string, gruppo?: string | null) => `/api/riepilogo/csv?mese=${mese}${gruppo ? `&gruppo=${gruppo}` : ''}`,
 };
 
 // ── Clienti e tornello ─────────────────────────────────────────────────────
