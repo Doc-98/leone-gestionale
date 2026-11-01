@@ -149,13 +149,25 @@ export interface TurnoInput {
   fine: string;
   personaId: string | null;
   note?: string | null;
+  /** Il coordinatore ha visto l'avviso (es. turni accavallati della stessa persona) e conferma. */
+  forza?: boolean;
 }
+
 
 export interface Postazione {
   id: string;
   nome: string;
   mansione: string;
   impiantoId: string;
+  mansioneId?: string;
+  /** Riservata a un sesso (es. lo spogliatoio femminile); null = chiunque. */
+  soloSesso?: Sesso | null;
+  spazioId?: string | null;
+}
+
+/** Una persona dello staff, con il sesso dell'anagrafica (per le postazioni riservate). */
+export interface PersonaStaff extends PersonaBreve {
+  sesso: Sesso | null;
 }
 
 export interface RigaModello {
@@ -181,6 +193,8 @@ export interface EsitoGenerazione {
   creati: number;
   scoperti: number;
   giaPresenti: number;
+  /** turni non creati perché l'impianto è chiuso (calendario della stagione) */
+  chiusi: number;
   avvisi: string[];
 }
 
@@ -203,6 +217,7 @@ export interface PostazioneGestione {
   spazioId: string | null;
   ordine: number;
   attiva: boolean;
+  soloSesso: Sesso | null;
 }
 
 export interface Mansione {
@@ -685,7 +700,7 @@ export const api = {
   modificaTurno: (id: string, t: TurnoInput) => richiesta<Turno>('PUT', `/api/turni/${id}`, t),
   annullaTurno: (id: string) => richiesta<Turno>('POST', `/api/turni/${id}/annulla`),
   postazioni: () => richiesta<Postazione[]>('GET', '/api/staff/postazioni'),
-  personale: () => richiesta<PersonaBreve[]>('GET', '/api/staff/persone'),
+  personale: () => richiesta<PersonaStaff[]>('GET', '/api/staff/persone'),
   colleghi: () => richiesta<PersonaBreve[]>('GET', '/api/staff/colleghi'),
   modelli: () => richiesta<Modello[]>('GET', '/api/modelli'),
   creaModello: (m: ModelloInput) => richiesta<Modello>('POST', '/api/modelli', m),
@@ -701,10 +716,10 @@ export const api = {
     richiesta<Mansione>('POST', '/api/staff/mansioni', { impiantoId, nome, voceFoglioOre }),
   modificaMansione: (id: string, nome: string, voceFoglioOre: string | null, coordinatori?: string[]) =>
     richiesta<Mansione>('PUT', `/api/staff/mansioni/${id}`, { nome, voceFoglioOre, coordinatori: coordinatori ?? null }),
-  creaPostazione: (mansioneId: string, nome: string, spazioId: string | null) =>
-    richiesta<PostazioneGestione>('POST', `/api/staff/mansioni/${mansioneId}/postazioni`, { nome, spazioId }),
-  modificaPostazione: (id: string, nome: string, spazioId: string | null, attiva: boolean) =>
-    richiesta<{ postazione: PostazioneGestione; turniFuturi: number }>('PUT', `/api/staff/postazioni/${id}`, { nome, spazioId, attiva }),
+  creaPostazione: (mansioneId: string, nome: string, spazioId: string | null, soloSesso: Sesso | null = null) =>
+    richiesta<PostazioneGestione>('POST', `/api/staff/mansioni/${mansioneId}/postazioni`, { nome, spazioId, soloSesso }),
+  modificaPostazione: (id: string, nome: string, spazioId: string | null, attiva: boolean, soloSesso: Sesso | null) =>
+    richiesta<{ postazione: PostazioneGestione; turniFuturi: number }>('PUT', `/api/staff/postazioni/${id}`, { nome, spazioId, attiva, soloSesso }),
   ordinaPostazioni: (ids: string[]) => richiesta<Mansione[]>('PUT', '/api/staff/postazioni/ordine', { ids }),
   tariffe: () => richiesta<Tariffa[]>('GET', '/api/staff/tariffe'),
   nuovaTariffa: (t: { mansioneId: string; personaId: string | null; euroOra: number; dal: string }) => richiesta<Tariffa>('POST', '/api/staff/tariffe', t),
@@ -894,12 +909,13 @@ export const api = {
   /** per il coordinatore: da approvare e sostituzioni ancora senza sostituto */
   richiesteDaGestire: () => richiesta<Richiesta[]>('GET', '/api/richieste?stato=IN_ATTESA_APPROVAZIONE&stato=IN_ATTESA_COLLEGA'),
   candidati: (id: string) => richiesta<Candidato[]>('GET', `/api/richieste/${id}/candidati`),
-  proponi: (id: string, collegaId: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/proponi`, { collegaId }),
+  proponi: (id: string, collegaId: string, forza = false) => richiesta<Richiesta>('POST', `/api/richieste/${id}/proponi`, { collegaId, forza }),
   senzaSostituto: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/senza-sostituto`, { nota: nota ?? null }),
   accetta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/accetta`),
   rifiuta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/rifiuta`),
   annullaRichiesta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/annulla`),
-  approva: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/approva`, { nota: nota ?? null }),
+  /** copriBuco (cambio orario): l'orario lasciato libero diventa un turno da assegnare. */
+  approva: (id: string, nota?: string, copriBuco = false) => richiesta<Richiesta>('POST', `/api/richieste/${id}/approva`, { nota: nota ?? null, copriBuco }),
   respingi: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/respingi`, { nota: nota ?? null }),
   riepilogoMio: (mese: string) => richiesta<Riepilogo>('GET', `/api/riepilogo/mio?mese=${mese}`),
   riepilogo: (mese: string, gruppo?: string | null) => richiesta<Riepilogo>('GET', `/api/riepilogo?mese=${mese}${gruppo ? `&gruppo=${gruppo}` : ''}`),

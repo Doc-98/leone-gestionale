@@ -23,6 +23,7 @@
   let fImpianto = $state('');
   let fSpazio = $state('');
   let fAttiva = $state(true);
+  let fSesso = $state<'' | 'M' | 'F'>('');
   let fCoordinatori = $state<string[]>([]);
   let fErrore = $state('');
   let lavoro = $state(false);
@@ -57,6 +58,7 @@
     fNome = p?.nome ?? '';
     fSpazio = p?.spazioId ?? '';
     fAttiva = p?.attiva ?? true;
+    fSesso = p?.soloSesso ?? '';
     postazioneAperta = { mansione: m, postazione: p };
   }
 
@@ -87,13 +89,13 @@
     const { mansione, postazione } = postazioneAperta;
     try {
       if (postazione) {
-        const esito = await api.modificaPostazione(postazione.id, fNome, fSpazio || null, fAttiva);
+        const esito = await api.modificaPostazione(postazione.id, fNome, fSpazio || null, fAttiva, fSesso || null);
         sostituisci(esito.postazione);
         messaggio = esito.turniFuturi
           ? `Postazione disattivata. Ha ancora ${esito.turniFuturi === 1 ? 'un turno futuro' : `${esito.turniFuturi} turni futuri`}: restano validi, ma non se ne creano di nuovi.`
           : 'Postazione aggiornata.';
       } else {
-        const p = await api.creaPostazione(mansione.id, fNome, fSpazio || null);
+        const p = await api.creaPostazione(mansione.id, fNome, fSpazio || null, fSesso || null);
         mansioni = mansioni.map((m) => (m.id === mansione.id ? { ...m, postazioni: [...m.postazioni, p] } : m));
         messaggio = 'Postazione aggiunta.';
       }
@@ -160,7 +162,7 @@
                 </td>
                 <td class="nome">{p.nome}</td>
                 <td class="muted">{nomeSpazio(p.spazioId)}</td>
-                <td>{#if p.attiva}<span class="tag t-soft">attiva</span>{:else}<span class="tag t-altro">disattivata</span>{/if}</td>
+                <td>{#if p.soloSesso}<span class="tag t-soft riserv">{p.soloSesso === 'F' ? 'solo donne' : 'solo uomini'}</span> {/if}{#if p.attiva}<span class="tag t-soft">attiva</span>{:else}<span class="tag t-altro">disattivata</span>{/if}</td>
                 <td class="azioni"><Azione icona="matita" etichetta={`Modifica la postazione ${p.nome}`} onclick={() => apriPostazione(m, p)} /></td>
               </tr>
             {:else}
@@ -217,6 +219,14 @@
           {#each spazi.filter((s) => s.impiantoId === postazioneAperta?.mansione.impiantoId) as s (s.id)}<option value={s.id}>{s.nome}</option>{/each}
         </select>
       </label>
+      <div class="field"><span class="lbl">Chi ci può lavorare</span>
+        <div class="seg tre" role="group" aria-label="Chi ci può lavorare">
+          <button type="button" aria-pressed={fSesso === ''} onclick={() => (fSesso = '')}>Tutti</button>
+          <button type="button" aria-pressed={fSesso === 'F'} onclick={() => (fSesso = 'F')}>Solo donne</button>
+          <button type="button" aria-pressed={fSesso === 'M'} onclick={() => (fSesso = 'M')}>Solo uomini</button>
+        </div>
+        <span class="muted small">Per gli spogliatoi: chi non può lavorarci non compare tra i candidati e non gli si può assegnare il turno (conta il sesso in anagrafica).</span>
+      </div>
       {#if postazioneAperta.postazione}
         <label class="riga-switch">
           <span>Attiva<br /><span class="muted small">Disattivata non compare più tra le postazioni assegnabili né nei mesi generati.</span></span>
@@ -230,6 +240,7 @@
 {/if}
 
 <style>
+  .seg.tre { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .barra { display: flex; align-items: center; gap: var(--space-16); }
   .compatto { height: 40px; font-size: var(--text-md); padding: 0 var(--space-14); }
   .mansioni { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: var(--space-16); align-items: start; }
