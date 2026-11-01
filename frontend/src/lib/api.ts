@@ -634,9 +634,16 @@ export class ErroreApi extends Error {
   constructor(
     public status: number,
     messaggio: string,
+    /** Qualcosa di insolito ma permesso (es. due turni accavallati): si può ripetere con «forza». */
+    public avviso = false,
   ) {
     super(messaggio);
   }
+}
+
+/** L'errore è un avviso che l'utente può confermare? */
+export function eAvviso(e: unknown): e is ErroreApi {
+  return e instanceof ErroreApi && e.avviso;
 }
 
 function leggiCookie(nome: string): string | undefined {
@@ -663,7 +670,7 @@ async function richiesta<T>(metodo: string, path: string, body?: unknown): Promi
   if (res.status === 401 && path !== '/api/auth/login') throw new NonAutenticato('Sessione scaduta.');
   const testo = await res.text();
   const dati = testo ? JSON.parse(testo) : undefined;
-  if (!res.ok) throw new ErroreApi(res.status, dati?.detail ?? (res.status === 403 ? 'Non hai i permessi per questa operazione.' : `Errore ${res.status}`));
+  if (!res.ok) throw new ErroreApi(res.status, dati?.detail ?? (res.status === 403 ? 'Non hai i permessi per questa operazione.' : `Errore ${res.status}`), dati?.avviso === true);
   return dati as T;
 }
 
@@ -719,6 +726,8 @@ export const api = {
   creaEvento: (e: EventoInput) => richiesta<Esito<Evento>>('POST', '/api/eventi', e),
   modificaEvento: (id: string, e: EventoInput) => richiesta<Esito<Evento>>('PUT', `/api/eventi/${id}`, e),
   annullaEvento: (id: string) => richiesta<Evento>('POST', `/api/eventi/${id}/annulla`),
+  /** Il calendario della stagione: le chiusure di tutto l'impianto e dove le si può modificare. */
+  chiusure: (da: string, a: string) => richiesta<{ impiantiGestiti: string[]; chiusure: Evento[] }>('GET', `/api/chiusure?da=${da}&a=${a}`),
   fasce: () => richiesta<FasciaOraria[]>('GET', '/api/fasce'),
   creaFasce: (f: { vascaId: string; giorni: number[]; inizio: string; fine: string; assetto: number | null; validaDal: string; validaAl: string | null }) =>
     richiesta<FasciaOraria[]>('POST', '/api/fasce', f),

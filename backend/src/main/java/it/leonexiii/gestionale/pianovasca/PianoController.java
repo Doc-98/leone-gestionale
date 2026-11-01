@@ -164,7 +164,7 @@ class PianoController {
 
     /** Il calendario della stagione: le chiusure di tutto l'impianto nel periodo. */
     @GetMapping("/chiusure")
-    List<GestionePianoService.EventoDto> chiusure(@AuthenticationPrincipal Utente u, @RequestParam LocalDate da, @RequestParam LocalDate a) {
+    GestionePianoService.Calendario chiusure(@AuthenticationPrincipal Utente u, @RequestParam LocalDate da, @RequestParam LocalDate a) {
         return gestione.chiusure(u, da, a);
     }
 

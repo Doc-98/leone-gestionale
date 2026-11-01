@@ -347,3 +347,30 @@ label:has(> input[type='file']:focus-visible) { outline: 2px solid var(--cloro);
 .ar-a { --a: var(--area-a); --a-bg: var(--area-a-bg); --a-fg: var(--area-a-fg); }
 .ar-x { --a: var(--area-x); --a-bg: var(--area-x-bg); --a-fg: var(--area-x-fg); }
 .segno-area { display: inline-block; width: 9px; height: 9px; border-radius: 3px; background: var(--a); flex-shrink: 0; }
+
+/* Gestione (pianificazione, richieste, settimana tipo, calendario): contenuto a sinistra, pannello a destra */
+.colonne-p { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: flex-start; }
+.colonne-p > .princ { flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-12); }
+.colonne-p > .lato-p { flex: 1 1 320px; max-width: 400px; display: flex; flex-direction: column; gap: var(--space-14); }
+@media (max-width: 899px) { .colonne-p > .lato-p { max-width: none; } }
+.pann { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-12); }
+.pann h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-xl); font-weight: 800; line-height: 1.2; }
+/* riquadri di riepilogo, nel colore di ciò che contano */
+.riep { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-10); }
+.tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.tile .v { font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .n { font-size: var(--text-xs); color: var(--muted); }
+.tile.t-ferma { background: var(--ferma-bg); border-color: color-mix(in srgb, var(--ferma) 35%, transparent); }
+.tile.t-ferma :is(.lbl, .v, .n) { color: var(--ferma-fg); }
+.tile.t-warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.tile.t-warn :is(.lbl, .v, .n) { color: var(--warn); }
+.tile.t-passa { background: var(--passa-bg); border-color: color-mix(in srgb, var(--passa) 35%, transparent); }
+.tile.t-passa :is(.lbl, .v, .n) { color: var(--passa-fg); }
+.tile.t-cloro { background: var(--cloro-soft); border-color: color-mix(in srgb, var(--cloro) 35%, transparent); }
+.tile.t-cloro :is(.lbl, .v, .n) { color: var(--cloro-ink); }
+button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointer; }
+/* pulsante a croce, per chiudere o togliere */
+.x-btn { position: relative; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; border: none; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.x-btn:hover { background: var(--surface-sunken); color: var(--danger); }
+.x-btn .ic { width: 16px; height: 16px; }
+.x-btn::after { content: ''; position: absolute; inset: -6px; }

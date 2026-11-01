@@ -29,6 +29,7 @@
   import ListaAttesa from './routes/ListaAttesa.svelte';
   import Scadenze from './routes/Scadenze.svelte';
   import Societa from './routes/Societa.svelte';
+  import Calendario from './routes/Calendario.svelte';
   import Promemoria from './routes/Promemoria.svelte';
   import Account from './routes/Account.svelte';
   import Incassi from './routes/Incassi.svelte';
@@ -41,7 +42,7 @@
   import Icona from './components/Icona.svelte';
   import Azione from './components/Azione.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'borsellino' | 'servizi' | 'impostazioni';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'borsellino' | 'servizi' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Clienti' | 'Staff' | 'Accessi' | 'Sistema';
   interface Sezione {
     id: Scheda;
@@ -78,6 +79,8 @@
     // ── Impostazioni: tutte sotto una voce, per area ──
     { id: 'societa', nome: 'Società e stagioni', titolo: 'Società e stagioni', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
       spiega: 'Dati della società, stagioni e quota associativa, gruppi di clienti' },
+    { id: 'calendario', nome: 'Calendario della stagione', titolo: 'Calendario della stagione', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PIANO_MODIFICA'], larga: true, icona: 'calendario',
+      spiega: 'Giorni di chiusura e a orario ridotto: niente turni né lezioni in quei giorni' },
     { id: 'listino', nome: 'Listino e prezzi', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'listino',
       spiega: 'Offerte della stagione, prezzi, riduzioni, rate e recesso' },
     { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'metodi',
@@ -243,6 +246,7 @@
     {:else if corrente.id === 'scadenze'}<Scadenze />
     {:else if corrente.id === 'attesa'}<ListaAttesa />
     {:else if corrente.id === 'societa'}<Societa />
+    {:else if corrente.id === 'calendario'}<Calendario />
     {:else if corrente.id === 'listino'}<Listino />
     {:else if corrente.id === 'metodi'}<MetodiPagamento />
     {:else if corrente.id === 'incassi'}<Incassi />
