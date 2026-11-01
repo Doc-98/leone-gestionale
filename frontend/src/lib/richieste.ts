@@ -87,3 +87,26 @@ export function ordinaDaCoprire(aperte: Richiesta[], occupato: (r: Richiesta) =>
   return { liberi: aperte.filter((r) => !occupato(r)).sort(perData), occupati: aperte.filter(occupato).sort(perData) };
 }
 
+
+// ── Per il coordinatore (pianificazione e «Richieste») ──────────────────────
+
+/** Sul turno in pianificazione: cosa c'è da fare per la richiesta aperta. */
+export function descriviRichiestaSulTurno(r: Richiesta): string {
+  switch (r.tipo) {
+    case 'SOSTITUZIONE':
+      return r.stato === 'IN_ATTESA_APPROVAZIONE' && r.collega
+        ? `${r.collega.nome} sostituirebbe ${r.richiedente.nome}: da decidere in «Richieste»`
+        : `${r.richiedente.nome} ha chiesto una sostituzione: proponila a un collega da «Richieste»`;
+    case 'CAMBIO_ORARIO':
+      return `C'è un cambio orario da decidere su questo turno (${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)})`;
+    case 'SCAMBIO':
+      return `C'è uno scambio con ${r.collega?.nome ?? 'un collega'} in corso su questo turno`;
+  }
+}
+
+/** Il nome breve del tipo di cosa da fare, per gli elenchi «Da sistemare». */
+export function cosaDaFare(r: Richiesta): string {
+  if (r.tipo === 'SOSTITUZIONE') return r.stato === 'IN_ATTESA_COLLEGA' ? 'Sostituzione da coprire' : 'Sostituzione da decidere';
+  if (r.tipo === 'CAMBIO_ORARIO') return 'Cambio orario da decidere';
+  return r.stato === 'IN_ATTESA_COLLEGA' ? 'Scambio in attesa del collega' : 'Scambio da decidere';
+}

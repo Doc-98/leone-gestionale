@@ -191,3 +191,6 @@ export function anteprima(
   });
   return { giorni: out, nuovi, ore: oreTot, scoperti, chiusure: [...nomi] };
 }
+
+/** «1 scoperto», «3 scoperti» */
+export const scoperto = (n: number) => `${n} ${n === 1 ? 'scoperto' : 'scoperti'}`;

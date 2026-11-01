@@ -374,3 +374,5 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
 .x-btn:hover { background: var(--surface-sunken); color: var(--danger); }
 .x-btn .ic { width: 16px; height: 16px; }
 .x-btn::after { content: ''; position: absolute; inset: -6px; }
+/* testo solo per i lettori di schermo */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
