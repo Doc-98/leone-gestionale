@@ -26,3 +26,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0020](0020-corsi-parco-istruttori-cadenza.md) | Corsi: parco istruttori, istruttori per turno, turni mensili | accettata |
 | [0021](0021-banco-del-tornello.md) | Il banco del tornello: la giornata, chi è da sistemare, viste a scelta | accettata |
 | [0022](0022-area-personale-e-gruppi-di-staff.md) | Area personale: viste a scelta, le mie ore e lo staff, gruppi di staff | accettata |
+| [0023](0023-gestione-turni.md) | Gestione dei turni: accavallamenti con avviso, una persona per postazione, postazioni per sesso, calendario della stagione | accettata |

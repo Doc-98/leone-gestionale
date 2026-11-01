@@ -184,10 +184,11 @@ erDiagram
   postazione 2): ciò che oggi sono le sezioni e le righe dell'Excel.
 - `modello_settimanale` + righe: la settimana tipo da cui si generano i turni del mese.
 - `turno`: persona (facoltativa: senza è «scoperto») + postazione + giorno + inizio/fine; stato (pianificato,
-  annullato), note. Nessuna sovrapposizione per la stessa persona, garantita dal database.
+  annullato), note. Una persona alla volta per postazione; due turni accavallati della stessa persona solo con
+  conferma (ADR 0023). Le postazioni possono essere riservate a un sesso (`solo_sesso`).
 - `richiesta_turno`: cambio orario, sostituzione (anche «aperta» a chiunque) o scambio; stati
   in attesa del collega → in attesa di approvazione → approvata/respinta, oppure annullata. Gli effetti sui
-  turni si applicano solo all'approvazione.
+  turni si applicano solo all'approvazione. Sostituzioni e cambi orario non si respingono (ADR 0022, 0023).
 - `tariffa`: compenso orario per mansione (ed eventuale eccezione per persona), con validità.
 - Riepilogo mensile e foglio ore: calcolati dai turni (vista o query), esportabili.
 
