@@ -916,7 +916,6 @@ export const api = {
   annullaRichiesta: (id: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/annulla`),
   /** copriBuco (cambio orario): l'orario lasciato libero diventa un turno da assegnare. */
   approva: (id: string, nota?: string, copriBuco = false) => richiesta<Richiesta>('POST', `/api/richieste/${id}/approva`, { nota: nota ?? null, copriBuco }),
-  respingi: (id: string, nota?: string) => richiesta<Richiesta>('POST', `/api/richieste/${id}/respingi`, { nota: nota ?? null }),
   riepilogoMio: (mese: string) => richiesta<Riepilogo>('GET', `/api/riepilogo/mio?mese=${mese}`),
   riepilogo: (mese: string, gruppo?: string | null) => richiesta<Riepilogo>('GET', `/api/riepilogo?mese=${mese}${gruppo ? `&gruppo=${gruppo}` : ''}`),
   urlCsv: (mese: string, gruppo?: string | null) => `/api/riepilogo/csv?mese=${mese}${gruppo ? `&gruppo=${gruppo}` : ''}`,

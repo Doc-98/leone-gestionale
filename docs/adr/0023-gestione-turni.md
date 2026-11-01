@@ -34,8 +34,10 @@ Il gestionale resta generico: la riserva per sesso è un'impostazione della post
   società), `pianovasca.Chiusure` le dà agli altri moduli. **Generando un mese** i turni nei giorni chiusi non si
   creano e quelli a cavallo di un orario ridotto si accorciano (`EsitoGenerazione.chiusi`).
 - **Cambio orario**: come la sostituzione **non si respinge** (409). Si approva con «Risolvi» (`copriBuco: true`:
-  l'orario lasciato libero diventa un turno scoperto sulla stessa postazione) o «Lascia scoperto». Gli scambi si
-  approvano o si respingono come prima.
+  l'orario lasciato libero diventa un turno scoperto sulla stessa postazione) o «Lascia scoperto».
+- **Scambi**: nemmeno loro si respingono (409): i due colleghi l'hanno già concordato. Dopo che il collega ha accettato
+  il coordinatore lo conferma («Conferma lo scambio»); il collega può sempre rifiutare. Così **nessuna richiesta si
+  respinge più**: lo stato `RESPINTA` resta solo per le richieste vecchie.
 - **Settimane tipo**: se ne possono avere quante servono (crea da copia o vuota, rinomina, duplica, elimina); la
   validità resta nel modello ma l'interfaccia non la usa più (le nuove valgono dal 2000). Il «Genera un mese» mostra
   l'anteprima sul calendario: turni da creare, giorni chiusi o a orario ridotto, giorni già generati.

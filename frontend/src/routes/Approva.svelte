@@ -13,7 +13,7 @@
    * Le richieste per il coordinatore (ADR 0022, 0023). Sostituzioni e cambi d'orario non si respingono: chi li chiede
    * ha avvisato che non ci sarà. Una sostituzione si propone a un collega (accettando è già approvata), si conferma
    * chi l'ha presa o si lascia scoperta; un cambio orario si approva creando un turno per l'orario lasciato libero
-   * («Risolvi») o lasciandolo scoperto. Gli scambi si approvano o si respingono.
+   * («Risolvi») o lasciandolo scoperto. Nemmeno gli scambi si respingono: i due colleghi li hanno concordati, si confermano.
    */
   let { cambiate }: { cambiate?: (n: number) => void } = $props();
   const oggi = iso(new Date());
@@ -218,8 +218,7 @@
         { t: 'Lascia scoperto', f: () => esegui(() => api.approva(r.id, nota || undefined), `Approvato: ${chi} ha il nuovo orario e ${b.map(([a, c]) => `dalle ${a} alle ${c}`).join(', ')} la postazione resta scoperta.`) }];
     }
     if (r.stato === 'IN_ATTESA_APPROVAZIONE')
-      return [{ t: 'Approva', f: () => esegui(() => api.approva(r.id, nota || undefined), 'Scambio approvato: i turni sono aggiornati.') },
-        { t: 'Respingi', f: () => esegui(() => api.respingi(r.id, nota || undefined), 'Scambio respinto: chi l’ha chiesto è avvisato.') }];
+      return [{ t: 'Conferma lo scambio', f: () => esegui(() => api.approva(r.id, nota || undefined), 'Scambio confermato: i turni sono aggiornati.') }];
     return [];
   }
 

@@ -188,7 +188,7 @@ erDiagram
   conferma (ADR 0023). Le postazioni possono essere riservate a un sesso (`solo_sesso`).
 - `richiesta_turno`: cambio orario, sostituzione (anche «aperta» a chiunque) o scambio; stati
   in attesa del collega → in attesa di approvazione → approvata/respinta, oppure annullata. Gli effetti sui
-  turni si applicano solo all'approvazione. Sostituzioni e cambi orario non si respingono (ADR 0022, 0023).
+  turni si applicano solo all'approvazione. Nessuna richiesta si respinge: il coordinatore conferma o, per una sostituzione, la propone a un altro o lascia il turno scoperto (ADR 0022, 0023).
 - `tariffa`: compenso orario per mansione (ed eventuale eccezione per persona), con validità.
 - Riepilogo mensile e foglio ore: calcolati dai turni (vista o query), esportabili.
 

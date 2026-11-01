@@ -148,13 +148,17 @@ class RichiestaTurno {
         chiudi(StatoRichiesta.APPROVATA, decisore, nota);
     }
 
+    /**
+     * Nessuna richiesta si respinge (ADR 0022, 0023): chi chiede una sostituzione o un cambio orario ha avvisato che
+     * non ci sarà, e uno scambio l'hanno già concordato i due colleghi. Il coordinatore conferma, o per una
+     * sostituzione la propone a un altro o lascia il turno scoperto. Lo stato RESPINTA resta per le richieste vecchie.
+     */
     void respingi(UUID decisore, String nota) {
-        if (tipo == TipoRichiesta.SOSTITUZIONE)
-            throw new Conflitto("Una sostituzione non si respinge: chi la chiede ha avvisato che sarà assente. Proponila a un collega o lascia il turno scoperto.");
-        if (tipo == TipoRichiesta.CAMBIO_ORARIO)
-            throw new Conflitto("Un cambio orario non si respinge: chi lo chiede ha avvisato che non ci sarà. Approvalo, creando un turno per l'orario che resta scoperto o lasciandolo scoperto.");
-        richiedi(StatoRichiesta.IN_ATTESA_APPROVAZIONE);
-        chiudi(StatoRichiesta.RESPINTA, decisore, nota);
+        throw new Conflitto(switch (tipo) {
+            case SOSTITUZIONE -> "Una sostituzione non si respinge: chi la chiede ha avvisato che sarà assente. Proponila a un collega o lascia il turno scoperto.";
+            case CAMBIO_ORARIO -> "Un cambio orario non si respinge: chi lo chiede ha avvisato che non ci sarà. Approvalo, creando un turno per l'orario che resta scoperto o lasciandolo scoperto.";
+            case SCAMBIO -> "Uno scambio non si respinge: i due colleghi l'hanno già concordato. Confermalo.";
+        });
     }
 
     private void richiedi(StatoRichiesta atteso) {

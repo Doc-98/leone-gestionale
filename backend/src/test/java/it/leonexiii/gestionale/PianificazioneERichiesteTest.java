@@ -226,6 +226,10 @@ class PianificazioneERichiesteTest {
         var giulia = come("giulia@demo.leone");
         assertThat(giulia.get("/api/richieste/mie").body()).contains(id);
         assertThat(json(giulia.post("/api/richieste/" + id + "/accetta", ""))).containsEntry("stato", "IN_ATTESA_APPROVAZIONE");
+        // come le sostituzioni, uno scambio non si respinge: si conferma
+        var resp = coord.post("/api/richieste/" + id + "/respingi", "{}");
+        assertThat(resp.statusCode()).isEqualTo(409);
+        assertThat(resp.body()).contains("Uno scambio non si respinge");
         assertThat(json(coord.post("/api/richieste/" + id + "/approva", ""))).containsEntry("stato", "APPROVATA");
 
         var turni = lista(coord.get("/api/turni?da=2027-04-12&a=2027-04-13")).stream().map(PianificazioneERichiesteTest::mappa).toList();
