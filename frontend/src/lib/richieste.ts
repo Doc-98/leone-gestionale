@@ -110,3 +110,43 @@ export function cosaDaFare(r: Richiesta): string {
   if (r.tipo === 'CAMBIO_ORARIO') return 'Cambio orario da decidere';
   return r.stato === 'IN_ATTESA_COLLEGA' ? 'Scambio in attesa del collega' : 'Scambio da decidere';
 }
+
+export type GruppoRichieste = 'Da coprire' | 'Da decidere' | 'Aspettano il collega';
+
+/** Dove sta la richiesta nell'elenco del coordinatore. */
+export function gruppoRichiesta(r: Richiesta): GruppoRichieste {
+  if (r.stato === 'IN_ATTESA_APPROVAZIONE') return 'Da decidere';
+  return r.tipo === 'SOSTITUZIONE' && !r.collega ? 'Da coprire' : 'Aspettano il collega';
+}
+
+/** Le parti del vecchio orario che il nuovo non copre più (come il server con «Risolvi»). */
+export function buchi(vi: string, vf: string, ni: string, nf: string): [string, string][] {
+  const out: [string, string][] = [];
+  const h = (s: string) => s.slice(0, 5);
+  [vi, vf, ni, nf] = [h(vi), h(vf), h(ni), h(nf)];
+  if (ni > vi) out.push([vi, ni < vf ? ni : vf]);
+  if (nf < vf) out.push([nf > vi ? nf : vi, vf]);
+  return out.filter(([a, b]) => b > a);
+}
+
+/** «chiesta oggi alle 9:12», «chiesta ieri alle 21:40», «chiesta il 28/10» */
+export function quandoInviata(istante: string, oggi: string, verbo = 'chiesta'): string {
+  const d = new Date(istante);
+  const giorno = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
+  const ore = d.toLocaleTimeString('it-IT', { hour: 'numeric', minute: '2-digit', timeZone: 'Europe/Rome' });
+  const ieri = new Date(`${oggi}T12:00:00`);
+  ieri.setDate(ieri.getDate() - 1);
+  if (giorno === oggi) return `${verbo} oggi alle ${ore}`;
+  if (giorno === ieri.toLocaleDateString('sv-SE')) return `${verbo} ieri alle ${ore}`;
+  const [, m, g] = giorno.split('-');
+  return `${verbo} il ${Number(g)}/${Number(m)}`;
+}
+
+/** L'asse orario di una linea del tempo: dall'ora piena prima dell'inizio a quella dopo la fine. */
+export function asse(orari: [string, string][]): { da: number; a: number; ore: string[]; pos: (h: string) => number } {
+  const min = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+  const da = Math.floor(Math.min(...orari.map(([i]) => min(i))) / 60) * 60;
+  const a = Math.ceil(Math.max(...orari.map(([, f]) => min(f))) / 60) * 60;
+  const ore = Array.from({ length: (a - da) / 60 + 1 }, (_, i) => `${String(da / 60 + i).padStart(2, '0')}:00`);
+  return { da, a, ore, pos: (h: string) => ((min(h) - da) / (a - da)) * 100 };
+}

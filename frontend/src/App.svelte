@@ -63,7 +63,7 @@
   // Icone a tratto, 24×24
   const SEZIONI: Sezione[] = [
     { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', larga: true, icona: 'turni' },
-    { id: 'richieste', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
+    { id: 'richieste', nome: 'Le mie richieste', breve: 'Le mie', titolo: 'Le mie richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: 'ore' },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: 'piano' },
     { id: 'attesa', nome: 'Liste d\'attesa', breve: 'Attesa', titolo: 'Liste d\'attesa', gruppo: 'Piscina', permessi: ['ISCRIZIONI'], larga: true, icona: 'attesa' },
@@ -74,7 +74,7 @@
     { id: 'incassi', nome: 'Incassi', breve: 'Incassi', titolo: 'Incassi', gruppo: 'Accessi', permessi: ['PAGAMENTI'], larga: true, icona: 'incassi' },
     { id: 'macchine', nome: 'Phon e docce', breve: 'Phon', titolo: 'Phon e docce', gruppo: 'Accessi', permessi: ['BORSELLINO', 'IMPOSTAZIONI'], larga: true, icona: 'macchine' },
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'pianifica' },
-    { id: 'approva', nome: 'Da approvare', breve: 'Approva', titolo: 'Da approvare', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], icona: 'approva' },
+    { id: 'approva', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], larga: true, icona: 'approva' },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'modelli' },
     // ── Impostazioni: tutte sotto una voce, per area ──
     { id: 'societa', nome: 'Società e stagioni', titolo: 'Società e stagioni', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
@@ -207,7 +207,7 @@
   );
 
   $effect(() => {
-    if (sessione.puo('APPROVAZIONI')) api.richiesteDaApprovare().then((r) => (daApprovare = r.length)).catch(() => {});
+    if (sessione.puo('APPROVAZIONI')) api.richiesteDaGestire().then((r) => (daApprovare = r.filter((x) => x.stato === 'IN_ATTESA_APPROVAZIONE' || (x.tipo === 'SOSTITUZIONE' && !x.collega)).length)).catch(() => {});
   });
 
   // Sul PC: Alt + numero per passare da una sezione all'altra
@@ -259,7 +259,7 @@
 {/snippet}
 
 {#snippet badge(s: Sezione)}
-  {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} da approvare">{daApprovare}</span>{/if}
+  {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} richieste da gestire">{daApprovare}</span>{/if}
 {/snippet}
 
 {#if paginaLettore}

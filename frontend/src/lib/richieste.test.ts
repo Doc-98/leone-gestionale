@@ -62,3 +62,18 @@ describe('area personale', () => {
     expect(o.occupati.map((x) => x.id)).toEqual(['c', 'a']);
   });
 });
+
+describe('richieste per il coordinatore', () => {
+  it('buchi del cambio orario, asse e quando', async () => {
+    const { asse, buchi, quandoInviata } = await import('./richieste');
+    expect(buchi('15:30:00', '19:15:00', '16:00', '19:15')).toEqual([['15:30', '16:00']]);
+    expect(buchi('15:30', '19:15', '16:00', '18:00')).toEqual([['15:30', '16:00'], ['18:00', '19:15']]);
+    expect(buchi('15:30', '19:15', '15:00', '20:00')).toEqual([]);
+    const a = asse([['15:30', '19:15'], ['16:00', '20:00']]);
+    expect(a.ore).toEqual(['15:00', '16:00', '17:00', '18:00', '19:00', '20:00']);
+    expect(a.pos('17:30')).toBe(50);
+    expect(quandoInviata('2026-11-01T08:12:00Z', '2026-11-01')).toBe('chiesta oggi alle 9:12');
+    expect(quandoInviata('2026-10-31T20:40:00Z', '2026-11-01')).toBe('chiesta ieri alle 21:40');
+    expect(quandoInviata('2026-10-28T10:00:00Z', '2026-11-01')).toBe('chiesta il 28/10');
+  });
+});

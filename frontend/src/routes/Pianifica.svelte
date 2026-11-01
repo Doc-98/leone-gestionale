@@ -202,7 +202,7 @@
               {#each richieste as r (r.id)}
                 <div class="voce-s"><i class="pallino-w"></i>
                   <span class="t"><b>{cosaDaFare(r)}</b><span>{giornoCorto(r.turno.data)} · {r.richiedente.nome}{r.tipo === 'CAMBIO_ORARIO' ? `, ${ora(r.turno.inizio)}–${ora(r.turno.fine)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}` : ''}</span></span>
-                  <a class="mini-btn" href="#/approva">Apri</a></div>
+                  <a class="mini-btn" href={`#/approva/${r.id}`}>Apri</a></div>
               {/each}
               {#if !scoperti.length && !richieste.length}<p class="muted small nomargin">{caricamento ? '…' : 'Niente da sistemare questa settimana.'}</p>{/if}
             </section>

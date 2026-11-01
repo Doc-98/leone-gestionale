@@ -111,7 +111,7 @@
   {/if}
 
   {#if richiesta}
-    <a class="richiesta" href="#/approva">{descriviRichiestaSulTurno(richiesta)} →</a>
+    <a class="richiesta" href={`#/approva/${richiesta.id}`}>{descriviRichiestaSulTurno(richiesta)} →</a>
   {/if}
 
   <span class="lbl">Chi lo fa</span>
