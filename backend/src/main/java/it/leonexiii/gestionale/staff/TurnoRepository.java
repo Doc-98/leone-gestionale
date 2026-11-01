@@ -35,6 +35,15 @@ interface TurnoRepository extends JpaRepository<Turno, UUID> {
         """)
     boolean sovrapposto(UUID personaId, LocalDate data, LocalTime inizio, LocalTime fine, UUID escluso);
 
+    /** Un altro turno pianificato sulla stessa postazione che si accavalla (una postazione = una persona alla volta). */
+    @Query("""
+        select t from Turno t
+        where t.postazione.id = :postazioneId and t.stato = 'PIANIFICATO' and t.data = :data
+          and t.inizio < :fine and t.fine > :inizio and t.id <> :escluso
+        order by t.inizio
+        """)
+    List<Turno> sullaPostazione(UUID postazioneId, LocalDate data, LocalTime inizio, LocalTime fine, UUID escluso);
+
     @Query("select count(t) > 0 from Turno t where t.postazione.id = :postazioneId and t.data = :data and t.inizio = :inizio and t.stato = 'PIANIFICATO'")
     boolean esisteGia(UUID postazioneId, LocalDate data, LocalTime inizio);
 

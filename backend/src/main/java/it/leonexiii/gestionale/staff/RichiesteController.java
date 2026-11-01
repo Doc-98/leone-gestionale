@@ -20,7 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/richieste")
 class RichiesteController {
 
-    record Decisione(String nota) {}
+    /** copriBuco: solo per il cambio orario, l'orario lasciato libero diventa un turno da assegnare. */
+    record Decisione(String nota, Boolean copriBuco) {}
 
     private final RichiesteService service;
 
@@ -72,16 +73,17 @@ class RichiesteController {
     @PostMapping("/{id}/approva")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
     RichiestaDto approva(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody(required = false) Decisione d) {
-        return service.approva(utente, id, d == null ? null : d.nota());
+        return service.approva(utente, id, d == null ? null : d.nota(), d != null && Boolean.TRUE.equals(d.copriBuco()));
     }
 
-    record Proposta(UUID collegaId) {}
+    /** forza: il collega è già in turno in quell'orario e il coordinatore conferma. */
+    record Proposta(UUID collegaId, Boolean forza) {}
 
     /** Il coordinatore propone una sostituzione a un collega preciso. */
     @PostMapping("/{id}/proponi")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'APPROVAZIONI')")
     RichiestaDto proponi(@AuthenticationPrincipal Utente utente, @PathVariable UUID id, @RequestBody Proposta in) {
-        return service.proponi(utente, id, in.collegaId());
+        return service.proponi(utente, id, in.collegaId(), Boolean.TRUE.equals(in.forza()));
     }
 
     /** A chi proporre la sostituzione: lo staff dell'impianto, liberi prima. */

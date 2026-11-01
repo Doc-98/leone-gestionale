@@ -31,6 +31,7 @@ class PianificazioneERichiesteTest {
     static final String SPOGL_M_1 = "00000000-0000-0000-0000-000000000401";
     static final String SPOGL_F_1 = "00000000-0000-0000-0000-000000000403";
     static final String ATRIO = "00000000-0000-0000-0000-000000000405";
+    static final String PICCOLI_1 = "00000000-0000-0000-0000-000000000404";
     static final String MODELLO = "00000000-0000-0000-0000-000000000501";
 
     @LocalServerPort
@@ -72,12 +73,22 @@ class PianificazioneERichiesteTest {
         var coord = come("coordinatore@demo.leone");
         String id = creaTurno(coord, SPOGL_F_1, "2027-03-01", "10:00", "12:00", GIULIA);
 
-        // la stessa persona non può avere turni che si accavallano
+        // due turni accavallati della stessa persona: prima un avviso, poi si può confermare
         var doppio = coord.post("/api/turni", turno(ATRIO, "2027-03-01", "11:00", "13:00", GIULIA));
         assertThat(doppio.statusCode()).isEqualTo(409);
-        assertThat(doppio.body()).contains("già un turno");
-        // un turno scoperto invece sì
-        assertThat(coord.post("/api/turni", turno(ATRIO, "2027-03-01", "11:00", "13:00", null)).statusCode()).isEqualTo(201);
+        assertThat(json(doppio)).containsEntry("avviso", true);
+        assertThat(doppio.body()).contains("già un turno dalle 10:00 alle 12:00");
+        var confermato = coord.post("/api/turni", turno(ATRIO, "2027-03-01", "11:00", "13:00", GIULIA).replace("}", ",\"forza\":true}"));
+        assertThat(confermato.statusCode()).as(confermato.body()).isEqualTo(201);
+        // una postazione invece è per una persona alla volta, anche se il turno è scoperto
+        var occupata = coord.post("/api/turni", turno(ATRIO, "2027-03-01", "12:00", "14:00", null));
+        assertThat(occupata.statusCode()).isEqualTo(409);
+        assertThat(json(occupata)).doesNotContainKey("avviso");
+        assertThat(occupata.body()).contains("una persona alla volta");
+        // lo spogliatoio femminile è riservato allo staff femminile
+        var sesso = coord.post("/api/turni", turno(SPOGL_F_1, "2027-03-01", "15:00", "16:00", LUCA));
+        assertThat(sesso.statusCode()).isEqualTo(400);
+        assertThat(sesso.body()).contains("riservata allo staff femminile");
 
         var mod = coord.put("/api/turni/" + id, turno(SPOGL_F_1, "2027-03-01", "13:00", "14:30", GIULIA));
         assertThat(mod.statusCode()).as(mod.body()).isEqualTo(200);
@@ -112,7 +123,7 @@ class PianificazioneERichiesteTest {
     @Test
     void sostituzioneApertaAccettataDaUnCollegaEApprovata() throws Exception {
         var coord = come("coordinatore@demo.leone");
-        String t = creaTurno(coord, SPOGL_M_1, "2027-04-05", "09:00", "10:00", LUCA);
+        String t = creaTurno(coord, ATRIO, "2027-04-05", "09:00", "10:00", LUCA);
 
         var luca = come("staff@demo.leone");
         var r = luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t + "\",\"messaggio\":\"Visita medica\"}");
@@ -140,7 +151,7 @@ class PianificazioneERichiesteTest {
     @Test
     void sostituzioneNonSiRespingeSiProponeOSiLasciaScoperta() throws Exception {
         var coord = come("coordinatore@demo.leone");
-        String t = creaTurno(coord, SPOGL_M_1, "2027-04-06", "09:00", "10:00", LUCA);
+        String t = creaTurno(coord, ATRIO, "2027-04-06", "09:00", "10:00", LUCA);
         var luca = come("staff@demo.leone");
         String id = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t + "\"}")).get("id");
 
@@ -167,7 +178,7 @@ class PianificazioneERichiesteTest {
         assertThat(mappa(turno.get("persona"))).containsEntry("id", GIULIA);
 
         // un'altra che nessuno prende: il coordinatore lascia il turno scoperto
-        String t2 = creaTurno(coord, SPOGL_M_1, "2027-04-07", "09:00", "10:00", LUCA);
+        String t2 = creaTurno(coord, ATRIO, "2027-04-07", "09:00", "10:00", LUCA);
         String id2 = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t2 + "\"}")).get("id");
         assertThat(json(coord.post("/api/richieste/" + id2 + "/senza-sostituto", ""))).containsEntry("stato", "APPROVATA");
         var t2dopo = lista(coord.get("/api/turni?da=2027-04-07&a=2027-04-07")).stream().map(PianificazioneERichiesteTest::mappa)
@@ -176,10 +187,35 @@ class PianificazioneERichiesteTest {
     }
 
     @Test
+    void sostituzioneNelloSpogliatoioMaschileEColleghiGiaInTurno() throws Exception {
+        var coord = come("coordinatore@demo.leone");
+        String t = creaTurno(coord, SPOGL_M_1, "2027-04-08", "09:00", "10:00", LUCA);
+        creaTurno(coord, PICCOLI_1, "2027-04-08", "09:30", "11:00", PAOLO);
+        var luca = come("staff@demo.leone");
+        String id = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t + "\"}")).get("id");
+
+        // tra i candidati solo gli uomini; Marta non si può proporre
+        String candidati = coord.get("/api/richieste/" + id + "/candidati").body();
+        assertThat(candidati).contains(PAOLO).doesNotContain(MARTA).doesNotContain(GIULIA);
+        assertThat(coord.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + MARTA + "\"}").statusCode()).isEqualTo(400);
+
+        // Paolo è già in turno: avviso, poi il coordinatore conferma e Paolo accetta
+        var avviso = coord.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + PAOLO + "\"}");
+        assertThat(avviso.statusCode()).isEqualTo(409);
+        assertThat(json(avviso)).containsEntry("avviso", true);
+        assertThat(coord.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + PAOLO + "\",\"forza\":true}").statusCode()).isEqualTo(200);
+        assertThat(json(coord.post("/api/richieste/" + id + "/accetta", ""))).containsEntry("stato", "APPROVATA");
+    }
+
+    @Test
     void scambioTraDueColleghi() throws Exception {
         var coord = come("coordinatore@demo.leone");
-        String tLuca = creaTurno(coord, SPOGL_M_1, "2027-04-12", "09:00", "10:00", LUCA);
-        String tGiulia = creaTurno(coord, SPOGL_F_1, "2027-04-13", "09:00", "10:00", GIULIA);
+        String tLuca = creaTurno(coord, ATRIO, "2027-04-12", "09:00", "10:00", LUCA);
+        String tGiulia = creaTurno(coord, ATRIO, "2027-04-13", "09:00", "10:00", GIULIA);
+        // con lo spogliatoio femminile di mezzo, lo scambio non si può nemmeno chiedere
+        String tF = creaTurno(coord, SPOGL_F_1, "2027-04-14", "09:00", "10:00", GIULIA);
+        assertThat(come("staff@demo.leone").post("/api/richieste", "{\"tipo\":\"SCAMBIO\",\"turnoId\":\"" + tLuca + "\",\"turnoCollegaId\":\"" + tF + "\"}").statusCode())
+            .isEqualTo(400);
 
         var luca = come("staff@demo.leone");
         var r = luca.post("/api/richieste", "{\"tipo\":\"SCAMBIO\",\"turnoId\":\"" + tLuca + "\",\"turnoCollegaId\":\"" + tGiulia + "\"}");
@@ -198,7 +234,7 @@ class PianificazioneERichiesteTest {
     }
 
     @Test
-    void cambioOrarioRespintoEUnoCheSiAccavalla() throws Exception {
+    void cambioOrarioNonSiRespingeEIlBucoDiventaUnTurno() throws Exception {
         var coord = come("coordinatore@demo.leone");
         String t1 = creaTurno(coord, SPOGL_M_1, "2027-04-19", "09:00", "10:00", LUCA);
         creaTurno(coord, ATRIO, "2027-04-19", "11:00", "12:00", LUCA);
@@ -208,25 +244,48 @@ class PianificazioneERichiesteTest {
         String tGiulia = creaTurno(coord, SPOGL_F_1, "2027-04-19", "09:00", "10:00", GIULIA);
         assertThat(luca.post("/api/richieste", "{\"tipo\":\"CAMBIO_ORARIO\",\"turnoId\":\"" + tGiulia + "\",\"nuovoInizio\":\"09:30\",\"nuovoFine\":\"10:00\"}").statusCode()).isEqualTo(403);
 
-        // il nuovo orario si accavalla con l'altro turno di Luca: all'approvazione 409
+        // il nuovo orario si accavalla con l'altro turno di Luca: all'approvazione 409; non si respinge, Luca la annulla
         var r = luca.post("/api/richieste", "{\"tipo\":\"CAMBIO_ORARIO\",\"turnoId\":\"" + t1 + "\",\"nuovoInizio\":\"09:00\",\"nuovoFine\":\"11:30\"}");
         assertThat(json(r)).containsEntry("stato", "IN_ATTESA_APPROVAZIONE");
         String id = (String) json(r).get("id");
         assertThat(coord.post("/api/richieste/" + id + "/approva", "").statusCode()).isEqualTo(409);
-        assertThat(json(coord.post("/api/richieste/" + id + "/respingi", "{\"nota\":\"Si sovrappone all'atrio\"}")))
-            .containsEntry("stato", "RESPINTA").containsEntry("notaDecisione", "Si sovrappone all'atrio");
+        assertThat(coord.post("/api/richieste/" + id + "/respingi", "{\"nota\":\"No\"}").statusCode()).isEqualTo(409);
+        assertThat(json(luca.post("/api/richieste/" + id + "/annulla", ""))).containsEntry("stato", "ANNULLATA");
 
-        // ora una nuova richiesta sullo stesso turno si può fare, e approvata cambia l'orario
-        var r2 = luca.post("/api/richieste", "{\"tipo\":\"CAMBIO_ORARIO\",\"turnoId\":\"" + t1 + "\",\"nuovoInizio\":\"09:00\",\"nuovoFine\":\"10:45\"}");
-        assertThat(json(coord.post("/api/richieste/" + json(r2).get("id") + "/approva", ""))).containsEntry("stato", "APPROVATA");
-        var mieiTurni = lista(luca.get("/api/turni/miei?da=2027-04-19&a=2027-04-19")).stream().map(PianificazioneERichiesteTest::mappa).toList();
-        assertThat(mieiTurni.stream().filter(x -> x.get("id").equals(t1)).findFirst().orElseThrow()).containsEntry("fine", "10:45:00");
+        // Luca arriva mezz'ora dopo: approvata con «Risolvi», la mezz'ora diventa un turno scoperto
+        var r2 = luca.post("/api/richieste", "{\"tipo\":\"CAMBIO_ORARIO\",\"turnoId\":\"" + t1 + "\",\"nuovoInizio\":\"09:30\",\"nuovoFine\":\"10:00\"}");
+        assertThat(json(coord.post("/api/richieste/" + json(r2).get("id") + "/approva", "{\"copriBuco\":true}"))).containsEntry("stato", "APPROVATA");
+        var giorno = lista(coord.get("/api/turni?da=2027-04-19&a=2027-04-19")).stream().map(PianificazioneERichiesteTest::mappa)
+            .filter(x -> SPOGL_M_1.equals(x.get("postazioneId"))).toList();
+        assertThat(giorno.stream().filter(x -> x.get("id").equals(t1)).findFirst().orElseThrow()).containsEntry("inizio", "09:30:00");
+        var buco = giorno.stream().filter(x -> !x.get("id").equals(t1)).findFirst().orElseThrow();
+        assertThat(buco).containsEntry("inizio", "09:00:00").containsEntry("fine", "09:30:00").containsEntry("persona", null);
+    }
+
+    @Test
+    void generareRispettaIlCalendarioDellaStagione() throws Exception {
+        var coord = come("coordinatore@demo.leone");
+        String impianto = "00000000-0000-0000-0000-0000000000b1";
+        // lunedì 7 giugno 2027 chiuso, martedì 8 si chiude alle 18
+        var ch = coord.post("/api/eventi", """
+            {"impiantoId":"%s","tipo":"CHIUSURA","titolo":"Chiuso","data":"2027-06-07","inizio":"00:00","fine":"23:59"}""".formatted(impianto));
+        assertThat(ch.statusCode()).as(ch.body()).isEqualTo(201);
+        coord.post("/api/eventi", """
+            {"impiantoId":"%s","tipo":"CHIUSURA","titolo":"Ridotto","data":"2027-06-08","inizio":"18:00","fine":"23:59"}""".formatted(impianto));
+        assertThat(coord.get("/api/chiusure?da=2027-06-01&a=2027-06-30").body()).contains("Chiuso").contains("Ridotto");
+
+        var esito = json(coord.post("/api/modelli/" + MODELLO + "/genera", "{\"mese\":\"2027-06\"}"));
+        assertThat(esito).containsEntry("chiusi", 10);
+        assertThat(lista(coord.get("/api/turni?da=2027-06-07&a=2027-06-07"))).isEmpty();
+        var martedi = lista(coord.get("/api/turni?da=2027-06-08&a=2027-06-08")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        assertThat(martedi).hasSize(10);
+        assertThat(martedi.stream().map(x -> (String) x.get("fine"))).allMatch(f -> f.compareTo("18:00:00") <= 0);
     }
 
     @Test
     void annullareUnaRichiestaESoloIlRichiedente() throws Exception {
         var coord = come("coordinatore@demo.leone");
-        String t = creaTurno(coord, SPOGL_M_1, "2027-04-26", "09:00", "10:00", LUCA);
+        String t = creaTurno(coord, ATRIO, "2027-04-26", "09:00", "10:00", LUCA);
         var luca = come("staff@demo.leone");
         String id = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t + "\",\"collegaId\":\"" + MARTA + "\"}")).get("id");
         assertThat(come("marta@demo.leone").post("/api/richieste/" + id + "/annulla", "").statusCode()).isEqualTo(403);

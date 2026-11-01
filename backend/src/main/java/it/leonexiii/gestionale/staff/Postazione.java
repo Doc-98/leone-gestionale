@@ -33,6 +33,10 @@ class Postazione {
     @Column(nullable = false)
     private boolean attiva;
 
+    /** Riservata a un sesso («M» o «F», es. lo spogliatoio femminile); null = chiunque. */
+    @Column(name = "solo_sesso")
+    private String soloSesso;
+
     protected Postazione() {}
 
     Postazione(Mansione mansione, String nome, UUID spazioId, int ordine) {
@@ -49,6 +53,17 @@ class Postazione {
         this.attiva = attiva;
     }
 
+    void riservaA(String sesso) {
+        if (sesso != null && sesso.isBlank()) sesso = null;
+        if (sesso != null && !sesso.equals("M") && !sesso.equals("F")) throw new IllegalArgumentException("Il sesso va indicato come M o F.");
+        this.soloSesso = sesso;
+    }
+
+    /** La persona, con il sesso indicato in anagrafica, può lavorare qui? Senza sesso in anagrafica no, se la postazione è riservata. */
+    boolean ammette(String sesso) {
+        return soloSesso == null || soloSesso.equals(sesso);
+    }
+
     void ordina(int ordine) {
         this.ordine = ordine;
     }
@@ -59,4 +74,5 @@ class Postazione {
     String getNome() { return nome; }
     int getOrdine() { return ordine; }
     boolean isAttiva() { return attiva; }
+    String getSoloSesso() { return soloSesso; }
 }

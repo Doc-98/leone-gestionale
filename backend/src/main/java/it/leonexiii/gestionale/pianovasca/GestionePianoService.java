@@ -178,6 +178,18 @@ class GestionePianoService {
 
     // ── Eventi ──────────────────────────────────────────────────────────────
 
+    /** Le chiusure di tutto l'impianto nel periodo (il calendario della stagione), annullate escluse. */
+    @Transactional(readOnly = true)
+    List<EventoDto> chiusure(Utente u, LocalDate da, LocalDate a) {
+        if (a.isBefore(da)) throw new IllegalArgumentException("La data finale è prima di quella iniziale.");
+        if (java.time.temporal.ChronoUnit.DAYS.between(da, a) > 400) throw new IllegalArgumentException("Intervallo troppo lungo: al massimo una stagione.");
+        Set<UUID> imp = accesso.visibili(u);
+        if (imp.isEmpty()) return List.of();
+        return eventi.nelPeriodo(imp, da, a).stream()
+            .filter(e -> e.getTipo() == TipoEvento.CHIUSURA && !e.isAnnullato() && e.getSpazi().isEmpty())
+            .map(this::dto).toList();
+    }
+
     @Transactional
     Esito<EventoDto> creaEvento(Utente u, EventoInput in) {
         if (in.impiantoId() == null) throw new IllegalArgumentException("Scegli l'impianto.");

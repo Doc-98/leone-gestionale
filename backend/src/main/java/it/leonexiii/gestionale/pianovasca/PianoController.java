@@ -162,6 +162,12 @@ class PianoController {
         gestione.togliEccezione(u, id);
     }
 
+    /** Il calendario della stagione: le chiusure di tutto l'impianto nel periodo. */
+    @GetMapping("/chiusure")
+    List<GestionePianoService.EventoDto> chiusure(@AuthenticationPrincipal Utente u, @RequestParam LocalDate da, @RequestParam LocalDate a) {
+        return gestione.chiusure(u, da, a);
+    }
+
     @GetMapping("/eventi/{id}")
     GestionePianoService.EventoDto evento(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
         return gestione.evento(u, id, true);

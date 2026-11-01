@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.config;
 
+import it.leonexiii.gestionale.condiviso.Avviso;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -28,6 +29,14 @@ class GestioneErrori {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
+    /** Insolito ma permesso: l'interfaccia chiede conferma e ripete con «forza». */
+    @ExceptionHandler(Avviso.class)
+    ProblemDetail avviso(Avviso e) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        p.setProperty("avviso", true);
+        return p;
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail vietato(AccessDeniedException e) {
         // i messaggi scritti nel codice (es. quale permesso serve) si mostrano; quello generico di Spring no
@@ -36,12 +45,11 @@ class GestioneErrori {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, nostro ? m : "Non hai i permessi per questa operazione.");
     }
 
-    /** Ultima difesa: i vincoli del database (es. due turni sovrapposti salvati nello stesso istante). */
+    /** Ultima difesa: i vincoli del database (es. due richieste sullo stesso turno salvate nello stesso istante). */
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail vincolo(DataIntegrityViolationException e) {
         String m = String.valueOf(e.getMostSpecificCause().getMessage());
-        String testo = m.contains("turno_senza_sovrapposizioni") ? "La persona ha già un turno in quell'orario."
-            : m.contains("richiesta_turno_una_aperta") ? "Per questo turno c'è già una richiesta in corso."
+        String testo = m.contains("richiesta_turno_una_aperta") ? "Per questo turno c'è già una richiesta in corso."
             : m.contains("fascia_senza_sovrapposizioni") ? "In quella vasca e in quel giorno c'è già una fascia che si accavalla con questo orario."
             : m.contains("iscrizione_senza_doppioni") ? "Questa persona è già iscritta a questo turno nello stesso periodo."
             : m.contains("account_email_unica") ? "C'è già un account con questa email."

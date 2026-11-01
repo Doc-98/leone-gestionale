@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.staff;
 
+import it.leonexiii.gestionale.condiviso.Avviso;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.PersonaBreve;
@@ -62,6 +63,9 @@ class RichiesteService {
                 if (tc.getPersonaId() == null || tc.getPersonaId().equals(u.personaId())) throw new IllegalArgumentException("Scegli un turno di un collega.");
                 if (!tc.impiantoId().equals(t.impiantoId())) throw new IllegalArgumentException("Si scambiano turni dello stesso impianto.");
                 controllaFuturo(tc);
+                var sessi = persone.sessi(List.of(u.personaId(), tc.getPersonaId()));
+                if (!tc.getPostazione().ammette(sessi.get(u.personaId())) || !t.getPostazione().ammette(sessi.get(tc.getPersonaId())))
+                    throw new IllegalArgumentException("Non si può: una delle due postazioni è riservata all'altro sesso.");
                 yield RichiestaTurno.scambio(t, u.personaId(), tc, in.messaggio());
             }
         };
@@ -99,7 +103,8 @@ class RichiesteService {
                 if (r.getCollegaId() == null) controllaCollega(io, r.getRichiedenteId(), r.getTurno());
                 else if (!r.getCollegaId().equals(io)) throw new AccessDeniedException("La richiesta è rivolta a un altro collega.");
                 Turno t = r.getTurno();
-                if (turni.sovrapposto(io, t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
+                // se l'ha proposta il coordinatore, un eventuale accavallamento l'ha già visto e confermato
+                if (r.getPropostaDa() == null && turni.sovrapposto(io, t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
                     throw new Conflitto("Hai già un turno in quell'orario.");
             }
             case SCAMBIO -> {
@@ -122,8 +127,10 @@ class RichiesteService {
         RichiestaTurno r = richiesta(id);
         Turno t = r.getTurno();
         permessi.richiedi(u, Permesso.APPROVAZIONI, t.impiantoId());
-        return persone.conPermesso(Permesso.TURNI, t.impiantoId()).stream()
-            .filter(p -> !p.id().equals(r.getRichiedenteId()))
+        var staff = persone.conPermesso(Permesso.TURNI, t.impiantoId());
+        var sessi = persone.sessi(staff.stream().map(PersonaBreve::id).toList());
+        return staff.stream()
+            .filter(p -> !p.id().equals(r.getRichiedenteId()) && t.getPostazione().ammette(sessi.get(p.id())))
             .map(p -> new Candidato(p, turni.diPersona(p.id(), t.getData(), t.getData()).stream()
                 .filter(x -> x.pianificato() && x.getInizio().isBefore(t.getFine()) && x.getFine().isAfter(t.getInizio()))
                 .findFirst().map(x -> x.getInizio() + "–" + x.getFine() + " · " + x.getPostazione().getNome()).orElse(null)))
@@ -131,16 +138,17 @@ class RichiesteService {
             .toList();
     }
 
-    /** Il coordinatore propone la sostituzione a un collega preciso (libero in quell'orario). */
+    /** Il coordinatore propone la sostituzione a un collega preciso; se è già in turno serve la conferma (forza). */
     @Transactional
-    RichiestaDto proponi(Utente u, UUID id, UUID collegaId) {
+    RichiestaDto proponi(Utente u, UUID id, UUID collegaId, boolean forza) {
         RichiestaTurno r = richiesta(id);
         permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
         if (collegaId == null) throw new IllegalArgumentException("Scegli a chi proporla.");
         Turno t = r.getTurno();
         controllaCollega(collegaId, r.getRichiedenteId(), t);
-        if (turni.sovrapposto(collegaId, t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
-            throw new Conflitto("Il collega ha già un turno in quell'orario.");
+        if (!forza && turni.sovrapposto(collegaId, t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
+            throw new Avviso(persone.nomiCompleti(List.of(collegaId)).getOrDefault(collegaId, "Il collega")
+                + " ha già un turno in quell'orario: i due turni si accavallano.");
         r.proponiA(collegaId, u.personaId());
         return dto(r);
     }
@@ -173,13 +181,31 @@ class RichiesteService {
         return dto(r);
     }
 
+    /** copriBuco (solo cambio orario): l'orario lasciato libero diventa un turno scoperto da assegnare. */
     @Transactional
-    RichiestaDto approva(Utente u, UUID id, String nota) {
+    RichiestaDto approva(Utente u, UUID id, String nota, boolean copriBuco) {
         RichiestaTurno r = richiesta(id);
         permessi.richiedi(u, Permesso.APPROVAZIONI, r.getTurno().impiantoId());
         if (r.getStato() != StatoRichiesta.IN_ATTESA_APPROVAZIONE) throw new Conflitto("La richiesta non è in attesa di approvazione.");
+        Turno t = r.getTurno();
+        LocalTime vecchioInizio = t.getInizio(), vecchiaFine = t.getFine();
         applica(r, u.personaId(), nota);
+        if (copriBuco && r.getTipo() == TipoRichiesta.CAMBIO_ORARIO) {
+            String nome = persone.nomiCompleti(List.of(r.getRichiedenteId())).getOrDefault(r.getRichiedenteId(), "?");
+            for (LocalTime[] b : buchi(vecchioInizio, vecchiaFine, r.getNuovoInizio(), r.getNuovoFine()))
+                if (turni.sullaPostazione(t.getPostazione().getId(), t.getData(), b[0], b[1], t.getId()).isEmpty())
+                    turni.save(new Turno(t.getPostazione(), t.getData(), b[0], b[1], null, "Lasciato libero dal cambio orario di " + nome + ".", null));
+            turni.flush();
+        }
         return dto(r);
+    }
+
+    /** Le parti del vecchio orario che il nuovo non copre più (prima e/o dopo). */
+    static List<LocalTime[]> buchi(LocalTime vi, LocalTime vf, LocalTime ni, LocalTime nf) {
+        List<LocalTime[]> out = new java.util.ArrayList<>();
+        if (ni.isAfter(vi)) out.add(new LocalTime[] {vi, ni.isBefore(vf) ? ni : vf});
+        if (nf.isBefore(vf)) out.add(new LocalTime[] {nf.isAfter(vi) ? nf : vi, vf});
+        return out.stream().filter(b -> b[1].isAfter(b[0])).toList();
     }
 
     /** Applica la richiesta ai turni e la chiude come approvata. */
@@ -191,10 +217,12 @@ class RichiesteService {
             case CAMBIO_ORARIO -> {
                 if (turni.sovrapposto(t.getPersonaId(), t.getData(), r.getNuovoInizio(), r.getNuovoFine(), t.getId()))
                     throw new Conflitto("Con il nuovo orario si accavalla con un altro turno della stessa persona.");
+                if (!turni.sullaPostazione(t.getPostazione().getId(), t.getData(), r.getNuovoInizio(), r.getNuovoFine(), t.getId()).isEmpty())
+                    throw new Conflitto("Con il nuovo orario si accavalla con un altro turno sulla stessa postazione.");
                 t.cambiaOrario(r.getNuovoInizio(), r.getNuovoFine());
             }
             case SOSTITUZIONE -> {
-                if (turni.sovrapposto(r.getCollegaId(), t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
+                if (r.getPropostaDa() == null && turni.sovrapposto(r.getCollegaId(), t.getData(), t.getInizio(), t.getFine(), TurnoRepository.NESSUNO))
                     throw new Conflitto("Il collega ha già un turno in quell'orario.");
                 t.assegna(r.getCollegaId());
             }
@@ -205,11 +233,7 @@ class RichiesteService {
                 if (turni.sovrapposto(r.getRichiedenteId(), tc.getData(), tc.getInizio(), tc.getFine(), t.getId())
                     || turni.sovrapposto(r.getCollegaId(), t.getData(), t.getInizio(), t.getFine(), tc.getId()))
                     throw new Conflitto("Dopo lo scambio qualcuno avrebbe due turni sovrapposti.");
-                // Passaggio intermedio senza persona: il vincolo anti-sovrapposizione si controlla riga per riga
-                t.assegna(null);
-                turni.flush();
                 tc.assegna(r.getRichiedenteId());
-                turni.flush();
                 t.assegna(r.getCollegaId());
             }
         }
@@ -230,6 +254,8 @@ class RichiesteService {
     private void controllaCollega(UUID collega, UUID richiedente, Turno t) {
         if (collega.equals(richiedente)) throw new IllegalArgumentException("Scegli un collega diverso da te.");
         if (!persone.haPermesso(collega, Permesso.TURNI, t.impiantoId())) throw new IllegalArgumentException("Il collega non fa parte dello staff dell'impianto.");
+        if (!t.getPostazione().ammette(persone.sessi(List.of(collega)).get(collega)))
+            throw new IllegalArgumentException(t.getPostazione().getNome() + " è " + PianificazioneService.riservata(t.getPostazione()) + ".");
     }
 
     private static void controllaFuturo(Turno t) {

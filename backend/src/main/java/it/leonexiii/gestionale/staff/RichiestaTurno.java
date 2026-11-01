@@ -151,6 +151,8 @@ class RichiestaTurno {
     void respingi(UUID decisore, String nota) {
         if (tipo == TipoRichiesta.SOSTITUZIONE)
             throw new Conflitto("Una sostituzione non si respinge: chi la chiede ha avvisato che sarà assente. Proponila a un collega o lascia il turno scoperto.");
+        if (tipo == TipoRichiesta.CAMBIO_ORARIO)
+            throw new Conflitto("Un cambio orario non si respinge: chi lo chiede ha avvisato che non ci sarà. Approvalo, creando un turno per l'orario che resta scoperto o lasciandolo scoperto.");
         richiedi(StatoRichiesta.IN_ATTESA_APPROVAZIONE);
         chiudi(StatoRichiesta.RESPINTA, decisore, nota);
     }

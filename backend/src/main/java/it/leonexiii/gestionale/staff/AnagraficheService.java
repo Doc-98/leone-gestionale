@@ -35,7 +35,7 @@ class AnagraficheService {
 
     record SpazioDto(UUID id, UUID impiantoId, String nome, String tipo) {}
 
-    record PostazioneGestioneDto(UUID id, UUID mansioneId, String nome, UUID spazioId, int ordine, boolean attiva) {}
+    record PostazioneGestioneDto(UUID id, UUID mansioneId, String nome, UUID spazioId, int ordine, boolean attiva, String soloSesso) {}
 
     /** coordinatori: chi coordina il gruppo di staff e ne vede le ore (ADR 0022). */
     record MansioneDto(UUID id, UUID impiantoId, String codice, String nome, String voceFoglioOre, List<PostazioneGestioneDto> postazioni,
@@ -44,7 +44,8 @@ class AnagraficheService {
     /** coordinatori null = non cambiano. */
     record MansioneInput(UUID impiantoId, String nome, String voceFoglioOre, List<UUID> coordinatori) {}
 
-    record PostazioneInput(String nome, UUID spazioId, Boolean attiva) {}
+    /** soloSesso: «M», «F» o null (chiunque). */
+    record PostazioneInput(String nome, UUID spazioId, Boolean attiva, String soloSesso) {}
 
     /** Esito di una modifica alla postazione: quanti turni futuri restano su una postazione disattivata. */
     record EsitoPostazione(PostazioneGestioneDto postazione, long turniFuturi) {}
@@ -146,6 +147,7 @@ class AnagraficheService {
         Mansione m = mansione(u, mansioneId);
         controllaSpazio(in.spazioId(), m.getImpiantoId());
         Postazione p = new Postazione(m, in.nome(), in.spazioId(), postazioni.ultimoOrdine(m.getImpiantoId()) + 1);
+        p.riservaA(in.soloSesso());
         return dto(postazioni.saveAndFlush(p));
     }
 
@@ -156,6 +158,7 @@ class AnagraficheService {
         controllaSpazio(in.spazioId(), p.getMansione().getImpiantoId());
         boolean attiva = in.attiva() == null ? p.isAttiva() : in.attiva();
         p.modifica(in.nome(), in.spazioId(), attiva);
+        p.riservaA(in.soloSesso());
         long futuri = attiva ? 0 : turni.futuriSuPostazione(id, LocalDate.now(FUSO));
         return new EsitoPostazione(dto(p), futuri);
     }
@@ -259,7 +262,7 @@ class AnagraficheService {
     }
 
     private static PostazioneGestioneDto dto(Postazione p) {
-        return new PostazioneGestioneDto(p.getId(), p.getMansione().getId(), p.getNome(), p.getSpazioId(), p.getOrdine(), p.isAttiva());
+        return new PostazioneGestioneDto(p.getId(), p.getMansione().getId(), p.getNome(), p.getSpazioId(), p.getOrdine(), p.isAttiva(), p.getSoloSesso());
     }
 
     private static TariffaDto dto(Tariffa t, Mansione m, Map<UUID, String> nomi) {

@@ -1,11 +1,13 @@
 package it.leonexiii.gestionale.staff;
 
+import it.leonexiii.gestionale.condiviso.Avviso;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.PersonaBreve;
 import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
+import it.leonexiii.gestionale.pianovasca.Chiusure;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
@@ -26,9 +28,14 @@ class PianificazioneService {
     /** Oltre questo intervallo la richiesta è quasi certamente un errore (e pesante). */
     static final long GIORNI_MASSIMI = 93;
 
-    record TurnoInput(UUID postazioneId, LocalDate data, LocalTime inizio, LocalTime fine, UUID personaId, String note) {}
+    /** forza: il coordinatore ha visto l'avviso (es. la persona ha già un turno in quell'orario) e conferma. */
+    record TurnoInput(UUID postazioneId, LocalDate data, LocalTime inizio, LocalTime fine, UUID personaId, String note, Boolean forza) {}
 
-    record PostazioneDto(UUID id, String nome, String mansione, UUID impiantoId) {}
+    /** soloSesso: «M», «F» o null (chiunque), es. gli spogliatoi. */
+    record PostazioneDto(UUID id, String nome, String mansione, UUID impiantoId, UUID mansioneId, String soloSesso) {}
+
+    /** Una persona dello staff, con il sesso dell'anagrafica (per le postazioni riservate). */
+    record PersonaStaff(UUID id, String nome, String sesso) {}
 
     record RigaModelloDto(UUID id, UUID postazioneId, String postazione, int giornoSettimana, LocalTime inizio, LocalTime fine, PersonaBreve persona) {}
 
@@ -39,20 +46,23 @@ class PianificazioneService {
     /** Nuovo modello; con copiaDa riprende le righe di un modello esistente (es. la stagione precedente). */
     record ModelloInput(UUID impiantoId, String nome, LocalDate validoDal, LocalDate validoAl, UUID copiaDa) {}
 
-    record EsitoGenerazione(int creati, int scoperti, int giaPresenti, List<String> avvisi) {}
+    record EsitoGenerazione(int creati, int scoperti, int giaPresenti, int chiusi, List<String> avvisi) {}
 
     private final TurnoRepository turni;
     private final PostazioneRepository postazioni;
     private final ModelloRepository modelli;
     private final Persone persone;
     private final Permessi permessi;
+    private final Chiusure chiusure;
 
-    PianificazioneService(TurnoRepository turni, PostazioneRepository postazioni, ModelloRepository modelli, Persone persone, Permessi permessi) {
+    PianificazioneService(TurnoRepository turni, PostazioneRepository postazioni, ModelloRepository modelli, Persone persone, Permessi permessi,
+                          Chiusure chiusure) {
         this.turni = turni;
         this.postazioni = postazioni;
         this.modelli = modelli;
         this.persone = persone;
         this.permessi = permessi;
+        this.chiusure = chiusure;
     }
 
     @Transactional(readOnly = true)
@@ -96,8 +106,7 @@ class PianificazioneService {
     TurnoDto crea(Utente u, TurnoInput in) {
         Postazione p = postazione(in.postazioneId());
         permessi.richiedi(u, Permesso.PIANIFICAZIONE, p.getMansione().getImpiantoId());
-        controllaPersona(in.personaId(), p.getMansione().getImpiantoId());
-        controllaSovrapposizione(in.personaId(), in.data(), in.inizio(), in.fine(), TurnoRepository.NESSUNO);
+        controlla(p, in, TurnoRepository.NESSUNO);
         Turno t = turni.saveAndFlush(new Turno(p, in.data(), in.inizio(), in.fine(), in.personaId(), in.note(), null));
         return conNome(t);
     }
@@ -109,8 +118,7 @@ class PianificazioneService {
         if (!t.pianificato()) throw new Conflitto("Il turno è annullato: non si può modificare.");
         Postazione p = in.postazioneId() == null ? t.getPostazione() : postazione(in.postazioneId());
         permessi.richiedi(u, Permesso.PIANIFICAZIONE, p.getMansione().getImpiantoId());
-        controllaPersona(in.personaId(), p.getMansione().getImpiantoId());
-        controllaSovrapposizione(in.personaId(), in.data(), in.inizio(), in.fine(), t.getId());
+        controlla(p, in, t.getId());
         t.modifica(p, in.data(), in.inizio(), in.fine(), in.personaId(), in.note());
         turni.flush();
         return conNome(t);
@@ -129,16 +137,18 @@ class PianificazioneService {
         Set<UUID> impianti = permessi.impianti(u, Permesso.PIANIFICAZIONE);
         if (impianti.isEmpty()) return List.of();
         return postazioni.attive(impianti).stream()
-            .map(p -> new PostazioneDto(p.getId(), p.getNome(), p.getMansione().getNome(), p.getMansione().getImpiantoId()))
+            .map(p -> new PostazioneDto(p.getId(), p.getNome(), p.getMansione().getNome(), p.getMansione().getImpiantoId(), p.getMansione().getId(), p.getSoloSesso()))
             .toList();
     }
 
     /** Lo staff degli impianti gestiti: le persone a cui si possono assegnare i turni. */
     @Transactional(readOnly = true)
-    List<PersonaBreve> personale(Utente u) {
+    List<PersonaStaff> personale(Utente u) {
         var unici = new LinkedHashMap<UUID, PersonaBreve>();
         for (UUID imp : permessi.impianti(u, Permesso.PIANIFICAZIONE)) for (PersonaBreve p : persone.conPermesso(Permesso.TURNI, imp)) unici.putIfAbsent(p.id(), p);
-        return unici.values().stream().sorted(Comparator.comparing(PersonaBreve::nome)).toList();
+        var sessi = persone.sessi(unici.keySet());
+        return unici.values().stream().sorted(Comparator.comparing(PersonaBreve::nome))
+            .map(p -> new PersonaStaff(p.id(), p.nome(), sessi.get(p.id()))).toList();
     }
 
     // ── Modello settimanale ─────────────────────────────────────────────────
@@ -158,7 +168,7 @@ class PianificazioneService {
         ModelloSettimanale m = modello(u, modelloId);
         Postazione p = postazione(in.postazioneId());
         if (!p.getMansione().getImpiantoId().equals(m.getImpiantoId())) throw new IllegalArgumentException("La postazione è di un altro impianto.");
-        controllaPersona(in.personaId(), m.getImpiantoId());
+        controllaRiga(m, p, in, null);
         m.aggiungiRiga(p, in.giornoSettimana(), in.inizio(), in.fine(), in.personaId());
         modelli.flush();
         return modelloDto(m, nomiRighe(m));
@@ -204,7 +214,7 @@ class PianificazioneService {
             .orElseThrow(() -> new NonTrovato("Riga del modello non trovata."));
         Postazione p = postazione(in.postazioneId());
         if (!p.getMansione().getImpiantoId().equals(m.getImpiantoId())) throw new IllegalArgumentException("La postazione è di un altro impianto.");
-        controllaPersona(in.personaId(), m.getImpiantoId());
+        controllaRiga(m, p, in, rigaId);
         r.modifica(p, in.giornoSettimana(), in.inizio(), in.fine(), in.personaId());
         modelli.flush();
         return modelloDto(m, nomiRighe(m));
@@ -218,39 +228,65 @@ class PianificazioneService {
     }
 
     /**
-     * Crea i turni del mese dalla settimana tipo. Si può rilanciare: i turni già presenti (stessa postazione,
-     * giorno e ora di inizio) non vengono duplicati. Se la persona del modello ha già un turno che si accavalla,
-     * il turno nasce scoperto e compare un avviso.
+     * Crea i turni del mese dalla settimana tipo. Si può rilanciare: dove la postazione ha già un turno in
+     * quell'orario non se ne crea un altro. Rispetta il calendario della stagione: nei giorni di chiusura non crea
+     * turni, a orario ridotto li accorcia. Se la persona del modello ha già un turno che si accavalla, o la
+     * postazione è riservata all'altro sesso, il turno nasce scoperto e compare un avviso.
      */
     @Transactional
     EsitoGenerazione genera(Utente u, UUID modelloId, YearMonth mese) {
         ModelloSettimanale m = modello(u, modelloId);
-        int creati = 0, scoperti = 0, presenti = 0;
+        int creati = 0, scoperti = 0, presenti = 0, chiusi = 0;
         List<String> avvisi = new ArrayList<>();
         var nomi = nomiRighe(m);
+        var sessi = persone.sessi(nomi.keySet());
+        var chiuso = chiusure.diImpianto(m.getImpiantoId(), mese.atDay(1), mese.atEndOfMonth());
         Set<UUID> disattivate = new java.util.HashSet<>();
         for (LocalDate g = mese.atDay(1); !g.isAfter(mese.atEndOfMonth()); g = g.plusDays(1)) {
             if (!m.validoIl(g)) continue;
             int dow = g.getDayOfWeek().getValue();
             for (ModelloRiga r : m.getRighe()) {
                 if (r.getGiornoSettimana() != dow) continue;
-                if (!r.getPostazione().isAttiva()) {
-                    if (disattivate.add(r.getPostazione().getId()))
-                        avvisi.add(r.getPostazione().getNome() + " è disattivata: le sue righe del modello sono state saltate.");
+                Postazione p = r.getPostazione();
+                if (!p.isAttiva()) {
+                    if (disattivate.add(p.getId())) avvisi.add(p.getNome() + " è disattivata: le sue righe del modello sono state saltate.");
                     continue;
                 }
-                if (turni.esisteGia(r.getPostazione().getId(), g, r.getInizio())) { presenti++; continue; }
+                LocalTime[] orario = aperto(r.getInizio(), r.getFine(), chiuso.getOrDefault(g, List.of()));
+                if (orario == null) { chiusi++; continue; }
+                LocalTime inizio = orario[0], fine = orario[1];
+                if (!turni.sullaPostazione(p.getId(), g, inizio, fine, TurnoRepository.NESSUNO).isEmpty()) { presenti++; continue; }
                 UUID persona = r.getPersonaId();
-                if (persona != null && turni.sovrapposto(persona, g, r.getInizio(), r.getFine(), TurnoRepository.NESSUNO)) {
-                    avvisi.add(g + " · " + r.getPostazione().getNome() + ": " + nomi.getOrDefault(persona, "?")
-                        + " ha già un turno in quell'orario, il turno resta da assegnare.");
+                if (persona != null && !p.ammette(sessi.get(persona))) {
+                    avvisi.add(g + " · " + p.getNome() + ": " + nomi.getOrDefault(persona, "?") + " non può lavorare qui ("
+                        + riservata(p) + "), il turno resta scoperto.");
                     persona = null;
                 }
-                turni.saveAndFlush(new Turno(r.getPostazione(), g, r.getInizio(), r.getFine(), persona, null, r.getId()));
+                if (persona != null && turni.sovrapposto(persona, g, inizio, fine, TurnoRepository.NESSUNO)) {
+                    avvisi.add(g + " · " + p.getNome() + ": " + nomi.getOrDefault(persona, "?")
+                        + " ha già un turno in quell'orario, il turno resta scoperto.");
+                    persona = null;
+                }
+                turni.saveAndFlush(new Turno(p, g, inizio, fine, persona, null, r.getId()));
                 if (persona == null) scoperti++; else creati++;
             }
         }
-        return new EsitoGenerazione(creati, scoperti, presenti, avvisi);
+        return new EsitoGenerazione(creati, scoperti, presenti, chiusi, avvisi);
+    }
+
+    /**
+     * L'orario del turno tolte le chiusure del giorno: null se l'impianto è chiuso per tutto il turno. Una chiusura
+     * a cavallo dell'inizio lo posticipa, una a cavallo della fine lo anticipa; una tutta dentro il turno non lo
+     * cambia (il coordinatore lo sistemerà a mano).
+     */
+    static LocalTime[] aperto(LocalTime inizio, LocalTime fine, List<Chiusure.Fascia> chiuso) {
+        for (Chiusure.Fascia f : chiuso) {
+            if (!f.inizio().isBefore(fine) || !f.fine().isAfter(inizio)) continue;
+            if (!f.inizio().isAfter(inizio) && !f.fine().isBefore(fine)) return null;
+            if (!f.inizio().isAfter(inizio)) inizio = f.fine();
+            else if (!f.fine().isBefore(fine)) fine = f.inizio();
+        }
+        return fine.isAfter(inizio) ? new LocalTime[] {inizio, fine} : null;
     }
 
     // ── Controlli ───────────────────────────────────────────────────────────
@@ -266,10 +302,53 @@ class PianificazioneService {
             throw new IllegalArgumentException("Questa persona non fa parte dello staff dell'impianto.");
     }
 
-    private void controllaSovrapposizione(UUID personaId, LocalDate data, LocalTime inizio, LocalTime fine, UUID escluso) {
-        if (inizio == null || fine == null || !fine.isAfter(inizio)) throw new IllegalArgumentException("La fine del turno deve essere dopo l'inizio.");
-        if (personaId != null && turni.sovrapposto(personaId, data, inizio, fine, escluso))
-            throw new Conflitto("La persona ha già un turno in quell'orario.");
+    /**
+     * Le regole di un turno: una persona dello staff, che può lavorare su quella postazione (sesso), e una sola
+     * persona alla volta sulla postazione. Due turni accavallati della stessa persona sono solo un avviso.
+     */
+    private void controlla(Postazione p, TurnoInput in, UUID escluso) {
+        if (in.data() == null) throw new IllegalArgumentException("Indica il giorno del turno.");
+        if (in.inizio() == null || in.fine() == null || !in.fine().isAfter(in.inizio())) throw new IllegalArgumentException("La fine del turno deve essere dopo l'inizio.");
+        controllaPersona(in.personaId(), p.getMansione().getImpiantoId());
+        controllaSesso(p, in.personaId());
+        var occupata = turni.sullaPostazione(p.getId(), in.data(), in.inizio(), in.fine(), escluso);
+        if (!occupata.isEmpty()) {
+            Turno o = occupata.getFirst();
+            String chi = o.getPersonaId() == null ? "un turno scoperto" : persone.nomiCompleti(List.of(o.getPersonaId())).getOrDefault(o.getPersonaId(), "un'altra persona");
+            throw new Conflitto("Su " + p.getNome() + " c'è già " + chi + " dalle " + o.getInizio() + " alle " + o.getFine()
+                + ": una postazione è per una persona alla volta. Per una persona in più aggiungi una postazione.");
+        }
+        if (in.personaId() != null && !Boolean.TRUE.equals(in.forza())) {
+            var stesso = turni.diPersona(in.personaId(), in.data(), in.data()).stream()
+                .filter(x -> x.pianificato() && !x.getId().equals(escluso) && x.getInizio().isBefore(in.fine()) && x.getFine().isAfter(in.inizio()))
+                .findFirst();
+            if (stesso.isPresent()) {
+                Turno o = stesso.get();
+                String nome = persone.nomiCompleti(List.of(in.personaId())).getOrDefault(in.personaId(), "La persona");
+                throw new Avviso(nome + " ha già un turno dalle " + o.getInizio() + " alle " + o.getFine() + " (" + o.getPostazione().getNome()
+                    + "): i due turni si accavallano.");
+            }
+        }
+    }
+
+    private void controllaSesso(Postazione p, UUID personaId) {
+        if (personaId == null || p.getSoloSesso() == null) return;
+        if (!p.ammette(persone.sessi(List.of(personaId)).get(personaId)))
+            throw new IllegalArgumentException(p.getNome() + " è " + riservata(p) + ".");
+    }
+
+    static String riservata(Postazione p) {
+        return "F".equals(p.getSoloSesso()) ? "riservata allo staff femminile" : "riservata allo staff maschile";
+    }
+
+    /** Nella settimana tipo valgono le stesse regole: sesso, e una riga alla volta per postazione e orario. */
+    private void controllaRiga(ModelloSettimanale m, Postazione p, RigaInput in, UUID esclusa) {
+        if (in.inizio() == null || in.fine() == null || !in.fine().isAfter(in.inizio())) throw new IllegalArgumentException("La fine del turno deve essere dopo l'inizio.");
+        controllaPersona(in.personaId(), m.getImpiantoId());
+        controllaSesso(p, in.personaId());
+        boolean occupata = m.getRighe().stream().anyMatch(r -> !r.getId().equals(esclusa) && r.getPostazione().getId().equals(p.getId())
+            && r.getGiornoSettimana() == in.giornoSettimana() && r.getInizio().isBefore(in.fine()) && r.getFine().isAfter(in.inizio()));
+        if (occupata) throw new Conflitto("In quel giorno " + p.getNome() + " ha già un turno che si accavalla: per una persona in più aggiungi una postazione.");
     }
 
     private Turno turno(UUID id) {

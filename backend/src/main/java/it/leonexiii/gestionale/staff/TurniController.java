@@ -92,7 +92,7 @@ class TurniController {
     /** Lo staff degli impianti gestiti, per assegnare i turni. */
     @GetMapping("/staff/persone")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'PIANIFICAZIONE')")
-    List<PersonaBreve> personale(@AuthenticationPrincipal Utente utente) {
+    List<PianificazioneService.PersonaStaff> personale(@AuthenticationPrincipal Utente utente) {
         return service.personale(utente);
     }
 }

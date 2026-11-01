@@ -191,6 +191,14 @@ public class Persone {
         return repo.findAllById(ids).stream().collect(Collectors.toMap(Persona::getId, Persona::nomeCompleto));
     }
 
+    /** Il sesso (M/F) delle persone indicate; chi non l'ha in anagrafica non compare. Serve per le postazioni riservate. */
+    @Transactional(readOnly = true)
+    public Map<UUID, String> sessi(Collection<UUID> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return repo.findAllById(ids).stream().filter(p -> p.getSesso() != null)
+            .collect(Collectors.toMap(Persona::getId, Persona::getSesso));
+    }
+
     /** Chi ha il permesso nell'impianto oggi (es. «Fa i turni»: lo staff della piscina, per assegnare i turni). */
     @Transactional(readOnly = true)
     public List<PersonaBreve> conPermesso(Permesso permesso, UUID impiantoId) {
