@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
-  import { api, messaggioErrore, type Dispositivo, type RegoleBorsellino, type Servizio } from '../lib/api';
+  import { api, messaggioErrore, type Dispositivo, type RegoleBorsellino, type Servizio, type StatoCreditiBraccialetto } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
   import { sessione } from '../lib/sessione.svelte';
@@ -19,6 +19,9 @@
   let messaggio = $state('');
   let chiave = $state<{ nome: string; id: string; chiave: string } | null>(null);
   const puo = $derived(sessione.puo('IMPOSTAZIONI'));
+  /** Il formato dei crediti sul braccialetto (ADR 0025): lo decide il server, qui si mostra soltanto. */
+  let chip = $state<StatoCreditiBraccialetto | null>(null);
+  api.statoCreditiBraccialetto().then((c) => (chip = c)).catch(() => {});
 
   const istantanea = () => JSON.stringify({ regole, scade, servizi });
   async function carica() {
@@ -93,7 +96,7 @@
     }
   }
   const quando = (i: string | null) => (i ? `ultimo contatto ${dataBreve(dataDi(i))} ${oraDi(i)}` : 'mai collegata');
-  const maiCollegate = $derived(dispositivi.filter((d) => d.attivo && !d.ultimoContatto).length);
+  const maiCollegate = $derived(regole?.creditiSu === 'BRACCIALETTO' ? 0 : dispositivi.filter((d) => d.attivo && !d.ultimoContatto).length);
   const gruppiMacchine = $derived([
     { nome: 'Macchine', voci: dispositivi.filter((d) => d.tipo === 'SERVIZIO') },
     { nome: 'Lettori del saldo', voci: dispositivi.filter((d) => d.tipo === 'SALDO') },
@@ -106,6 +109,25 @@
 {#if regole}
   <div class="colonne-p">
     <fieldset class="princ" disabled={!puo}>
+      <section class="card sez" id="imp-dove" aria-label="Dove sta il credito">
+        <div class="sez-t"><h2 class="grow">Dove sta il credito</h2><span class="spiega">dipende da come sono fatte le macchine</span></div>
+        <div class="dove" role="radiogroup" aria-label="Dove sta il credito">
+          <button type="button" class="dove-s" role="radio" aria-checked={regole.creditiSu !== 'BRACCIALETTO'} onclick={() => (regole!.creditiSu = 'SERVER')}>
+            <span class="pallino-r" aria-hidden="true"></span><b>Nel gestionale</b>
+            <span>Le macchine sono collegate: chiedono al gestionale e lui scala i crediti. Si ricarica dalla scheda, anche senza il braccialetto in mano.</span></button>
+          <button type="button" class="dove-s" role="radio" aria-checked={regole.creditiSu === 'BRACCIALETTO'} onclick={() => (regole!.creditiSu = 'BRACCIALETTO')}>
+            <span class="pallino-r" aria-hidden="true"></span><b>Sul braccialetto</b>
+            <span>Le macchine non sono collegate: leggono e scalano i crediti nella memoria del braccialetto. Si ricarica leggendolo e scrivendolo; il gestionale conosce l'ultimo saldo visto.</span></button>
+        </div>
+        {#if regole.creditiSu === 'BRACCIALETTO' && chip}
+          <div class="riga-imp"><span class="t"><b>Formato del braccialetto</b><span>{chip.nota}</span></span>
+            <span class="ctl"><span class="pill {chip.pronto ? (chip.formato === 'PROVA' ? 'warn' : 'passa') : 'ferma'}">{chip.nomeFormato}</span></span></div>
+          {#if !chip.pronto}
+            <div class="riga-imp"><span class="t"><span>Intanto si può scrivere a mano il saldo mostrato dal display delle macchine; le ricariche sul braccialetto restano bloccate. Il formato si imposta sul server, non da qui.</span></span></div>
+          {/if}
+        {/if}
+      </section>
+
       <section class="card sez" id="imp-crediti" aria-label="Crediti e servizi">
         <div class="sez-t"><h2 class="grow">Crediti e servizi</h2></div>
         <div class="riga-imp"><span class="t"><b>Un credito vale</b><span>Si comprano al banco o alla cassa automatica.</span></span>
@@ -191,6 +213,9 @@
             </div>
           </form>
         {/if}
+        {#if regole.creditiSu === 'BRACCIALETTO'}
+          <p class="muted small nota-m">Con i crediti sul braccialetto le macchine non chiamano il gestionale: chiave e ultimo contatto servono solo se un giorno si collegano.</p>
+        {/if}
         {#if maiCollegate}
           <div class="avvisa"><Icona nome="avviso" />{maiCollegate === dispositivi.filter((d) => d.attivo).length ? 'Nessuna si è ancora collegata' : `${maiCollegate} non si sono ancora collegate`}: ognuna va configurata con la sua chiave.</div>
         {/if}
@@ -226,6 +251,15 @@
 {/if}
 
 <style>
+  /* dove sta il credito: due scelte affiancate, con la spiegazione */
+  .dove { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-10); padding: var(--space-14) var(--space-16); }
+  .dove-s { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4) var(--space-10); align-items: center; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md);
+    border: 1.5px solid var(--line); background: var(--surface); font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+  .dove-s > span:last-child { grid-column: 2; font-size: var(--text-sm); color: var(--muted); }
+  .dove-s[aria-checked='true'] { border-color: var(--cloro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cloro) 25%, transparent); }
+  .pallino-r { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong); }
+  .dove-s[aria-checked='true'] .pallino-r { border: 5px solid var(--cloro); }
+  .nota-m { margin: 0; padding: var(--space-10) var(--space-16) 0; }
   fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
   .largo-p { flex-basis: 380px !important; max-width: 440px !important; }
   .tabella { overflow-x: auto; border-top: 1px solid var(--line-soft); }

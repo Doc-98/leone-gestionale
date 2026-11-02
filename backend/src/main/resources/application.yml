@@ -32,6 +32,13 @@ server:
         same-site: lax
         secure: ${COOKIE_SECURE:false}
 
+# Crediti di phon e docce scritti sul braccialetto (ADR 0025): il formato della memoria. NON_NOTO finché non si
+# conoscono il formato e la crittografia veri (la scrittura resta bloccata); PROVA è un formato inventato, per demo e
+# test. Le chiavi di un formato vero vanno solo nelle variabili d'ambiente del server, mai nel repository.
+gestionale:
+  braccialetti:
+    formato: ${BRACCIALETTI_FORMATO:NON_NOTO}
+
 management:
   endpoints:
     web:
@@ -52,6 +59,9 @@ spring:
 springdoc:
   api-docs:
     enabled: true
+gestionale:
+  braccialetti:
+    formato: ${BRACCIALETTI_FORMATO:PROVA}
 ---
 # Dati veri che non vanno su GitHub (es. lo staff reale degli spogliatoi), da usare insieme a «demo»:
 # i file .sql nella cartella backend/dati-locali (esclusa da git) si applicano dopo i dati demo.

@@ -856,6 +856,22 @@ export const api = {
   restituisci: (personaId: string, importo: number, metodoId: string | null) => richiesta<void>('POST', `/api/borsellino/persone/${personaId}/restituzioni`, { importo, metodoId }),
   correggi: (personaId: string, saldo: 'EURO' | 'CREDITI', quantita: number, motivo: string) =>
     richiesta<void>('POST', `/api/borsellino/persone/${personaId}/correzioni`, { saldo, quantita, motivo }),
+  // ── Crediti sul braccialetto, macchine non collegate (ADR 0025) ──
+  statoCreditiBraccialetto: () => richiesta<StatoCreditiBraccialetto>('GET', '/api/crediti-braccialetto/stato'),
+  saldiChip: (personaId: string) => richiesta<SaldoChip[]>('GET', `/api/crediti-braccialetto/persone/${personaId}`),
+  /** dal lettore (memoria) oppure scritti a mano dal display della macchina (crediti) */
+  leggiChip: (braccialettoId: string, l: { memoria?: MemoriaChip; crediti?: number }) =>
+    richiesta<EsitoLetturaChip>('POST', `/api/crediti-braccialetto/${braccialettoId}/letture`, l),
+  preparaRicaricaChip: (braccialettoId: string, memoria: MemoriaChip, importo: number) =>
+    richiesta<RicaricaPreparata>('POST', `/api/crediti-braccialetto/${braccialettoId}/ricariche`, { memoria, importo }),
+  confermaRicaricaChip: (operazione: string, c: { memoria: MemoriaChip; paganteId?: string | null; metodi: { metodoId: string; importo: number }[]; note?: string | null }) =>
+    richiesta<{ pagamentoId: string }>('POST', `/api/crediti-braccialetto/ricariche/${operazione}/conferma`, c),
+  annullaRicaricaChip: (operazione: string, memoria: MemoriaChip | null) =>
+    richiesta<void>('POST', `/api/crediti-braccialetto/ricariche/${operazione}/annulla`, { memoria }),
+  azzeraChip: (braccialettoId: string, memoria: MemoriaChip) =>
+    richiesta<{ creditiPrima: number; scrivi: Record<number, string> }>('POST', `/api/crediti-braccialetto/${braccialettoId}/azzeramento`, { memoria }),
+  macchinaSimulata: (servizioId: string, memoria: MemoriaChip) =>
+    richiesta<EsitoMacchinaSimulata>('POST', '/api/crediti-braccialetto/macchina-simulata', { servizioId, memoria }),
   regoleBorsellino: () => richiesta<RegoleBorsellino>('GET', '/api/borsellino/regole'),
   modificaRegoleBorsellino: (r: RegoleBorsellino) => richiesta<RegoleBorsellino>('PUT', '/api/borsellino/regole', r),
   servizi: () => richiesta<Servizio[]>('GET', '/api/servizi'),
@@ -1535,6 +1551,67 @@ export interface RegoleBorsellino {
   cauzioneRiconsegna: ModoRestituzione | 'A_SCELTA';
   creditiRiconsegna: boolean;
   creditiSmarrimento: 'RESTANO' | 'PERSI';
+  /** dove sta il credito di phon e docce (ADR 0025): nel gestionale (macchine collegate) o sul braccialetto */
+  creditiSu: 'SERVER' | 'BRACCIALETTO';
+}
+
+/** La memoria di un braccialetto letta dal lettore: il seriale e i blocchi da 16 byte in esadecimale (ADR 0025). */
+export interface MemoriaChip {
+  uid: string;
+  blocchi: Record<number, string>;
+}
+/** Cosa deve leggere il lettore: il tipo di chip, le chiavi dei settori, i blocchi. */
+export interface AccessoChip {
+  chip: string | null;
+  chiavi: { settore: number; tipo: string; chiave: string }[];
+  blocchi: number[];
+}
+export interface StatoCreditiBraccialetto {
+  sulBraccialetto: boolean;
+  formato: string;
+  nomeFormato: string;
+  /** false = il formato non è ancora noto: niente letture né scritture dal lettore */
+  pronto: boolean;
+  nota: string;
+  /** solo a chi ricarica o imposta */
+  accesso: AccessoChip | null;
+}
+export interface RicaricaInSospeso {
+  operazione: string;
+  creditiPrima: number;
+  creditiDopo: number;
+  importo: number;
+  creataIl: string;
+}
+/** L'ultimo saldo visto su un braccialetto: con le macchine non collegate i crediti veri possono solo essere di meno. */
+export interface SaldoChip {
+  braccialettoId: string;
+  codice: string;
+  attivo: boolean;
+  crediti: number | null;
+  fonte: 'LETTURA' | 'SCRITTURA' | 'A_MANO' | null;
+  aggiornatoIl: string | null;
+  inSospeso: RicaricaInSospeso | null;
+}
+export interface EsitoLetturaChip {
+  crediti: number;
+  prima: number | null;
+  consumati: number;
+  inSospeso: RicaricaInSospeso | null;
+}
+export interface RicaricaPreparata {
+  operazione: string;
+  creditiPrima: number;
+  creditiDopo: number;
+  comprati: number;
+  scrivi: Record<number, string>;
+}
+export interface EsitoMacchinaSimulata {
+  via: boolean;
+  messaggio: string;
+  crediti: number;
+  creditiUsati: number;
+  scrivi: Record<number, string>;
 }
 
 export interface SaldoBorsellino {

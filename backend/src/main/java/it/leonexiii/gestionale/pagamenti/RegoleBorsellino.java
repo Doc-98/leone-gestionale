@@ -14,6 +14,7 @@ class RegoleBorsellino {
 
     static final Set<String> MODI_CAUZIONE = Set.of("DENARO", "BORSELLINO", "A_SCELTA");
     static final Set<String> MODI_SMARRIMENTO = Set.of("RESTANO", "PERSI");
+    static final Set<String> DOVE_CREDITI = Set.of("SERVER", "BRACCIALETTO");
 
     @Id
     private short id;
@@ -35,6 +36,9 @@ class RegoleBorsellino {
     private boolean creditiRiconsegna;
     @Column(name = "crediti_smarrimento", nullable = false)
     private String creditiSmarrimento;
+    /** Dove sta il credito dei servizi (ADR 0025): SERVER (macchine collegate) o BRACCIALETTO (scritto sul chip). */
+    @Column(name = "crediti_su", nullable = false)
+    private String creditiSu = "SERVER";
 
     protected RegoleBorsellino() {}
 
@@ -56,10 +60,14 @@ class RegoleBorsellino {
         this.cauzioneRiconsegna = r.cauzioneRiconsegna();
         this.creditiRiconsegna = r.creditiRiconsegna();
         this.creditiSmarrimento = r.creditiSmarrimento();
+        if (r.creditiSu() != null) {
+            if (!DOVE_CREDITI.contains(r.creditiSu())) throw new IllegalArgumentException("Dove sta il credito: SERVER o BRACCIALETTO.");
+            this.creditiSu = r.creditiSu();
+        }
     }
 
     Borsellino.Regole dto() {
         return new Borsellino.Regole(valoreCredito, ricaricaMinima, validitaEuroMesi, trasferibile, restituibile, cauzione, cauzioneRiconsegna,
-            creditiRiconsegna, creditiSmarrimento);
+            creditiRiconsegna, creditiSmarrimento, creditiSu);
     }
 }

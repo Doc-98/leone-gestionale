@@ -27,7 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class Borsellino {
 
     public record Regole(BigDecimal valoreCredito, BigDecimal ricaricaMinima, Integer validitaEuroMesi, boolean trasferibile, boolean restituibile,
-                         BigDecimal cauzione, String cauzioneRiconsegna, boolean creditiRiconsegna, String creditiSmarrimento) {}
+                         BigDecimal cauzione, String cauzioneRiconsegna, boolean creditiRiconsegna, String creditiSmarrimento, String creditiSu) {
+
+        /** I crediti dei servizi stanno sul braccialetto: le macchine non sono collegate (ADR 0025). Null = non cambia. */
+        public boolean sulBraccialetto() { return "BRACCIALETTO".equals(creditiSu); }
+    }
 
     public record Saldo(BigDecimal euro, int crediti, BigDecimal valoreCrediti, LocalDate prossimaScadenza, BigDecimal inScadenza) {}
 
@@ -192,20 +196,56 @@ public class Borsellino {
     /** Ricarica dei crediti dei servizi: un addebito pagato subito (anche col borsellino), e i crediti. */
     @Transactional
     UUID ricarica(UUID persona, NuovaRicarica in, UUID da, boolean flessibile) {
+        if (regole().sulBraccialetto())
+            throw new Conflitto("I crediti stanno sul braccialetto: la ricarica si fa leggendo e scrivendo il braccialetto (le macchine non sono collegate).");
+        return registraRicarica(persona, in, null, da, flessibile);
+    }
+
+    /** Quanti crediti compra un importo, con le regole (minimo, multiplo del valore di un credito). */
+    @Transactional(readOnly = true)
+    public int creditiPer(BigDecimal importo) {
         Regole r = regole();
-        if (in.importo() == null || in.importo().signum() <= 0) throw new IllegalArgumentException("Scrivi l'importo della ricarica.");
-        if (in.importo().compareTo(r.ricaricaMinima()) < 0) throw new IllegalArgumentException("La ricarica minima è di " + r.ricaricaMinima() + " €.");
-        BigDecimal[] div = in.importo().divideAndRemainder(r.valoreCredito());
+        if (importo == null || importo.signum() <= 0) throw new IllegalArgumentException("Scrivi l'importo della ricarica.");
+        if (importo.compareTo(r.ricaricaMinima()) < 0) throw new IllegalArgumentException("La ricarica minima è di " + r.ricaricaMinima() + " €.");
+        BigDecimal[] div = importo.divideAndRemainder(r.valoreCredito());
         if (div[1].signum() != 0)
             throw new IllegalArgumentException("L'importo deve essere un multiplo del valore di un credito (" + r.valoreCredito() + " €).");
-        int crediti = div[0].intValueExact();
+        return div[0].intValueExact();
+    }
+
+    /**
+     * Una ricarica già scritta e riletta sul braccialetto (ADR 0025): addebito, pagamento e i crediti nel registro della
+     * persona, legati al braccialetto.
+     */
+    @Transactional
+    public UUID ricaricaScritta(UUID persona, UUID paganteId, BigDecimal importo, List<Pagamenti.MetodoIn> metodi, String note, UUID braccialettoId,
+                                UUID da, boolean flessibile) {
+        return registraRicarica(persona, new NuovaRicarica(paganteId, importo, metodi, note), braccialettoId, da, flessibile);
+    }
+
+    /**
+     * Allinea i crediti del registro a quelli visti sul braccialetto (ADR 0025): una differenza in meno sono crediti
+     * consumati alle macchine non collegate, una in più un saldo trovato sul braccialetto.
+     */
+    @Transactional
+    public void allineaCrediti(UUID persona, int differenza, String descrizione, UUID braccialettoId, UUID da) {
+        if (differenza == 0) return;
+        movimenti.blocca(persona);
+        var causale = differenza < 0 ? MovimentoBorsellino.Causale.CONSUMO : MovimentoBorsellino.Causale.CORREZIONE;
+        movimenti.salva(new MovimentoBorsellino(persona, MovimentoBorsellino.Saldo.CREDITI, BigDecimal.valueOf(differenza), causale, descrizione, null, da,
+            orologio.instant()).conRiferimento(braccialettoId));
+    }
+
+    private UUID registraRicarica(UUID persona, NuovaRicarica in, UUID braccialettoId, UUID da, boolean flessibile) {
+        int crediti = creditiPer(in.importo());
         UUID addebito = pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(persona, "Ricarica di " + crediti + " crediti (phon e docce)", in.importo(),
             LocalDate.now(orologio), Pagamenti.Origine.RICARICA, null, null, null, null, null)), da).getFirst();
         UUID pagamento = pagamenti.registra(new Pagamenti.NuovoPagamento(in.paganteId() != null ? in.paganteId() : persona, null, in.importo(),
             List.of(addebito), in.metodi(), in.note(), false), da, flessibile).getFirst();
         movimenti.blocca(persona);
         movimenti.salva(new MovimentoBorsellino(persona, MovimentoBorsellino.Saldo.CREDITI, BigDecimal.valueOf(crediti), MovimentoBorsellino.Causale.RICARICA,
-            "Ricarica di " + in.importo() + " €", null, da, orologio.instant()).conPagamento(pagamento));
+            braccialettoId == null ? "Ricarica di " + in.importo() + " €" : "Ricarica di " + in.importo() + " € scritta sul braccialetto", null, da,
+            orologio.instant()).conPagamento(pagamento).conRiferimento(braccialettoId));
         return pagamento;
     }
 

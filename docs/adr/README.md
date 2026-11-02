@@ -28,3 +28,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0022](0022-area-personale-e-gruppi-di-staff.md) | Area personale: viste a scelta, le mie ore e lo staff, gruppi di staff | accettata |
 | [0023](0023-gestione-turni.md) | Gestione dei turni: accavallamenti con avviso, una persona per postazione, postazioni per sesso, calendario della stagione | accettata |
 | [0024](0024-impostazioni.md) | Impostazioni: panoramica, ricerca condivisa, aree riordinate, salvataggio unico | accettata |
+| [0025](0025-crediti-sul-braccialetto.md) | Crediti di phon e docce sul braccialetto, con le macchine non collegate | accettata |

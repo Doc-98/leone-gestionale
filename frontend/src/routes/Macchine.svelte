@@ -1,7 +1,8 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
   import { onDestroy } from 'svelte';
-  import { api, messaggioErrore, type Dispositivo, type RispostaMacchina, type Utilizzo } from '../lib/api';
+  import { api, ErroreApi, messaggioErrore, type Dispositivo, type EsitoMacchinaSimulata, type RispostaMacchina, type Servizio, type StatoCreditiBraccialetto, type Utilizzo } from '../lib/api';
+  import { lettoreChip, lettoreSimulato } from '../lib/chip.svelte';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { lettoreTelefono } from '../lib/lettore.svelte';
   import { leggiConNfc, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
@@ -67,6 +68,30 @@
     if (dispositivo) prova(dispositivo.tipo === 'SALDO' ? 'SALDO' : 'USA');
   }));
 
+  // ── Macchine non collegate (ADR 0025): il simulatore scala i crediti nella memoria del braccialetto simulato ──
+  let chip = $state<StatoCreditiBraccialetto | null>(null);
+  let servizi = $state<Servizio[]>([]);
+  let servizioSim = $state('');
+  let esitoSim = $state<EsitoMacchinaSimulata | null>(null);
+  api.statoCreditiBraccialetto().then((c) => (chip = c)).catch(() => {});
+  api.servizi().then((x) => { servizi = x.filter((v) => v.attivo); servizioSim = servizi[0]?.id ?? ''; }).catch(() => {});
+  const lettoreSim = $derived(lettoreChip(chip));
+  const nomeServizio = $derived(servizi.find((v) => v.id === servizioSim)?.nome ?? '');
+  async function usaOffline() {
+    errore = '';
+    attesa = true;
+    try {
+      lettoreSimulato.appoggia(codice);
+      const memoria = await lettoreSimulato.leggi(chip!.accesso!);
+      esitoSim = await api.macchinaSimulata(servizioSim, memoria);
+      if (esitoSim.via) await lettoreSimulato.scrivi(memoria.uid, esitoSim.scrivi, chip!.accesso!);
+    } catch (e) {
+      errore = e instanceof ErroreApi || !(e instanceof Error) ? messaggioErrore(e) : e.message;
+    } finally {
+      attesa = false;
+    }
+  }
+
   const ESITI: Record<string, string> = { OK: 'Usato', GRATIS: 'Gratis', CREDITI_FINITI: 'Crediti finiti', SCONOSCIUTO: 'Sconosciuto', NON_ATTIVO: 'Non attivo', SERVIZIO_SPENTO: 'Spento' };
   const recente = (i: string | null) => !!i && Date.now() - new Date(i).getTime() < 10 * 60 * 1000;
 </script>
@@ -74,7 +99,31 @@
 <div class="pagina">
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
 
+  {#if chip?.sulBraccialetto}
+    <p class="hint nomargin">Le macchine non sono collegate: leggono e scalano i crediti sul braccialetto senza dirlo al gestionale. Contatti e utilizzi qui sotto
+      si vedono solo per le macchine che chiamano il gestionale; i crediti consumati compaiono nel borsellino di ognuno quando si legge il suo braccialetto.</p>
+  {/if}
   <div class="griglia">
+    {#if chip?.sulBraccialetto}
+      <section class="card blocco">
+        <h3>Macchina non collegata (simulata)</h3>
+        {#if lettoreSim.lettore}
+          <p class="muted small nomargin">Come una centralina vera: legge i crediti dal braccialetto (simulato su questo dispositivo), li scala e li riscrive. Al gestionale non arriva niente; non conta gli usi gratuiti.</p>
+          <label class="field"><span class="lbl">Servizio</span>
+            <select class="inp" bind:value={servizioSim}>{#each servizi as v (v.id)}<option value={v.id}>{v.nome} · {v.crediti} cr.</option>{/each}</select></label>
+          <form class="riga" onsubmit={(e) => { e.preventDefault(); usaOffline(); }}>
+            <input class="inp m grow" bind:value={codice} placeholder="Codice del braccialetto" aria-label="Codice del braccialetto" autocomplete="off" />
+            <button class="btn btn-primary" disabled={!servizioSim || normalizzaCodice(codice).length < 4 || attesa}>Appoggia</button>
+          </form>
+          <div class="display" class:via={esitoSim?.via} class:no={esitoSim && !esitoSim.via} aria-live="polite">
+            {#if esitoSim}<span class="d1">{nomeServizio}</span><span class="d2">{esitoSim.via ? esitoSim.messaggio : `${esitoSim.messaggio} · ${esitoSim.crediti} cr.`}</span>
+            {:else}<span class="d1">{nomeServizio}</span><span class="d2">Avvicinare card</span>{/if}
+          </div>
+        {:else}
+          <p class="muted small nomargin">{lettoreSim.perche}</p>
+        {/if}
+      </section>
+    {:else}
     <section class="card blocco">
       <h3>Simulatore</h3>
       <p class="muted small nomargin">Fa quello che farebbe la macchina: scala davvero i crediti (l'utilizzo resta segnato come simulato).</p>
@@ -104,6 +153,7 @@
       </div>
       {#if !nfcDisponibile()}<LettoreTelefonoPc compatto />{/if}
     </section>
+    {/if}
 
     <section class="card blocco">
       <h3>Macchine</h3>

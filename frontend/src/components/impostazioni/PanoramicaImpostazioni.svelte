@@ -94,7 +94,9 @@
       const [regole, servizi, dispositivi] = await Promise.all([prova(api.regoleBorsellino), prova(api.servizi), prova(api.dispositivi)]);
       if (regole) aggiungi('Clienti e accessi', { k: 'Un credito vale', v: `${euro(regole.valoreCredito)} · cauzione ${euro(regole.cauzione)}` });
       if (servizi) aggiungi('Clienti e accessi', { k: 'Servizi a crediti', v: servizi.filter((s) => s.attivo).map((s) => s.nome.toLowerCase()).join(', ') || 'nessuno' });
-      const mai = dispositivi?.filter((d) => d.attivo && !d.ultimoContatto).length ?? 0;
+      // con i crediti sul braccialetto le macchine non si collegano (ADR 0025): non è una cosa da sistemare
+      const mai = regole?.creditiSu === 'BRACCIALETTO' ? 0 : dispositivi?.filter((d) => d.attivo && !d.ultimoContatto).length ?? 0;
+      if (regole?.creditiSu === 'BRACCIALETTO') aggiungi('Clienti e accessi', { k: 'Crediti', v: 'sul braccialetto' });
       if (mai) da({ titolo: `${n(mai, 'macchina non si è', 'macchine non si sono')} mai collegate`, spiega: 'Hanno la loro chiave ma non hanno ancora parlato con il gestionale.', href: '#/servizi/macchine', icona: 'macchine' });
     }
     if (visibile('postazioni')) {

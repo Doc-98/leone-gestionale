@@ -72,7 +72,7 @@ public class Pagamenti {
 
     record NuovoAddebitoManuale(UUID personaId, String descrizione, BigDecimal importo, LocalDate scadenza, UUID offertaId, String note) {}
 
-    record MetodoIn(UUID metodoId, BigDecimal importo, String riferimento) {}
+    public record MetodoIn(UUID metodoId, BigDecimal importo, String riferimento) {}
 
     /** Gli addebiti nell'ordine in cui pagarli (di base: prima quelli che scadono prima); importo vuoto = somma dei metodi. */
     /**

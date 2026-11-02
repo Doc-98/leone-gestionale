@@ -76,9 +76,9 @@ i 1000 €, bancomat, carte, Satispay) o con bonifico.
 attività; valgono un anno e si possono trasferire ai familiari iscritti.
 
 **Phon e docce**: in spogliatoio i phon accettano monete da 20 centesimi oppure il braccialetto, che scala i crediti;
-le docce hanno lettori simili e la prima doccia della giornata è gratuita. Il braccialetto contiene solo il numero di
-serie: probabilmente le macchine sono in rete e leggono e scalano i crediti dal gestionale sul server (da verificare
-con il tecnico: marca, modello e come parlano con il gestionale attuale).
+le docce hanno lettori simili e la prima doccia della giornata è gratuita. All'inizio sembrava che il braccialetto
+contenesse solo il numero di serie e che le macchine fossero in rete; dal 2/11/2026 sappiamo che il gestionale scrive il
+totale dei crediti sul braccialetto e che le macchine non sembrano collegate (vedi sotto e ADR 0025).
 
 **Macchine e lettori (dalle foto del 24/10/2026)**:
 - *Tornello*: tripode SAIMA con due lettori RFID «TeamSystem Wellness» (uno per verso, LED verde/rosso), collegati al
@@ -96,6 +96,12 @@ con il tecnico: marca, modello e come parlano con il gestionale attuale).
   (solo per controllare) mostrano i crediti rimasti. La segreteria per ricaricare passa il braccialetto su un lettore,
   forse solo per non sbagliare persona: il nuovo gestionale ricarica dall'anagrafica, senza obbligo di leggerlo.
 - Come la centralina parla con TeamSystem non si sa (il progetto è un esercizio: niente domande al tecnico).
+- **Aggiornamento del 2/11/2026**: la ricarica si fa dal gestionale, che tiene traccia dei pagamenti e **scrive il nuovo
+  totale nella memoria del braccialetto**; l'impianto degli spogliatoi che legge i braccialetti e accende phon e docce
+  **sembra non collegato alla rete**, quindi quando scala un credito il gestionale non lo sa. Il seriale visto con NFC
+  Tools non esclude che ci sia altro in memoria: i settori protetti da chiave non si leggono senza la chiave. Non si sa
+  ancora se le macchine non si possono collegare o non sono state collegate, né come sono cifrati i dati: il nuovo
+  gestionale per ora ragiona su macchine non collegate (ADR 0025).
 
 **Ricevute** (segreteria): il POS stampa la sua ricevuta; le ricevute della società le fa il gestionale e le stampa su
 una stampante A4 collegata al PC. Sono numerate e la numerazione riparte a ogni stagione. Si può chiedere la fattura.
@@ -122,6 +128,8 @@ Borsellino, braccialetto, phon e docce:
 - Il credito per recesso vale un anno: da quando? Si può restituire in denaro?
 - Phon e docce: marca e modello (dalla foto della targhetta), come leggono il braccialetto e come parlano con il
   gestionale attuale (rete, server, programma), se si possono collegare a un altro server, documentazione.
+- Phon e docce (dopo il 2/11): che chip sono i braccialetti (es. MIFARE Classic), le chiavi dei settori, dove e come
+  sono scritti e cifrati i crediti, che lettore usa la segreteria per scriverli; se le centraline hanno una porta di rete.
 
 Ricevute e fatture:
 - Una ricevuta di esempio (dati oscurati): intestazione, dicitura per le detrazioni, codici fiscali di genitore e figlio.

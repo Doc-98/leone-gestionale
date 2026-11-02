@@ -39,6 +39,23 @@ public class Braccialetti {
         });
     }
 
+    /** Il braccialetto con quell'id, con la persona. */
+    @Transactional(readOnly = true)
+    public Optional<Titolare> perId(UUID id) {
+        return braccialetti.findById(id).map(this::titolare);
+    }
+
+    /** Tutti i braccialetti di una persona, dal più recente. */
+    @Transactional(readOnly = true)
+    public List<Titolare> diPersona(UUID personaId) {
+        return braccialetti.findByPersonaIdOrderByAssegnatoIlDesc(personaId).stream().map(this::titolare).toList();
+    }
+
+    private Titolare titolare(Braccialetto x) {
+        var s = persone.schede(List.of(x.getPersonaId())).get(x.getPersonaId());
+        return new Titolare(x.getId(), x.getCodice(), x.getPersonaId(), s == null ? null : s.nome(), s == null ? null : s.cognome(), x.attivo());
+    }
+
     /** Il codice normalizzato (per registrarlo), o quello scritto se non è un codice valido. */
     public String normalizza(String codice) {
         try {

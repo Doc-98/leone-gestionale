@@ -3,12 +3,13 @@
   import Icona from '../components/Icona.svelte';
   import { onDestroy, tick, untrack } from 'svelte';
   import {
-    api, messaggioErrore,
+    api, ErroreApi, messaggioErrore,
     type Abbonamento, type Braccialetto, type Conto, type Corso, type GruppoClienti, type MetodoPagamento, type ModoRestituzione, type RegoleBorsellino,
-    type Restituzione, type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type Sesso,
+    type Restituzione, type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type Sesso, type StatoCreditiBraccialetto,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
+  import { lettoreChip, lettoreSimulato } from '../lib/chip.svelte';
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
   import { ricordaAperto } from '../lib/recenti';
@@ -135,14 +136,50 @@
   }
 
   // ── Riconsegna ────────────────────────────────────────────────────────
-  type Riconsegna = { id: string; cauzione: ModoRestituzione | 'TRATTIENI'; crediti: boolean; modoCrediti: ModoRestituzione; metodoId: string };
+  /** Crediti sul braccialetto (ADR 0025): prima di rimborsarli si leggono, dal lettore o dal display della macchina. */
+  let chip = $state<StatoCreditiBraccialetto | null>(null);
+  api.statoCreditiBraccialetto().then((c) => (chip = c)).catch(() => {});
+  const lettoreRiconsegna = $derived(lettoreChip(chip).lettore);
+  type Riconsegna = { id: string; cauzione: ModoRestituzione | 'TRATTIENI'; crediti: boolean; modoCrediti: ModoRestituzione; metodoId: string;
+    /** sul braccialetto: letto (o scritto dal display), oppure si rimborsa l'ultimo saldo visto */
+    saldoChip: 'da_leggere' | 'letto' | 'ultimo'; display: string; letti: number | null };
   let riconsegna = $state<Riconsegna | null>(null);
   const ultimoAttivo = (b: Braccialetto) => !accessi?.braccialetti.some((x) => x.id !== b.id && x.stato === 'ATTIVO');
   function apriRiconsegna(b: Braccialetto) {
     const regola = regole?.cauzioneRiconsegna ?? 'A_SCELTA';
     const modo: ModoRestituzione = regola === 'A_SCELTA' ? 'DENARO' : regola;
     riconsegna = { id: b.id, cauzione: modo, crediti: (regole?.creditiRiconsegna ?? true) && ultimoAttivo(b), modoCrediti: regola === 'A_SCELTA' ? 'BORSELLINO' : regola,
-      metodoId: metodi[0]?.id ?? '' };
+      metodoId: metodi[0]?.id ?? '', saldoChip: chip?.sulBraccialetto ? 'da_leggere' : 'letto', display: '', letti: null };
+  }
+  /** Legge i crediti del braccialetto da riconsegnare (dal lettore, o quelli scritti dal display): il registro si allinea. */
+  async function leggiPerRiconsegna(b: Braccialetto, daDisplay: boolean) {
+    const r = riconsegna!;
+    errore = '';
+    try {
+      if (lettoreRiconsegna?.tipo === 'simulato') lettoreSimulato.appoggia(b.codice);
+      const e = daDisplay ? await api.leggiChip(b.id, { crediti: Number(r.display) })
+        : await api.leggiChip(b.id, { memoria: await lettoreRiconsegna!.leggi(chip!.accesso!) });
+      if (e.inSospeso) throw new Error('Su questo braccialetto c\'è una ricarica in sospeso: registrala o annullala dal borsellino prima della riconsegna.');
+      r.letti = e.crediti;
+      r.saldoChip = 'letto';
+    } catch (e) {
+      errore = e instanceof ErroreApi || !(e instanceof Error) ? messaggioErrore(e) : e.message;
+    }
+  }
+  /** Dopo la riconsegna il braccialetto si azzera, perché chi lo riceverà non trovi i crediti di un altro. */
+  async function azzeraChip(b: Braccialetto): Promise<string> {
+    if (!chip?.sulBraccialetto) return '';
+    if (!lettoreRiconsegna) return ' Azzera i crediti sul braccialetto prima di darlo a qualcun altro.';
+    try {
+      if (lettoreRiconsegna.tipo === 'simulato') lettoreSimulato.appoggia(b.codice);
+      const memoria = await lettoreRiconsegna.leggi(chip.accesso!);
+      const a = await api.azzeraChip(b.id, memoria);
+      await lettoreRiconsegna.scrivi(memoria.uid, a.scrivi, chip.accesso!);
+      await api.leggiChip(b.id, { memoria: await lettoreRiconsegna.leggi(chip.accesso!) });
+      return ' Braccialetto azzerato.';
+    } catch (e) {
+      return ` Non sono riuscito ad azzerarlo (${e instanceof Error ? e.message : e}): fallo prima di darlo a qualcun altro.`;
+    }
   }
   async function confermaRiconsegna(b: Braccialetto) {
     const r = riconsegna!;
@@ -153,7 +190,8 @@
       const dove = (m: string | null) => (m === 'DENARO' ? 'in denaro' : 'nel borsellino');
       const parti = [esito.cauzione > 0 ? `cauzione di ${euro(esito.cauzione)} restituita ${dove(esito.modoCauzione)}` : esito.modoCauzione === 'TRATTIENI' ? 'cauzione trattenuta' : '',
         esito.crediti > 0 ? `${esito.crediti} crediti rimborsati ${dove(esito.modoCrediti)} (${euro(esito.valoreCrediti)})` : ''].filter(Boolean);
-      messaggio = `${b.codice} riconsegnato${parti.length ? ': ' + parti.join(', ') : ''}.`;
+      const azzerato = await azzeraChip(b);
+      messaggio = `${b.codice} riconsegnato${parti.length ? ': ' + parti.join(', ') : ''}.${azzerato}`;
       riconsegna = null;
     }
   }
@@ -630,6 +668,23 @@
                 </div>
                 {#if ultimoAttivo(b)}
                   <label class="small spunta"><input type="checkbox" bind:checked={riconsegna.crediti} /> Rimborsa i crediti di phon e docce</label>
+                  {#if riconsegna.crediti && chip?.sulBraccialetto}
+                    {@const r = riconsegna}
+                    <div class="chip-ric">
+                      {#if r.saldoChip === 'letto'}
+                        <span class="small">Sul braccialetto: <strong>{r.letti} crediti</strong>, si rimborsano questi.</span>
+                      {:else}
+                        <span class="small">I crediti veri sono sul braccialetto: leggili prima di rimborsarli.</span>
+                        <span class="row">
+                          {#if lettoreRiconsegna}<button type="button" class="mini-btn pieno" onclick={() => leggiPerRiconsegna(b, false)}><Icona nome="nfc" />Leggi</button>{/if}
+                          <input class="inp m corto" type="number" min="0" step="1" bind:value={r.display} placeholder="Dal display" aria-label="Crediti mostrati dalla macchina" />
+                          <button type="button" class="mini-btn" disabled={r.display === '' || Number(r.display) < 0} onclick={() => leggiPerRiconsegna(b, true)}>Usa questi</button>
+                        </span>
+                        <label class="small spunta"><input type="checkbox" checked={r.saldoChip === 'ultimo'} onchange={(e) => (r.saldoChip = e.currentTarget.checked ? 'ultimo' : 'da_leggere')} />
+                          Non riesco a leggerlo: rimborsa l'ultimo saldo visto (potrebbe essere più alto del vero)</label>
+                      {/if}
+                    </div>
+                  {/if}
                   {#if riconsegna.crediti && regole?.cauzioneRiconsegna === 'A_SCELTA'}
                     <div class="chips">
                       <button type="button" class="chip" aria-pressed={riconsegna.modoCrediti === 'BORSELLINO'} onclick={() => (riconsegna!.modoCrediti = 'BORSELLINO')}>Crediti nel borsellino (in euro)</button>
@@ -646,7 +701,7 @@
                 {/if}
                 <div class="row">
                   <button type="button" class="btn btn-secondary grow" onclick={() => (riconsegna = null)}>Annulla</button>
-                  <button class="btn btn-primary grow">Riconsegnato</button>
+                  <button class="btn btn-primary grow" disabled={riconsegna.crediti && riconsegna.saldoChip === 'da_leggere'}>Riconsegnato</button>
                 </div>
               </form>
             {:else if b.stato !== 'DISATTIVATO' && b.stato !== 'RESTITUITO'}
@@ -1057,6 +1112,8 @@
   .sx { align-self: flex-start; }
   .tess { display: flex; flex-direction: column; gap: var(--space-4); }
   .riga-info { display: block; margin-top: 2px; }
+  .chip-ric { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8) var(--space-10); border-radius: var(--radius-sm); border: 1px dashed var(--line-dashed); }
+  .chip-ric .corto { width: 120px; height: 36px; }
   .riconsegna { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-10); border-radius: var(--radius-md); background: var(--surface-sunken); }
   .spunta { display: flex; align-items: center; gap: var(--space-6); }
   .termina { display: flex; flex-direction: column; gap: var(--space-8); margin-top: var(--space-6); padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--surface-sunken); }

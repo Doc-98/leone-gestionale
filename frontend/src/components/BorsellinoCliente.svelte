@@ -1,8 +1,9 @@
 <script lang="ts">
   import AzioneIcona from './Azione.svelte';
   import Icona from './Icona.svelte';
+  import CreditiChip from './CreditiChip.svelte';
   import { untrack } from 'svelte';
-  import { api, messaggioErrore, type MetodoPagamento, type SchedaBorsellino, type Utilizzo } from '../lib/api';
+  import { api, messaggioErrore, type MetodoPagamento, type SchedaBorsellino, type StatoCreditiBraccialetto, type Utilizzo } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
   import { sessione } from '../lib/sessione.svelte';
@@ -10,6 +11,7 @@
   /**
    * Il borsellino di un cliente (ADR 0018, parti 7–9): credito in euro (rimborsi, si usa per pagare, può scadere, si
    * trasferisce ai familiari) e crediti di phon e docce, che si ricaricano qui senza bisogno del braccialetto in mano.
+   * Se i crediti stanno sul braccialetto (macchine non collegate, ADR 0025) la ricarica passa dal lettore (CreditiChip).
    */
   let { personaId, versione = 0, cambiato }: { personaId: string; versione?: number; cambiato?: () => void } = $props();
   const id = untrack(() => personaId);
@@ -20,6 +22,10 @@
   let errore = $state('');
   let messaggio = $state('');
   let tutti = $state(false);
+  let chip = $state<StatoCreditiBraccialetto | null>(null);
+  let pannelloChip = $state<ReturnType<typeof CreditiChip> | null>(null);
+  api.statoCreditiBraccialetto().then((s) => (chip = s)).catch(() => {});
+  const sulBraccialetto = $derived(!!chip?.sulBraccialetto);
 
   const puoRicaricare = $derived(sessione.puo('BORSELLINO'));
   const puoRimborsare = $derived(sessione.puo('BORSELLINO_RIMBORSI'));
@@ -88,6 +94,10 @@
 
   function apriRicarica() {
     if (!dati) return;
+    if (sulBraccialetto) {
+      pannelloChip?.ricaricaPrimo();
+      return;
+    }
     azione = { tipo: 'ricarica', importo: String(Math.max(dati.regole.ricaricaMinima, 5)), metodoId: perPagare.find((m) => !m.borsellino)?.id ?? '', paganteId: id };
   }
   /** Dal riassunto della scheda: apre la ricarica appena il borsellino è caricato. */
@@ -106,7 +116,7 @@
       <div class="totali">
         <span class="tot"><span class="lbl">Credito</span><strong class="m">{euro(s.euro)}</strong>
           {#if s.prossimaScadenza && s.inScadenza > 0}<span class="small muted">{euro(s.inScadenza)} scadono il {dataBreve(s.prossimaScadenza)}</span>{/if}</span>
-        <span class="tot"><span class="lbl">Phon e docce</span><strong class="m">{s.crediti} crediti</strong><span class="small muted">= {euro(s.valoreCrediti)}</span></span>
+        <span class="tot"><span class="lbl">Phon e docce{sulBraccialetto ? ' · ultimo visto' : ''}</span><strong class="m">{s.crediti} crediti</strong><span class="small muted">= {euro(s.valoreCrediti)}</span></span>
       </div>
     {/if}
   </div>
@@ -118,7 +128,7 @@
     {#if !azione}
       <div class="azioni">
         {#if puoRicaricare}
-          <button class="btn btn-primary" onclick={apriRicarica}><Icona nome="macchine" />Ricarica crediti…</button>
+          {#if !sulBraccialetto}<button class="btn btn-primary" onclick={apriRicarica}><Icona nome="macchine" />Ricarica crediti…</button>{/if}
           {#if r.trasferibile && dati.trasferibileA.length && dati.saldo.euro > 0}
             <button class="btn btn-secondary" onclick={() => (azione = { tipo: 'trasferisci', a: dati!.trasferibileA[0].personaId, importo: '' })}>Trasferisci a un familiare…</button>
           {/if}
@@ -193,6 +203,11 @@
       </form>
     {/if}
 
+    {#if chip?.sulBraccialetto}
+      <CreditiChip bind:this={pannelloChip} personaId={id} stato={chip} regole={r} metodi={perPagare} pagantiPossibili={dati.trasferibileA} euroDisponibili={dati.saldo.euro}
+        cambiato={() => { carica(); cambiato?.(); }} />
+    {/if}
+
     <div class="due-col">
       <div class="col">
         <div class="lbl">Movimenti</div>
@@ -210,6 +225,7 @@
       </div>
       <div class="col">
         <div class="lbl">Ultimi utilizzi di phon e docce</div>
+        {#if sulBraccialetto}<p class="muted small nomargin">Le macchine non sono collegate: i loro utilizzi non arrivano al gestionale. I crediti consumati si vedono tra i movimenti, a ogni lettura del braccialetto.</p>{/if}
         <ul class="righe">
           {#each utilizzi as u (u.id)}
             <li>
