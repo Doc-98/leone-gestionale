@@ -7,9 +7,12 @@
     <meta name="theme-color" content="#10212B" />
     <title>Leone Gestionale</title>
     <script>
-      // Tema chiaro/scuro prima del primo disegno, così non lampeggia
+      // Tema prima del primo disegno, così non lampeggia: la scelta di Impostazioni › Aspetto (src/lib/tema.svelte.ts),
+      // altrimenti come il sistema
       (function () {
-        var scuro = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var scelta = null;
+        try { scelta = localStorage.getItem('leone:tema'); } catch (e) {}
+        var scuro = scelta === 'scuro' || (scelta !== 'chiaro' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.tema = scuro ? 'scuro' : 'chiaro';
       })();
     </script>

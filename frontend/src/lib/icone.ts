@@ -95,6 +95,8 @@ export const ICONE = {
   prezzi: p('M19 5 5 19M6.5 6.5h.01M17.5 17.5h.01M6.5 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM17.5 15a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z'),
   tariffe: p('M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3'),
   calendario: p('M4 6h16v14H4zM4 10h16M8 3v4M16 3v4'),
+  // un cerchio mezzo chiaro e mezzo scuro: il tema
+  aspetto: p('M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18ZM12 3v18M12 8h4.5M12 12h6M12 16h4.5'),
 } as const;
 
 export type NomeIcona = keyof typeof ICONE;

@@ -5,6 +5,7 @@
   import { euro } from '../../lib/listino';
   import { euro as euroCent } from '../../lib/date';
   import { sessione } from '../../lib/sessione.svelte';
+  import { tema } from '../../lib/tema.svelte';
   import type { NomeIcona } from '../../lib/icone';
 
   /**
@@ -120,6 +121,8 @@
       }
       if (ruoli) aggiungi('Sistema', { k: 'Ruoli', v: ruoli.ruoli.map((r) => r.nome.toLowerCase()).join(', ') });
     }
+    if (visibile('aspetto'))
+      aggiungi('Sistema', { k: 'Tema', v: tema.scelta === 'sistema' ? `come il sistema (ora ${tema.effettivo})` : tema.scelta });
   }
   carica();
 </script>

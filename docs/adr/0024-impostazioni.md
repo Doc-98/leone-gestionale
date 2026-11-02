@@ -13,7 +13,7 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
 
 - **Aree e pagine.** Panoramica; *La società* (Dati, stagioni e gruppi; Calendario della stagione); *Prezzi e pagamenti*
   (Listino; Regole di prezzo; Metodi di pagamento); *Clienti e accessi* (Regole del tornello; Promemoria email; Phon e
-  docce); *Staff* (Mansioni, postazioni e tariffe); *Sistema* (Account e ruoli). Pagine unite: borsellino + servizi e
+  docce); *Staff* (Mansioni, postazioni e tariffe); *Sistema* (Account e ruoli; Aspetto). Pagine unite: borsellino + servizi e
   macchine → «Phon e docce»; mansioni + tariffe → «Mansioni, postazioni e tariffe»; account + ruoli → «Account e ruoli»
   (due schede). Le regole di prezzo hanno una pagina loro, fuori dal listino. Gli indirizzi vecchi (`#/borsellino`,
   `#/tariffe`, `#/ruoli`) portano alla pagina nuova. «Lista d'attesa» sta nei Promemoria, «una famiglia paga per più
@@ -53,6 +53,10 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
   destra: la pagina regge anche 20 o 40 ruoli. Il confronto di 2–3 ruoli affiancati, con le differenze evidenziate, si
   apre a richiesta. Eliminando un ruolo assegnato si può dare un altro ruolo, nello stesso impianto, a chi lo aveva; i
   ruoli predefiniti non si eliminano. Dove vale un ruolo si dice «in tutti gli impianti» o «solo nell'impianto X».
+- **Aspetto.** Il tema (chiaro, scuro o come il sistema) è una scelta di chi usa il dispositivo, non della società:
+  la pagina «Aspetto» la vede chiunque, la scelta vale subito e resta nel browser (`leone:tema`, letta da index.html
+  prima del primo disegno, anche nella pagina di accesso). Con «Come il sistema» il tema segue il dispositivo anche
+  mentre il gestionale è aperto.
 - **Ore da coprire.** Ogni postazione può dire quante ore a settimana va coperta (V24, facoltativo). Nelle impostazioni
   la mansione mostra le ore da coprire e il costo stimato con la tariffa di base; in pianificazione ogni riga mostra
   «ore pianificate / ore da coprire», in arancio se sono meno, e le postazioni sotto le ore vanno in «Da sistemare».

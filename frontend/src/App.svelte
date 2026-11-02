@@ -35,6 +35,7 @@
   import Macchine from './routes/Macchine.svelte';
   import PhonDocce from './routes/PhonDocce.svelte';
   import RegolePrezzo from './routes/RegolePrezzo.svelte';
+  import Aspetto from './routes/Aspetto.svelte';
   import CercaImpostazioni from './components/impostazioni/CercaImpostazioni.svelte';
   import PanoramicaImpostazioni from './components/impostazioni/PanoramicaImpostazioni.svelte';
   import type { Permesso } from './lib/api';
@@ -42,7 +43,7 @@
   import Icona from './components/Icona.svelte';
   import Azione from './components/Azione.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'impostazioni';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'aspetto' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Prezzi e pagamenti' | 'Clienti e accessi' | 'Staff' | 'Sistema';
   interface Sezione {
     id: Scheda;
@@ -97,6 +98,9 @@
       spiega: 'Ogni mansione è un ruolo pagato, con la sua tariffa; le postazioni sono le righe della pianificazione, divise per area' },
     { id: 'account', nome: 'Account e ruoli', titolo: 'Account e ruoli', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT', 'RUOLI'], larga: true, icona: 'ruoli',
       spiega: 'Chi accede al gestionale e cosa può fare' },
+    // di chi usa il dispositivo, non della società: la vedono tutti
+    { id: 'aspetto', nome: 'Aspetto', titolo: 'Aspetto', gruppo: 'Impostazioni', area: 'Sistema', larga: true, icona: 'aspetto',
+      spiega: 'Tema chiaro, scuro o come il sistema, su questo dispositivo' },
   ];
   const ID = SEZIONI.map((s) => s.id);
 
@@ -262,7 +266,8 @@
     {:else if corrente.id === 'servizi'}<PhonDocce />
     {:else if corrente.id === 'prezzi'}<RegolePrezzo />
     {:else if corrente.id === 'promemoria'}<Promemoria />
-    {:else if corrente.id === 'account'}<AccountRuoli />{/if}
+    {:else if corrente.id === 'account'}<AccountRuoli />
+    {:else if corrente.id === 'aspetto'}<Aspetto />{/if}
   {/key}
 {/snippet}
 
