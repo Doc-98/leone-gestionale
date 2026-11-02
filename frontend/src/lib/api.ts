@@ -782,6 +782,9 @@ export const api = {
   propostaPrezzo: (personaId: string, offertaId: string, volte: number | null, dal: string) =>
     richiesta<PropostaPrezzo>('GET', `/api/clienti/${personaId}/proposta?offertaId=${offertaId}${volte == null ? '' : `&volte=${volte}`}&dal=${dal}`),
   recesso: (abbonamentoId: string, data: string) => richiesta<Rimborso | undefined>('GET', `/api/clienti/abbonamenti/${abbonamentoId}/recesso?data=${data}`),
+  /** vuoto se la regola di sospensione non si applica (si allungano tutti i giorni sospesi) */
+  restituzione: (abbonamentoId: string, dal: string, al: string, certificato: boolean) =>
+    richiesta<Restituzione | undefined>('GET', `/api/clienti/abbonamenti/${abbonamentoId}/restituzione?dal=${dal}&al=${al}&certificato=${certificato}`),
   cambiaTurno: (iscrizioneId: string, c: { lezioneId: string; dal: string; forza?: boolean }) =>
     richiesta<CambioFatto>('POST', `/api/iscrizioni/${iscrizioneId}/cambia`, c),
   paginaAttesa: () => richiesta<PaginaAttesa>('GET', '/api/attesa'),
@@ -829,7 +832,7 @@ export const api = {
   autorizza: (personaId: string, a: { tipo: Autorizzazione['tipo']; firmataDa: string | null; firmataIl: string | null; dal: string | null; al: string | null; note: string | null }) =>
     richiesta<{ id: string }>('POST', `/api/accessi/persone/${personaId}/autorizzazioni`, a),
   revocaAutorizzazione: (id: string) => richiesta<void>('POST', `/api/accessi/autorizzazioni/${id}/revoca`, {}),
-  sospendi: (abbonamentoId: string, s: { dal: string; al: string; motivo: string | null }) => richiesta<{ id: string }>('POST', `/api/clienti/abbonamenti/${abbonamentoId}/sospensioni`, s),
+  sospendi: (abbonamentoId: string, s: { dal: string; al: string; motivo: string | null; certificato?: boolean; restituzione?: 'ALLUNGA' | 'BORSELLINO' | null }) => richiesta<{ id: string }>('POST', `/api/clienti/abbonamenti/${abbonamentoId}/sospensioni`, s),
   annullaSospensione: (id: string) => richiesta<void>('POST', `/api/clienti/sospensioni/${id}/annulla`, {}),
   passaggi: (quanti = 20) => richiesta<Passaggio[]>('GET', `/api/accessi/passaggi?quanti=${quanti}`),
   braccialettoDiChi: (codice: string) => richiesta<{ personaId: string | null }>('GET', `/api/accessi/braccialetti?codice=${encodeURIComponent(codice)}`),
@@ -884,8 +887,8 @@ export const api = {
   nuovoTesseramento: (personaId: string, t: { stagione?: string; dal?: string; al?: string; importo?: number | null; pagatoIl?: string | null }) =>
     richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/tesseramenti`, t),
   nuovoAbbonamento: (personaId: string, a: AbbonamentoInput) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/abbonamenti`, a),
-  terminaAbbonamento: (id: string, al: string, recesso = false) =>
-    richiesta<EsitoTermine>('POST', `/api/clienti/abbonamenti/${id}/termina`, { al, recesso }),
+  terminaAbbonamento: (id: string, al: string, recesso = false, rimborso: 'BORSELLINO' | 'DENARO' | null = null) =>
+    richiesta<EsitoTermine>('POST', `/api/clienti/abbonamenti/${id}/termina`, { al, recesso, rimborso }),
 
   // ── Pagamenti (ADR 0018, parte 5) ──
   conto: (personaId: string) => richiesta<Conto>('GET', `/api/pagamenti/persone/${personaId}`),
@@ -1092,7 +1095,8 @@ export interface Abbonamento {
   al: string | null;
   /** la fine allungata dei giorni di sospensione */
   alEffettivo: string | null;
-  sospensioni: { id: string; dal: string; al: string; motivo: string | null }[];
+  /** giorniAllungati e credito: quanto ha restituito la sospensione (ADR 0024) */
+  sospensioni: { id: string; dal: string; al: string; motivo: string | null; giorniAllungati: number; credito: number }[];
   sospesoOggi: boolean;
   importo: number | null;
   note: string | null;
@@ -1320,8 +1324,20 @@ export interface Rimborso {
   base: number;
   percentuale: number;
   importo: number;
-  nelBorsellino: boolean;
+  /** dove va: nel borsellino, in denaro, o lo sceglie il cliente al banco (ADR 0024) */
+  modo: 'BORSELLINO' | 'DENARO' | 'A_SCELTA';
   finoAl: string | null;
+}
+/** Cosa restituisce la regola di sospensione per uno stop (ADR 0024). */
+export interface Restituzione {
+  giorniStop: number;
+  giorniRestituiti: number;
+  importo: number;
+  modo: 'ALLUNGA' | 'BORSELLINO' | 'A_SCELTA' | 'NESSUNA';
+  /** perché non si restituisce niente */
+  perche: string | null;
+  settimaneMinime: number;
+  settimaneCertificato: number;
 }
 
 export interface ParametroRegola {

@@ -5,7 +5,7 @@
   import {
     api, messaggioErrore,
     type Abbonamento, type Braccialetto, type Conto, type Corso, type GruppoClienti, type MetodoPagamento, type ModoRestituzione, type RegoleBorsellino,
-    type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type Sesso,
+    type Restituzione, type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type Sesso,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
@@ -199,7 +199,42 @@
   // ── Ban e golden pass ─────────────────────────────────────────────────
   let banPersona = $state<{ tipo: 'BAN' | 'SORVEGLIANZA'; motivo: string; al: string } | null>(null);
   let permesso = $state<{ tipo: 'USCITA_AUTONOMA' | 'ACCOMPAGNATORE'; firmataDa: string; firmataIl: string; al: string; note: string } | null>(null);
-  let sospensione = $state<{ abbonamentoId: string; dal: string; al: string; motivo: string } | null>(null);
+  /** certificato: arrivato in tempo; scelta: come vuole riavere le settimane, se la regola lo lascia scegliere (ADR 0024) */
+  let sospensione = $state<{ abbonamentoId: string; dal: string; al: string; motivo: string; certificato: boolean; scelta: 'ALLUNGA' | 'BORSELLINO' | '' } | null>(null);
+  /** cosa restituisce la regola di sospensione per lo stop scritto (null = non si applica: si allungano tutti i giorni) */
+  let restituzione = $state<Restituzione | null>(null);
+  $effect(() => {
+    const s = sospensione;
+    if (!s || !s.dal || !s.al || s.al < s.dal) {
+      restituzione = null;
+      return;
+    }
+    const chiesta = `${s.abbonamentoId}|${s.dal}|${s.al}|${s.certificato}`;
+    api.restituzione(s.abbonamentoId, s.dal, s.al, s.certificato)
+      .then((r) => { if (sospensione && `${sospensione.abbonamentoId}|${sospensione.dal}|${sospensione.al}|${sospensione.certificato}` === chiesta) restituzione = r ?? null; })
+      .catch(() => (restituzione = null));
+  });
+  const giorniTesto = (n: number) => (n === 1 ? 'un giorno' : `${n} giorni`);
+  /** cosa succede sospendendo, in una riga */
+  function testoRestituzione(s: { dal: string; al: string }, r: Restituzione | null): string {
+    if (!r) return `La scadenza si allunga di ${giorniTesto(Math.round((Date.parse(s.al) - Date.parse(s.dal)) / 86400000) + 1)}.`;
+    if (r.modo === 'NESSUNA') return r.perche ?? 'Non si restituisce niente.';
+    const g = giorniTesto(r.giorniRestituiti);
+    if (r.modo === 'ALLUNGA') return `Si restituiscono ${g}: l'abbonamento si allunga di altrettanto.`;
+    if (r.modo === 'BORSELLINO') return `Si restituiscono ${g}: ${euro(r.importo)} nel borsellino.`;
+    return `Si restituiscono ${g}: il cliente sceglie come.`;
+  }
+  async function sospendi(a: Abbonamento) {
+    const s = sospensione!;
+    const r = restituzione;
+    const scelta = r?.modo === 'A_SCELTA' ? s.scelta || null : null;
+    const fatto = !r ? 'la scadenza si allunga di altrettanti giorni'
+      : r.modo === 'NESSUNA' ? 'non si restituisce niente'
+      : (r.modo === 'A_SCELTA' ? scelta : r.modo) === 'BORSELLINO' ? `${euro(r.importo)} nel borsellino`
+      : `l'abbonamento si allunga di ${giorniTesto(r.giorniRestituiti)}`;
+    const ok = await esegui(() => api.sospendi(a.id, { dal: s.dal, al: s.al, motivo: s.motivo || null, certificato: s.certificato, restituzione: scelta }), `Abbonamento sospeso: ${fatto}.`);
+    if (ok) sospensione = null;
+  }
   let golden = $state<{ motivo: string } | null>(null);
 
   // ── Certificato ───────────────────────────────────────────────────────
@@ -213,6 +248,9 @@
   // vendita dal listino (di base) o a mano
   let vendita = $state(false);
   let rimborsi = $state<Record<string, string>>({});
+  /** il recesso lascia scegliere al cliente dove va il rimborso: la sua scelta (ADR 0024) */
+  let sceltaRimborso = $state<Record<string, boolean>>({});
+  let modoRimborso = $state<'BORSELLINO' | 'DENARO'>('BORSELLINO');
   /** Con il recesso (di base sì): le rate non pagate non sono più dovute e il rimborso diventa un credito. */
   let recesso = $state(true);
   /** Al primo clic su «Termina oggi»: quanto si rimborserebbe secondo la regola di recesso della stagione. */
@@ -221,17 +259,24 @@
       recesso = true;
       try {
         const r = await api.recesso(a.id, oggi);
-        rimborsi[a.id] = r ? `Rimborso del ${r.percentuale}% di ${euro(r.base)} pagati = ${euro(r.importo)}${r.nelBorsellino ? ', come credito nel borsellino' : ''}.` : '';
+        const dove = { BORSELLINO: ', come credito nel borsellino', DENARO: ', da restituire in denaro', A_SCELTA: '' }[r?.modo ?? 'A_SCELTA'];
+        rimborsi[a.id] = r ? `Rimborso del ${r.percentuale}% di ${euro(r.base)} pagati = ${euro(r.importo)}${r.importo > 0 ? dove : ''}.` : '';
+        sceltaRimborso[a.id] = !!r && r.modo === 'A_SCELTA' && r.importo > 0;
+        modoRimborso = 'BORSELLINO';
       } catch {
         rimborsi[a.id] = '';
+        sceltaRimborso[a.id] = false;
       }
       return;
     }
     const conRecesso = recesso;
     let esito: Awaited<ReturnType<typeof api.terminaAbbonamento>> | undefined;
-    await esegui(async () => (esito = await api.terminaAbbonamento(a.id, oggi, conRecesso)), 'Abbonamento terminato oggi.');
+    const scelta = conRecesso && sceltaRimborso[a.id] ? modoRimborso : null;
+    await esegui(async () => (esito = await api.terminaAbbonamento(a.id, oggi, conRecesso, scelta)), 'Abbonamento terminato oggi.');
     if (esito && conRecesso) {
-      const parti = [esito.annullato > 0 ? `${euro(esito.annullato)} di rate non più dovute` : '', esito.rimborso && esito.rimborso.importo > 0 ? `${euro(esito.rimborso.importo)} di credito` : ''].filter(Boolean);
+      const r = esito.rimborso;
+      const rimborso = r && r.importo > 0 ? (r.modo === 'DENARO' ? `${euro(r.importo)} da restituire in denaro` : `${euro(r.importo)} di credito nel borsellino`) : '';
+      const parti = [esito.annullato > 0 ? `${euro(esito.annullato)} di rate non più dovute` : '', rimborso].filter(Boolean);
       if (parti.length) messaggio = `Abbonamento terminato oggi con il recesso: ${parti.join(' e ')}.`;
     }
   }
@@ -814,6 +859,11 @@
                 <span class="termina">
                   <label class="small recesso"><input type="checkbox" bind:checked={recesso} />
                     Recesso: le rate non ancora pagate non sono più dovute{rimborsi[a.id] ? ` · ${rimborsi[a.id]}` : ''}</label>
+                  {#if recesso && sceltaRimborso[a.id]}
+                    <span class="scelta small" role="radiogroup" aria-label="Dove va il rimborso">Il cliente sceglie:
+                      <label><input type="radio" bind:group={modoRimborso} value="BORSELLINO" /> nel borsellino</label>
+                      <label><input type="radio" bind:group={modoRimborso} value="DENARO" /> in denaro</label></span>
+                  {/if}
                   <span class="row">
                     <button class="btn btn-danger btn-sm" onclick={() => terminaOggi(a)}><Icona nome="termina" />Termina oggi</button>
                     <button class="btn btn-quieto btn-sm" onclick={() => (conferma = '')}>Lascia attivo</button>
@@ -822,21 +872,34 @@
               {/if}
               {#each a.sospensioni as s (s.id)}
                 <span class="sosp small">Sospeso dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.motivo ? ` · ${s.motivo}` : ''}
+                  · {s.credito > 0 ? `${euro(s.credito)} nel borsellino` : s.giorniAllungati > 0 ? `+${giorniTesto(s.giorniAllungati)}` : 'niente restituito'}
                   <Azione icona="annulla" etichetta="Annulla la sospensione" conferma="Annulla?" onclick={() => esegui(() => api.annullaSospensione(s.id), 'Sospensione annullata.')} /></span>
               {/each}
               {#if sospensione?.abbonamentoId === a.id}
-                <form class="sospendi" onsubmit={(e) => { e.preventDefault(); esegui(() => api.sospendi(a.id, { dal: sospensione!.dal, al: sospensione!.al, motivo: sospensione!.motivo || null }), 'Abbonamento sospeso: la scadenza si allunga di altrettanti giorni.').then((ok) => ok && (sospensione = null)); }}>
+                <form class="sospendi" onsubmit={(e) => { e.preventDefault(); sospendi(a); }}>
                   <input class="inp" type="date" bind:value={sospensione.dal} aria-label="Sospeso dal" />
                   <input class="inp" type="date" bind:value={sospensione.al} min={sospensione.dal} aria-label="Sospeso fino al" />
                   <input class="inp" bind:value={sospensione.motivo} placeholder="Motivo (es. infortunio)" aria-label="Motivo" />
-                  <button class="btn btn-primary" disabled={!sospensione.dal || !sospensione.al}><Icona nome="pausa" />Sospendi</button>
+                  {#if restituzione}
+                    <label class="small cert"><input type="checkbox" bind:checked={sospensione.certificato} />
+                      Certificato medico consegnato entro {restituzione.settimaneCertificato === 1 ? 'una settimana' : `${restituzione.settimaneCertificato} settimane`} dall'inizio</label>
+                  {/if}
+                  {#if sospensione.dal && sospensione.al && sospensione.al >= sospensione.dal}
+                    <span class="small muted esito-sosp" role="status">{testoRestituzione(sospensione, restituzione)}</span>
+                  {/if}
+                  {#if restituzione?.modo === 'A_SCELTA'}
+                    <span class="scelta small" role="radiogroup" aria-label="Come riavere le settimane">
+                      <label><input type="radio" bind:group={sospensione.scelta} value="ALLUNGA" /> allungare l'abbonamento di {giorniTesto(restituzione.giorniRestituiti)}</label>
+                      <label><input type="radio" bind:group={sospensione.scelta} value="BORSELLINO" /> {euro(restituzione.importo)} nel borsellino</label></span>
+                  {/if}
+                  <button class="btn btn-primary" disabled={!sospensione.dal || !sospensione.al || (restituzione?.modo === 'A_SCELTA' && !sospensione.scelta)}><Icona nome="pausa" />Sospendi</button>
                   <Azione icona="chiudi" etichetta="Annulla" onclick={() => (sospensione = null)} />
                 </form>
               {/if}
             </span>
             <span class="tag {st.classe}">{st.nome}</span>
             <span class="gruppo-azioni">
-              {#if !sospensione}<Azione icona="pausa" etichetta="Sospendi l'abbonamento" onclick={() => (sospensione = { abbonamentoId: a.id, dal: oggi, al: tra(13), motivo: '' })} />{/if}
+              {#if !sospensione}<Azione icona="pausa" etichetta="Sospendi l'abbonamento" onclick={() => (sospensione = { abbonamentoId: a.id, dal: oggi, al: tra(13), motivo: '', certificato: false, scelta: '' })} />{/if}
               {#if (!a.al || a.al > oggi) && conferma !== 'fin' + a.id}
                 <Azione icona="termina" etichetta="Termina oggi l'abbonamento" onclick={() => terminaOggi(a)} />
               {/if}
@@ -983,6 +1046,10 @@
   .sosp { display: flex; align-items: center; gap: var(--space-8); color: var(--warn); margin-top: 2px; }
   .sospendi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; margin-top: var(--space-6); }
   .sospendi .inp { width: auto; min-width: 140px; }
+  .sospendi .cert, .esito-sosp, .scelta { flex-basis: 100%; }
+  .cert { display: flex; align-items: center; gap: var(--space-6); }
+  .scelta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6) var(--space-14); }
+  .scelta label { display: inline-flex; align-items: center; gap: var(--space-6); }
   .dati { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-4) var(--space-14); margin: 0; }
   .dati dt { color: var(--muted); font-size: var(--text-sm); align-self: center; }
   .dati dd { margin: 0; overflow-wrap: anywhere; }

@@ -64,7 +64,11 @@ class SchedaClientiService {
 
     record NuovoCertificato(String tipo, LocalDate rilasciatoIl, LocalDate scadenza, String note, String firmatoDa) {}
 
-    record NuovaSospensione(LocalDate dal, LocalDate al, String motivo) {}
+    /**
+     * certificato: il certificato medico è arrivato in tempo (lo chiede la regola di sospensione); restituzione: ALLUNGA
+     * o BORSELLINO, se la regola lascia scegliere al cliente.
+     */
+    record NuovaSospensione(LocalDate dal, LocalDate al, String motivo, Boolean certificato, String restituzione) {}
 
     record NuovoTesseramento(String stagione, LocalDate dal, LocalDate al, BigDecimal importo, LocalDate pagatoIl) {}
 
@@ -75,7 +79,8 @@ class SchedaClientiService {
     record NuovoAbbonamento(String tipo, UUID corsoId, Integer volteASettimana, Integer ingressi, LocalDate dal, LocalDate al, BigDecimal importo, String note,
                             UUID offertaId, String motivoImporto) {}
 
-    record Termine(LocalDate al, Boolean recesso) {}
+    /** rimborso: BORSELLINO o DENARO, se la regola di recesso lascia scegliere al cliente. */
+    record Termine(LocalDate al, Boolean recesso, String rimborso) {}
 
     /** Quanto non è più dovuto (rate annullate) e il rimborso accreditato, se c'è. */
     record EsitoTermine(BigDecimal annullato, Listino.Rimborso rimborso) {}
@@ -351,31 +356,80 @@ class SchedaClientiService {
         BigDecimal pagato = pagato(a);
         BigDecimal annullato = pagamenti.chiudi(Pagamenti.Origine.ABBONAMENTO, id, "Recesso dal " + al.plusDays(1), u.personaId());
         Listino.Rimborso r = a.getOffertaId() == null ? null : listino.recesso(listino.stagioneDi(a.getOffertaId()), pagato, al).orElse(null);
-        if (r != null && r.importo().signum() > 0 && r.nelBorsellino())
-            borsellino.accredita(a.getPersonaId(), r.importo(), "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)", id, u.personaId());
+        if (r != null && Listino.A_SCELTA.equals(r.modo())) {
+            // la regola lascia scegliere al cliente: senza niente da rimborsare non serve chiederlo
+            if (r.importo().signum() > 0 && !(Listino.BORSELLINO.equals(in.rimborso()) || Listino.DENARO.equals(in.rimborso())))
+                throw new IllegalArgumentException("Il cliente sceglie dove va il rimborso: nel borsellino o in denaro.");
+            r = r.conModo(r.importo().signum() > 0 ? in.rimborso() : Listino.BORSELLINO);
+        }
+        String descr = r == null ? null : "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)";
+        if (r != null && r.importo().signum() > 0 && Listino.BORSELLINO.equals(r.modo()))
+            borsellino.accredita(a.getPersonaId(), r.importo(), descr, id, u.personaId());
         else if (r != null && r.importo().signum() > 0)
-            pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(a.getPersonaId(), "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)",
-                r.importo().negate(), al, Pagamenti.Origine.RIMBORSO, id, a.getOffertaId(), null, null,
-                r.nelBorsellino() ? "Va nel borsellino" : "Da restituire")), u.personaId());
+            pagamenti.addebita(List.of(new Pagamenti.NuovoAddebito(a.getPersonaId(), descr, r.importo().negate(), al, Pagamenti.Origine.RIMBORSO, id,
+                a.getOffertaId(), null, null, "Da restituire in denaro")), u.personaId());
         return new EsitoTermine(annullato, r);
     }
 
-    /** Sospende l'abbonamento (es. infortunio): non vale in quei giorni e la scadenza si allunga di altrettanti. */
+    /**
+     * Cosa restituirebbe la regola di sospensione della stagione per uno stop (vuoto se l'abbonamento non viene dal
+     * listino, non ha una fine o la regola è spenta: allora si allunga di tutti i giorni sospesi).
+     */
+    @Transactional(readOnly = true)
+    Optional<Listino.Restituzione> restituzione(UUID abbonamentoId, LocalDate dal, LocalDate al, boolean certificato) {
+        Abbonamento a = abbonamenti.findById(abbonamentoId).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
+        if (dal == null || al == null || al.isBefore(dal)) throw new IllegalArgumentException("Indica da quando a quando è sospeso.");
+        return restituzione(a, dal, al, certificato);
+    }
+
+    private Optional<Listino.Restituzione> restituzione(Abbonamento a, LocalDate dal, LocalDate al, boolean certificato) {
+        if (a.getOffertaId() == null || a.getAl() == null) return Optional.empty();
+        return listino.sospensione(listino.stagioneDi(a.getOffertaId()), a.getImporto(), a.getDal(), a.getAl(), dal, al, certificato);
+    }
+
+    /**
+     * Sospende l'abbonamento (es. infortunio): non vale in quei giorni. Quanto si restituisce lo dice la regola di
+     * sospensione (giorni in più o credito nel borsellino); senza la regola la scadenza si allunga di tutti i giorni.
+     */
     @Transactional
     UUID sospendi(Utente u, UUID abbonamentoId, NuovaSospensione in) {
         Abbonamento a = abbonamenti.findById(abbonamentoId).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
         if (a.getAnnullatoIl() != null) throw new IllegalArgumentException("L'abbonamento è annullato.");
-        Sospensione s = new Sospensione(abbonamentoId, in.dal(), in.al(), in.motivo(), u.personaId(), orologio.instant());
+        if (in.dal() == null || in.al() == null) throw new IllegalArgumentException("Indica da quando a quando è sospeso.");
+        if (in.al().isBefore(in.dal())) throw new IllegalArgumentException("La sospensione finisce prima di iniziare.");
         if (in.dal().isBefore(a.getDal())) throw new IllegalArgumentException("La sospensione inizia prima dell'abbonamento.");
         boolean accavallata = sospensioni.findByAbbonamentoIdInOrderByDal(List.of(abbonamentoId)).stream()
             .anyMatch(x -> x.getAnnullataIl() == null && x.siAccavallaCon(in.dal(), in.al()));
         if (accavallata) throw new it.leonexiii.gestionale.condiviso.Conflitto("C'è già una sospensione in quei giorni.");
-        return sospensioni.saveAndFlush(s).getId();
+        long giorni = java.time.temporal.ChronoUnit.DAYS.between(in.dal(), in.al()) + 1;
+        BigDecimal credito = BigDecimal.ZERO;
+        Listino.Restituzione r = restituzione(a, in.dal(), in.al(), Boolean.TRUE.equals(in.certificato())).orElse(null);
+        if (r != null) {
+            String modo = r.modo();
+            if (Listino.A_SCELTA.equals(modo)) {
+                if (!(Listino.ALLUNGA.equals(in.restituzione()) || Listino.BORSELLINO.equals(in.restituzione())))
+                    throw new IllegalArgumentException("Il cliente sceglie come riavere le settimane: allungando l'abbonamento o nel borsellino.");
+                modo = in.restituzione();
+            }
+            giorni = Listino.ALLUNGA.equals(modo) ? r.giorniRestituiti() : 0;
+            if (Listino.BORSELLINO.equals(modo)) credito = r.importo();
+        }
+        Sospensione s = sospensioni.saveAndFlush(new Sospensione(abbonamentoId, in.dal(), in.al(), in.motivo(), u.personaId(), orologio.instant(), giorni, credito));
+        if (credito.signum() > 0)
+            borsellino.accredita(a.getPersonaId(), credito, "Sospensione dal " + in.dal() + " al " + in.al() + " (" + r.giorniRestituiti() + " giorni)", s.getId(), u.personaId());
+        return s.getId();
     }
 
+    /** La sospensione non conta più; il credito che aveva messo nel borsellino si toglie. */
     @Transactional
-    void annullaSospensione(UUID id) {
-        sospensioni.findById(id).orElseThrow(() -> new NonTrovato("Sospensione non trovata.")).annulla(orologio.instant());
+    void annullaSospensione(Utente u, UUID id) {
+        Sospensione s = sospensioni.findById(id).orElseThrow(() -> new NonTrovato("Sospensione non trovata."));
+        if (s.getAnnullataIl() != null) return;
+        s.annulla(orologio.instant());
+        if (s.getCredito().signum() > 0) {
+            Abbonamento a = abbonamenti.findById(s.getAbbonamentoId()).orElseThrow(() -> new NonTrovato("Abbonamento non trovato."));
+            borsellino.stornaAccredito(a.getPersonaId(), s.getCredito(), "Sospensione annullata: si toglie il credito", u.personaId());
+        }
     }
 
     /** Per gli errori di inserimento: la riga resta nello storico ma non conta più. */

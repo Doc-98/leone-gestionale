@@ -38,8 +38,17 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
   quanto paga, le rate scritte «n × quota» (dopo l'ultima scadenza «1 × totale»: non si mostrano rate che non si possono
   più scegliere), il rimborso in caso di recesso. Il calcolo dell'esempio rifà quello del server (`lib/impostazioni.ts`).
   La sospensione ha due parametri nuovi: `settimaneRestituite` (`TUTTE` o `OLTRE_SOGLIA`) e `restituzione`
-  (`BORSELLINO`, `ALLUNGA`, `A_SCELTA`). Per ora si salvano e si mostrano: la sospensione al banco continua ad
-  allungare l'abbonamento, e applicarli è un passo successivo.
+  (`BORSELLINO`, `ALLUNGA`, `A_SCELTA`); il recesso ha `rimborso` (`BORSELLINO`, `DENARO`, `A_SCELTA`) al posto di
+  `nelBorsellino`, che nelle regole già salvate si legge ancora.
+- **Le regole al banco.** Sospendendo un abbonamento del listino (con una fine) si applica la regola di sospensione
+  della stagione: si conta a giorni (una settimana = 7 giorni); se lo stop non supera la soglia, o il certificato
+  medico non è arrivato in tempo (lo spunta chi sospende), non si restituisce niente e l'abbonamento non vale in quei
+  giorni. Altrimenti si restituiscono tutti i giorni dello stop o solo quelli oltre la soglia: allungando
+  l'abbonamento, oppure come credito nel borsellino pari al prezzo dell'abbonamento diviso per i suoi giorni, per i
+  giorni restituiti; con `A_SCELTA` chi sospende scrive cosa ha scelto il cliente. Ogni sospensione ricorda i giorni di
+  cui allunga l'abbonamento e il credito dato (V23); annullandola il credito si toglie. Senza la regola, o per gli
+  abbonamenti fuori listino, la scadenza si allunga di tutti i giorni sospesi, come prima. Allo stesso modo, nel
+  recesso con `A_SCELTA` chi termina l'abbonamento scrive se il cliente vuole il rimborso nel borsellino o in denaro.
 - **Ruoli in lista.** I ruoli sono un elenco (predefiniti e creati dalla società) con i permessi del ruolo scelto a
   destra: la pagina regge anche 20 o 40 ruoli. Il confronto di 2–3 ruoli affiancati, con le differenze evidenziate, si
   apre a richiesta. Eliminando un ruolo assegnato si può dare un altro ruolo, nello stesso impianto, a chi lo aveva; i
@@ -51,5 +60,5 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
 
 - Una sola forma per tutte le pagine delle impostazioni: chi ne impara una le sa usare tutte.
 - L'indice della ricerca va tenuto aggiornato quando si aggiunge un'impostazione (la voce e, se serve, il riquadro).
-- I due parametri nuovi della sospensione sono configurabili prima di essere applicati: quando la sospensione al banco
-  darà un credito, dovrà leggerli.
+- Una regola di sospensione accesa vale per ogni sospensione degli abbonamenti del listino, anche quelle che non sono
+  per malattia: chi sospende vede prima cosa si restituirà.

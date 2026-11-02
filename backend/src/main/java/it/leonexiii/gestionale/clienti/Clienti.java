@@ -32,7 +32,8 @@ public class Clienti {
         }
     }
 
-    public record Periodo(UUID id, LocalDate dal, LocalDate al, String motivo) {}
+    /** Una sospensione: i giorni di cui allunga l'abbonamento e il credito messo nel borsellino (ADR 0024). */
+    public record Periodo(UUID id, LocalDate dal, LocalDate al, String motivo, long giorniAllungati, java.math.BigDecimal credito) {}
 
     public record TesseramentoBreve(UUID id, String stagione, LocalDate dal, LocalDate al) {}
 
@@ -43,7 +44,7 @@ public class Clienti {
         /** La fine allungata dei giorni di sospensione (null = senza fine). */
         public LocalDate alEffettivo() {
             if (al == null) return null;
-            long giorni = sospensioni.stream().mapToLong(s -> java.time.temporal.ChronoUnit.DAYS.between(s.dal(), s.al()) + 1).sum();
+            long giorni = sospensioni.stream().mapToLong(Periodo::giorniAllungati).sum();
             return al.plusDays(giorni);
         }
 
@@ -134,7 +135,7 @@ public class Clienti {
         }
         Map<UUID, String> nomiCorsi = frequenze.corsi().stream().collect(Collectors.toMap(Frequenze.CorsoBreve::id, Frequenze.CorsoBreve::nome));
         Map<UUID, List<Periodo>> sospesi = sospensioni.findAll().stream().filter(s -> s.getAnnullataIl() == null)
-            .collect(Collectors.groupingBy(Sospensione::getAbbonamentoId, Collectors.mapping(s -> new Periodo(s.getId(), s.getDal(), s.getAl(), s.getMotivo()), Collectors.toList())));
+            .collect(Collectors.groupingBy(Sospensione::getAbbonamentoId, Collectors.mapping(s -> new Periodo(s.getId(), s.getDal(), s.getAl(), s.getMotivo(), s.giorniAllungati(), s.getCredito()), Collectors.toList())));
         Map<UUID, List<AbbonamentoBreve>> out = new java.util.HashMap<>();
         for (Abbonamento a : tutti) {
             long usati = conteggi.containsKey(a.getId()) ? conteggi.get(a.getId())[0] : 0;
@@ -154,7 +155,7 @@ public class Clienti {
             ? frequenze.corsi().stream().collect(Collectors.toMap(Frequenze.CorsoBreve::id, Frequenze.CorsoBreve::nome)) : Map.of();
         Map<UUID, List<Periodo>> sospesi = suoi.isEmpty() ? Map.of()
             : sospensioni.findByAbbonamentoIdInOrderByDal(suoi.stream().map(Abbonamento::getId).toList()).stream().filter(s -> s.getAnnullataIl() == null)
-                .collect(Collectors.groupingBy(Sospensione::getAbbonamentoId, Collectors.mapping(s -> new Periodo(s.getId(), s.getDal(), s.getAl(), s.getMotivo()), Collectors.toList())));
+                .collect(Collectors.groupingBy(Sospensione::getAbbonamentoId, Collectors.mapping(s -> new Periodo(s.getId(), s.getDal(), s.getAl(), s.getMotivo(), s.giorniAllungati(), s.getCredito()), Collectors.toList())));
         List<AbbonamentoBreve> out = new ArrayList<>();
         for (Abbonamento a : suoi) {
             List<IngressoCarnet> u = usati.getOrDefault(a.getId(), List.of());

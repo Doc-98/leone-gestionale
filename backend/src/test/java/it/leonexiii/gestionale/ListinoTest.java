@@ -95,7 +95,7 @@ class ListinoTest {
         // vendita dal listino: l'importo proposto; uno diverso solo con il motivo
         String abb = crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":1,\"dal\":\"2050-09-10\"}");
         assertThat(segr.post("/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":2,\"dal\":\"2050-09-10\",\"importo\":600}").statusCode()).isEqualTo(400);
-        crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":2,\"dal\":\"2050-09-10\",\"importo\":600,\"motivoImporto\":\"Fratello iscritto\"}");
+        String abb2 = crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":2,\"dal\":\"2050-09-10\",\"importo\":600,\"motivoImporto\":\"Fratello iscritto\"}");
         assertThat(segr.post("/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + altro + "\",\"dal\":\"2050-09-10\"}").statusCode()).isEqualTo(400);
         String scheda = segr.get("/api/clienti/" + persona).body();
         assertThat(scheda).contains("\"importo\":450.00").contains("\"importoListino\":450.00").contains("\"motivoImporto\":\"Fratello iscritto\"")
@@ -127,13 +127,52 @@ class ListinoTest {
 
         // recesso: rimborso secondo la regola, nel borsellino
         var rimborso = json(segr.get("/api/clienti/abbonamenti/" + abb + "/recesso?data=2050-10-15"));
-        assertThat(rimborso).containsEntry("percentuale", 50).containsEntry("importo", 112.50).containsEntry("nelBorsellino", true);
+        assertThat(rimborso).containsEntry("percentuale", 50).containsEntry("importo", 112.50).containsEntry("modo", "BORSELLINO");
         assertThat(segr.get("/api/clienti/abbonamenti/" + abb + "/recesso?data=2051-02-01").body()).contains("\"percentuale\":0");
         // con il recesso la seconda rata non è più dovuta e il rimborso diventa un credito
         var esito = json(segr.post("/api/clienti/abbonamenti/" + abb + "/termina", "{\"al\":\"2050-10-15\",\"recesso\":true}"));
         assertThat(esito).containsEntry("annullato", 225.00);
         // il rimborso è andato nel borsellino (la regola demo dice «nel borsellino»)
         assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=112.5");
+
+        // sospensione (ADR 0024): regola «solo le settimane oltre le 6, nel borsellino». Abbonamento da 600 € per 356 giorni.
+        String dalAl = "dal=2050-10-01&al=2050-11-30"; // 61 giorni: 19 oltre le 6 settimane
+        assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb2 + "/restituzione?" + dalAl))).containsEntry("modo", "NESSUNA")
+            .containsEntry("perche", "Senza il certificato medico entro 4 settimane dall'inizio dello stop non si restituisce niente.");
+        assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb2 + "/restituzione?dal=2050-10-01&al=2050-11-01&certificato=true")))
+            .containsEntry("modo", "NESSUNA").containsEntry("giorniRestituiti", 0);
+        assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb2 + "/restituzione?" + dalAl + "&certificato=true")))
+            .containsEntry("modo", "BORSELLINO").containsEntry("giorniStop", 61).containsEntry("giorniRestituiti", 19).containsEntry("importo", 32.02);
+        String sosp = crea(segr, "/api/clienti/abbonamenti/" + abb2 + "/sospensioni", "{\"dal\":\"2050-10-01\",\"al\":\"2050-11-30\",\"certificato\":true}");
+        assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=144.52");
+        // il credito non allunga l'abbonamento
+        assertThat(segr.get("/api/clienti/" + persona).body()).contains("\"giorniAllungati\":0,\"credito\":32.02").doesNotContain("\"alEffettivo\":\"2051-09");
+        // annullata la sospensione, il credito si toglie
+        assertThat(segr.post("/api/clienti/sospensioni/" + sosp + "/annulla", "{}").statusCode()).isEqualTo(204);
+        assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=112.5");
+        // a scelta del cliente: bisogna dire cosa ha scelto; allungando, l'abbonamento finisce 19 giorni dopo
+        assertThat(admin.put("/api/listino/regole/" + stagione + "/SOSPENSIONE",
+            "{\"attiva\":true,\"parametri\":{\"settimaneMinime\":6,\"settimaneCertificato\":4,\"settimaneRestituite\":\"OLTRE_SOGLIA\",\"restituzione\":\"A_SCELTA\"}}").statusCode()).isEqualTo(200);
+        String sospesa = "{\"dal\":\"2050-10-01\",\"al\":\"2050-11-30\",\"certificato\":true%s}";
+        assertThat(segr.post("/api/clienti/abbonamenti/" + abb2 + "/sospensioni", sospesa.formatted("")).statusCode()).isEqualTo(400);
+        crea(segr, "/api/clienti/abbonamenti/" + abb2 + "/sospensioni", sospesa.formatted(",\"restituzione\":\"ALLUNGA\""));
+        assertThat(segr.get("/api/clienti/" + persona).body()).contains("\"alEffettivo\":\"2051-09-19\"");
+
+        // recesso a scelta del cliente: con qualcosa da rimborsare bisogna dire dove va
+        assertThat(admin.put("/api/listino/regole/" + stagione + "/RECESSO",
+            "{\"attiva\":true,\"parametri\":{\"rimborso\":\"A_SCELTA\",\"scaglioni\":[{\"finoAl\":\"2050-12-31\",\"percentuale\":50}]}}").statusCode()).isEqualTo(200);
+        assertThat(admin.put("/api/listino/regole/" + stagione + "/RECESSO", "{\"attiva\":true,\"parametri\":{\"rimborso\":\"FORSE\"}}").statusCode()).isEqualTo(400);
+        @SuppressWarnings("unchecked")
+        var rate2 = ((List<Map<String, Object>>) json(segr.get("/api/pagamenti/persone/" + persona)).get("addebiti")).stream()
+            .filter(x -> abb2.equals(x.get("riferimentoId"))).toList();
+        crea(segr, "/api/pagamenti", "{\"addebiti\":[\"" + rate2.get(0).get("id") + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":300}]}");
+        assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb2 + "/recesso?data=2050-12-01"))).containsEntry("modo", "A_SCELTA").containsEntry("importo", 150.00);
+        assertThat(segr.post("/api/clienti/abbonamenti/" + abb2 + "/termina", "{\"al\":\"2050-12-01\",\"recesso\":true}").statusCode()).isEqualTo(400);
+        var esito2 = json(segr.post("/api/clienti/abbonamenti/" + abb2 + "/termina", "{\"al\":\"2050-12-01\",\"recesso\":true,\"rimborso\":\"DENARO\"}"));
+        assertThat(esito2.get("rimborso").toString()).contains("modo=DENARO");
+        // in denaro: non va nel borsellino, resta da restituire
+        assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=112.5");
+        assertThat(segr.get("/api/pagamenti/persone/" + persona).body()).contains("Da restituire in denaro");
 
         // un'offerta già venduta non si elimina; il listino si copia nella stagione nuova con l'aumento
         assertThat(admin.delete("/api/listino/offerte/" + offerta).statusCode()).isEqualTo(409);

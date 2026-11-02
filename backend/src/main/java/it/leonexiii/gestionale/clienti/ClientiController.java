@@ -116,13 +116,27 @@ class ClientiController {
             .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
     }
 
-    /** {"al", "recesso"}: con il recesso le rate non pagate si annullano e il rimborso della regola diventa un credito. */
+    /**
+     * {"al", "recesso", "rimborso"}: con il recesso le rate non pagate si annullano e il rimborso della regola va nel
+     * borsellino o si restituisce in denaro (se la regola lascia scegliere, «rimborso» dice cosa ha scelto il cliente).
+     */
     @PostMapping("/abbonamenti/{id}/termina")
     SchedaClientiService.EsitoTermine termina(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody SchedaClientiService.Termine in) {
         return schede.terminaAbbonamento(u, id, in);
     }
 
-    /** {"dal", "al", "motivo"}: l'abbonamento non vale in quei giorni e la scadenza si allunga. */
+    /** Cosa restituirebbe la regola di sospensione per quello stop; 204 se non si applica (si allungano tutti i giorni). */
+    @GetMapping("/abbonamenti/{id}/restituzione")
+    org.springframework.http.ResponseEntity<it.leonexiii.gestionale.listino.Listino.Restituzione> restituzione(@PathVariable UUID id,
+            @RequestParam java.time.LocalDate dal, @RequestParam java.time.LocalDate al, @RequestParam(defaultValue = "false") boolean certificato) {
+        return schede.restituzione(id, dal, al, certificato).map(org.springframework.http.ResponseEntity::ok)
+            .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
+    /**
+     * {"dal", "al", "motivo", "certificato", "restituzione"}: l'abbonamento non vale in quei giorni; si restituisce quanto
+     * dice la regola di sospensione (senza regola la scadenza si allunga di tutti i giorni).
+     */
     @PostMapping("/abbonamenti/{id}/sospensioni")
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, UUID> sospendi(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody SchedaClientiService.NuovaSospensione in) {
@@ -131,8 +145,8 @@ class ClientiController {
 
     @PostMapping("/sospensioni/{id}/annulla")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void annullaSospensione(@PathVariable UUID id) {
-        schede.annullaSospensione(id);
+    void annullaSospensione(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        schede.annullaSospensione(u, id);
     }
 
     /** cosa: certificati, tesseramenti, abbonamenti */

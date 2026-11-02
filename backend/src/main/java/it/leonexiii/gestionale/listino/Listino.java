@@ -53,8 +53,24 @@ public class Listino {
     public record Proposta(UUID offertaId, String offerta, String tipo, Integer volte, BigDecimal listino, BigDecimal prezzoBase, UUID gruppoId,
                            int riduzionePercentuale, BigDecimal riduzione, BigDecimal proposto, List<Rata> rate, LocalDate al) {}
 
-    /** Il rimborso secondo la regola di recesso: percentuale di quanto pagato, e se va nel borsellino. */
-    public record Rimborso(BigDecimal base, int percentuale, BigDecimal importo, boolean nelBorsellino, LocalDate finoAl) {}
+    /** Dove va il rimborso per recesso, e come si restituiscono le settimane di una sospensione. */
+    public static final String BORSELLINO = "BORSELLINO", DENARO = "DENARO", ALLUNGA = "ALLUNGA", A_SCELTA = "A_SCELTA", NESSUNA = "NESSUNA";
+
+    /**
+     * Il rimborso secondo la regola di recesso: percentuale di quanto pagato e dove va (BORSELLINO, DENARO, oppure
+     * A_SCELTA: lo sceglie il cliente al banco).
+     */
+    public record Rimborso(BigDecimal base, int percentuale, BigDecimal importo, String modo, LocalDate finoAl) {
+        public Rimborso conModo(String m) { return new Rimborso(base, percentuale, importo, m, finoAl); }
+    }
+
+    /**
+     * Cosa dà la regola di sospensione per uno stop (ADR 0024): i giorni restituiti e quanto valgono in euro (sul prezzo
+     * dell'abbonamento, a giorni). modo: ALLUNGA (l'abbonamento si allunga), BORSELLINO (credito), A_SCELTA (lo sceglie
+     * il cliente al banco) o NESSUNA (non si restituisce niente, il perché è scritto).
+     */
+    public record Restituzione(long giorniStop, long giorniRestituiti, BigDecimal importo, String modo, String perche,
+                               int settimaneMinime, int settimaneCertificato) {}
 
     private final OffertaRepository offerte;
     private final RegolaPrezzoRepository regole;
@@ -127,8 +143,44 @@ public class Listino {
             }
             BigDecimal base = pagato == null ? BigDecimal.ZERO : pagato;
             BigDecimal importo = base.multiply(BigDecimal.valueOf(perc)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            return new Rimborso(base, perc, importo, Boolean.TRUE.equals(r.getParametri().get("nelBorsellino")), fino);
+            return new Rimborso(base, perc, importo, modoRimborso(r.getParametri()), fino);
         });
+    }
+
+    /** Il rimborso: «rimborso»; nelle regole salvate prima dell'ADR 0024 c'era solo «nelBorsellino». */
+    private static String modoRimborso(Map<String, Object> p) {
+        Object m = p.get("rimborso");
+        if (m != null) return String.valueOf(m);
+        return Boolean.TRUE.equals(p.get("nelBorsellino")) ? BORSELLINO : DENARO;
+    }
+
+    /**
+     * Cosa restituisce la regola di sospensione della stagione per uno stop dal-al di un abbonamento che va da abbDal ad
+     * abbAl e costa prezzo (vuoto se la regola è spenta). Si conta a giorni: le settimane della regola sono 7 giorni.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Restituzione> sospensione(UUID stagioneId, BigDecimal prezzo, LocalDate abbDal, LocalDate abbAl, LocalDate dal, LocalDate al,
+                                              boolean certificatoInTempo) {
+        return regola(stagioneId, "SOSPENSIONE").map(r -> {
+            Map<String, Object> p = r.getParametri();
+            int min = intero(p.getOrDefault("settimaneMinime", 6));
+            int cert = intero(p.getOrDefault("settimaneCertificato", 4));
+            long stop = java.time.temporal.ChronoUnit.DAYS.between(dal, al) + 1;
+            if (stop <= min * 7L)
+                return new Restituzione(stop, 0, BigDecimal.ZERO, NESSUNA, "Lo stop deve durare più di " + settimane(min) + ": non si restituisce niente.", min, cert);
+            if (!certificatoInTempo)
+                return new Restituzione(stop, 0, BigDecimal.ZERO, NESSUNA,
+                    "Senza il certificato medico entro " + settimane(cert) + " dall'inizio dello stop non si restituisce niente.", min, cert);
+            long giorni = "OLTRE_SOGLIA".equals(p.get("settimaneRestituite")) ? stop - min * 7L : stop;
+            long durata = java.time.temporal.ChronoUnit.DAYS.between(abbDal, abbAl) + 1;
+            BigDecimal base = prezzo == null ? BigDecimal.ZERO : prezzo;
+            BigDecimal importo = base.multiply(BigDecimal.valueOf(giorni)).divide(BigDecimal.valueOf(Math.max(1, durata)), 2, RoundingMode.HALF_UP).min(base);
+            return new Restituzione(stop, giorni, importo, String.valueOf(p.getOrDefault("restituzione", ALLUNGA)), null, min, cert);
+        });
+    }
+
+    private static String settimane(int n) {
+        return n == 1 ? "una settimana" : n + " settimane";
     }
 
     /** La stagione a cui appartiene un'offerta. */
@@ -251,7 +303,10 @@ public class Listino {
             case "RIDUZIONE_TARDIVA" -> out.put("scaglioni", pulisciScaglioni(p, "dal"));
             case "RECESSO" -> {
                 out.put("scaglioni", pulisciScaglioni(p, "finoAl"));
-                out.put("nelBorsellino", Boolean.TRUE.equals(p.get("nelBorsellino")));
+                // dove va il rimborso (ADR 0024); le regole di prima avevano solo «nelBorsellino»
+                String modo = modoRimborso(p);
+                if (!List.of(BORSELLINO, DENARO, A_SCELTA).contains(modo)) throw new IllegalArgumentException("Rimborso: BORSELLINO, DENARO o A_SCELTA.");
+                out.put("rimborso", modo);
             }
             case "RATE" -> {
                 int numero = intero(p.getOrDefault("numero", 2));

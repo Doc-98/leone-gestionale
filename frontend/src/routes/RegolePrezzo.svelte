@@ -21,7 +21,7 @@
 
   type Bozza = {
     riduzione: { attiva: boolean; scaglioni: { data: string; percentuale: string }[] };
-    recesso: { attiva: boolean; scaglioni: { data: string; percentuale: string }[]; nelBorsellino: boolean };
+    recesso: { attiva: boolean; scaglioni: { data: string; percentuale: string }[]; rimborso: string };
     rate: { attiva: boolean; numero: number; primaPercentuale: string; scadenze: string[] };
     sospensione: { attiva: boolean; settimaneMinime: string; settimaneCertificato: string; settimaneRestituite: string; restituzione: string };
   };
@@ -50,7 +50,7 @@
       const p = sos.parametri;
       bozza = {
         riduzione: { attiva: rid.attiva, scaglioni: scaglioniDi(rid, 'dal') },
-        recesso: { attiva: rec.attiva, scaglioni: scaglioniDi(rec, 'finoAl'), nelBorsellino: rec.parametri.nelBorsellino === true },
+        recesso: { attiva: rec.attiva, scaglioni: scaglioniDi(rec, 'finoAl'), rimborso: String(rec.parametri.rimborso ?? (rec.parametri.nelBorsellino === true ? 'BORSELLINO' : 'DENARO')) },
         rate: { attiva: rate.attiva, numero: Number(rate.parametri.numero ?? 2), primaPercentuale: String(rate.parametri.primaPercentuale ?? 50),
           scadenze: ((rate.parametri.scadenze as (string | null)[] | undefined) ?? []).map((s) => s ?? '') },
         sospensione: { attiva: sos.attiva, settimaneMinime: String(p.settimaneMinime ?? 6), settimaneCertificato: String(p.settimaneCertificato ?? 4),
@@ -87,7 +87,7 @@
     try {
       for (const t of cambiate) {
         if (t === 'RIDUZIONE_TARDIVA') await api.modificaRegolaPrezzo(stagioneId, t, b.riduzione.attiva, { scaglioni: sc(b.riduzione.scaglioni, 'dal') });
-        if (t === 'RECESSO') await api.modificaRegolaPrezzo(stagioneId, t, b.recesso.attiva, { scaglioni: sc(b.recesso.scaglioni, 'finoAl'), nelBorsellino: b.recesso.nelBorsellino });
+        if (t === 'RECESSO') await api.modificaRegolaPrezzo(stagioneId, t, b.recesso.attiva, { scaglioni: sc(b.recesso.scaglioni, 'finoAl'), rimborso: b.recesso.rimborso });
         if (t === 'RATE') await api.modificaRegolaPrezzo(stagioneId, t, b.rate.attiva, { numero: b.rate.numero, primaPercentuale: Number(b.rate.primaPercentuale) || 50,
           scadenze: Array.from({ length: b.rate.numero - 1 }, (_, i) => b.rate.scadenze[i] || null) });
         if (t === 'SOSPENSIONE') await api.modificaRegolaPrezzo(stagioneId, t, b.sospensione.attiva, { settimaneMinime: Number(b.sospensione.settimaneMinime) || 0,
@@ -190,13 +190,13 @@
   });
   const esempioSospensione = $derived.by(() => {
     if (!bozza || !opzione) return '';
-    const settimane = Math.max(1, Math.round(n / 7) - 8);
-    const allaSettimana = Math.round((opzione.listino / settimane) * 100) / 100;
+    // come il server: il prezzo diviso per i giorni dell'abbonamento (qui tutta la stagione), per i giorni restituiti
+    const allaSettimana = Math.round(((opzione.listino * 7) / Math.max(7, n)) * 100) / 100;
     const min = Number(bozza.sospensione.settimaneMinime) || 0;
     const stop = Math.max(min + 3, 9);
     const date = bozza.sospensione.settimaneRestituite === 'OLTRE_SOGLIA' ? stop - min : stop;
     const dove = { BORSELLINO: ' nel borsellino', ALLUNGA: ': l\'abbonamento si allunga di altrettanto', A_SCELTA: ', nel borsellino o allungando l\'abbonamento' }[bozza.sospensione.restituzione] ?? '';
-    return `Abbonamento da ${euro(opzione.listino)}, circa ${euro(allaSettimana)} a settimana. Stop di ${stop} settimane con il certificato in tempo: ${date} × ${euro(allaSettimana)} = ${euro(Math.round(date * allaSettimana * 100) / 100)}${dove}.`;
+    return `Abbonamento da ${euro(opzione.listino)}, circa ${euro(allaSettimana)} a settimana. Stop di ${stop} settimane con il certificato in tempo: ${date} × ${euro(allaSettimana)} ≈ ${euro(Math.round(((opzione.listino * date * 7) / Math.max(7, n)) * 100) / 100)}${dove}.`;
   });
 </script>
 
@@ -291,7 +291,7 @@
           <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.recesso.scaglioni = [...bozza!.recesso.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
         </div>
         <div class="riga-imp"><span class="t"><b>Dove va il rimborso</b><span>sul prezzo pagato dell'abbonamento: la quota associativa non si rimborsa</span></span>
-          <span class="ctl"><select class="inp" bind:value={bozza.recesso.nelBorsellino} aria-label="Dove va il rimborso"><option value={true}>Nel borsellino del cliente</option><option value={false}>Restituito in denaro</option></select></span></div>
+          <span class="ctl"><select class="inp" bind:value={bozza.recesso.rimborso} aria-label="Dove va il rimborso"><option value="BORSELLINO">Nel borsellino del cliente</option><option value="DENARO">Restituito in denaro</option><option value="A_SCELTA">Lo sceglie il cliente</option></select></span></div>
       </section>
     </div>
 

@@ -101,6 +101,13 @@ public class Borsellino {
             movimenti.scadenzaNuova(), da, orologio.instant()).conRiferimento(riferimentoId));
     }
 
+    /** Toglie un accredito fatto per errore (es. una sospensione annullata); se gli euro sono già stati spesi, non si può. */
+    @Transactional
+    public void stornaAccredito(UUID persona, BigDecimal euro, String descrizione, UUID da) {
+        if (euro == null || euro.signum() <= 0) return;
+        movimenti.togliEuro(persona, euro, MovimentoBorsellino.Causale.ANNULLAMENTO, descrizione, null, da);
+    }
+
     /** Una macchina scala i crediti; se non bastano non scala niente. */
     @Transactional
     public Consumo consuma(UUID persona, int crediti, String descrizione, UUID riferimentoId) {
