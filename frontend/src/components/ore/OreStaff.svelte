@@ -111,7 +111,7 @@
               {/each}
             </span>
             <span class="azioni">
-              {#if p.tariffaMancante && puoTariffe}<a class="btn btn-primary btn-sm" href="#/tariffe">Imposta la tariffa</a>{/if}
+              {#if p.tariffaMancante && puoTariffe}<a class="btn btn-primary btn-sm" href="#/postazioni">Imposta la tariffa</a>{/if}
               <a class="btn btn-secondary btn-sm" href={api.urlFoglioOrePersona(p.persona.id, mese)} download><Icona nome="scarica" />Foglio ore</a>
             </span>
           </div>

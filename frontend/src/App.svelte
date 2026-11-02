@@ -16,13 +16,11 @@
   import Approva from './routes/Approva.svelte';
   import Modelli from './routes/Modelli.svelte';
   import Postazioni from './routes/Postazioni.svelte';
-  import Tariffe from './routes/Tariffe.svelte';
   import PianoVasca from './routes/PianoVasca.svelte';
   import Corsi from './routes/Corsi.svelte';
   import Tornello from './routes/Tornello.svelte';
   import Clienti from './routes/Clienti.svelte';
   import Regole from './routes/Regole.svelte';
-  import Ruoli from './routes/Ruoli.svelte';
   import Segnalazioni from './components/Segnalazioni.svelte';
   import Foglio from './components/Foglio.svelte';
   import CambioPassword from './routes/CambioPassword.svelte';
@@ -31,19 +29,21 @@
   import Societa from './routes/Societa.svelte';
   import Calendario from './routes/Calendario.svelte';
   import Promemoria from './routes/Promemoria.svelte';
-  import Account from './routes/Account.svelte';
+  import AccountRuoli from './routes/AccountRuoli.svelte';
   import Incassi from './routes/Incassi.svelte';
   import MetodiPagamento from './routes/MetodiPagamento.svelte';
   import Macchine from './routes/Macchine.svelte';
-  import RegoleBorsellino from './routes/RegoleBorsellino.svelte';
-  import ServiziDispositivi from './routes/ServiziDispositivi.svelte';
+  import PhonDocce from './routes/PhonDocce.svelte';
+  import RegolePrezzo from './routes/RegolePrezzo.svelte';
+  import CercaImpostazioni from './components/impostazioni/CercaImpostazioni.svelte';
+  import PanoramicaImpostazioni from './components/impostazioni/PanoramicaImpostazioni.svelte';
   import type { Permesso } from './lib/api';
   import type { NomeIcona } from './lib/icone';
   import Icona from './components/Icona.svelte';
   import Azione from './components/Azione.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'borsellino' | 'servizi' | 'impostazioni';
-  type AreaImpostazioni = 'La società' | 'Clienti' | 'Staff' | 'Accessi' | 'Sistema';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'impostazioni';
+  type AreaImpostazioni = 'La società' | 'Prezzi e pagamenti' | 'Clienti e accessi' | 'Staff' | 'Sistema';
   interface Sezione {
     id: Scheda;
     nome: string;
@@ -76,38 +76,37 @@
     { id: 'pianifica', nome: 'Pianificazione', breve: 'Pianifica', titolo: 'Pianificazione', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'pianifica' },
     { id: 'approva', nome: 'Richieste', breve: 'Richieste', titolo: 'Richieste', gruppo: 'Gestione', permessi: ['APPROVAZIONI'], larga: true, icona: 'approva' },
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'modelli' },
-    // ── Impostazioni: tutte sotto una voce, per area ──
-    { id: 'societa', nome: 'Società e stagioni', titolo: 'Società e stagioni', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
-      spiega: 'Dati della società, stagioni e quota associativa, gruppi di clienti' },
+    // ── Impostazioni: tutte sotto una voce, per area (ADR 0024) ──
+    { id: 'societa', nome: 'Dati, stagioni e gruppi', titolo: 'Dati, stagioni e gruppi', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
+      spiega: 'Chi è la società (compare su ricevute ed email), le sue stagioni con la quota associativa e i gruppi di clienti' },
     { id: 'calendario', nome: 'Calendario della stagione', titolo: 'Calendario della stagione', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PIANO_MODIFICA'], larga: true, icona: 'calendario',
       spiega: 'Giorni di chiusura e a orario ridotto: niente turni né lezioni in quei giorni' },
-    { id: 'listino', nome: 'Listino e prezzi', titolo: 'Listino e regole di prezzo', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'listino',
-      spiega: 'Offerte della stagione, prezzi, riduzioni, rate e recesso' },
-    { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'metodi',
-      spiega: 'Contanti, carta, Satispay, bonifico…: quali si usano e quali si segnano incassati a mano' },
-    { id: 'borsellino', nome: 'Borsellino e braccialetto', titolo: 'Borsellino e braccialetto', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'borsellino',
-      spiega: 'Valore dei crediti, ricarica minima, scadenza e trasferimento del credito, cauzione, riconsegna e smarrimento' },
-    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti', permessi: ['CLIENTI'], larga: true, icona: 'promemoria',
-      spiega: 'Quando partono i promemoria delle scadenze e con quale testo' },
-    { id: 'servizi', nome: 'Phon, docce e lettori', titolo: 'Phon, docce e lettori', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'macchine',
-      spiega: 'Quanti crediti costa ogni servizio, usi gratuiti, le macchine e le loro chiavi' },
-    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: 'regole',
-      spiega: 'Quali controlli fa il tornello e con quali tempi' },
-    { id: 'postazioni', nome: 'Mansioni e postazioni', titolo: 'Mansioni e postazioni', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'postazioni',
-      spiega: 'Le mansioni dello staff e le postazioni da coprire' },
-    { id: 'tariffe', nome: 'Tariffe orarie', titolo: 'Tariffe orarie', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'tariffe',
-      spiega: 'Il compenso orario per mansione' },
-    { id: 'account', nome: 'Account', titolo: 'Account dello staff', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT'], larga: true, icona: 'account',
-      spiega: 'Chi accede al gestionale, password temporanee, disattivazioni' },
-    { id: 'ruoli', nome: 'Ruoli e permessi', titolo: 'Ruoli e permessi', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['RUOLI'], larga: true, icona: 'ruoli',
-      spiega: 'Cosa può fare ogni ruolo, e a chi è assegnato' },
+    { id: 'listino', nome: 'Listino', titolo: 'Listino', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'listino',
+      spiega: 'Le offerte di ogni stagione con i loro prezzi' },
+    { id: 'prezzi', nome: 'Regole di prezzo', titolo: 'Regole di prezzo', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'prezzi',
+      spiega: 'Come cambia il prezzo durante la stagione: la riduzione per chi si iscrive tardi, le rate e quanto si rimborsa a chi recede' },
+    { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'metodi',
+      spiega: 'Contanti, carta, bonifico…: quali si usano, quali si segnano incassati a mano, e come paga una famiglia' },
+    { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: 'regole',
+      spiega: 'Cosa controlla il tornello a ogni passaggio' },
+    { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['CLIENTI'], larga: true, icona: 'promemoria',
+      spiega: 'Le email che partono da sole prima (o dopo) una scadenza, e gli avvisi della lista d\'attesa' },
+    { id: 'servizi', nome: 'Phon e docce', titolo: 'Phon e docce', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'macchine',
+      spiega: 'Crediti e servizi, il borsellino, il braccialetto e le macchine' },
+    { id: 'postazioni', nome: 'Mansioni, postazioni e tariffe', titolo: 'Mansioni, postazioni e tariffe', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'postazioni',
+      spiega: 'Ogni mansione è un ruolo pagato, con la sua tariffa; le postazioni sono le righe della pianificazione, divise per area' },
+    { id: 'account', nome: 'Account e ruoli', titolo: 'Account e ruoli', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT', 'RUOLI'], larga: true, icona: 'ruoli',
+      spiega: 'Chi accede al gestionale e cosa può fare' },
   ];
   const ID = SEZIONI.map((s) => s.id);
 
-  const AREE: AreaImpostazioni[] = ['La società', 'Clienti', 'Accessi', 'Staff', 'Sistema'];
+  const AREE: AreaImpostazioni[] = ['La società', 'Prezzi e pagamenti', 'Clienti e accessi', 'Staff', 'Sistema'];
+  /** Gli indirizzi di prima della riorganizzazione portano alla pagina che ora contiene quella impostazione. */
+  const VECCHI: Record<string, Scheda> = { borsellino: 'servizi', tariffe: 'postazioni', ruoli: 'account' };
 
   const leggiScheda = (): Scheda => {
-    const h = location.hash.replace('#/', '').split('/')[0] as Scheda;
+    const parte = location.hash.replace('#/', '').split('/')[0];
+    const h = (VECCHI[parte] ?? parte) as Scheda;
     return ID.includes(h) || h === 'impostazioni' ? h : 'turni';
   };
   let scheda = $state<Scheda>(leggiScheda());
@@ -168,9 +167,20 @@
     if (!inImpostazioni && lavoro.some((s) => s.id === corrente.id)) ultimaLavoro = corrente.id;
   });
   const tornaAlLavoro = () => (location.hash = `#/${lavoro.some((s) => s.id === ultimaLavoro) ? ultimaLavoro : (lavoro[0]?.id ?? 'turni')}`);
+  // «#/societa/stagioni»: dopo una ricerca si scorre al riquadro dell'impostazione
   $effect(() => {
-    if (elencoImpostazioni && schermo.larga && impostazioni.length) location.replace(`#/${impostazioni[0].id}`);
+    void scheda;
+    const ancora = location.hash.replace('#/', '').split('/')[1];
+    if (!inImpostazioni || !ancora) return;
+    let prove = 0;
+    const cerca = () => {
+      const el = document.getElementById(`imp-${ancora}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else if (prove++ < 20) setTimeout(cerca, 100);
+    };
+    setTimeout(cerca, 50);
   });
+  const sezioniImpostazioni = $derived(impostazioni.map((s) => s.id));
   const gruppi = $derived(
     (['Il mio lavoro', 'Piscina', 'Accessi', 'Gestione'] as const)
       .map((g) => ({ nome: g, voci: lavoro.filter((s) => s.gruppo === g) }))
@@ -236,13 +246,11 @@
     {:else if corrente.id === 'approva'}<Approva cambiate={(n) => (daApprovare = n)} />
     {:else if corrente.id === 'modelli'}<Modelli />
     {:else if corrente.id === 'postazioni'}<Postazioni />
-    {:else if corrente.id === 'tariffe'}<Tariffe />
     {:else if corrente.id === 'piano'}<PianoVasca />
     {:else if corrente.id === 'corsi'}<Corsi />
     {:else if corrente.id === 'tornello'}<Tornello />
     {:else if corrente.id === 'clienti'}<Clienti />
     {:else if corrente.id === 'regole'}<Regole />
-    {:else if corrente.id === 'ruoli'}<Ruoli />
     {:else if corrente.id === 'scadenze'}<Scadenze />
     {:else if corrente.id === 'attesa'}<ListaAttesa />
     {:else if corrente.id === 'societa'}<Societa />
@@ -251,10 +259,10 @@
     {:else if corrente.id === 'metodi'}<MetodiPagamento />
     {:else if corrente.id === 'incassi'}<Incassi />
     {:else if corrente.id === 'macchine'}<Macchine />
-    {:else if corrente.id === 'borsellino'}<RegoleBorsellino />
-    {:else if corrente.id === 'servizi'}<ServiziDispositivi />
+    {:else if corrente.id === 'servizi'}<PhonDocce />
+    {:else if corrente.id === 'prezzi'}<RegolePrezzo />
     {:else if corrente.id === 'promemoria'}<Promemoria />
-    {:else if corrente.id === 'account'}<Account />{/if}
+    {:else if corrente.id === 'account'}<AccountRuoli />{/if}
   {/key}
 {/snippet}
 
@@ -297,22 +305,27 @@
               {/each}
               <span class="grow"></span>
               {#if impostazioni.length}
-                <a href={`#/${impostazioni[0].id}`} class="voce-nav impostazioni" aria-label="Apri le impostazioni">
+                <a href="#/impostazioni" class="voce-nav impostazioni" aria-label="Apri le impostazioni">
                   {@render icona('impostazioni')}<span class="grow">Impostazioni</span>
                   <Icona nome="dx" class="freccia-nav" />
                 </a>
               {/if}
             </nav>
             <nav aria-label="Impostazioni" class="pannello" inert={!inImpostazioni}>
-              <button class="indietro-nav" onclick={tornaAlLavoro} aria-label="Torna alle sezioni">
-                <Icona nome="indietro" />
-                <span class="grow">Impostazioni</span>
+              <button class="indietro-nav" onclick={tornaAlLavoro}>
+                <Icona nome="sx" />
+                <span class="grow">Torna al lavoro</span>
               </button>
+              <div class="gruppo-nav">
+                <a href="#/impostazioni" class="voce-nav" class:on={elencoImpostazioni} aria-current={elencoImpostazioni ? 'page' : undefined}>
+                  {@render icona('impostazioni')}<span class="grow">Panoramica</span>
+                </a>
+              </div>
               {#each areeImpostazioni as a (a.nome)}
                 <div class="gruppo-nav">
                   <div class="lbl">{a.nome}</div>
                   {#each a.voci as s (s.id)}
-                    <a href={`#/${s.id}`} class="voce-nav" class:on={corrente.id === s.id} aria-current={corrente.id === s.id ? 'page' : undefined}>
+                    <a href={`#/${s.id}`} class="voce-nav" class:on={!elencoImpostazioni && corrente.id === s.id} aria-current={!elencoImpostazioni && corrente.id === s.id ? 'page' : undefined}>
                       {@render icona(s.icona)}<span class="grow">{s.nome}</span>
                     </a>
                   {/each}
@@ -351,16 +364,31 @@
         </div>
       {/if}
       {#if inImpostazioni && schermo.larga}
-        <header class="testa">
-          <div>
-            <div class="briciole lbl">Impostazioni · {corrente.area}</div>
-            <h1 class="page-title">{corrente.titolo}</h1>
-            {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}.</p>{/if}
-          </div>
-        </header>
-        {@render pagina()}
+        <!-- intestazione condivisa: la ricerca in cima a ogni pagina delle impostazioni, ferma mentre si scorre -->
+        <div class="testa-cerca"><CercaImpostazioni sezioni={sezioniImpostazioni} /></div>
+        {#if elencoImpostazioni}
+          <header class="testa">
+            <div>
+              <div class="briciole lbl">{nomeSocieta || 'Impostazioni'}</div>
+              <h1 class="page-title">Impostazioni</h1>
+              <p class="muted nomargin spiega">Come lavora la società: prezzi, regole del tornello, promemoria, staff e accessi. Cerca un'impostazione dalla barra in alto, o apri un'area.</p>
+            </div>
+          </header>
+          <PanoramicaImpostazioni aree={areeImpostazioni} />
+        {:else}
+          <header class="testa">
+            <div>
+              <div class="briciole lbl">Impostazioni · {corrente.area}</div>
+              <h1 class="page-title">{corrente.titolo}</h1>
+              {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}.</p>{/if}
+            </div>
+          </header>
+          {@render pagina()}
+        {/if}
       {:else if elencoImpostazioni}
         <header class="testa"><div><div class="lbl">{nomeSocieta}</div><h1 class="page-title">Impostazioni</h1></div></header>
+        <CercaImpostazioni sezioni={sezioniImpostazioni} telefono />
+        <PanoramicaImpostazioni aree={areeImpostazioni} telefono />
         {#each areeImpostazioni as a (a.nome)}
           <section class="elenco-imp">
             <div class="lbl">{a.nome}</div>
@@ -478,6 +506,8 @@
   .indietro-nav :global(.ic) { width: 20px; height: 20px; color: var(--cloro); }
   .indietro-nav:hover { background: var(--surface-sunken); }
   .briciole { color: var(--cloro-ink); }
+  /* la ricerca: fascia bianca con un filo sotto, così si stacca dal fondo carta della pagina */
+  .testa-cerca { position: sticky; top: 0; z-index: 15; margin: -28px -40px 0; padding: 12px 40px; background: var(--surface); border-bottom: 1px solid var(--line); }
   .spiega { margin-top: var(--space-4); }
 
   /* ── Elenco delle impostazioni (telefono) ── */

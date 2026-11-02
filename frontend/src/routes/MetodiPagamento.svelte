@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, messaggioErrore, type MetodoPagamento } from '../lib/api';
+  import { api, messaggioErrore, type DatiSocieta, type MetodoPagamento, type PagamentiFamiglia } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
@@ -20,6 +20,19 @@
     }
   }
   carica();
+
+  // come paga una famiglia (sta nei dati della società; si cambia con il permesso «Impostazioni della società»)
+  let societa = $state<DatiSocieta | null>(null);
+  api.societa().then((d) => (societa = d)).catch(() => {});
+  async function famiglia(v: PagamentiFamiglia) {
+    errore = '';
+    try {
+      societa = await api.modificaSocieta({ ...societa!, pagamentiFamiglia: v });
+      messaggio = 'Salvato: vale dal prossimo pagamento.';
+    } catch (e) {
+      errore = messaggioErrore(e);
+    }
+  }
 
   async function esegui(azione: () => Promise<unknown>, fatto: string) {
     errore = '';
@@ -48,12 +61,14 @@
 </script>
 
 <div class="pagina">
-  <p class="muted small nomargin">Compaiono quando si registra un pagamento, in quest'ordine. «Da incassare» (es. bonifico): il pagamento resta nell'elenco
-    «Da incassare» finché qualcuno non lo segna arrivato sul conto. Un metodo spento non si propone più, ma resta nei pagamenti già registrati.</p>
   {#if messaggio}<p class="msg ok nomargin" role="status">{messaggio}</p>{/if}
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
 
-  <section class="card elenco">
+  <section class="card sez">
+    <div class="sez-t"><h2 class="grow">Metodi</h2><span class="spiega">in quest'ordine quando si registra un pagamento</span></div>
+    <p class="muted small nomargin spiega-m">«Da incassare» (es. bonifico): il pagamento resta nell'elenco «Da incassare» finché qualcuno non lo segna arrivato sul conto.
+      Un metodo spento non si propone più, ma resta nei pagamenti già registrati.</p>
+    <div class="elenco">
     <ul class="righe">
       {#each metodi as m, i (m.id)}
         <li class:spento={!m.attivo}>
@@ -87,7 +102,21 @@
         </li>
       {/each}
     </ul>
+    </div>
   </section>
+
+  {#if societa}
+    <section class="card sez" id="imp-famiglia" aria-label="Una famiglia paga per più persone">
+      <div class="sez-t"><h2 class="grow">Una famiglia paga per più persone</h2><span class="spiega">es. due fratelli</span></div>
+      <div class="riga-imp"><span class="t"><b>Quando si paga per più familiari insieme</b><span>Un pagamento unico per la famiglia, uno per persona, o si sceglie ogni volta al banco.</span></span>
+        <span class="ctl"><select class="inp" value={societa.pagamentiFamiglia} disabled={!puo} aria-label="Come paga una famiglia"
+          onchange={(e) => famiglia(e.currentTarget.value as PagamentiFamiglia)}>
+          <option value="A_SCELTA">Si sceglie ogni volta</option>
+          <option value="INSIEME">Sempre un pagamento unico</option>
+          <option value="PER_PERSONA">Sempre uno per persona</option>
+        </select></span></div>
+    </section>
+  {/if}
 
   {#if puo}
     <form class="card nuovo" onsubmit={(e) => { e.preventDefault(); esegui(() => api.creaMetodoPagamento({ nome: nuovo.nome.trim(), daIncassare: nuovo.daIncassare }), `Metodo «${nuovo.nome.trim()}» aggiunto.`).then((ok) => ok && (nuovo = { nome: '', daIncassare: false })); }}>
@@ -101,6 +130,7 @@
 <style>
   .pagina { display: flex; flex-direction: column; gap: var(--space-14); max-width: 760px; }
   .elenco { padding: var(--space-6) var(--space-16); }
+  .spiega-m { padding: var(--space-12) var(--space-16) 0; }
   .righe { list-style: none; margin: 0; padding: 0; }
   .righe li { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; padding: var(--space-10) 0; border-top: 1px solid var(--line-soft); }
   .righe li:first-child { border-top: none; }

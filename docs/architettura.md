@@ -84,10 +84,14 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 | `accessi` | Braccialetti, ban, golden pass, regole del tornello (controlli indipendenti), passaggi |
 | `notifiche` | Invio delle email (SMTP) e registro di tutte le email |
 
+Le impostazioni dell'interfaccia sono divise per area (la società; prezzi e pagamenti; clienti e accessi; staff;
+sistema), con una panoramica delle cose da sistemare, una ricerca condivisa in cima a ogni pagina e il salvataggio di
+tutte le modifiche di una pagina da una barra in basso (ADR 0024).
+
 ## Permessi e accesso ai dati
 
-Ruoli assegnati **con un ambito** (es. "coordinatore · Piscina"). I ruoli sono dati e si modificano dalla pagina
-«Ruoli e permessi»; ognuno ha un insieme di **permessi** fissi (ADR 0010). Di partenza:
+Ruoli assegnati **con un ambito** (es. "coordinatore · Piscina"). I ruoli sono dati e si modificano dalla scheda
+«Ruoli» di «Account e ruoli» (ruoli in lista, confronto a richiesta, ADR 0024); ognuno ha un insieme di **permessi** fissi (ADR 0010). Di partenza:
 
 | Ruolo | Permessi |
 |---|---|

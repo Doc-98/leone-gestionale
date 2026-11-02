@@ -376,3 +376,49 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
 .x-btn::after { content: ''; position: absolute; inset: -6px; }
 /* testo solo per i lettori di schermo */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── Impostazioni (ADR 0024) ── */
+/* sezione: scheda con l'intestazione in una fascia color cloro, ben distinta dal fondo carta e dal bianco della scheda */
+.sez { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.sez-t { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; padding: var(--space-14) var(--space-16);
+  background: var(--cloro-soft); border-bottom: 1px solid color-mix(in srgb, var(--cloro) 28%, transparent); }
+.sez-t h2 { margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--cloro-ink); line-height: 1.2; }
+.sez-t .spiega { font-size: var(--text-sm); color: var(--cloro-ink); opacity: 0.85; }
+.sez-c { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-12); }
+/* riga di un'impostazione: etichetta e spiegazione a sinistra, il controllo a destra (sotto, se non ci sta) */
+.riga-imp { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8) var(--space-16); padding: var(--space-14) var(--space-16); border-top: 1px solid var(--line-soft); }
+.riga-imp:first-child, .sez-t + .riga-imp { border-top: none; }
+.riga-imp > .t { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.riga-imp > .t b { font-size: var(--text-base); font-weight: 600; }
+.riga-imp > .t span { font-size: var(--text-sm); color: var(--muted); }
+.riga-imp > .ctl { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; }
+.riga-imp > .ctl .inp.num { width: 76px; height: 40px; text-align: center; font-family: var(--font-mono); }
+.riga-imp > .ctl select.inp { width: auto; max-width: 100%; height: 40px; appearance: auto; }
+.unita { font-size: var(--text-md); color: var(--muted); }
+/* barra in basso: le modifiche di una pagina si salvano tutte insieme */
+.salva-bar { position: sticky; bottom: var(--space-16); align-self: center; z-index: 6; display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap;
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-18, 18px); border-radius: var(--radius-lg); background: var(--hero, var(--fill)); color: #fff;
+  box-shadow: 0 8px 28px rgba(16, 33, 43, 0.25); font-size: var(--text-md); }
+.salva-bar button { height: 38px; padding: 0 var(--space-16); border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); font-weight: 700; cursor: pointer; }
+.salva-bar .chiaro { border: none; background: #fff; color: var(--ink); }
+.salva-bar .vuoto { border: 1px solid rgba(255, 255, 255, 0.35); background: transparent; color: #fff; font-weight: 600; }
+/* pulsante piccolo, e pillola di stato */
+.mini-btn { position: relative; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
+  font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-6); text-decoration: none; }
+.mini-btn .ic { width: 16px; height: 16px; }
+.mini-btn.pieno { background: var(--fill); border-color: var(--fill); color: var(--on-fill); }
+.mini-btn.tratt { border-style: dashed; color: var(--cloro); }
+.mini-btn.rosso { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.mini-btn:disabled { opacity: 0.5; cursor: default; }
+.pill { display: inline-flex; align-items: center; gap: var(--space-6); height: 24px; padding: 0 var(--space-10); border-radius: var(--radius-pill); font-size: var(--text-xs);
+  font-weight: 700; white-space: nowrap; background: var(--surface-sunken); color: var(--seg-fg); }
+.pill.cloro { background: var(--cloro-soft); color: var(--cloro-ink); }
+.pill.passa { background: var(--passa-bg); color: var(--passa-fg); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.ferma { background: var(--ferma-bg); color: var(--ferma-fg); }
+/* avviso delle novità di un aggiornamento: viola, per non confondersi con le intestazioni (cloro) né con gli avvisi (arancio) */
+.novita { display: flex; gap: var(--space-10); align-items: flex-start; padding: var(--space-10) var(--space-6) var(--space-10) var(--space-14); border-radius: var(--radius-md);
+  background: var(--area-a-bg); color: var(--area-a-fg); border: 1px solid color-mix(in srgb, var(--area-a) 35%, transparent); font-size: var(--text-sm); }
+.novita .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 5px; }
+.novita .t b { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; }
+.novita .x-btn { color: var(--area-a-fg); }

@@ -9,6 +9,7 @@
    * Gli account dello staff: si creano con una password temporanea (mostrata una volta sola, da cambiare al primo
    * accesso), si disattivano (l'accesso si chiude subito), si reimposta la password. I ruoli si danno in «Ruoli e permessi».
    */
+  let { nuovo: richiesta = 0 }: { nuovo?: number } = $props();
   let elenco = $state<Account[]>([]);
   let ruoli = $state<PaginaRuoli | null>(null);
   let errore = $state('');
@@ -29,6 +30,13 @@
     }
   }
   carica();
+  let ultima = 0;
+  $effect(() => {
+    if (richiesta > ultima) {
+      ultima = richiesta;
+      nuovo = { nome: '', cognome: '', email: '', ruolo: 'STAFF', impiantoId: '' };
+    }
+  });
 
   const visibili = $derived(elenco.filter((a) => (mostraDisattivati || a.attivo)
     && (!cerca.trim() || `${a.nome} ${a.cognome} ${a.email}`.toLowerCase().includes(cerca.trim().toLowerCase()))));
@@ -95,7 +103,6 @@
   <input class="inp cerca" type="search" bind:value={cerca} placeholder="Cerca per nome o email" aria-label="Cerca" />
   <label class="small spunta"><input type="checkbox" bind:checked={mostraDisattivati} /> Mostra i disattivati</label>
   <span class="grow"></span>
-  {#if !nuovo}<button class="btn btn-primary" onclick={() => (nuovo = { nome: '', cognome: '', email: '', ruolo: 'STAFF', impiantoId: '' })}><Icona nome="piu" />Nuovo account…</button>{/if}
 </div>
 
 {#if nuovo}
@@ -116,7 +123,7 @@
         </label>
         <label class="field"><span class="lbl">Dove</span>
           <select class="inp" bind:value={nuovo.impiantoId}>
-            <option value="">Tutta la società</option>
+            <option value="">In tutti gli impianti</option>
             {#each ruoli.impianti as i (i.id)}<option value={i.id}>{i.nome}</option>{/each}
           </select>
         </label>
@@ -161,7 +168,7 @@
     <li class="muted small">Nessun account.</li>
   {/each}
 </ul>
-{#if daRuoli}<p class="muted small nomargin">I ruoli si cambiano da <a href="#/ruoli">Ruoli e permessi</a>.</p>{/if}
+{#if daRuoli}<p class="muted small nomargin">Cosa può fare ogni ruolo, e a chi darlo, si decide nella scheda <a href="#/account/ruoli">Ruoli</a>.</p>{/if}
 
 <style>
   .temporanea { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-14) var(--space-16); border: 2px solid var(--cloro); background: var(--cloro-soft); color: var(--cloro-ink); }

@@ -66,7 +66,13 @@ class ListinoTest {
             "{\"attiva\":true,\"parametri\":{\"numero\":2,\"primaPercentuale\":50,\"scadenze\":[\"2050-09-15\"]}}").statusCode()).isEqualTo(200);
         assertThat(admin.put("/api/listino/regole/" + stagione + "/RECESSO",
             "{\"attiva\":true,\"parametri\":{\"nelBorsellino\":true,\"scaglioni\":[{\"finoAl\":\"2050-09-30\",\"percentuale\":90},{\"finoAl\":\"2050-12-31\",\"percentuale\":50}]}}").statusCode()).isEqualTo(200);
+        // sospensione: quali settimane si restituiscono e come (ADR 0024)
+        assertThat(admin.put("/api/listino/regole/" + stagione + "/SOSPENSIONE",
+            "{\"attiva\":true,\"parametri\":{\"settimaneMinime\":6,\"settimaneCertificato\":4,\"settimaneRestituite\":\"QUALCUNA\"}}").statusCode()).isEqualTo(400);
+        assertThat(admin.put("/api/listino/regole/" + stagione + "/SOSPENSIONE",
+            "{\"attiva\":true,\"parametri\":{\"settimaneMinime\":6,\"settimaneCertificato\":4,\"settimaneRestituite\":\"OLTRE_SOGLIA\",\"restituzione\":\"BORSELLINO\"}}").statusCode()).isEqualTo(200);
         String pagina = segr.get("/api/listino?stagione=" + stagione).body();
+        assertThat(pagina).contains("\"settimaneRestituite\":\"OLTRE_SOGLIA\"").contains("\"restituzione\":\"BORSELLINO\"");
         assertThat(pagina).contains("Prova listino").contains("\"tipo\":\"RIDUZIONE_TARDIVA\",\"attiva\":true").contains("{\"dal\":\"2050-11-01\",\"percentuale\":10}");
 
         // importo proposto: listino, riduzione per iscrizione tardiva, rate

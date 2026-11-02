@@ -272,6 +272,13 @@ public class Listino {
                 if (min < 0 || min > 52 || cert < 0 || cert > 52) throw new IllegalArgumentException("Le settimane vanno da 0 a 52.");
                 out.put("settimaneMinime", min);
                 out.put("settimaneCertificato", cert);
+                // quali settimane si restituiscono e come (ADR 0024): ogni società decide la sua politica
+                String quali = String.valueOf(p.getOrDefault("settimaneRestituite", "TUTTE"));
+                String come = String.valueOf(p.getOrDefault("restituzione", "ALLUNGA"));
+                if (!List.of("TUTTE", "OLTRE_SOGLIA").contains(quali)) throw new IllegalArgumentException("Settimane restituite: TUTTE o OLTRE_SOGLIA.");
+                if (!List.of("BORSELLINO", "ALLUNGA", "A_SCELTA").contains(come)) throw new IllegalArgumentException("Restituzione: BORSELLINO, ALLUNGA o A_SCELTA.");
+                out.put("settimaneRestituite", quali);
+                out.put("restituzione", come);
             }
             default -> throw new IllegalArgumentException("Regola sconosciuta: " + tipo);
         }

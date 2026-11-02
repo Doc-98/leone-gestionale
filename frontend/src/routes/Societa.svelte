@@ -1,89 +1,146 @@
 <script lang="ts">
-  import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
+  import LineaStagione from '../components/impostazioni/LineaStagione.svelte';
   import { api, messaggioErrore, type DatiSocieta, type GruppoClienti, type MembroGruppo, type NuovaStagione, type Stagione } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
+  import { chiudiNovita, dataIndice, novitaChiusa } from '../lib/impostazioni';
+  import { euro } from '../lib/listino';
+  import { sessione } from '../lib/sessione.svelte';
 
   /**
-   * Le impostazioni della società (ADR 0018): i dati che compaiono su email e ricevute, le stagioni con la quota
-   * associativa e i gruppi di clienti. Il gestionale serve a qualsiasi società: qui sta ciò che cambia dall'una all'altra.
+   * Dati, stagioni e gruppi (ADR 0018, 0024): chi è la società (compare su ricevute ed email), le sue stagioni con la
+   * quota associativa e i gruppi di clienti. Le modifiche ai dati e alla stagione scelta si salvano tutte insieme.
    */
   let dati = $state<DatiSocieta | null>(null);
+  let originale = $state('');
   let stagioni = $state<Stagione[]>([]);
+  let offerte = $state<Record<string, number>>({});
   let gruppi = $state<GruppoClienti[]>([]);
   let errore = $state('');
   let messaggio = $state('');
+  const oggi = iso(new Date());
 
   type BozzaStagione = { nome: string; dal: string; al: string; quota: string; quotaRimborsabile: boolean };
-  let stagione = $state<{ id: string | null; b: BozzaStagione } | null>(null);
-  let gruppo = $state<{ id: string | null; nome: string; descrizione: string; attivo: boolean } | null>(null);
-  let aperto = $state('');
-  let membri = $state<MembroGruppo[]>([]);
-  const oggi = iso(new Date());
+  let scelta = $state<string | null>(null);
+  let bozza = $state<BozzaStagione | null>(null);
+  let bozzaOriginale = '';
+  let tutte = $state(false);
+
+  const NOVITA = 'impostazioni-2026-11';
+  let novita = $state(!novitaChiusa(NOVITA, sessione.utente?.accountId ?? ''));
 
   async function carica() {
     try {
-      [dati, stagioni, gruppi] = await Promise.all([api.societa(), api.stagioni(), api.gruppi()]);
+      let d: DatiSocieta;
+      [d, stagioni, gruppi] = await Promise.all([api.societa(), api.stagioni(), api.gruppi()]);
+      dati = d;
+      originale = JSON.stringify(d);
+      if (!scelta || !stagioni.some((s) => s.id === scelta)) scegli(stagioni.find((s) => s.dal <= oggi && oggi <= s.al) ?? stagioni[0] ?? null);
+      else scegli(stagioni.find((s) => s.id === scelta) ?? null);
+      // quante offerte ha il listino di ogni stagione (se si può vedere)
+      if (sessione.puo('IMPOSTAZIONI', 'CLIENTI'))
+        for (const s of stagioni) api.listino(s.id).then((l) => (offerte[s.id] = l.offerte.length)).catch(() => {});
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco a caricare le impostazioni.');
     }
   }
   carica();
 
-  async function esegui(azione: () => Promise<unknown>, fatto: string) {
+  function scegli(s: Stagione | null) {
+    scelta = s?.id ?? null;
+    bozza = s ? { nome: s.nome, dal: s.dal, al: s.al, quota: s.quota == null ? '' : String(s.quota), quotaRimborsabile: s.quotaRimborsabile } : null;
+    bozzaOriginale = JSON.stringify(bozza);
+  }
+
+  const datiCambiati = $derived(!!dati && JSON.stringify(dati) !== originale);
+  const stagioneCambiata = $derived(!!bozza && JSON.stringify(bozza) !== bozzaOriginale);
+  const modifiche = $derived(Number(datiCambiati) + Number(stagioneCambiata));
+
+  async function salva() {
     errore = '';
     messaggio = '';
     try {
-      await azione();
+      if (datiCambiati) await api.modificaSocieta({ ...dati!, giorniAnticipo: Number(dati!.giorniAnticipo), giorniRispostaAttesa: Number(dati!.giorniRispostaAttesa) });
+      if (stagioneCambiata && bozza) {
+        const corpo: NuovaStagione = { nome: bozza.nome, dal: bozza.dal, al: bozza.al, quota: bozza.quota === '' ? null : Number(bozza.quota), quotaRimborsabile: bozza.quotaRimborsabile };
+        if (scelta === 'nuova') {
+          const s = await api.creaStagione(corpo);
+          scelta = s.id;
+        } else if (scelta) await api.modificaStagione(scelta, corpo);
+      }
       await carica();
-      messaggio = fatto;
-      return true;
+      messaggio = 'Modifiche salvate.';
     } catch (e) {
       errore = messaggioErrore(e);
-      return false;
     }
   }
-
-  const salvaDati = () => esegui(() => api.modificaSocieta({ ...dati!, giorniAnticipo: Number(dati!.giorniAnticipo), giorniRispostaAttesa: Number(dati!.giorniRispostaAttesa) }), 'Dati della società salvati.');
+  function annulla() {
+    dati = JSON.parse(originale);
+    scegli(stagioni.find((s) => s.id === scelta) ?? stagioni[0] ?? null);
+  }
 
   // ── Stagioni ──────────────────────────────────────────────────────────
-  const piuUnGiorno = (d: string) => iso(new Date(Date.parse(d + 'T12:00:00') + 86400000));
+  const ordinate = $derived([...stagioni].sort((a, b) => a.dal.localeCompare(b.dal)));
+  /** Si vedono la stagione finita più recente, quella in corso e le future (tutte, a richiesta). */
+  const mostrate = $derived.by(() => {
+    if (tutte) return ordinate;
+    const i = Math.max(0, ordinate.findIndex((s) => s.al >= oggi) - 1);
+    return ordinate.slice(i, i + 3);
+  });
+  const inCorso = $derived(stagioni.find((s) => s.dal <= oggi && oggi <= s.al) ?? null);
+  const stato = (s: Stagione) => (oggi < s.dal ? { nome: 'futura', cls: 'cloro', card: '' } : oggi > s.al ? { nome: 'finita', cls: '', card: 'finita' } : { nome: 'in corso', cls: 'passa', card: 'ora' });
+  /** Il giorno da cui si propone il tesseramento della stagione. */
+  const tesseramentoDa = (s: Stagione) => dataBreve(dataIndice(s.dal, -Number(dati?.giorniAnticipo ?? 0)));
+
+  const piuUnGiorno = (d: string) => dataIndice(d, 1);
   const piuUnAnno = (d: string) => `${Number(d.slice(0, 4)) + 1}${d.slice(4)}`.replace(/-02-29$/, '-02-28');
-  /** «2026/27» → «2027/28»; «2026» → «2027»; altrimenti vuoto. */
   function nomeSuccessivo(n: string): string {
     const m = /^(\d{4})\/(\d{2})$/.exec(n);
     if (m) return `${Number(m[1]) + 1}/${String((Number(m[2]) + 1) % 100).padStart(2, '0')}`;
     return /^\d{4}$/.test(n) ? String(Number(n) + 1) : '';
   }
-
+  const ultima = $derived(ordinate.at(-1));
+  const nomeNuova = $derived(ultima ? nomeSuccessivo(ultima.nome) : '');
   function nuovaStagione() {
-    const ultima = stagioni[0];
-    if (ultima) {
-      stagione = { id: null, b: { nome: nomeSuccessivo(ultima.nome), dal: piuUnGiorno(ultima.al), al: piuUnAnno(ultima.al),
-        quota: ultima.quota == null ? '' : String(ultima.quota), quotaRimborsabile: ultima.quotaRimborsabile } };
-    } else {
+    scelta = 'nuova';
+    if (ultima) bozza = { nome: nomeNuova, dal: piuUnGiorno(ultima.al), al: piuUnAnno(ultima.al), quota: ultima.quota == null ? '' : String(ultima.quota), quotaRimborsabile: ultima.quotaRimborsabile };
+    else {
       const a = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
-      stagione = { id: null, b: { nome: `${a}/${String((a + 1) % 100).padStart(2, '0')}`, dal: `${a}-09-01`, al: `${a + 1}-08-31`, quota: '', quotaRimborsabile: false } };
+      bozza = { nome: `${a}/${String((a + 1) % 100).padStart(2, '0')}`, dal: `${a}-09-01`, al: `${a + 1}-08-31`, quota: '', quotaRimborsabile: false };
+    }
+    bozzaOriginale = '';
+  }
+  async function eliminaStagione() {
+    const s = stagioni.find((x) => x.id === scelta);
+    if (!s || !confirm(`Eliminare la stagione ${s.nome}? I tesseramenti già registrati restano com'erano.`)) return;
+    try {
+      await api.eliminaStagione(s.id);
+      scelta = null;
+      await carica();
+      messaggio = `Stagione ${s.nome} eliminata.`;
+    } catch (e) {
+      errore = messaggioErrore(e);
     }
   }
 
-  function salvaStagione() {
-    const s = stagione!;
-    const corpo: NuovaStagione = { nome: s.b.nome, dal: s.b.dal, al: s.b.al, quota: s.b.quota === '' ? null : Number(s.b.quota), quotaRimborsabile: s.b.quotaRimborsabile };
-    return esegui(() => (s.id ? api.modificaStagione(s.id, corpo) : api.creaStagione(corpo)), s.id ? 'Stagione salvata.' : `Stagione ${s.b.nome} aggiunta.`)
-      .then((ok) => ok && (stagione = null));
-  }
-
-  const statoStagione = (s: Stagione) => (oggi < s.dal ? { nome: 'Futura', classe: 't-altro' } : oggi > s.al ? { nome: 'Finita', classe: 't-altro' } : { nome: 'In corso', classe: 't-soft' });
-
   // ── Gruppi ────────────────────────────────────────────────────────────
-  function salvaGruppo() {
+  let gruppo = $state<{ id: string | null; nome: string; descrizione: string; attivo: boolean } | null>(null);
+  let aperto = $state('');
+  let membri = $state<MembroGruppo[]>([]);
+  async function salvaGruppo() {
     const g = gruppo!;
     const descrizione = g.descrizione.trim() || null;
-    return esegui(() => (g.id ? api.modificaGruppo(g.id, { nome: g.nome, descrizione, attivo: g.attivo }) : api.creaGruppo({ nome: g.nome, descrizione })),
-      g.id ? 'Gruppo salvato.' : `Gruppo «${g.nome.trim()}» creato.`).then((ok) => ok && (gruppo = null));
+    errore = '';
+    try {
+      if (g.id) await api.modificaGruppo(g.id, { nome: g.nome, descrizione, attivo: g.attivo });
+      else await api.creaGruppo({ nome: g.nome, descrizione });
+      gruppi = await api.gruppi();
+      messaggio = g.id ? 'Gruppo salvato.' : `Gruppo «${g.nome.trim()}» creato.`;
+      gruppo = null;
+    } catch (e) {
+      errore = messaggioErrore(e);
+    }
   }
-
   async function apriMembri(g: GruppoClienti) {
     if (aperto === g.id) return void (aperto = '');
     aperto = g.id;
@@ -94,145 +151,134 @@
       errore = messaggioErrore(e);
     }
   }
+
+  // ── Ricevuta ──────────────────────────────────────────────────────────
+  const luogo = $derived(dati ? [[dati.cap, dati.citta].filter(Boolean).join(' '), dati.provincia ? `(${dati.provincia})` : ''].filter(Boolean).join(' ') : '');
 </script>
 
-{#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
 {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
+{#if messaggio && !modifiche}<p class="msg ok" role="status">{messaggio}</p>{/if}
+
+{#if novita}
+  <div class="novita" role="status">
+    <span class="t"><b>Novità dell'ultimo aggiornamento</b><span>Le impostazioni sono state riordinate. «Lista d'attesa» ora sta nei Promemoria email, «una famiglia paga per più persone» nei Metodi di pagamento, e Account e ruoli sono insieme. La ricerca in alto trova tutto da qualsiasi pagina.</span></span>
+    <button class="x-btn" type="button" aria-label="Chiudi l'avviso" onclick={() => { chiudiNovita(NOVITA, sessione.utente?.accountId ?? ''); novita = false; }}><Icona nome="chiudi" /></button>
+  </div>
+{/if}
 
 {#if dati}
-  <div class="colonne">
-    <!-- Dati della società -->
-    <form class="card blocco" onsubmit={(e) => { e.preventDefault(); salvaDati(); }}>
-      <h3>La società</h3>
-      <p class="muted small nomargin">Il nome compare nelle email e nelle pagine; gli altri dati serviranno per le ricevute.</p>
-      <label class="field"><span class="lbl">Nome</span><input class="inp" bind:value={dati.nome} required /></label>
-      <label class="field"><span class="lbl">Ragione sociale</span><input class="inp" bind:value={dati.ragioneSociale} placeholder="Es. Società Sportiva S.S.D. a r.l." /></label>
-      <div class="due">
-        <label class="field"><span class="lbl">Partita IVA</span><input class="inp m" bind:value={dati.partitaIva} inputmode="numeric" maxlength="13" /></label>
-        <label class="field"><span class="lbl">Codice fiscale</span><input class="inp m" bind:value={dati.codiceFiscale} maxlength="16" /></label>
+  <section class="card sez" id="imp-stagioni" aria-label="Stagioni">
+    <div class="sez-t"><h2>Stagioni</h2><span class="spiega grow">Le date e la quota associativa le decide la società; due stagioni non si accavallano.</span>
+      {#if ordinate.length > 3}<button class="mini-btn" type="button" onclick={() => (tutte = !tutte)}>{tutte ? 'Solo le ultime' : `Tutte (${ordinate.length})`}</button>{/if}</div>
+    <div class="stagioni">
+      {#each mostrate as s (s.id)}
+        {@const st = stato(s)}
+        <button type="button" class="stag {st.card}" aria-pressed={scelta === s.id} onclick={() => scegli(s)}>
+          <span class="testa-s"><b class="n">{s.nome}</b><span class="grow"></span><span class="pill {st.cls}">{st.nome}</span></span>
+          <span class="date">{dataBreve(s.dal)} – {dataBreve(s.al)}</span>
+          <ul>
+            <li><span class="k">Quota associativa</span><b>{s.quota == null ? 'da decidere' : euro(s.quota)}</b></li>
+            <li><span class="k">Tesseramento da</span><span>{tesseramentoDa(s)}</span></li>
+            {#if s.id in offerte}<li><span class="k">Listino</span><span class:manca={!offerte[s.id]}>{offerte[s.id] ? `${offerte[s.id]} offerte` : 'da preparare'}</span></li>{/if}
+          </ul>
+        </button>
+      {/each}
+      <button type="button" class="stag nuova" aria-pressed={scelta === 'nuova'} onclick={nuovaStagione}><Icona nome="piu" />{nomeNuova ? `Aggiungi la ${nomeNuova}` : 'Aggiungi una stagione'}</button>
+    </div>
+    {#if inCorso}<div class="linea"><LineaStagione dal={inCorso.dal} al={inCorso.al} /></div>{/if}
+    {#if bozza}
+      <div class="riga-imp sopra">
+        <span class="t"><b>{scelta === 'nuova' ? 'Nuova stagione' : `Stagione ${bozza.nome}`}</b><span>Nome e date di inizio e fine.</span></span>
+        <span class="ctl">
+          <input class="inp nome-s" bind:value={bozza.nome} maxlength="20" aria-label="Nome della stagione" />
+          <input class="inp m data" type="date" bind:value={bozza.dal} aria-label="Dal" /><span class="unita">→</span><input class="inp m data" type="date" bind:value={bozza.al} min={bozza.dal} aria-label="Al" />
+        </span>
       </div>
-      <label class="field"><span class="lbl">Indirizzo</span><input class="inp" bind:value={dati.indirizzo} /></label>
-      <div class="tre">
-        <label class="field"><span class="lbl">CAP</span><input class="inp m" bind:value={dati.cap} maxlength="10" /></label>
-        <label class="field"><span class="lbl">Città</span><input class="inp" bind:value={dati.citta} /></label>
-        <label class="field"><span class="lbl">Prov.</span><input class="inp m" bind:value={dati.provincia} maxlength="2" /></label>
+      <div class="riga-imp">
+        <span class="t"><b>Quota associativa</b><span>Il tesseramento annuale; senza, il tornello lo segnala (se il controllo è acceso).</span></span>
+        <span class="ctl"><input class="inp num" type="number" min="0" step="0.01" bind:value={bozza.quota} placeholder="—" aria-label="Quota associativa" /><span class="unita">€</span>
+          <label class="riga-switch corto"><span>rimborsabile</span><button type="button" class="switch" role="switch" aria-checked={bozza.quotaRimborsabile} aria-label="Quota rimborsabile"
+            onclick={() => (bozza!.quotaRimborsabile = !bozza!.quotaRimborsabile)}><span></span></button></label></span>
       </div>
-      <div class="due">
-        <label class="field"><span class="lbl">Email</span><input class="inp" type="email" bind:value={dati.email} /></label>
-        <label class="field"><span class="lbl">Telefono</span><input class="inp" type="tel" bind:value={dati.telefono} /></label>
+      <div class="riga-imp">
+        <span class="t"><b>Proponi il tesseramento della stagione nuova</b><span>Al banco e nella scheda compare «da rinnovare» da questo giorno. Vale per tutte le stagioni.</span></span>
+        <span class="ctl"><input class="inp num" type="number" min="0" max="365" bind:value={dati.giorniAnticipo} aria-label="Giorni prima" /><span class="unita">giorni prima del suo inizio</span></span>
       </div>
-      <label class="field"><span class="lbl">Tesseramento della stagione nuova: proponilo da</span>
-        <span class="riga"><input class="inp m num" type="number" min="0" max="365" bind:value={dati.giorniAnticipo} /> <span>giorni prima del suo inizio</span></span>
-      </label>
-      <label class="field"><span class="lbl">Lista d'attesa: chi è avvisato di un posto ha</span>
-        <span class="riga"><input class="inp m num" type="number" min="1" max="30" bind:value={dati.giorniRispostaAttesa} /> <span>giorni per rispondere, poi tocca al prossimo</span></span>
-      </label>
-      <label class="field"><span class="lbl">Una famiglia paga per più persone insieme (es. due fratelli)</span>
-        <select class="inp" bind:value={dati.pagamentiFamiglia}>
-          <option value="A_SCELTA">Si sceglie ogni volta: un pagamento unico o uno per persona</option>
-          <option value="INSIEME">Sempre un pagamento unico per la famiglia</option>
-          <option value="PER_PERSONA">Sempre un pagamento per ogni persona</option>
-        </select>
-      </label>
-      <div class="row"><button class="btn btn-primary">Salva</button></div>
-    </form>
-
-    <!-- Stagioni -->
-    <section class="card blocco">
-      <h3>Stagioni</h3>
-      <p class="muted small nomargin">Le date della stagione e la quota associativa (il tesseramento) le decide la società. Due stagioni non si accavallano.</p>
-      <ul class="righe">
-        {#each stagioni as s (s.id)}
-          {@const st = statoStagione(s)}
-          <li>
-            {#if stagione?.id === s.id}
-              {@render moduloStagione()}
-            {:else}
-              <div class="riga">
-                <strong>{s.nome}</strong>
-                <span class="tag {st.classe}">{st.nome}</span>
-                <span class="grow muted small">{dataBreve(s.dal)} – {dataBreve(s.al)} · quota {s.quota == null ? 'da decidere' : `${s.quota} €`}{s.quotaRimborsabile ? ' (rimborsabile)' : ''}</span>
-                <span class="gruppo-azioni">
-                  <Azione icona="matita" etichetta={`Modifica la stagione ${s.nome}`} onclick={() => (stagione = { id: s.id, b: { nome: s.nome, dal: s.dal, al: s.al, quota: s.quota == null ? '' : String(s.quota), quotaRimborsabile: s.quotaRimborsabile } })} />
-                  <Azione icona="cestino" tono="danger" etichetta={`Elimina la stagione ${s.nome} (i tesseramenti già registrati restano com'erano)`} conferma="Elimina?"
-                    onclick={() => esegui(() => api.eliminaStagione(s.id), `Stagione ${s.nome} eliminata.`)} />
-                </span>
-              </div>
-            {/if}
-          </li>
-        {:else}
-          <li class="muted small">Nessuna stagione: senza, non si possono registrare i tesseramenti.</li>
-        {/each}
-      </ul>
-      {#if stagione && !stagione.id}
-        {@render moduloStagione()}
-      {:else if !stagione}
-        <button class="btn btn-secondary sx" onclick={nuovaStagione}><Icona nome="piu" />{stagioni.length ? 'Aggiungi la stagione successiva' : 'Aggiungi la stagione'}</button>
+      {#if scelta !== 'nuova'}
+        <div class="riga-imp"><span class="t"><span>Una stagione si elimina solo se non ha listino né tesseramenti legati.</span></span>
+          <span class="ctl"><button class="mini-btn rosso" type="button" onclick={eliminaStagione}><Icona nome="cestino" />Elimina la stagione</button></span></div>
       {/if}
-    </section>
+    {/if}
+  </section>
 
-    <!-- Gruppi di clienti -->
-    <section class="card blocco largo">
-      <h3>Gruppi di clienti</h3>
-      <p class="muted small nomargin">Etichette per le persone (es. alunni della scuola, convenzioni, squadra agonistica): serviranno per prezzi
-        diversi e per la precedenza nei rinnovi. Si danno dalla scheda del cliente.</p>
-      <ul class="righe">
+  <div class="colonne-p">
+    <div class="princ">
+      <section class="card sez" id="imp-dati" aria-label="La società">
+        <div class="sez-t"><h2>La società</h2><span class="spiega grow">Il nome compare nelle email; il resto sulle ricevute.</span></div>
+        <div class="dati">
+          <label class="field c3"><span class="lbl">Nome</span><input class="inp" bind:value={dati.nome} required /></label>
+          <label class="field c3"><span class="lbl">Ragione sociale</span><input class="inp" bind:value={dati.ragioneSociale} placeholder="Es. Società Sportiva S.S.D. a r.l." /></label>
+          <label class="field c3"><span class="lbl">Partita IVA</span><input class="inp m" bind:value={dati.partitaIva} inputmode="numeric" maxlength="13" placeholder="da completare" /></label>
+          <label class="field c3"><span class="lbl">Codice fiscale</span><input class="inp m" bind:value={dati.codiceFiscale} maxlength="16" placeholder="da completare" /></label>
+          <label class="field c6"><span class="lbl">Indirizzo</span><input class="inp" bind:value={dati.indirizzo} placeholder="da completare" /></label>
+          <label class="field c1"><span class="lbl">CAP</span><input class="inp m" bind:value={dati.cap} maxlength="10" /></label>
+          <label class="field c4"><span class="lbl">Città</span><input class="inp" bind:value={dati.citta} /></label>
+          <label class="field c1"><span class="lbl">Prov.</span><input class="inp m" bind:value={dati.provincia} maxlength="2" /></label>
+          <label class="field c3"><span class="lbl">Email</span><input class="inp" type="email" bind:value={dati.email} /></label>
+          <label class="field c3"><span class="lbl">Telefono</span><input class="inp m" type="tel" bind:value={dati.telefono} placeholder="da completare" /></label>
+        </div>
+      </section>
+
+      <section class="card sez" id="imp-gruppi" aria-label="Gruppi di clienti">
+        <div class="sez-t"><h2>Gruppi di clienti</h2><span class="spiega grow">Etichette per prezzi diversi e precedenza nei rinnovi; si danno dalla scheda del cliente.</span>
+          <button type="button" class="mini-btn" onclick={() => (gruppo = { id: null, nome: '', descrizione: '', attivo: true })}><Icona nome="piu" />Nuovo gruppo</button></div>
+        {#if gruppo && !gruppo.id}{@render moduloGruppo()}{/if}
         {#each gruppi as g (g.id)}
-          <li>
-            {#if gruppo?.id === g.id}
-              {@render moduloGruppo()}
-            {:else}
-              <div class="riga" class:spento={!g.attivo}>
-                <strong>{g.nome}</strong>
-                {#if !g.attivo}<span class="tag t-altro">Non attivo</span>{/if}
-                <span class="grow muted small">{g.descrizione ?? ''}</span>
-                <button class="btn btn-quieto btn-sm" aria-expanded={aperto === g.id} onclick={() => apriMembri(g)}><Icona nome="persone" />{g.persone === 1 ? '1 persona' : `${g.persone} persone`}</button>
-                <Azione icona="matita" etichetta={`Modifica il gruppo ${g.nome}`} onclick={() => (gruppo = { id: g.id, nome: g.nome, descrizione: g.descrizione ?? '', attivo: g.attivo })} />
+          {#if gruppo?.id === g.id}
+            {@render moduloGruppo()}
+          {:else}
+            <div class="gruppo-r" class:spento={!g.attivo}>
+              <span class="t"><b>{g.nome}{#if !g.attivo} <span class="pill">non attivo</span>{/if}</b><span>{g.descrizione ?? ''}</span></span>
+              <button class="mini-btn" type="button" aria-expanded={aperto === g.id} onclick={() => apriMembri(g)}><Icona nome="persone" />{g.persone === 1 ? '1 persona' : `${g.persone} persone`}</button>
+              <button class="mini-btn" type="button" onclick={() => (gruppo = { id: g.id, nome: g.nome, descrizione: g.descrizione ?? '', attivo: g.attivo })}>Modifica</button>
+            </div>
+            {#if aperto === g.id}
+              <div class="membri small">
+                {#each membri as m (m.appartenenzaId)}<a href={`#/clienti/${m.personaId}`}>{m.cognome} {m.nome}</a>{:else}<span class="muted">Nessuno.</span>{/each}
               </div>
-              {#if aperto === g.id}
-                <div class="membri small">
-                  {#each membri as m (m.appartenenzaId)}
-                    <a href={`#/clienti/${m.personaId}`}>{m.cognome} {m.nome}</a>
-                  {:else}
-                    <span class="muted">Nessuno.</span>
-                  {/each}
-                </div>
-              {/if}
             {/if}
-          </li>
+          {/if}
         {:else}
-          <li class="muted small">Nessun gruppo.</li>
+          {#if !gruppo}<p class="muted small vuoto">Nessun gruppo.</p>{/if}
         {/each}
-      </ul>
-      {#if gruppo && !gruppo.id}
-        {@render moduloGruppo()}
-      {:else if !gruppo}
-        <button class="btn btn-secondary sx" onclick={() => (gruppo = { id: null, nome: '', descrizione: '', attivo: true })}><Icona nome="piu" />Nuovo gruppo</button>
-      {/if}
-    </section>
+      </section>
+    </div>
+
+    <aside class="lato-p">
+      <section class="card pann">
+        <span class="lbl">Come compare su una ricevuta</span>
+        <div class="ricevuta">
+          <span class="rs">{dati.ragioneSociale || dati.nome}</span>
+          {#if dati.partitaIva || dati.codiceFiscale}<span>{dati.partitaIva ? `P. IVA ${dati.partitaIva}` : `C.F. ${dati.codiceFiscale}`}</span>{:else}<span class="mancante">P. IVA da completare</span>{/if}
+          {#if dati.indirizzo}<span>{dati.indirizzo}</span>{:else}<span class="mancante">Indirizzo da completare</span>{/if}
+          <span>{[luogo, dati.email, dati.telefono].filter(Boolean).join(' · ')}</span>
+          <span class="riga-r"><span>Ricevuta n. 128 · {dataBreve(oggi)}</span><b class="m">520,00 €</b></span>
+        </div>
+        <span class="muted small">Per le ricevute servono partita IVA (o codice fiscale) e indirizzo.</span>
+      </section>
+    </aside>
   </div>
+
+  {#if modifiche}
+    <div class="salva-bar" role="status">
+      <span>{modifiche === 1 ? '1 modifica da salvare' : `${modifiche} modifiche da salvare`}</span>
+      <button type="button" class="vuoto" onclick={annulla}>Annulla</button>
+      <button type="button" class="chiaro" onclick={salva}>Salva</button>
+    </div>
+  {/if}
 {:else if !errore}
   <p class="muted">Caricamento…</p>
 {/if}
-
-{#snippet moduloStagione()}
-  {@const s = stagione!}
-  <form class="modulo" onsubmit={(e) => { e.preventDefault(); salvaStagione(); }}>
-    <div class="tre-s">
-      <label class="field"><span class="lbl">Nome</span><input class="inp" bind:value={s.b.nome} placeholder="2026/27" maxlength="20" /></label>
-      <label class="field"><span class="lbl">Dal</span><input class="inp" type="date" bind:value={s.b.dal} /></label>
-      <label class="field"><span class="lbl">Al</span><input class="inp" type="date" bind:value={s.b.al} min={s.b.dal} /></label>
-    </div>
-    <div class="riga">
-      <label class="field quota"><span class="lbl">Quota associativa (€)</span><input class="inp m" type="number" min="0" step="0.01" bind:value={s.b.quota} placeholder="Da decidere" /></label>
-      <label class="spunta small"><input type="checkbox" bind:checked={s.b.quotaRimborsabile} /> Rimborsabile</label>
-    </div>
-    <div class="row">
-      <button type="button" class="btn btn-secondary grow" onclick={() => (stagione = null)}>Annulla</button>
-      <button class="btn btn-primary grow" disabled={!s.b.nome.trim() || !s.b.dal || !s.b.al}>Salva</button>
-    </div>
-  </form>
-{/snippet}
 
 {#snippet moduloGruppo()}
   {@const g = gruppo!}
@@ -241,36 +287,53 @@
       <label class="field"><span class="lbl">Nome</span><input class="inp" bind:value={g.nome} maxlength="80" /></label>
       <label class="field"><span class="lbl">Descrizione</span><input class="inp" bind:value={g.descrizione} maxlength="300" /></label>
     </div>
-    {#if g.id}<label class="spunta small"><input type="checkbox" bind:checked={g.attivo} /> Attivo (un gruppo non attivo resta sulle persone che ci sono, ma non se ne aggiungono altre)</label>{/if}
+    {#if g.id}<label class="riga-switch"><span>Attivo<br /><span class="muted small">Un gruppo non attivo resta sulle persone che ci sono, ma non se ne aggiungono altre.</span></span>
+      <button type="button" class="switch" role="switch" aria-checked={g.attivo} aria-label="Gruppo attivo" onclick={() => (g.attivo = !g.attivo)}><span></span></button></label>{/if}
     <div class="row">
       <button type="button" class="btn btn-secondary grow" onclick={() => (gruppo = null)}>Annulla</button>
-      <button class="btn btn-primary grow" disabled={!g.nome.trim()}>Salva</button>
+      <button class="btn btn-primary grow" disabled={!g.nome.trim()}>{g.id ? 'Salva il gruppo' : 'Crea il gruppo'}</button>
     </div>
   </form>
 {/snippet}
 
 <style>
-  .colonne { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: var(--space-14); align-items: start; }
-  .largo { grid-column: 1 / -1; }
-  .blocco { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }
-  h3 { margin: 0; font-size: var(--text-xl); }
-  .tre { display: grid; grid-template-columns: 110px minmax(0, 1fr) 80px; gap: var(--space-10); }
-  .tre-s { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-10); }
-  .riga { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
-  .num { width: 90px; }
-  .quota { width: 200px; }
-  .righe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-  .righe > li { padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
-  .righe > li:first-child { border-top: none; }
-  .modulo { display: flex; flex-direction: column; gap: var(--space-10); }
-  .spunta { display: flex; align-items: center; gap: var(--space-6); }
-  .membri { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); padding: var(--space-6) 0 0 var(--space-4); }
+  .stagioni { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-10); padding: var(--space-16) var(--space-16) var(--space-6); }
+  .stag { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-14); border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--surface);
+    font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+  .testa-s { display: flex; align-items: center; gap: var(--space-8); }
+  .stag b.n { font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1; }
+  .stag .date { font-size: var(--text-xs); color: var(--muted); font-family: var(--font-mono); }
+  .stag ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); }
+  .stag li { display: flex; gap: var(--space-6); }
+  .stag .k { color: var(--muted); flex: 1; }
+  .stag.ora { border: 2px solid var(--cloro); background: var(--cloro-soft); }
+  .stag.finita { background: var(--carta); color: var(--muted); }
+  .stag[aria-pressed='true'] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cloro) 35%, transparent); }
+  .stag.nuova { border: 1.5px dashed var(--line-dashed); background: none; align-items: center; justify-content: center; flex-direction: row; color: var(--cloro); font-weight: 700; min-height: 100px; }
+  .stag.nuova :global(.ic) { width: 18px; height: 18px; }
+  .manca { color: var(--warn); font-weight: 600; }
+  .linea { padding: var(--space-6) var(--space-16) var(--space-14); }
+  .sopra { border-top: 1px solid var(--line) !important; }
+  .nome-s { width: 110px; height: 40px; }
+  .data { width: 160px; height: 40px; }
+  .corto { min-height: 40px; gap: var(--space-8); font-size: var(--text-md); }
+  .dati { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-12) var(--space-14); padding: var(--space-16); }
+  .c1 { grid-column: span 1; } .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; }
+  .gruppo-r { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line-soft); }
+  .sez-t + .gruppo-r { border-top: none; }
+  .gruppo-r .t { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .gruppo-r .t span { font-size: var(--text-sm); color: var(--muted); }
   .spento { opacity: 0.65; }
-  .sx { align-self: flex-start; }
-  .link { min-height: 32px; }
-  .rosso { color: var(--danger); }
+  .membri { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); padding: 0 var(--space-16) var(--space-12); }
+  .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); background: var(--carta); border-top: 1px solid var(--line-soft); }
+  .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
+  .ricevuta { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
+    font-size: var(--text-sm); box-shadow: 0 1px 2px rgba(16, 33, 43, 0.06); }
+  .ricevuta .rs { font-family: var(--font-display); font-size: 17px; font-weight: 800; }
+  .riga-r { display: flex; justify-content: space-between; gap: var(--space-8); white-space: nowrap; border-top: 1px dashed var(--line); padding-top: var(--space-6); margin-top: var(--space-4); }
+  .mancante { color: var(--warn); font-weight: 600; }
   @media (max-width: 700px) {
-    .colonne { grid-template-columns: 1fr; }
-    .tre-s { grid-template-columns: 1fr; }
+    .dati { grid-template-columns: 1fr 1fr; }
+    .c1, .c3, .c4, .c6 { grid-column: span 2; }
   }
 </style>
