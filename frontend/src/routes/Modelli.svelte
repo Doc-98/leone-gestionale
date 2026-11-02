@@ -367,7 +367,6 @@
   .nome-in { width: 280px; height: 40px; }
   .mini-btn { position: relative; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
     font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
-  .mini-btn::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   .mini-btn.pieno { background: var(--fill); border-color: var(--fill); color: var(--on-fill); height: 40px; }
   .mini-btn.rosso { color: var(--danger); }
   .intesta { display: flex; align-items: center; gap: var(--space-8); }
