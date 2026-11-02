@@ -163,6 +163,8 @@ export interface Postazione {
   /** Riservata a un sesso (es. lo spogliatoio femminile); null = chiunque. */
   soloSesso?: Sesso | null;
   spazioId?: string | null;
+  /** quante ore a settimana va coperta (null = non indicato) */
+  oreSettimanali?: number | null;
 }
 
 /** Una persona dello staff, con il sesso dell'anagrafica (per le postazioni riservate). */
@@ -218,6 +220,8 @@ export interface PostazioneGestione {
   ordine: number;
   attiva: boolean;
   soloSesso: Sesso | null;
+  /** quante ore a settimana va coperta (null = non indicato) */
+  oreSettimanali: number | null;
 }
 
 export interface Mansione {
@@ -716,10 +720,10 @@ export const api = {
     richiesta<Mansione>('POST', '/api/staff/mansioni', { impiantoId, nome, voceFoglioOre }),
   modificaMansione: (id: string, nome: string, voceFoglioOre: string | null, coordinatori?: string[]) =>
     richiesta<Mansione>('PUT', `/api/staff/mansioni/${id}`, { nome, voceFoglioOre, coordinatori: coordinatori ?? null }),
-  creaPostazione: (mansioneId: string, nome: string, spazioId: string | null, soloSesso: Sesso | null = null) =>
-    richiesta<PostazioneGestione>('POST', `/api/staff/mansioni/${mansioneId}/postazioni`, { nome, spazioId, soloSesso }),
-  modificaPostazione: (id: string, nome: string, spazioId: string | null, attiva: boolean, soloSesso: Sesso | null) =>
-    richiesta<{ postazione: PostazioneGestione; turniFuturi: number }>('PUT', `/api/staff/postazioni/${id}`, { nome, spazioId, attiva, soloSesso }),
+  creaPostazione: (mansioneId: string, nome: string, spazioId: string | null, soloSesso: Sesso | null = null, oreSettimanali: number | null = null) =>
+    richiesta<PostazioneGestione>('POST', `/api/staff/mansioni/${mansioneId}/postazioni`, { nome, spazioId, soloSesso, oreSettimanali }),
+  modificaPostazione: (id: string, nome: string, spazioId: string | null, attiva: boolean, soloSesso: Sesso | null, oreSettimanali: number | null) =>
+    richiesta<{ postazione: PostazioneGestione; turniFuturi: number }>('PUT', `/api/staff/postazioni/${id}`, { nome, spazioId, attiva, soloSesso, oreSettimanali }),
   ordinaPostazioni: (ids: string[]) => richiesta<Mansione[]>('PUT', '/api/staff/postazioni/ordine', { ids }),
   tariffe: () => richiesta<Tariffa[]>('GET', '/api/staff/tariffe'),
   nuovaTariffa: (t: { mansioneId: string; personaId: string | null; euroOra: number; dal: string }) => richiesta<Tariffa>('POST', '/api/staff/tariffe', t),

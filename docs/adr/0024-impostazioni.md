@@ -53,6 +53,9 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
   destra: la pagina regge anche 20 o 40 ruoli. Il confronto di 2–3 ruoli affiancati, con le differenze evidenziate, si
   apre a richiesta. Eliminando un ruolo assegnato si può dare un altro ruolo, nello stesso impianto, a chi lo aveva; i
   ruoli predefiniti non si eliminano. Dove vale un ruolo si dice «in tutti gli impianti» o «solo nell'impianto X».
+- **Ore da coprire.** Ogni postazione può dire quante ore a settimana va coperta (V24, facoltativo). Nelle impostazioni
+  la mansione mostra le ore da coprire e il costo stimato con la tariffa di base; in pianificazione ogni riga mostra
+  «ore pianificate / ore da coprire», in arancio se sono meno, e le postazioni sotto le ore vanno in «Da sistemare».
 - **Promemoria.** Ogni email è una pillola sulla linea dei giorni intorno alla scadenza; l'editor del testo inserisce i
   dati del cliente (le etichette `{nome}`, `{scadenza}`…) dove sta il cursore, con l'anteprima accanto.
 

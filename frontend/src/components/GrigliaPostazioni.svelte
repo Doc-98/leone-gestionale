@@ -34,7 +34,7 @@
     scelto?: string;
     /** Id della persona da evidenziare: gli altri turni si spengono. */
     evidenzia?: string;
-    /** Le ore della settimana sotto il nome della postazione. */
+    /** Le ore della settimana sotto il nome della postazione (e quante ne servono, se la postazione lo dice). */
     oreRiga?: boolean;
     etichetta: string;
     apri: (id: string) => void;
@@ -74,7 +74,13 @@
         <div class="riga-gr" role="row">
           <div class="nome-r" role="rowheader" title={r.postazione.nome}>
             <span><b>{r.etichetta}</b></span>
-            {#if oreRiga}<span class="muted m ore-r">{formatH(orePostazione(r.postazione.id))}</span>{/if}
+            {#if oreRiga}
+              {@const fatte = orePostazione(r.postazione.id)}
+              {@const servono = r.postazione.oreSettimanali}
+              {#if servono}
+                <span class="m ore-r" class:sotto={fatte < servono} title={fatte < servono ? `Mancano ${formatH(servono - fatte)} alle ${formatH(servono)} a settimana` : `Coperte le ${formatH(servono)} a settimana`}>{formatH(fatte).replace(' h', '')} / {formatH(servono)}</span>
+              {:else}<span class="muted m ore-r">{formatH(fatte)}</span>{/if}
+            {/if}
           </div>
           {#each colonne as c (c.chiave)}
             {@const qui = perCella.get(`${r.postazione.id}|${c.chiave}`) ?? []}
@@ -124,7 +130,8 @@
   .area-t i { width: 10px; height: 10px; border-radius: 3px; background: var(--a); display: inline-block; }
   .nome-r { padding: var(--space-8) var(--space-12); font-size: var(--text-md); display: flex; flex-direction: column; justify-content: center; gap: 1px; border-top: 1px solid var(--line-soft); min-width: 0; }
   .nome-r span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ore-r { font-size: var(--text-xs); }
+  .ore-r { font-size: var(--text-xs); color: var(--muted); }
+  .ore-r.sotto { color: var(--warn); font-weight: 700; }
   .cella { padding: 3px; border-top: 1px solid var(--line-soft); border-left: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px; min-height: 52px; min-width: 0; }
   .cella.oggi { background: color-mix(in srgb, var(--cloro) 5%, transparent); }
   .blk { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 5px 6px; border-radius: 8px; border: none; background: var(--a-bg); color: var(--a-fg);

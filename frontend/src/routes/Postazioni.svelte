@@ -2,7 +2,7 @@
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Impianto, type Mansione, type PersonaBreve, type PostazioneGestione, type Postazione, type Spazio, type Tariffa } from '../lib/api';
   import { dataLunga, euro, iso } from '../lib/date';
-  import { gruppi, nomeNuovaPostazione, type Gruppo } from '../lib/gestione';
+  import { formatH, gruppi, nomeNuovaPostazione, type Gruppo } from '../lib/gestione';
 
   /**
    * Mansioni, postazioni e tariffe (ADR 0024): ogni mansione è un ruolo pagato, con la sua tariffa e la sua colonna nel
@@ -31,26 +31,34 @@
   const tariffaDi = (m: Mansione) => tariffe.find((t) => t.mansioneId === m.id && !t.persona && valida(t));
   const eccezioni = (m: Mansione) => tariffe.filter((t) => t.mansioneId === m.id && t.persona && (valida(t) || t.dal > oggi));
   const gruppiDi = (m: Mansione): Gruppo[] =>
-    gruppi(m.postazioni.map((p): Postazione => ({ id: p.id, nome: p.nome, mansione: m.nome, impiantoId: m.impiantoId, mansioneId: m.id, soloSesso: p.soloSesso, spazioId: p.spazioId })));
+    gruppi(m.postazioni.map((p): Postazione => ({ id: p.id, nome: p.nome, mansione: m.nome, impiantoId: m.impiantoId, mansioneId: m.id, soloSesso: p.soloSesso, spazioId: p.spazioId, oreSettimanali: p.oreSettimanali })));
   const riserva = (g: Gruppo) => {
     const s = new Set(g.righe.map((r) => r.postazione.soloSesso ?? ''));
     return s.size === 1 ? ({ F: '· solo donne', M: '· solo uomini', '': '' } as Record<string, string>)[[...s][0]] : '';
   };
   const postazione = (id: string) => mansioni.flatMap((m) => m.postazioni).find((p) => p.id === id)!;
   const nomeSpazio = (id: string | null) => spazi.find((s) => s.id === id)?.nome ?? '';
+  /** Le ore a settimana da coprire nelle postazioni attive della mansione, e quanto costano con la tariffa di base. */
+  const daCoprire = (m: Mansione) => m.postazioni.filter((p) => p.attiva).reduce((s, p) => s + (p.oreSettimanali ?? 0), 0);
+  const senzaOre = (m: Mansione) => m.postazioni.filter((p) => p.attiva && p.oreSettimanali == null).length;
 
   // ── Il pannello a destra: una postazione, una tariffa o una mansione ──
   type Pannello =
-    | { cosa: 'postazione'; mansione: Mansione; id: string | null; nome: string; spazio: string; sesso: '' | 'M' | 'F'; attiva: boolean; originale: string }
+    | { cosa: 'postazione'; mansione: Mansione; id: string | null; nome: string; spazio: string; sesso: '' | 'M' | 'F'; attiva: boolean; ore: string; originale: string }
     | { cosa: 'tariffa'; mansione: Mansione; euro: string; dal: string; persona: string; correggi: Tariffa | null; al: string }
     | { cosa: 'mansione'; mansione: Mansione | null; nome: string; voce: string; impianto: string; coordinatori: string[] };
   let pannello = $state<Pannello | null>(null);
-  const firma = (p: { nome: string; spazio: string; sesso: string; attiva: boolean }) => JSON.stringify([p.nome, p.spazio, p.sesso, p.attiva]);
+  const firma = (p: { nome: string; spazio: string; sesso: string; attiva: boolean; ore: string }) => JSON.stringify([p.nome, p.spazio, p.sesso, p.attiva, p.ore.trim()]);
+  const testoOre = (n: number | null) => (n == null ? '' : String(n).replace('.', ','));
+  /** «» = non indicato */
+  const oreDa = (s: string) => (s.trim() ? Number(s.trim().replace(',', '.')) : null);
+  const oreValide = (s: string) => { const n = oreDa(s); return n == null || (Number.isFinite(n) && n > 0 && n <= 168); };
 
   function apriPostazione(m: Mansione, p: PostazioneGestione | null, g?: Gruppo) {
     messaggio = '';
-    const b = p ? { nome: p.nome, spazio: p.spazioId ?? '', sesso: (p.soloSesso ?? '') as '' | 'M' | 'F', attiva: p.attiva }
-      : { nome: g ? nomeNuovaPostazione(g) : '', spazio: '', sesso: (g?.righe[0]?.postazione.soloSesso ?? '') as '' | 'M' | 'F', attiva: true };
+    const b = p ? { nome: p.nome, spazio: p.spazioId ?? '', sesso: (p.soloSesso ?? '') as '' | 'M' | 'F', attiva: p.attiva, ore: testoOre(p.oreSettimanali) }
+      : { nome: g ? nomeNuovaPostazione(g) : '', spazio: '', sesso: (g?.righe[0]?.postazione.soloSesso ?? '') as '' | 'M' | 'F', attiva: true,
+          ore: testoOre(g?.righe[0]?.postazione.oreSettimanali ?? null) };
     pannello = { cosa: 'postazione', mansione: m, id: p?.id ?? null, ...b, originale: p ? firma(b) : '' };
   }
   function apriTariffa(m: Mansione) {
@@ -85,11 +93,11 @@
     if (p.id) {
       const id = p.id;
       return esegui(async () => {
-        const esito = await api.modificaPostazione(id, p.nome, p.spazio || null, p.attiva, p.sesso || null);
+        const esito = await api.modificaPostazione(id, p.nome, p.spazio || null, p.attiva, p.sesso || null, oreDa(p.ore));
         if (esito.turniFuturi && !p.attiva) setTimeout(() => (messaggio = `Postazione disattivata. Ha ancora ${esito.turniFuturi === 1 ? 'un turno futuro' : `${esito.turniFuturi} turni futuri`}: restano validi, ma non se ne creano di nuovi.`));
       }, 'Postazione salvata.');
     }
-    return esegui(() => api.creaPostazione(p.mansione.id, p.nome, p.spazio || null, p.sesso || null), 'Postazione aggiunta.');
+    return esegui(() => api.creaPostazione(p.mansione.id, p.nome, p.spazio || null, p.sesso || null, oreDa(p.ore)), 'Postazione aggiunta.');
   }
   /** Sposta una postazione di un posto (l'ordine è quello delle righe in pianificazione). */
   function sposta(verso: -1 | 1) {
@@ -141,7 +149,10 @@
         <div class="mans-t">
           <span class="info"><h2>{m.nome}</h2>
             <span>{#if impianti.length > 1}{impianti.find((i) => i.id === m.impiantoId)?.nome} · {/if}Foglio ore: {m.voceFoglioOre ? `colonna «${m.voceFoglioOre}»` : 'colonna propria'}
-              · coordina {m.coordinatori.length ? m.coordinatori.map((c) => c.nome).join(', ') : 'chi ha il permesso «Ore dello staff»'} · {m.postazioni.length === 1 ? '1 postazione' : `${m.postazioni.length} postazioni`}</span></span>
+              · coordina {m.coordinatori.length ? m.coordinatori.map((c) => c.nome).join(', ') : 'chi ha il permesso «Ore dello staff»'} · {m.postazioni.length === 1 ? '1 postazione' : `${m.postazioni.length} postazioni`}</span>
+            {#if daCoprire(m) > 0}
+              <span class="stima">{[`Da coprire ${formatH(daCoprire(m))} a settimana`, t ? `circa ${euro(daCoprire(m) * t.euroOra)} a settimana con la tariffa` : '', senzaOre(m) ? `${senzaOre(m) === 1 ? '1 postazione' : `${senzaOre(m)} postazioni`} senza ore` : ''].filter(Boolean).join(' · ')}</span>
+            {/if}</span>
           <button type="button" class="tariffa-b" class:manca={!t} aria-pressed={pannello?.cosa === 'tariffa' && pannello.mansione.id === m.id} onclick={() => apriTariffa(m)}>
             <span class="r1"><span>tariffa</span><b>{t ? `${euro(t.euroOra)}/h` : 'manca'}</b></span>
             <span>{ecc.length ? (ecc.length === 1 ? '1 eccezione' : `${ecc.length} eccezioni`) : t ? `dal ${dataLunga(t.dal)}` : 'tocca per impostarla'}</span>
@@ -156,7 +167,7 @@
                 {#each g.righe as r (r.postazione.id)}
                   {@const p = postazione(r.postazione.id)}
                   <button type="button" class="posto" class:spento={!p.attiva} aria-pressed={pannello?.cosa === 'postazione' && pannello.id === p.id} onclick={() => apriPostazione(m, p)}>
-                    <b>{r.etichetta}</b><span>{p.attiva ? (nomeSpazio(p.spazioId) || (p.soloSesso ? (p.soloSesso === 'F' ? 'solo donne' : 'solo uomini') : 'tutti')) : 'spenta'}</span>
+                    <b>{r.etichetta}</b><span>{p.attiva ? (nomeSpazio(p.spazioId) || (p.soloSesso ? (p.soloSesso === 'F' ? 'solo donne' : 'solo uomini') : 'tutti')) + (p.oreSettimanali ? ` · ${formatH(p.oreSettimanali)}/sett.` : '') : 'spenta'}</span>
                   </button>
                 {/each}
                 <button type="button" class="posto nuovo" onclick={() => apriPostazione(m, null, g)}><Icona nome="piu" />Postazione</button>
@@ -188,6 +199,9 @@
             <button type="button" aria-pressed={p.sesso === 'M'} onclick={() => (p.sesso = 'M')}>Solo uomini</button>
           </div>
           <span class="muted small">Chi non può lavorarci non compare tra i candidati (conta il sesso in anagrafica).</span></div>
+        <label class="field"><span class="lbl">Ore da coprire a settimana (facoltativo)</span>
+          <span class="ore-in"><input class="inp m" inputmode="decimal" bind:value={p.ore} placeholder="Es. 40" aria-invalid={!oreValide(p.ore)} /><span class="muted">ore</span></span>
+          <span class="muted small">{oreValide(p.ore) ? 'In pianificazione si vede se la settimana ne copre meno; con la tariffa danno il costo stimato.' : 'Scrivi un numero di ore tra 0 e 168.'}</span></label>
         {#if p.id}
           <label class="riga-switch"><span>Stato postazione: <b>{p.attiva ? 'Attiva' : 'Disattiva'}</b><br />
             <span class="muted small">{p.attiva ? 'Si può assegnare ed entra nei mesi generati.' : 'Non si può assegnare e non entra nei mesi generati.'}</span></span>
@@ -198,7 +212,7 @@
         <!-- Salva compare solo se c'è qualcosa da salvare: una postazione nuova, o una modifica -->
         <div class="row fine">
           {#if !p.id}<button type="button" class="btn btn-secondary" onclick={chiudi}>Annulla</button>{/if}
-          {#if !p.id || firma(p) !== p.originale}<button class="btn btn-primary grow" disabled={lavoro || !p.nome.trim()}>{p.id ? 'Salva' : 'Aggiungi la postazione'}</button>{/if}
+          {#if !p.id || firma(p) !== p.originale}<button class="btn btn-primary grow" disabled={lavoro || !p.nome.trim() || !oreValide(p.ore)}>{p.id ? 'Salva' : 'Aggiungi la postazione'}</button>{/if}
         </div>
       </form>
     {:else if pannello?.cosa === 'tariffa'}
@@ -273,6 +287,9 @@
   .mans-t h2 { margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--cloro-ink); }
   .info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 220px; }
   .info > span { font-size: var(--text-sm); color: var(--cloro-ink); opacity: 0.85; }
+  .info > .stima { opacity: 1; font-weight: 600; }
+  .ore-in { display: flex; align-items: center; gap: var(--space-8); }
+  .ore-in .inp { width: 96px; }
   .tariffa-b { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--surface);
     font: inherit; color: var(--ink); cursor: pointer; text-align: right; }
   .tariffa-b b { font-family: var(--font-mono); font-size: 17px; }

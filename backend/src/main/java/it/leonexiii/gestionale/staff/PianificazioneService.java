@@ -32,7 +32,9 @@ class PianificazioneService {
     record TurnoInput(UUID postazioneId, LocalDate data, LocalTime inizio, LocalTime fine, UUID personaId, String note, Boolean forza) {}
 
     /** soloSesso: «M», «F» o null (chiunque), es. gli spogliatoi. */
-    record PostazioneDto(UUID id, String nome, String mansione, UUID impiantoId, UUID mansioneId, String soloSesso, UUID spazioId) {}
+    /** oreSettimanali: quante ore a settimana va coperta (null = non indicato). */
+    record PostazioneDto(UUID id, String nome, String mansione, UUID impiantoId, UUID mansioneId, String soloSesso, UUID spazioId,
+                         java.math.BigDecimal oreSettimanali) {}
 
     /** Una persona dello staff, con il sesso dell'anagrafica (per le postazioni riservate). */
     record PersonaStaff(UUID id, String nome, String sesso) {}
@@ -137,7 +139,7 @@ class PianificazioneService {
         Set<UUID> impianti = permessi.impianti(u, Permesso.PIANIFICAZIONE);
         if (impianti.isEmpty()) return List.of();
         return postazioni.attive(impianti).stream()
-            .map(p -> new PostazioneDto(p.getId(), p.getNome(), p.getMansione().getNome(), p.getMansione().getImpiantoId(), p.getMansione().getId(), p.getSoloSesso(), p.getSpazioId()))
+            .map(p -> new PostazioneDto(p.getId(), p.getNome(), p.getMansione().getNome(), p.getMansione().getImpiantoId(), p.getMansione().getId(), p.getSoloSesso(), p.getSpazioId(), p.getOreSettimanali()))
             .toList();
     }
 

@@ -79,8 +79,12 @@ class ImpostazioniEFoglioOreTest {
             {"impiantoId":"%s","nome":"Istruttore scuola nuoto"}""".formatted(IMPIANTO)))).containsEntry("codice", "ISTRUTTORE_SCUOLA_NUOTO_2");
 
         String postazione = crea(coord, "/api/staff/mansioni/" + mansione + "/postazioni", """
-            {"nome":"Vasca grande · corsia 1","spazioId":"%s"}""".formatted(VASCA_GRANDE));
-        assertThat(coord.get("/api/staff/postazioni").body()).contains("Vasca grande · corsia 1");
+            {"nome":"Vasca grande · corsia 1","spazioId":"%s","oreSettimanali":12.5}""".formatted(VASCA_GRANDE));
+        assertThat(coord.get("/api/staff/postazioni").body()).contains("Vasca grande · corsia 1").contains("\"oreSettimanali\":12.50");
+        // le ore a settimana: più di 0 e al massimo 168
+        assertThat(coord.put("/api/staff/postazioni/" + postazione, "{\"nome\":\"Vasca grande · corsia 1\",\"oreSettimanali\":200}").statusCode()).isEqualTo(400);
+        assertThat(coord.put("/api/staff/postazioni/" + postazione, "{\"nome\":\"Vasca grande · corsia 1\",\"spazioId\":\"%s\",\"oreSettimanali\":10}".formatted(VASCA_GRANDE)).statusCode()).isEqualTo(200);
+        assertThat(coord.get("/api/staff/mansioni").body()).contains("\"oreSettimanali\":10");
 
         // un turno futuro sulla postazione, poi la si disattiva: sparisce dalle postazioni assegnabili
         crea(coord, "/api/turni", """

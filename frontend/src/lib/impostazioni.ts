@@ -44,6 +44,7 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Macchine e lettori', dove: 'Clienti e accessi › Phon e docce', sezione: 'servizi', ancora: 'macchine', parole: 'macchina dispositivo lettore chiave saldo' },
   // Staff e sistema
   { titolo: 'Mansioni e postazioni', dove: 'Staff › Mansioni, postazioni e tariffe', sezione: 'postazioni', parole: 'mansione postazione spogliatoio atrio foglio ore' },
+  { titolo: 'Ore da coprire a settimana', dove: 'Staff › Mansioni, postazioni e tariffe', sezione: 'postazioni', parole: 'ore settimanali copertura costo personale stima' },
   { titolo: 'Tariffa oraria', dove: 'Staff › Mansioni, postazioni e tariffe', sezione: 'postazioni', parole: 'tariffa compenso ora paga euro eccezione' },
   { titolo: 'Account', dove: 'Sistema › Account e ruoli', sezione: 'account', parole: 'account accesso email disattiva utente' },
   { titolo: 'Password temporanea', dove: 'Sistema › Account e ruoli', sezione: 'account', parole: 'password temporanea reimposta accesso' },

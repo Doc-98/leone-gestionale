@@ -66,6 +66,9 @@
   const attivi = $derived(turni.filter((t) => t.stato === 'PIANIFICATO'));
   const scoperti = $derived(attivi.filter((t) => !t.persona).sort((a, b) => a.data.localeCompare(b.data) || a.inizio.localeCompare(b.inizio)));
   const oreTot = $derived(attivi.reduce((s, t) => s + Number(t.ore), 0));
+  /** Le postazioni che dicono quante ore a settimana vanno coperte e nella settimana ne hanno meno (ADR 0024). */
+  const sottoOre = $derived(!caricamento ? postazioni.filter((p) => p.oreSettimanali).map((p) => ({ p, ore: attivi.filter((t) => t.postazioneId === p.id).reduce((s, t) => s + Number(t.ore), 0) }))
+    .filter((x) => x.ore < x.p.oreSettimanali!) : []);
   const perPersona = $derived(orePerPersona(attivi.map((t) => ({ id: t.id, giorno: t.data, inizio: t.inizio, fine: t.fine, postazioneId: t.postazioneId, persona: t.persona }))));
   const richiestaDi = (id: string) => richieste.find((r) => r.turno.id === id || r.turnoCollega?.id === id);
   const daDecidere = $derived(richieste.filter((r) => r.stato === 'IN_ATTESA_APPROVAZIONE').length);
@@ -204,7 +207,11 @@
                   <span class="t"><b>{cosaDaFare(r)}</b><span>{giornoCorto(r.turno.data)} · {r.richiedente.nome}{r.tipo === 'CAMBIO_ORARIO' ? `, ${ora(r.turno.inizio)}–${ora(r.turno.fine)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}` : ''}</span></span>
                   <a class="mini-btn" href={`#/approva/${r.id}`}>Apri</a></div>
               {/each}
-              {#if !scoperti.length && !richieste.length}<p class="muted small nomargin">{caricamento ? '…' : 'Niente da sistemare questa settimana.'}</p>{/if}
+              {#each sottoOre as x (x.p.id)}
+                <div class="voce-s ar-{areaDi(x.p.nome)}"><i class="quadro"></i>
+                  <span class="t"><b>{formatH(x.ore)} su {formatH(x.p.oreSettimanali!)}</b><span>{gruppoDi(x.p).nome} · {gruppoDi(x.p).etichetta}: mancano {formatH(x.p.oreSettimanali! - x.ore)}</span></span></div>
+              {/each}
+              {#if !scoperti.length && !richieste.length && !sottoOre.length}<p class="muted small nomargin">{caricamento ? '…' : 'Niente da sistemare questa settimana.'}</p>{/if}
             </section>
             {#if perPersona.size}
               <section class="card pann">

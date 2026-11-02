@@ -35,7 +35,8 @@ class AnagraficheService {
 
     record SpazioDto(UUID id, UUID impiantoId, String nome, String tipo) {}
 
-    record PostazioneGestioneDto(UUID id, UUID mansioneId, String nome, UUID spazioId, int ordine, boolean attiva, String soloSesso) {}
+    /** oreSettimanali: quante ore a settimana va coperta (null = non indicato). */
+    record PostazioneGestioneDto(UUID id, UUID mansioneId, String nome, UUID spazioId, int ordine, boolean attiva, String soloSesso, BigDecimal oreSettimanali) {}
 
     /** coordinatori: chi coordina il gruppo di staff e ne vede le ore (ADR 0022). */
     record MansioneDto(UUID id, UUID impiantoId, String codice, String nome, String voceFoglioOre, List<PostazioneGestioneDto> postazioni,
@@ -44,8 +45,8 @@ class AnagraficheService {
     /** coordinatori null = non cambiano. */
     record MansioneInput(UUID impiantoId, String nome, String voceFoglioOre, List<UUID> coordinatori) {}
 
-    /** soloSesso: «M», «F» o null (chiunque). */
-    record PostazioneInput(String nome, UUID spazioId, Boolean attiva, String soloSesso) {}
+    /** soloSesso: «M», «F» o null (chiunque); oreSettimanali: null = non indicato. */
+    record PostazioneInput(String nome, UUID spazioId, Boolean attiva, String soloSesso, BigDecimal oreSettimanali) {}
 
     /** Esito di una modifica alla postazione: quanti turni futuri restano su una postazione disattivata. */
     record EsitoPostazione(PostazioneGestioneDto postazione, long turniFuturi) {}
@@ -148,6 +149,7 @@ class AnagraficheService {
         controllaSpazio(in.spazioId(), m.getImpiantoId());
         Postazione p = new Postazione(m, in.nome(), in.spazioId(), postazioni.ultimoOrdine(m.getImpiantoId()) + 1);
         p.riservaA(in.soloSesso());
+        p.oreSettimanali(in.oreSettimanali());
         return dto(postazioni.saveAndFlush(p));
     }
 
@@ -159,6 +161,7 @@ class AnagraficheService {
         boolean attiva = in.attiva() == null ? p.isAttiva() : in.attiva();
         p.modifica(in.nome(), in.spazioId(), attiva);
         p.riservaA(in.soloSesso());
+        p.oreSettimanali(in.oreSettimanali());
         long futuri = attiva ? 0 : turni.futuriSuPostazione(id, LocalDate.now(FUSO));
         return new EsitoPostazione(dto(p), futuri);
     }
@@ -262,7 +265,7 @@ class AnagraficheService {
     }
 
     private static PostazioneGestioneDto dto(Postazione p) {
-        return new PostazioneGestioneDto(p.getId(), p.getMansione().getId(), p.getNome(), p.getSpazioId(), p.getOrdine(), p.isAttiva(), p.getSoloSesso());
+        return new PostazioneGestioneDto(p.getId(), p.getMansione().getId(), p.getNome(), p.getSpazioId(), p.getOrdine(), p.isAttiva(), p.getSoloSesso(), p.getOreSettimanali());
     }
 
     private static TariffaDto dto(Tariffa t, Mansione m, Map<UUID, String> nomi) {

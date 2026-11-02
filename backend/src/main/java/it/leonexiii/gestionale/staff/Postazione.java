@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /** Es. «Spogliatoio M · postazione 2»: le righe dell'attuale foglio turni. */
@@ -37,6 +38,10 @@ class Postazione {
     @Column(name = "solo_sesso")
     private String soloSesso;
 
+    /** Quante ore a settimana va coperta (null = non indicato): la pianificazione avvisa se ne pianifica meno. */
+    @Column(name = "ore_settimanali")
+    private BigDecimal oreSettimanali;
+
     protected Postazione() {}
 
     Postazione(Mansione mansione, String nome, UUID spazioId, int ordine) {
@@ -64,6 +69,13 @@ class Postazione {
         return soloSesso == null || soloSesso.equals(sesso);
     }
 
+    void oreSettimanali(BigDecimal ore) {
+        if (ore != null && (ore.signum() <= 0 || ore.compareTo(BigDecimal.valueOf(168)) > 0))
+            throw new IllegalArgumentException("Le ore a settimana vanno da più di 0 a 168.");
+        if (ore != null && ore.stripTrailingZeros().scale() > 2) throw new IllegalArgumentException("Le ore a settimana hanno al massimo due decimali.");
+        this.oreSettimanali = ore;
+    }
+
     void ordina(int ordine) {
         this.ordine = ordine;
     }
@@ -75,4 +87,5 @@ class Postazione {
     int getOrdine() { return ordine; }
     boolean isAttiva() { return attiva; }
     String getSoloSesso() { return soloSesso; }
+    BigDecimal getOreSettimanali() { return oreSettimanali; }
 }
