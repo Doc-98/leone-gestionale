@@ -13,10 +13,17 @@
     { tipo: 'ABBONAMENTO', nome: 'Abbonamento', sotto: 'se non è già rinnovato' },
     { tipo: 'TESSERAMENTO', nome: 'Tesseramento in scadenza', sotto: 'prima che scada' },
     { tipo: 'TESSERAMENTO_MANCANTE', nome: 'Tesseramento mancante', sotto: 'dal giorno in cui manca' },
+    { tipo: 'PAGAMENTO', nome: 'Pagamento scaduto', sotto: 'dopo la scadenza, se non è pagato' },
   ];
+  /** Questi si ripetono ogni N giorni, al massimo M volte; gli altri partono una volta, N giorni prima della scadenza. */
+  const ripetuto = (t: TipoPromemoria) => t === 'TESSERAMENTO_MANCANTE' || t === 'PAGAMENTO';
+  function ogni(r: Pick<RegolaPromemoria, 'tipo' | 'giorni' | 'maxInvii'>): string {
+    const volte = `al massimo ${r.maxInvii ?? 1} volte`;
+    return r.tipo === 'PAGAMENTO' ? `${r.giorni} giorni dopo la scadenza, poi ogni ${r.giorni}, ${volte}` : `ogni ${r.giorni} giorni, ${volte}`;
+  }
   /** I dati del cliente che si possono inserire nel testo: si sostituiscono da soli all'invio. */
   const DATI: [string, string][] = [['nome', '{nome}'], ['cognome', '{cognome}'], ['data di scadenza', '{scadenza}'], ['giorni che mancano', '{giorni}'],
-    ['corso', '{corso}'], ['stagione', '{stagione}'], ['società', '{societa}']];
+    ['corso', '{corso}'], ['stagione', '{stagione}'], ['importo da pagare', '{importo}'], ['società', '{societa}']];
   const STATI: Record<StatoEmail, { nome: string; classe: string }> = {
     INVIATA: { nome: 'inviata', classe: 'passa' },
     NON_INVIATA: { nome: 'non spedita', classe: 'warn' },
@@ -105,7 +112,11 @@
   // ── La linea dei giorni ───────────────────────────────────────────────
   /** I giorni delle email rispetto alla scadenza: negativi prima, 0 il giorno stesso, positivi dopo. */
   function pillole(r: RegolaPromemoria): { g: number; testo: string }[] {
-    if (r.tipo === 'TESSERAMENTO_MANCANTE') return Array.from({ length: Math.max(1, Number(r.maxInvii) || 1) }, (_, i) => ({ g: i * (Number(r.giorni) || 7), testo: `${i + 1}ª` }));
+    // il tesseramento mancante parte dal giorno in cui manca; il pagamento N giorni dopo la scadenza
+    if (ripetuto(r.tipo)) {
+      const passo = Number(r.giorni) || 7, primo = r.tipo === 'PAGAMENTO' ? passo : 0;
+      return Array.from({ length: Math.max(1, Number(r.maxInvii) || 1) }, (_, i) => ({ g: primo + i * passo, testo: `${i + 1}ª` }));
+    }
     const g = Number(r.giorni) || 0;
     return [{ g: -g, testo: g === 0 ? 'il giorno' : `${g} g prima` }];
   }
@@ -123,13 +134,13 @@
 
   // ── Il testo ──────────────────────────────────────────────────────────
   const tipoScelto = $derived(TIPI.find((t) => t.tipo === bozza?.tipo));
-  const titolo = $derived(!bozza ? '' : bozza.tipo === 'TESSERAMENTO_MANCANTE' ? `ogni ${bozza.giorni} giorni, al massimo ${bozza.maxInvii ?? 1} volte`
+  const titolo = $derived(!bozza ? '' : ripetuto(bozza.tipo) ? ogni(bozza)
     : Number(bozza.giorni) === 0 ? 'il giorno della scadenza' : `${bozza.giorni} giorni prima della scadenza`);
   function anteprima(t: string, r: RegolaPromemoria): string {
-    const g = r.tipo === 'TESSERAMENTO_MANCANTE' ? 0 : Number(r.giorni);
+    const g = r.tipo === 'TESSERAMENTO_MANCANTE' ? 0 : r.tipo === 'PAGAMENTO' ? -Number(r.giorni) : Number(r.giorni);
     const scad = iso(new Date(Date.now() + g * 86400000));
-    return t.replaceAll('{nome}', 'Giulia').replaceAll('{cognome}', 'Rossi').replaceAll('{scadenza}', dataBreve(scad)).replaceAll('{giorni}', String(g))
-      .replaceAll('{corso}', 'Delfino Giallo').replaceAll('{stagione}', '2026/27').replaceAll('{societa}', societa?.nome ?? 'la società');
+    return t.replaceAll('{nome}', 'Giulia').replaceAll('{cognome}', 'Rossi').replaceAll('{scadenza}', dataBreve(scad)).replaceAll('{giorni}', String(Math.max(0, g)))
+      .replaceAll('{importo}', '60,00 €').replaceAll('{corso}', 'Delfino Giallo').replaceAll('{stagione}', '2026/27').replaceAll('{societa}', societa?.nome ?? 'la società');
   }
   /** Il campo (oggetto o testo) dove sta il cursore: le pillole scrivono lì. */
   let campo: HTMLInputElement | HTMLTextAreaElement | null = null;
@@ -179,7 +190,7 @@
             {@const regole = pagina.regole.filter((r) => r.tipo === t.tipo)}
             {@const acceso = regole.some((r) => r.attivo)}
             <span class="tipo-n"><button type="button" class="switch" role="switch" aria-checked={acceso} aria-label={t.nome} disabled={!regole.length} onclick={() => interruttore(t.tipo)}><span></span></button>
-              <span class="t"><b>{t.nome}</b><span>{t.tipo === 'TESSERAMENTO_MANCANTE' && regole[0] ? `ogni ${regole[0].giorni} giorni, al massimo ${regole[0].maxInvii ?? 1} volte` : t.sotto}</span></span></span>
+              <span class="t"><b>{t.nome}</b><span>{ripetuto(t.tipo) && regole[0] ? ogni(regole[0]) : t.sotto}</span></span></span>
             <div class="binario">
               <span class="filo"></span><span class="scad-v" style="left: {x(0)}"></span>
               {#each regole as r (r.id)}
@@ -188,7 +199,7 @@
                     <i><Icona nome="promemoria" /></i>{p.testo}</button>
                 {/each}
               {/each}
-              {#if t.tipo !== 'TESSERAMENTO_MANCANTE' || !regole.length}
+              {#if !ripetuto(t.tipo) || !regole.length}
                 <button type="button" class="piu-m" style="left: {piuX(t.tipo)}" aria-label="Aggiungi un'email per {t.nome}" onclick={() => aggiungi(t.tipo)}><Icona nome="piu" /></button>
               {/if}
             </div>
@@ -203,7 +214,11 @@
             <div class="ed-col">
               <div class="ed-s">
                 <div class="field"><span class="lbl">Quando parte</span>
-                  {#if bozza.tipo === 'TESSERAMENTO_MANCANTE'}
+                  {#if bozza.tipo === 'PAGAMENTO'}
+                    <span class="frase"><span class="unita">dopo</span><input class="inp m corto" type="number" min="1" max="365" bind:value={bozza.giorni} aria-label="Giorni dopo la scadenza" />
+                      <span class="unita">giorni dalla scadenza, poi ogni {bozza.giorni || '…'}</span></span>
+                    <span class="frase"><span class="unita">al massimo</span><input class="inp m corto" type="number" min="1" max="20" bind:value={bozza.maxInvii} aria-label="Quante volte al massimo" /><span class="unita">volte</span></span>
+                  {:else if bozza.tipo === 'TESSERAMENTO_MANCANTE'}
                     <span class="frase"><span class="unita">ogni</span><input class="inp m corto" type="number" min="1" max="365" bind:value={bozza.giorni} aria-label="Ogni quanti giorni" />
                       <span class="unita">giorni, al massimo</span><input class="inp m corto" type="number" min="1" max="20" bind:value={bozza.maxInvii} aria-label="Quante volte al massimo" /><span class="unita">volte</span></span>
                   {:else}
@@ -289,6 +304,9 @@
   .mail[aria-pressed='true'] { background: var(--cloro); color: #fff; }
   .mail.spenta { border-color: var(--line-strong); color: var(--muted); }
   .mail.spenta i { background: var(--line-strong); }
+  /* spenta e scelta: piena ma grigia, con il testo leggibile */
+  .mail.spenta[aria-pressed='true'] { background: var(--seg-fg); border-color: var(--seg-fg); color: var(--surface); }
+  .mail.spenta[aria-pressed='true'] i { background: var(--surface); color: var(--seg-fg); }
   .piu-m { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; border: 1.5px dashed var(--line-dashed); background: var(--surface);
     color: var(--muted); padding: 0; display: grid; place-items: center; cursor: pointer; }
   .piu-m :global(.ic) { width: 12px; height: 12px; }

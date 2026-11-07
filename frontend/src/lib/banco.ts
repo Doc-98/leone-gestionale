@@ -42,7 +42,8 @@ export function problema(motivi: Motivo[]): Problema {
   switch (m?.regola) {
     case 'CERTIFICATO': return 'certificato';
     case 'ABBONAMENTO':
-    case 'TESSERAMENTO': return 'abbonamento';
+    case 'TESSERAMENTO':
+    case 'PAGAMENTI': return 'abbonamento';
     case 'BRACCIALETTO': return 'braccialetto';
     default: return 'altro';
   }
@@ -59,7 +60,11 @@ export function rimedio(d: { persona: { id: string } | null; motivi: Motivo[] })
   const href = `#/clienti/${d.persona.id}`;
   switch (problema(d.motivi)) {
     case 'certificato': return { azione: 'Registra il certificato', href };
-    case 'abbonamento': return { azione: d.motivi.some((m) => m.regola === 'TESSERAMENTO') ? 'Tessera e rinnova' : "Rinnova l'abbonamento", href };
+    case 'abbonamento': {
+      const regola = (d.motivi.find((m) => m.blocca) ?? d.motivi[0])?.regola;
+      if (regola === 'PAGAMENTI') return { azione: 'Fai pagare', href };
+      return { azione: d.motivi.some((m) => m.regola === 'TESSERAMENTO') ? 'Tessera e rinnova' : "Rinnova l'abbonamento", href };
+    }
     case 'braccialetto': return { azione: 'Controlla il braccialetto', href };
     default: return { azione: 'Apri la scheda', href };
   }

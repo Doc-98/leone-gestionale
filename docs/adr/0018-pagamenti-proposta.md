@@ -3,7 +3,8 @@
 **Stato.** Accettata il 23/10/2026, si costruisce un pezzo alla volta. Fatte: parti 1 (impostazioni della società e
 stagioni), 2 (gruppi di clienti), 3–4 (listino e regole, con l'importo proposto alla vendita e il rimborso calcolato
 al recesso), 5 (addebiti e pagamenti, 24/10/2026: vedi «Come è fatta la parte 5» in fondo), 7–9 (borsellino,
-braccialetto, servizi a crediti con simulatore, 24/10/2026: vedi «Come sono fatte le parti 7–9»).
+braccialetto, servizi a crediti con simulatore, 24/10/2026: vedi «Come sono fatte le parti 7–9»), 6 (chi non paga,
+7/11/2026: vedi «Come è fatta la parte 6»).
 
 **Contesto.** Il gestionale deve servire a una società sportiva qualsiasi (vedi «Principi» in `docs/architettura.md`):
 listino, sconti, rate, rimborsi e regole cambiano da una società all'altra e da una stagione all'altra. Le regole della
@@ -112,6 +113,19 @@ paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
   una chiave di cui si conserva solo l'impronta SHA-256, utilizzi (anche quelli negati). API delle macchine in
   `/api/macchine/{id}` con l'intestazione `X-Chiave-Dispositivo`, fuori da sessione e CSRF. Il simulatore usa la stessa
   logica e segna gli utilizzi come simulati. Per le macchine vere resta da scegliere tra le tre strade del punto 9.
+
+**Come è fatta la parte 6.**
+- *Arretrato*: per ogni persona, il totale ancora da pagare degli addebiti già scaduti (non annullati, non crediti),
+  la scadenza più vecchia e quante voci sono (`Pagamenti.arretrati`, `Pagamenti.arretratoDi`). Si guarda la persona a
+  cui è intestato l'addebito, non chi paga.
+- *Tornello*: la regola «Pagamenti scaduti» (`PAGAMENTI`, migrazione V26), spenta di base, con tre parametri: dopo
+  quanti giorni dalla scadenza avvisa (7), dopo quanti dà rosso (30; vuoto = solo l'avviso) e sopra quale importo
+  conta (0 €). L'avviso fa passare e dice al tornellista quanto c'è da pagare e da quando arriverà il rosso. Chi ha il
+  golden pass non è controllato. Al banco chi è fermo per questo sta tra «Abbonamenti e quote», con «Fai pagare».
+- *Scadenze*: una voce «Da pagare … €» per persona, filtro «Pagamenti», anche per chi non frequenta più.
+- *Promemoria*: il tipo «Pagamento scaduto», spento di base: il primo N giorni dopo la scadenza, poi ogni N giorni, al
+  massimo M volte per lo stesso arretrato (se si paga la voce più vecchia e ne resta un'altra, si riparte). Nel testo
+  si può usare `{importo}`.
 
 **Conseguenze.** Molte tabelle nuove e un modulo `pagamenti`; gli abbonamenti attuali (ADR 0009) diventano righe del
 listino vendute a una persona. Le parti 10–11 dipendono da risposte ancora aperte (formato delle ricevute, fattura

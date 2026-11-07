@@ -4,7 +4,7 @@ import { andamento, contanti, nelFiltro, perGiornoScadenze, quando, registro, se
 
 const voce = (p: Partial<VoceScadenza>): VoceScadenza => ({
   tipo: 'CERTIFICATO', personaId: 'p', nome: 'A', cognome: 'B', eta: 30, descrizione: 'd', corso: null, stagione: null, scadenza: null, giorni: null,
-  riferimento: 'r', email: null, ultimoPromemoria: null, ...p,
+  riferimento: 'r', email: null, ultimoPromemoria: null, importo: null, ...p,
 });
 let n = 0;
 const pag = (data: string, ora: string, metodi: [string, number][], o: Partial<PagamentoRegistrato> = {}): PagamentoRegistrato => ({
@@ -30,6 +30,15 @@ describe('scadenze', () => {
     expect(tipoBreve('TESSERAMENTO_MANCANTE')).toBe('tess');
     expect(nelFiltro(voce({ tipo: 'CARNET' }), 'abb')).toBe(true);
     expect(nelFiltro(voce({ tipo: 'CARNET' }), 'cert')).toBe(false);
+  });
+
+  it('i pagamenti scaduti hanno il loro filtro e restano tra gli scaduti', () => {
+    const p = voce({ tipo: 'PAGAMENTO', giorni: -12 });
+    expect(tipoBreve('PAGAMENTO')).toBe('pag');
+    expect(nelFiltro(p, 'pag')).toBe(true);
+    expect(nelFiltro(p, 'abb')).toBe(false);
+    expect(urgenza(p)).toBe('scaduti');
+    expect(quando(p).testo).toBe('Scaduto da 12 giorni');
   });
 
   it('il calendario parte dal lunedì della settimana e mette le scadenze nel loro giorno', () => {

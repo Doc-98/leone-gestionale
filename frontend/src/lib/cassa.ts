@@ -11,17 +11,17 @@ import { aggiungiGiorni, daIso, iso, lunedi } from './date';
 /** Come mostrare le scadenze: un elenco per urgenza o il calendario delle prossime settimane. */
 export type VistaScadenze = 'elenco' | 'calendario';
 
-export type TipoBreve = 'cert' | 'abb' | 'carnet' | 'tess';
+export type TipoBreve = 'cert' | 'abb' | 'carnet' | 'tess' | 'pag';
 export const tipoBreve = (t: TipoScadenza): TipoBreve =>
-  t.startsWith('CERTIFICATO') ? 'cert' : t.startsWith('TESSERAMENTO') ? 'tess' : t === 'CARNET' ? 'carnet' : 'abb';
+  t.startsWith('CERTIFICATO') ? 'cert' : t.startsWith('TESSERAMENTO') ? 'tess' : t === 'CARNET' ? 'carnet' : t === 'PAGAMENTO' ? 'pag' : 'abb';
 
 /** Il filtro per tipo: i carnet stanno con gli abbonamenti. */
-export type FiltroTipo = 'tutti' | 'cert' | 'abb' | 'tess';
+export type FiltroTipo = 'tutti' | 'cert' | 'abb' | 'tess' | 'pag';
 export const nelFiltro = (v: VoceScadenza, f: FiltroTipo) => f === 'tutti' || (tipoBreve(v.tipo) === 'carnet' ? 'abb' : tipoBreve(v.tipo)) === f;
 
 export type Urgenza = 'scaduti' | 'oggi' | 'settimana' | 'avanti';
 export const URGENZE: { id: Urgenza; nome: string; spiega: string }[] = [
-  { id: 'scaduti', nome: 'Scaduti o mancanti', spiega: 'non passano il tornello' },
+  { id: 'scaduti', nome: 'Scaduti o mancanti', spiega: 'da sistemare subito' },
   { id: 'oggi', nome: 'Scadono oggi', spiega: 'da domani rossi al tornello' },
   { id: 'settimana', nome: 'Entro una settimana', spiega: 'nei prossimi 7 giorni' },
   { id: 'avanti', nome: 'Più avanti', spiega: '' },
@@ -42,7 +42,7 @@ export function quando(v: Pick<VoceScadenza, 'giorni' | 'tipo'>): { testo: strin
 }
 
 /** Cosa fare per sistemare (si fa nella scheda del cliente). */
-export const RIMEDI: Record<TipoBreve, string> = { cert: 'Registra il certificato', abb: 'Rinnova', carnet: 'Nuovo carnet', tess: 'Tessera' };
+export const RIMEDI: Record<TipoBreve, string> = { cert: 'Registra il certificato', abb: 'Rinnova', carnet: 'Nuovo carnet', tess: 'Tessera', pag: 'Fai pagare' };
 
 /** A una voce si può mandare il promemoria: serve l'email (e per il certificato mai consegnato non c'è un modello). */
 export const promemoriaPossibile = (v: VoceScadenza) => !!v.email && v.tipo !== 'CERTIFICATO_MANCANTE';

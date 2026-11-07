@@ -68,6 +68,7 @@ class PromemoriaService {
             case "CERTIFICATO", "CERTIFICATO_MANCANTE" -> Promemoria.Tipo.CERTIFICATO;
             case "ABBONAMENTO", "CARNET" -> Promemoria.Tipo.ABBONAMENTO;
             case "TESSERAMENTO" -> Promemoria.Tipo.TESSERAMENTO;
+            case "PAGAMENTO" -> Promemoria.Tipo.PAGAMENTO;
             default -> Promemoria.Tipo.TESSERAMENTO_MANCANTE;
         };
     }
@@ -89,8 +90,7 @@ class PromemoriaService {
     RegolaDto crea(NuovaRegola in) {
         if (in.tipo() == null) throw new IllegalArgumentException("Scegli il tipo di promemoria.");
         Promemoria p = new Promemoria(in.tipo());
-        boolean mancante = in.tipo() == Promemoria.Tipo.TESSERAMENTO_MANCANTE;
-        p.modifica(7, mancante ? 3 : null, false, "Promemoria per {nome}", "Buongiorno,\n\n...\n\n{societa}");
+        p.modifica(7, in.tipo().ripetuto() ? 3 : null, false, "Promemoria per {nome}", "Buongiorno,\n\n...\n\n{societa}");
         return dto(regole.saveAndFlush(p));
     }
 
@@ -153,6 +153,14 @@ class PromemoriaService {
     }
 
     private boolean dovuto(Promemoria p, ScadenzeService.Voce v, List<InvioPromemoria> inviati) {
+        if (p.tipo() == Promemoria.Tipo.PAGAMENTO) {
+            // il primo dopo N giorni dalla scadenza, poi ogni N giorni, al massimo M volte per lo stesso arretrato
+            if (!v.tipo().equals("PAGAMENTO") || v.giorni() == null || -v.giorni() < p.getGiorni()) return false;
+            List<InvioPromemoria> suoi = inviati.stream().filter(i -> i.getPersonaId().equals(v.personaId()) && i.getRiferimento().equals(v.riferimento())).toList();
+            if (suoi.size() >= p.getMaxInvii()) return false;
+            return suoi.stream().allMatch(i -> Duration.between(i.getCreatoIl(), orologio.instant()).toDays() >= p.getGiorni());
+        }
+        if (v.tipo().equals("PAGAMENTO")) return false;
         if (p.tipo() == Promemoria.Tipo.TESSERAMENTO_MANCANTE) {
             if (!v.tipo().equals("TESSERAMENTO_MANCANTE")) return false;
             List<InvioPromemoria> suoi = inviati.stream().filter(i -> i.getPersonaId().equals(v.personaId()) && i.getRiferimento().equals(v.riferimento())).toList();
@@ -185,7 +193,7 @@ class PromemoriaService {
         return posta.invia(v.personaId(), v.email(), riempi(p.getOggetto(), v), riempi(p.getTesto(), v), da);
     }
 
-    /** I segnaposto dei testi: {nome}, {cognome}, {scadenza}, {giorni}, {corso}, {stagione}, {societa}. */
+    /** I segnaposto dei testi: {nome}, {cognome}, {scadenza}, {giorni}, {corso}, {stagione}, {importo}, {societa}. */
     String riempi(String modello, ScadenzeService.Voce v) {
         return modello
             .replace("{nome}", v.nome())
@@ -194,6 +202,7 @@ class PromemoriaService {
             .replace("{giorni}", v.giorni() == null ? "" : String.valueOf(Math.max(0, v.giorni())))
             .replace("{corso}", v.corso() == null ? "" : v.corso())
             .replace("{stagione}", v.stagione() == null ? "" : v.stagione())
+            .replace("{importo}", v.importo() == null ? "" : ScadenzeService.euro(v.importo()))
             .replace("{societa}", societa.nome());
     }
 }

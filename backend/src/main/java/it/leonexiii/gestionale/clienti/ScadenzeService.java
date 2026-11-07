@@ -2,6 +2,8 @@ package it.leonexiii.gestionale.clienti;
 
 import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.notifiche.Posta;
+import it.leonexiii.gestionale.pagamenti.Pagamenti;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,12 +30,14 @@ class ScadenzeService {
 
     /**
      * Una cosa da sistemare. tipo: CERTIFICATO, CERTIFICATO_MANCANTE, ABBONAMENTO, CARNET, TESSERAMENTO,
-     * TESSERAMENTO_MANCANTE. giorni: alla scadenza (negativo = già scaduto; null = senza data).
+     * TESSERAMENTO_MANCANTE, PAGAMENTO. giorni: alla scadenza (negativo = già scaduto; null = senza data). importo: solo
+     * per i pagamenti, quanto resta da pagare.
      */
     record Voce(String tipo, UUID personaId, String nome, String cognome, Integer eta, String descrizione, String corso, String stagione,
-                LocalDate scadenza, Long giorni, String riferimento, String email, Instant ultimoPromemoria) {}
+                LocalDate scadenza, Long giorni, String riferimento, String email, Instant ultimoPromemoria, BigDecimal importo) {}
 
-    record Scadenze(LocalDate oggi, int entro, List<Voce> certificati, List<Voce> abbonamenti, List<Voce> tesseramento, boolean postaConfigurata) {}
+    record Scadenze(LocalDate oggi, int entro, List<Voce> certificati, List<Voce> abbonamenti, List<Voce> tesseramento, List<Voce> pagamenti,
+                    boolean postaConfigurata) {}
 
     static final int GIORNI_SCADUTI = 60;
 
@@ -46,10 +50,12 @@ class ScadenzeService {
     private final Clock orologio;
 
     private final it.leonexiii.gestionale.societa.Societa societa;
+    private final Pagamenti pagamenti;
 
     ScadenzeService(Clienti clienti, CertificatoRepository certificati, TesseramentoRepository tesseramenti, InvioPromemoriaRepository invii,
-                    Persone persone, Posta posta, Clock orologio, it.leonexiii.gestionale.societa.Societa societa) {
+                    Persone persone, Posta posta, Clock orologio, it.leonexiii.gestionale.societa.Societa societa, Pagamenti pagamenti) {
         this.societa = societa;
+        this.pagamenti = pagamenti;
         this.clienti = clienti;
         this.certificati = certificati;
         this.tesseramenti = tesseramenti;
@@ -68,6 +74,7 @@ class ScadenzeService {
             tutte.stream().filter(v -> v.tipo().startsWith("CERTIFICATO")).toList(),
             tutte.stream().filter(v -> v.tipo().equals("ABBONAMENTO") || v.tipo().equals("CARNET")).toList(),
             tutte.stream().filter(v -> v.tipo().startsWith("TESSERAMENTO")).toList(),
+            tutte.stream().filter(v -> v.tipo().equals("PAGAMENTO")).toList(),
             posta.configurata());
     }
 
@@ -83,8 +90,17 @@ class ScadenzeService {
         Map<UUID, List<Tesseramento>> tess = tesseramenti.findAll().stream().filter(t -> t.getAnnullatoIl() == null)
             .collect(Collectors.groupingBy(Tesseramento::getPersonaId));
 
-        record Grezza(String tipo, UUID personaId, String descrizione, String corso, String stagione, LocalDate scadenza, String riferimento) {}
+        record Grezza(String tipo, UUID personaId, String descrizione, String corso, String stagione, LocalDate scadenza, String riferimento,
+                      BigDecimal importo) {
+            Grezza(String tipo, UUID personaId, String descrizione, String corso, String stagione, LocalDate scadenza, String riferimento) {
+                this(tipo, personaId, descrizione, corso, stagione, scadenza, riferimento, null);
+            }
+        }
         List<Grezza> grezze = new ArrayList<>();
+        // pagamenti scaduti e non saldati, di chiunque (anche di chi non frequenta più): uno per persona, sul più vecchio
+        for (Pagamenti.Arretrato a : pagamenti.arretrati(oggi).values())
+            grezze.add(new Grezza("PAGAMENTO", a.personaId(), "Da pagare " + euro(a.importo()) + (a.voci() > 1 ? " (" + a.voci() + " voci)" : ""), null, null,
+                a.primaScadenza(), a.primoAddebitoId().toString(), a.importo()));
         for (var entry : abbonamenti.entrySet()) {
             UUID p = entry.getKey();
             List<Clienti.AbbonamentoBreve> suoi = entry.getValue();
@@ -142,9 +158,15 @@ class ScadenzeService {
             Long giorni = g.scadenza() == null ? null : ChronoUnit.DAYS.between(oggi, g.scadenza());
             List<String> a = destinatari.getOrDefault(g.personaId(), List.of());
             out.add(new Voce(g.tipo(), g.personaId(), s.nome(), s.cognome(), eta, g.descrizione(), g.corso(), g.stagione(), g.scadenza(), giorni,
-                g.riferimento(), a.isEmpty() ? null : String.join(", ", a), ultimi.get(g.personaId() + "|" + PromemoriaService.tipoPromemoria(g.tipo()).name())));
+                g.riferimento(), a.isEmpty() ? null : String.join(", ", a), ultimi.get(g.personaId() + "|" + PromemoriaService.tipoPromemoria(g.tipo()).name()),
+                g.importo()));
         }
         out.sort(Comparator.comparing((Voce v) -> v.giorni() == null ? Long.MIN_VALUE : v.giorni()).thenComparing(Voce::cognome).thenComparing(Voce::nome));
         return out;
+    }
+
+    /** «45,00 €», come lo legge una persona. */
+    static String euro(BigDecimal importo) {
+        return importo.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString().replace('.', ',') + " €";
     }
 }

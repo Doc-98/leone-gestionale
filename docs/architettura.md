@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 7 novembre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello e banco, scheda cliente completa, scadenze e promemoria, liste d'attesa, telefono come lettore (ADR 0009–0017, 0021); dei pagamenti (ADR 0018) ci sono impostazioni, listino e regole, addebiti e incassi, borsellino, braccialetto e phon e docce (anche con i crediti sul braccialetto, ADR 0025); mancano chi non paga, ricevute, cassa e rinnovi.
+Stato: 7 novembre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello e banco, scheda cliente completa, scadenze e promemoria, liste d'attesa, telefono come lettore (ADR 0009–0017, 0021); dei pagamenti (ADR 0018) ci sono impostazioni, listino e regole, addebiti e incassi, borsellino, braccialetto, phon e docce (anche con i crediti sul braccialetto, ADR 0025) e chi non paga; mancano ricevute, cassa e rinnovi.
 
 ## Obiettivo
 

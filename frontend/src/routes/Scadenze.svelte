@@ -13,7 +13,7 @@
 
   /**
    * Le scadenze per la segreteria: chi frequenta e ha il certificato, l'abbonamento, il carnet o il tesseramento
-   * scaduto, mancante o in scadenza. Due viste a scelta (si ricorda per account): l'elenco per urgenza, con la scelta
+   * scaduto, mancante o in scadenza, e chi ha pagamenti scaduti e non saldati (ADR 0018, parte 6). Due viste a scelta (si ricorda per account): l'elenco per urgenza, con la scelta
    * di più persone per mandare i promemoria insieme, e il calendario delle prossime cinque settimane.
    */
   let vista = $state<VistaScadenze>(leggiPreferenza<VistaScadenze>('scadenze.vista', 'elenco', ['elenco', 'calendario']));
@@ -48,7 +48,7 @@
   });
 
   const chiave = (v: VoceScadenza) => `${v.tipo}|${v.personaId}|${v.riferimento}`;
-  const tutte = $derived(dati ? [...dati.certificati, ...dati.abbonamenti, ...dati.tesseramento] : []);
+  const tutte = $derived(dati ? [...dati.certificati, ...dati.abbonamenti, ...dati.tesseramento, ...(dati.pagamenti ?? [])] : []);
   const cercate = $derived.by(() => {
     const q = cerca.trim().toLowerCase();
     return tutte.filter((v) => !q || `${v.nome} ${v.cognome}`.toLowerCase().includes(q) || `${v.cognome} ${v.nome}`.toLowerCase().includes(q));
@@ -58,8 +58,9 @@
   const conta = (u: string) => tutte.filter((v) => urgenza(v) === u).length;
   const FILTRI: { id: FiltroTipo; nome: string }[] = [
     { id: 'tutti', nome: 'Tutte' }, { id: 'cert', nome: 'Certificati' }, { id: 'abb', nome: 'Abbonamenti e carnet' }, { id: 'tess', nome: 'Tesseramento' },
+    { id: 'pag', nome: 'Pagamenti' },
   ];
-  const ICONE: Record<TipoBreve, NomeIcona> = { cert: 'certificato', abb: 'euro', carnet: 'carnet', tess: 'tesserino' };
+  const ICONE: Record<TipoBreve, NomeIcona> = { cert: 'certificato', abb: 'euro', carnet: 'carnet', tess: 'tesserino', pag: 'incassi' };
 
   // ── selezione e promemoria ──
   const selezionate = $derived(tutte.filter((v) => scelte[chiave(v)]));
@@ -160,7 +161,7 @@
 
   {#if vista === 'elenco'}
     <div class="riep">
-      <div class="tile rosso"><span class="lbl">Scaduti o mancanti</span><span class="v">{conta('scaduti')}</span><span class="n">non passano il tornello</span></div>
+      <div class="tile rosso"><span class="lbl">Scaduti o mancanti</span><span class="v">{conta('scaduti')}</span><span class="n">da sistemare subito</span></div>
       <div class="tile arancio"><span class="lbl">Scadono oggi</span><span class="v">{conta('oggi')}</span><span class="n">da domani rossi al tornello</span></div>
       <div class="tile"><span class="lbl">Entro una settimana</span><span class="v">{conta('settimana')}</span><span class="n">fino a {oggi ? dataBreve(aggiungiGiorni(oggi, 7)) : '…'}</span></div>
       <div class="tile"><span class="lbl">Più avanti</span><span class="v">{conta('avanti')}</span><span class="n">entro {entro} giorni</span></div>
@@ -252,12 +253,12 @@
           {/each}
           {#if scadute.length > 12}<li><button type="button" class="link-btn" onclick={() => (vista = 'elenco')}>E altri {scadute.length - 12}: vedili nell'elenco →</button></li>{/if}
         </ul>
-        <p class="muted small nomargin">Chi è qui prende rosso al tornello e finisce tra i «da sistemare» del banco.</p>
+        <p class="muted small nomargin">Certificati e tesseramenti scaduti danno rosso al tornello; i pagamenti scaduti solo se la regola «Pagamenti scaduti» è accesa.</p>
       </section>
 
       <section class="mese">
         <div class="legenda">
-          <span><i class="cert"></i>Certificati</span><span><i class="abb"></i>Abbonamenti</span><span><i class="carnet"></i>Carnet</span><span><i class="tess"></i>Tesseramento</span>
+          <span><i class="cert"></i>Certificati</span><span><i class="abb"></i>Abbonamenti</span><span><i class="carnet"></i>Carnet</span><span><i class="tess"></i>Tesseramento</span><span><i class="pag"></i>Pagamenti</span>
         </div>
         <div class="griglia intest" aria-hidden="true">{#each ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'] as d (d)}<span class="lbl">{d}</span>{/each}</div>
         {#each righe as s (s[0])}
@@ -371,6 +372,7 @@
   .abb { --t-bg: var(--cloro-soft); --t-fg: var(--cloro-ink); --t: var(--cloro); }
   .carnet { --t-bg: var(--area-p-bg); --t-fg: var(--area-p-fg); --t: var(--area-p); }
   .tess { --t-bg: var(--area-a-bg); --t-fg: var(--area-a-fg); --t: var(--area-a); }
+  .pag { --t-bg: var(--warn-bg); --t-fg: var(--warn); --t: var(--warn); }
   .ico-t { background: var(--t-bg); color: var(--t-fg); }
 
   /* calendario */

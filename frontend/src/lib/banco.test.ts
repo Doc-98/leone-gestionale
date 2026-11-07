@@ -19,11 +19,14 @@ describe('banco del tornello', () => {
     expect(problema([motivo('TESSERAMENTO'), motivo('ABBONAMENTO')])).toBe('abbonamento');
     expect(problema([motivo('BRACCIALETTO')])).toBe('braccialetto');
     expect(problema([motivo('RIPASSAGGIO')])).toBe('altro');
+    expect(problema([motivo('PAGAMENTI')])).toBe('abbonamento');
   });
 
   it('propone il rimedio: la scheda del cliente, o i clienti per un braccialetto di nessuno', () => {
     expect(rimedio({ persona: null, motivi: [motivo('BRACCIALETTO')] })).toEqual({ azione: 'Assegnalo a un cliente', href: '#/clienti' });
     expect(rimedio({ persona: { id: 'p' }, motivi: [motivo('CERTIFICATO')] })).toEqual({ azione: 'Registra il certificato', href: '#/clienti/p' });
+    expect(rimedio({ persona: { id: 'p' }, motivi: [motivo('PAGAMENTI')] })).toEqual({ azione: 'Fai pagare', href: '#/clienti/p' });
+    expect(rimedio({ persona: { id: 'p' }, motivi: [motivo('FASCIA_ORARIA', false), motivo('TESSERAMENTO')] }).azione).toBe('Tessera e rinnova');
   });
 
   it('dice da quanto tempo', () => {

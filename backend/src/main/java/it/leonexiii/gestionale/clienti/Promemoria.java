@@ -14,7 +14,14 @@ import java.util.UUID;
 @Table(name = "promemoria")
 class Promemoria {
 
-    enum Tipo { CERTIFICATO, ABBONAMENTO, TESSERAMENTO, TESSERAMENTO_MANCANTE }
+    enum Tipo {
+        CERTIFICATO, ABBONAMENTO, TESSERAMENTO, TESSERAMENTO_MANCANTE, PAGAMENTO;
+
+        /** Si ripete ogni N giorni, al massimo M volte (gli altri partono una volta, N giorni prima della scadenza). */
+        boolean ripetuto() {
+            return this == TESSERAMENTO_MANCANTE || this == PAGAMENTO;
+        }
+    }
 
     @Id
     private UUID id;
@@ -40,7 +47,7 @@ class Promemoria {
 
     void modifica(int giorni, Integer maxInvii, boolean attivo, String oggetto, String testo) {
         if (giorni < 0 || giorni > 365) throw new IllegalArgumentException("I giorni vanno da 0 a 365.");
-        if (tipo() == Tipo.TESSERAMENTO_MANCANTE) {
+        if (tipo().ripetuto()) {
             if (giorni < 1) throw new IllegalArgumentException("Ripeti almeno ogni giorno.");
             if (maxInvii == null || maxInvii < 1 || maxInvii > 20) throw new IllegalArgumentException("Indica quante volte al massimo (da 1 a 20).");
         }
@@ -49,7 +56,7 @@ class Promemoria {
         if (o.isEmpty() || o.length() > 200) throw new IllegalArgumentException("L'oggetto va da 1 a 200 caratteri.");
         if (t.isEmpty() || t.length() > 5000) throw new IllegalArgumentException("Il testo va da 1 a 5000 caratteri.");
         this.giorni = (short) giorni;
-        this.maxInvii = tipo() == Tipo.TESSERAMENTO_MANCANTE ? maxInvii.shortValue() : null;
+        this.maxInvii = tipo().ripetuto() ? maxInvii.shortValue() : null;
         this.attivo = attivo;
         this.oggetto = o;
         this.testo = t;

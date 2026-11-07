@@ -46,7 +46,7 @@ export interface PasswordTemporanea {
   password: string;
 }
 
-export type TipoScadenza = 'CERTIFICATO' | 'CERTIFICATO_MANCANTE' | 'ABBONAMENTO' | 'CARNET' | 'TESSERAMENTO' | 'TESSERAMENTO_MANCANTE';
+export type TipoScadenza = 'CERTIFICATO' | 'CERTIFICATO_MANCANTE' | 'ABBONAMENTO' | 'CARNET' | 'TESSERAMENTO' | 'TESSERAMENTO_MANCANTE' | 'PAGAMENTO';
 
 export interface VoceScadenza {
   tipo: TipoScadenza;
@@ -63,6 +63,8 @@ export interface VoceScadenza {
   riferimento: string;
   email: string | null;
   ultimoPromemoria: string | null;
+  /** solo per i pagamenti scaduti: quanto resta da pagare */
+  importo: number | null;
 }
 
 export interface Scadenze {
@@ -71,6 +73,8 @@ export interface Scadenze {
   certificati: VoceScadenza[];
   abbonamenti: VoceScadenza[];
   tesseramento: VoceScadenza[];
+  /** pagamenti scaduti e non saldati, uno per persona */
+  pagamenti: VoceScadenza[];
   postaConfigurata: boolean;
 }
 
@@ -87,7 +91,7 @@ export interface EmailBreve {
   creataIl: string;
 }
 
-export type TipoPromemoria = 'CERTIFICATO' | 'ABBONAMENTO' | 'TESSERAMENTO' | 'TESSERAMENTO_MANCANTE';
+export type TipoPromemoria = 'CERTIFICATO' | 'ABBONAMENTO' | 'TESSERAMENTO' | 'TESSERAMENTO_MANCANTE' | 'PAGAMENTO';
 
 export interface RegolaPromemoria {
   id: string;

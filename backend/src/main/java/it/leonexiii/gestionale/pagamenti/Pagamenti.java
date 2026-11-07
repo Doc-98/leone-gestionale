@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -41,6 +42,17 @@ public class Pagamenti {
 
     /** Evento: gli addebiti di un tesseramento (o altro riferimento) risultano tutti pagati il «saldatoIl», o non più (null). */
     public record Saldato(Origine origine, UUID riferimentoId, LocalDate saldatoIl) {}
+
+    /**
+     * Quanto una persona deve di già scaduto (per «chi non paga», ADR 0018 parte 6): il totale ancora da pagare degli
+     * addebiti scaduti, la scadenza più vecchia, l'addebito più vecchio (cambia quando lo si paga) e quante voci sono.
+     */
+    public record Arretrato(UUID personaId, BigDecimal importo, LocalDate primaScadenza, UUID primoAddebitoId, int voci) {
+        /** Giorni passati dalla scadenza più vecchia. */
+        public long giorniDi(LocalDate oggi) {
+            return java.time.temporal.ChronoUnit.DAYS.between(primaScadenza, oggi);
+        }
+    }
 
     public record Metodo(UUID id, String nome, boolean daIncassare, boolean attivo, int ordine, boolean borsellino) {}
 
@@ -129,6 +141,30 @@ public class Pagamenti {
     public List<UUID> addebita(List<NuovoAddebito> nuovi, UUID da) {
         Instant ora = orologio.instant();
         return addebiti.saveAllAndFlush(nuovi.stream().map(n -> new Addebito(n, da, ora)).toList()).stream().map(Addebito::getId).toList();
+    }
+
+    /** Gli arretrati di tutti, per persona: solo chi ha qualcosa di scaduto e non ancora pagato. */
+    @Transactional(readOnly = true)
+    public Map<UUID, Arretrato> arretrati(LocalDate oggi) {
+        return arretratiDi(addebiti.scadutiPrima(oggi));
+    }
+
+    /** Gli arretrati di una persona, se ne ha. */
+    @Transactional(readOnly = true)
+    public Optional<Arretrato> arretratoDi(UUID personaId, LocalDate oggi) {
+        return Optional.ofNullable(arretratiDi(addebiti.scadutiDiPrima(personaId, oggi)).get(personaId));
+    }
+
+    private Map<UUID, Arretrato> arretratiDi(List<Addebito> scaduti) {
+        Map<UUID, BigDecimal> pagato = pagatoPerAddebito(scaduti.stream().map(Addebito::getId).toList());
+        Map<UUID, Arretrato> per = new HashMap<>();
+        scaduti.stream().sorted(Comparator.comparing(Addebito::getScadenza).thenComparing(Addebito::getCreatoIl)).forEach(a -> {
+            BigDecimal resta = a.getImporto().subtract(pagato.getOrDefault(a.getId(), ZERO));
+            if (resta.signum() <= 0) return;
+            per.merge(a.getPersonaId(), new Arretrato(a.getPersonaId(), resta, a.getScadenza(), a.getId(), 1),
+                (prima, nuovo) -> new Arretrato(prima.personaId(), prima.importo().add(resta), prima.primaScadenza(), prima.primoAddebitoId(), prima.voci() + 1));
+        });
+        return per;
     }
 
     /** Se quell'abbonamento o tesseramento ha addebiti (quelli registrati prima dei pagamenti non ne hanno). */
