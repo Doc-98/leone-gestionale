@@ -26,15 +26,27 @@ ritiri per la segreteria.
 Corsi con lezioni settimanali, salti e spostamenti di una singola data, eventi (gare, lezioni private e di prova,
 chiusure anche di più giorni) e sovrapposizioni segnalate. Lo staff lo consulta; coordinatori e admin lo modificano.
 
-**Fase 3 – clienti e tornello (in corso).** Al tornello si legge il braccialetto (NFC dal telefono Android, lettore
-da scrivania o codice scritto) e si vede subito **nome ed età** di chi lo porta e **tutti i motivi** del rosso, ognuno
-con cosa fare: braccialetto sconosciuto, smarrito, disattivato o bannato, persona bannata, certificato medico mancante o
-scaduto, tesseramento annuale mancante o scaduto, abbonamento mancante, scaduto o non iniziato, carnet esaurito, fuori
-dalla fascia del proprio turno (ADR 0009). Ogni caso è un controllo indipendente, attivabile e con i suoi parametri
-nella pagina «Regole del tornello». Golden pass per dipendenti e tornellisti. Carnet che scala al primo passaggio e non
-nei 90 minuti di rientro, a entrata libera o legato agli orari di un corso (es. nuoto libero). Ruoli modificabili con i
-loro permessi (ADR 0010). La segreteria ha la scheda cliente: braccialetti (più di uno per persona), ban, golden pass,
-certificato, tesseramento, abbonamenti, turni frequentati, ultimi passaggi e come andrebbe adesso al tornello.
+**Fase 3 – clienti, tornello e pagamenti (in corso).** Al tornello si legge il braccialetto (NFC dal telefono
+Android, lettore da scrivania, telefono usato come lettore del PC o codice scritto) e si vede subito **nome ed età** di
+chi lo porta e **tutti i motivi** del rosso, ognuno con cosa fare: braccialetto sconosciuto, smarrito, disattivato o
+bannato, persona bannata, certificato medico mancante o scaduto, tesseramento mancante o scaduto, abbonamento mancante,
+scaduto o non iniziato, carnet esaurito, fuori dalla fascia del proprio turno, uscita di un minore senza permesso (ADR
+0009, 0011). Ogni caso è un controllo indipendente, attivabile e con i suoi parametri. Il **banco** mostra la giornata:
+chi è entrato, chi è da sistemare, i turni di oggi di chi passa (ADR 0021).
+
+- *Clienti*: scheda completa con anagrafica, tutori e famiglia, consensi, braccialetti, certificato, tesseramento,
+  abbonamenti e carnet, turni frequentati e passaggi (ADR 0014); scadenze da sistemare e promemoria via email
+  (ADR 0013); liste d'attesa dei turni pieni e cambio di turno (ADR 0015).
+- *Pagamenti* (ADR 0018, un pezzo alla volta): stagioni e quota associativa, gruppi di clienti, listino con le regole
+  (riduzioni, sconti, rate, recesso), addebiti e incassi con più metodi, borsellino con credito in euro e crediti,
+  cauzione del braccialetto, phon e docce con le macchine collegate al server o con i crediti scritti sul braccialetto
+  (ADR 0025). Da fare: chi non paga, ricevute, cassa, precedenza nei rinnovi.
+- *Staff*: area personale con le proprie ore, gruppi di staff, turni accavallati solo con avviso, postazioni per
+  sesso (ADR 0022, 0023); account con password temporanea e ruoli con i loro permessi (ADR 0010, 0012).
+
+**Interfaccia.** Design system «Corsia» con il marchio «La corsia» (`docs/design-system/`), tema chiaro, scuro o del
+dispositivo, impostazioni raccolte in una panoramica con ricerca (ADR 0019, 0024). Il programma per Windows si
+aggiorna da solo (ADR 0016).
 
 ## Struttura
 
