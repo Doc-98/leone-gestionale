@@ -4,6 +4,7 @@ backend/target/
 # Node
 node_modules/
 frontend/dist/
+frontend/coverage/
 # IDE e sistema
 .idea/
 .vscode/

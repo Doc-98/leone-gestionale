@@ -2,45 +2,21 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /** Lista d'attesa dei turni pieni, avviso alla famiglia, iscrizione dalla lista e cambio di turno (ADR 0015). */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class AttesaTest {
+class AttesaTest extends ProvaApi {
+
+    @Autowired
+    AmbienteDiProva.CasellaFinta casella;
 
     static final String IMPIANTO = "00000000-0000-0000-0000-0000000000b1";
     static final String CORSIA_4 = "00000000-0000-0000-0000-000000000104";
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    private Map<String, Object> crea(ClientApi c, String path, String corpo) throws Exception {
-        var r = c.post(path, corpo);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
-        return json(r);
-    }
 
     @SuppressWarnings("unchecked")
     private String turno(ClientApi coord, String corso, String inizio, String fine) throws Exception {
@@ -86,11 +62,13 @@ class AttesaTest {
         assertThat(json(cambio)).containsEntry("corsoCambiato", false);
         assertThat(segr.get("/api/attesa").body()).contains("\"liberoDal\":\"" + fra7 + "\"");
 
-        // avviso: senza email non parte; con l'email si registra (posta non configurata) e si segna «avvisata»
+        // avviso: senza email non parte; con l'email parte (nella casella di prova) e si segna «avvisata»
         String avviso = "{\"oggetto\":\"Un posto per Secondo\",\"testo\":\"Si è liberato un posto.\"}";
         assertThat(json(segr.post("/api/attesa/" + secondo.get("id") + "/avvisa", avviso))).containsEntry("stato", "SENZA_EMAIL");
         assertThat(segr.put("/api/clienti/" + secondo.get("personaId") + "/contatti", "{\"email\":\"secondo.attesa@example.org\"}").statusCode()).isEqualTo(200);
-        assertThat(json(segr.post("/api/attesa/" + secondo.get("id") + "/avvisa", avviso))).containsEntry("stato", "NON_INVIATA");
+        assertThat(json(segr.post("/api/attesa/" + secondo.get("id") + "/avvisa", avviso))).containsEntry("stato", "INVIATA");
+        assertThat(casella.per("secondo.attesa@example.org")).singleElement()
+            .satisfies(m -> assertThat(m.getSubject()).isEqualTo("Un posto per Secondo"));
         assertThat(segr.get("/api/lezioni/" + a + "/attesa").body()).contains("\"avvisataIl\":\"").contains("secondo.attesa@example.org")
             .contains("\"avvisoAVoce\":false").contains("\"rispostaEntro\":\"" + oggi.plusDays(3) + "\"");
 
@@ -101,8 +79,10 @@ class AttesaTest {
         assertThat(segr.post("/api/attesa/" + terzo.get("id") + "/confermata", "{}").statusCode()).isEqualTo(204);
         var conferme = json(segr.post("/api/attesa/chiedi-conferma",
             "{\"ids\":[\"" + secondo.get("id") + "\",\"" + terzo.get("id") + "\"],\"oggetto\":\"Aspettate ancora?\",\"testo\":\"Buongiorno {nome}, aspettate ancora?\"}"));
-        assertThat(conferme).containsEntry("inviate", 0).containsEntry("nonInviate", 2);
-        assertThat((List<?>) conferme.get("daChiamare")).hasSize(2);
+        // Secondo ha l'email e la riceve, con il suo nome; Terzo no: va chiamato
+        assertThat(conferme).containsEntry("inviate", 1).containsEntry("nonInviate", 1);
+        assertThat((List<?>) conferme.get("daChiamare")).hasSize(1);
+        assertThat(casella.per("secondo.attesa@example.org").getLast().getText()).startsWith("Buongiorno ").doesNotContain("{nome}");
         String conTerzo = segr.get("/api/lezioni/" + a + "/attesa").body();
         assertThat(conTerzo).contains("\"avvisoAVoce\":true").contains("\"senzaRispostaIl\":\"").contains("\"confermataIl\":\"").contains("\"confermaChiestaIl\":\"");
         String conStorico = segr.get("/api/attesa").body();

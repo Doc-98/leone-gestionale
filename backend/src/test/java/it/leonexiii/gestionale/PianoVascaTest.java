@@ -2,21 +2,13 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /** Piano vasca sui dati demo, in date del marzo 2028 (lontane dagli altri test). */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class PianoVascaTest {
+class PianoVascaTest extends ProvaApi {
 
     static final String IMPIANTO = "00000000-0000-0000-0000-0000000000b1";
     static final String VASCA_GRANDE = "00000000-0000-0000-0000-0000000000c1";
@@ -29,40 +21,16 @@ class PianoVascaTest {
     static final String CORSIA_3_DI_5 = "00000000-0000-0000-0000-000000000113";
     static final String LUCA = "00000000-0000-0000-0000-000000000103";
 
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> mappa(Object o) {
-        return (Map<String, Object>) o;
-    }
-
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> occorrenze(ClientApi c, String da, String a) throws Exception {
         var r = c.get("/api/piano?da=" + da + "&a=" + a);
         assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
-        return ((List<Object>) json(r).get("occorrenze")).stream().map(PianoVascaTest::mappa).toList();
+        return ((List<Object>) json(r).get("occorrenze")).stream().map(ProvaApi::mappa).toList();
     }
 
     private static Map<String, Object> di(List<Map<String, Object>> occ, String titolo, String data) {
         return occ.stream().filter(o -> titolo.equals(o.get("titolo")) && data.equals(o.get("data"))).findFirst()
             .orElseThrow(() -> new AssertionError("Manca " + titolo + " il " + data));
-    }
-
-    private Map<String, Object> crea(ClientApi c, String path, String corpo) throws Exception {
-        var r = c.post(path, corpo);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
-        return json(r);
     }
 
     @Test
@@ -123,7 +91,7 @@ class PianoVascaTest {
 
         // nell'elenco dei corsi il parco resta di due, i turni portano i loro istruttori
         var elenco = (List<Object>) JsonParserFactory.getJsonParser().parseList(coord.get("/api/corsi").body());
-        var questo = elenco.stream().map(PianoVascaTest::mappa).filter(c -> corsoId.equals(c.get("id"))).findFirst().orElseThrow();
+        var questo = elenco.stream().map(ProvaApi::mappa).filter(c -> corsoId.equals(c.get("id"))).findFirst().orElseThrow();
         assertThat((List<?>) questo.get("istruttori")).hasSize(2);
         assertThat((List<?>) questo.get("lezioni")).hasSize(2);
     }

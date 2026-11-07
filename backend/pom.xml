@@ -21,6 +21,9 @@
     <java.version>21</java.version>
     <spring-modulith.version>2.1.1</spring-modulith.version>
     <springdoc.version>3.1.1</springdoc.version>
+    <jacoco.version>0.8.12</jacoco.version>
+    <!-- JaCoCo ci aggiunge il suo agente; vuoto se lo si salta (-Djacoco.skip=true) -->
+    <argLine></argLine>
   </properties>
 
   <dependencyManagement>
@@ -124,8 +127,25 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>-Duser.timezone=UTC</argLine>
+          <argLine>@{argLine} -Duser.timezone=UTC</argLine>
         </configuration>
+      </plugin>
+      <!-- Copertura dei test: con «mvn verify» il rapporto è in target/site/jacoco/index.html (solo da leggere, non blocca) -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <executions>
+          <execution>
+            <id>agente</id>
+            <goals><goal>prepare-agent</goal></goals>
+          </execution>
+          <execution>
+            <id>rapporto</id>
+            <phase>verify</phase>
+            <goals><goal>report</goal></goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>

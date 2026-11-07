@@ -5,28 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class AccessoETurniTest {
-
-    @LocalServerPort
-    int porta;
-
-    private static Map<String, Object> mappa(String json) {
-        return JsonParserFactory.getJsonParser().parseMap(json);
-    }
-
-    private static List<Object> lista(String json) {
-        return JsonParserFactory.getJsonParser().parseList(json);
-    }
-
+class AccessoETurniTest extends ProvaApi {
     @Test
     void senzaLoginLeApiRispondono401() throws Exception {
         var c = new ClientApi(porta);
@@ -58,7 +38,7 @@ class AccessoETurniTest {
         var c = new ClientApi(porta);
         var login = c.login("STAFF@demo.leone", "demo1234");
         assertThat(login.statusCode()).isEqualTo(200);
-        assertThat(mappa(login.body())).containsEntry("nome", "Luca");
+        assertThat(json(login)).containsEntry("nome", "Luca");
 
         var me = c.get("/api/me");
         assertThat(me.statusCode()).isEqualTo(200);
@@ -66,7 +46,7 @@ class AccessoETurniTest {
 
         var miei = c.get("/api/turni/miei");
         assertThat(miei.statusCode()).isEqualTo(200);
-        List<Object> turni = lista(miei.body());
+        List<Object> turni = lista(miei);
         // Luca ha tre turni a settimana nei dati demo: nei prossimi 30 giorni almeno dieci
         assertThat(turni).hasSizeGreaterThanOrEqualTo(10);
         @SuppressWarnings("unchecked")

@@ -41,7 +41,7 @@
       await sessione.entra(email.trim(), password);
     } catch (err) {
       if (err instanceof ErroreApi && err.status === 401) errore = 'credenziali';
-      else if (err instanceof ErroreApi && err.status === 0) errore = 'server';
+      else if (err instanceof ErroreApi && (err.status === 0 || (err.status >= 502 && err.status <= 504))) errore = 'server';
       else errore = err instanceof ErroreApi ? err.message : 'Accesso non riuscito.';
     } finally {
       lavoro = false;

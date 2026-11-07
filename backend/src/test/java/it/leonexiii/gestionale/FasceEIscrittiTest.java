@@ -2,25 +2,15 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /** Fasce orarie con assetto delle corsie, iscrizioni ai turni dei corsi, presenze. La domenica è libera nei dati demo. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class FasceEIscrittiTest {
+class FasceEIscrittiTest extends ProvaApi {
 
     static final String IMPIANTO = "00000000-0000-0000-0000-0000000000b1";
     static final String VASCA_GRANDE = "00000000-0000-0000-0000-0000000000c1";
@@ -28,34 +18,6 @@ class FasceEIscrittiTest {
     static final String CORSIA_6 = "00000000-0000-0000-0000-000000000106";
     static final String CORSIA_2_DI_5 = "00000000-0000-0000-0000-000000000112";
     static final String CORSIA_4 = "00000000-0000-0000-0000-000000000104";
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    private static List<Object> lista(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseList(r.body());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> mappa(Object o) {
-        return (Map<String, Object>) o;
-    }
-
-    private Map<String, Object> crea(ClientApi c, String path, String corpo) throws Exception {
-        var r = c.post(path, corpo);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
-        return json(r);
-    }
 
     private String corso(ClientApi coord, String nome) throws Exception {
         return (String) crea(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"" + nome + "\",\"tipo\":\"ALTRO\"}").get("id");
@@ -144,7 +106,7 @@ class FasceEIscrittiTest {
         // nel piano: 3 iscritti su 2 posti, domenica 9 gennaio 2028
         var piano = json(coord.get("/api/piano?da=2028-01-09&a=2028-01-09"));
         @SuppressWarnings("unchecked")
-        var occ = ((List<Object>) piano.get("occorrenze")).stream().map(FasceEIscrittiTest::mappa)
+        var occ = ((List<Object>) piano.get("occorrenze")).stream().map(ProvaApi::mappa)
             .filter(o -> "Prova iscrizioni".equals(o.get("titolo"))).findFirst().orElseThrow();
         assertThat(occ).containsEntry("iscritti", 3).containsEntry("posti", 2);
         assertThat(piano.get("impiantiIscrizioni").toString()).contains(IMPIANTO);
@@ -168,19 +130,19 @@ class FasceEIscrittiTest {
         LocalDate lunedi = oggi.with(TemporalAdjusters.previous(DayOfWeek.MONDAY));
         var federico = come("federico.mauri@demo.leone");
         @SuppressWarnings("unchecked")
-        var giallo = ((List<Object>) json(federico.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(FasceEIscrittiTest::mappa)
+        var giallo = ((List<Object>) json(federico.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(ProvaApi::mappa)
             .filter(o -> "Delfino Giallo".equals(o.get("titolo")) && "17:00:00".equals(o.get("inizio"))).findFirst().orElseThrow();
         assertThat(((Number) giallo.get("iscritti")).intValue()).isBetween(5, 9); // 5-8 inventati, più Tommaso (casi del tornello)
         String turnoGiallo = (String) giallo.get("lezioneId");
         var lista = json(federico.get("/api/lezioni/" + turnoGiallo + "/iscritti?data=" + lunedi));
         assertThat(lista).containsEntry("puoSegnarePresenze", true);
         @SuppressWarnings("unchecked")
-        var bambini = ((List<Object>) lista.get("iscritti")).stream().map(FasceEIscrittiTest::mappa).toList();
+        var bambini = ((List<Object>) lista.get("iscritti")).stream().map(ProvaApi::mappa).toList();
         String uno = (String) bambini.get(0).get("personaId"), due = (String) bambini.get(1).get("personaId");
         var segnate = json(federico.put("/api/lezioni/" + turnoGiallo + "/presenze", """
             {"data":"%s","presenze":[{"personaId":"%s","presente":true},{"personaId":"%s","presente":false}]}""".formatted(lunedi, uno, due)));
         @SuppressWarnings("unchecked")
-        var dopo = ((List<Object>) segnate.get("iscritti")).stream().map(FasceEIscrittiTest::mappa).toList();
+        var dopo = ((List<Object>) segnate.get("iscritti")).stream().map(ProvaApi::mappa).toList();
         assertThat(dopo.stream().filter(b -> uno.equals(b.get("personaId"))).findFirst().orElseThrow()).containsEntry("presente", true);
         assertThat(dopo.stream().filter(b -> due.equals(b.get("personaId"))).findFirst().orElseThrow()).containsEntry("presente", false);
         // il martedì il turno del lunedì non si tiene

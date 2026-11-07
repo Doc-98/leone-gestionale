@@ -2,25 +2,15 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Fase 1 sui dati demo. Ogni test usa giorni propri (nel 2027, lontano dai turni demo generati intorno a oggi),
  * così i test non si disturbano tra loro.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class PianificazioneERichiesteTest {
+class PianificazioneERichiesteTest extends ProvaApi {
 
     // Persone e postazioni dei dati demo
     static final String PAOLO = "00000000-0000-0000-0000-000000000102";
@@ -33,28 +23,6 @@ class PianificazioneERichiesteTest {
     static final String ATRIO = "00000000-0000-0000-0000-000000000405";
     static final String PICCOLI_1 = "00000000-0000-0000-0000-000000000404";
     static final String MODELLO = "00000000-0000-0000-0000-000000000501";
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    private static List<Object> lista(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseList(r.body());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> mappa(Object o) {
-        return (Map<String, Object>) o;
-    }
 
     private static String turno(String postazione, String data, String inizio, String fine, String persona) {
         return """
@@ -144,7 +112,7 @@ class PianificazioneERichiesteTest {
         assertThat(json(ok)).containsEntry("stato", "APPROVATA");
 
         var giorno = lista(coord.get("/api/turni?da=2027-04-05&a=2027-04-05"));
-        var turno = giorno.stream().map(PianificazioneERichiesteTest::mappa).filter(x -> x.get("id").equals(t)).findFirst().orElseThrow();
+        var turno = giorno.stream().map(ProvaApi::mappa).filter(x -> x.get("id").equals(t)).findFirst().orElseThrow();
         assertThat(mappa(turno.get("persona"))).containsEntry("id", MARTA);
     }
 
@@ -173,7 +141,7 @@ class PianificazioneERichiesteTest {
         // proposta a Giulia, che accetta: è già approvata e il turno passa a lei
         coord.post("/api/richieste/" + id + "/proponi", "{\"collegaId\":\"" + GIULIA + "\"}");
         assertThat(json(come("giulia@demo.leone").post("/api/richieste/" + id + "/accetta", ""))).containsEntry("stato", "APPROVATA");
-        var turno = lista(coord.get("/api/turni?da=2027-04-06&a=2027-04-06")).stream().map(PianificazioneERichiesteTest::mappa)
+        var turno = lista(coord.get("/api/turni?da=2027-04-06&a=2027-04-06")).stream().map(ProvaApi::mappa)
             .filter(x -> x.get("id").equals(t)).findFirst().orElseThrow();
         assertThat(mappa(turno.get("persona"))).containsEntry("id", GIULIA);
 
@@ -181,7 +149,7 @@ class PianificazioneERichiesteTest {
         String t2 = creaTurno(coord, ATRIO, "2027-04-07", "09:00", "10:00", LUCA);
         String id2 = (String) json(luca.post("/api/richieste", "{\"tipo\":\"SOSTITUZIONE\",\"turnoId\":\"" + t2 + "\"}")).get("id");
         assertThat(json(coord.post("/api/richieste/" + id2 + "/senza-sostituto", ""))).containsEntry("stato", "APPROVATA");
-        var t2dopo = lista(coord.get("/api/turni?da=2027-04-07&a=2027-04-07")).stream().map(PianificazioneERichiesteTest::mappa)
+        var t2dopo = lista(coord.get("/api/turni?da=2027-04-07&a=2027-04-07")).stream().map(ProvaApi::mappa)
             .filter(x -> x.get("id").equals(t2)).findFirst().orElseThrow();
         assertThat(t2dopo.get("persona")).isNull();
     }
@@ -232,7 +200,7 @@ class PianificazioneERichiesteTest {
         assertThat(resp.body()).contains("Uno scambio non si respinge");
         assertThat(json(coord.post("/api/richieste/" + id + "/approva", ""))).containsEntry("stato", "APPROVATA");
 
-        var turni = lista(coord.get("/api/turni?da=2027-04-12&a=2027-04-13")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        var turni = lista(coord.get("/api/turni?da=2027-04-12&a=2027-04-13")).stream().map(ProvaApi::mappa).toList();
         assertThat(mappa(turni.stream().filter(x -> x.get("id").equals(tLuca)).findFirst().orElseThrow().get("persona"))).containsEntry("id", GIULIA);
         assertThat(mappa(turni.stream().filter(x -> x.get("id").equals(tGiulia)).findFirst().orElseThrow().get("persona"))).containsEntry("id", LUCA);
     }
@@ -259,7 +227,7 @@ class PianificazioneERichiesteTest {
         // Luca arriva mezz'ora dopo: approvata con «Risolvi», la mezz'ora diventa un turno scoperto
         var r2 = luca.post("/api/richieste", "{\"tipo\":\"CAMBIO_ORARIO\",\"turnoId\":\"" + t1 + "\",\"nuovoInizio\":\"09:30\",\"nuovoFine\":\"10:00\"}");
         assertThat(json(coord.post("/api/richieste/" + json(r2).get("id") + "/approva", "{\"copriBuco\":true}"))).containsEntry("stato", "APPROVATA");
-        var giorno = lista(coord.get("/api/turni?da=2027-04-19&a=2027-04-19")).stream().map(PianificazioneERichiesteTest::mappa)
+        var giorno = lista(coord.get("/api/turni?da=2027-04-19&a=2027-04-19")).stream().map(ProvaApi::mappa)
             .filter(x -> SPOGL_M_1.equals(x.get("postazioneId"))).toList();
         assertThat(giorno.stream().filter(x -> x.get("id").equals(t1)).findFirst().orElseThrow()).containsEntry("inizio", "09:30:00");
         var buco = giorno.stream().filter(x -> !x.get("id").equals(t1)).findFirst().orElseThrow();
@@ -281,7 +249,7 @@ class PianificazioneERichiesteTest {
         var esito = json(coord.post("/api/modelli/" + MODELLO + "/genera", "{\"mese\":\"2027-06\"}"));
         assertThat(esito).containsEntry("chiusi", 10);
         assertThat(lista(coord.get("/api/turni?da=2027-06-07&a=2027-06-07"))).isEmpty();
-        var martedi = lista(coord.get("/api/turni?da=2027-06-08&a=2027-06-08")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        var martedi = lista(coord.get("/api/turni?da=2027-06-08&a=2027-06-08")).stream().map(ProvaApi::mappa).toList();
         assertThat(martedi).hasSize(10);
         assertThat(martedi.stream().map(x -> (String) x.get("fine"))).allMatch(f -> f.compareTo("18:00:00") <= 0);
     }
@@ -302,7 +270,7 @@ class PianificazioneERichiesteTest {
         var coord = come("coordinatore@demo.leone");
         String mese = YearMonth.now().toString();
         var r = json(coord.get("/api/riepilogo?mese=" + mese));
-        var righe = ((List<?>) r.get("righe")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        var righe = ((List<?>) r.get("righe")).stream().map(ProvaApi::mappa).toList();
         var paolo = righe.stream().filter(x -> mappa(x.get("persona")).get("id").equals(PAOLO)).findFirst().orElseThrow();
         // Paolo fa l'atrio con la sua tariffa personale (11 €/h invece di 9,50)
         var voce = mappa(((List<?>) paolo.get("voci")).getFirst());
@@ -320,10 +288,10 @@ class PianificazioneERichiesteTest {
         assertThat(csv.body()).contains("Persona;Gruppo;Turni;Ore;Compenso").contains("Paolo Galli;Assistente atrio;");
 
         // gruppi di staff (ADR 0022): senza coordinatori indicati, il coordinatore vede tutti i gruppi dell'impianto
-        var gruppi = ((List<?>) r.get("gruppi")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        var gruppi = ((List<?>) r.get("gruppi")).stream().map(ProvaApi::mappa).toList();
         assertThat(gruppi).extracting(g -> g.get("nome")).contains("Assistente spogliatoio", "Assistente atrio");
         assertThat(paolo).containsEntry("gruppo", "Assistente atrio");
-        var mansioni = lista(coord.get("/api/staff/mansioni")).stream().map(PianificazioneERichiesteTest::mappa).toList();
+        var mansioni = lista(coord.get("/api/staff/mansioni")).stream().map(ProvaApi::mappa).toList();
         var spogliatoio = mansioni.stream().filter(m -> m.get("nome").equals("Assistente spogliatoio")).findFirst().orElseThrow();
         var atrio = mansioni.stream().filter(m -> m.get("nome").equals("Assistente atrio")).findFirst().orElseThrow();
         String io = (String) json(coord.get("/api/me")).get("personaId");

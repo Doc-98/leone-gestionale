@@ -395,7 +395,18 @@ cd backend
 ```
 
 Su macOS/Linux: `./mvnw verify`. Alla fine deve comparire `BUILD SUCCESS`; se un test fallisce, Maven dice quale e
-il dettaglio è in `backend\target\surefire-reports\`.
+il dettaglio è in `backend\target\surefire-reports\`. Dopo `verify`, quanta parte del codice provano i test (righe e
+rami delle condizioni, modulo per modulo) è in `backend\target\site\jacoco\index.html`.
+
+Come sono fatti: quasi tutti avviano l'applicazione intera con i dati demo e la provano dalle API, come farebbe il
+frontend. Estendono `ProvaApi`, che entra con gli account demo (`come("segreteria@demo.leone")`), legge il JSON e
+crea risorse (`crea`, `creaId`); `ClientApi` è il piccolo browser che tiene i cookie e il token CSRF, e sa parlare
+anche come una macchina di phon e docce. Tutti usano la stessa configurazione (`@TestGestionale`), così Spring si
+avvia una volta sola. L'ora si ferma con `orologio.alle("2028-01-02T09:00")` e dopo ogni test torna quella vera; le
+email finiscono in una casella finta (`AmbienteDiProva.CasellaFinta`); i lavori a orario (promemoria, scadenze del
+borsellino) non partono da soli. Le regole che non toccano il database hanno test semplici, senza Spring
+(`IntervalliTest`, `LottiTest`, `PostaTest`). Il database è condiviso: ogni test crea le sue persone e, se cambia
+una regola della società, la rimette com'era alla fine.
 
 Senza Docker si può usare un PostgreSQL già installato, con un database vuoto dedicato (viene svuotato a ogni giro):
 
@@ -416,7 +427,11 @@ cd frontend
 npm run check      # controllo dei tipi (TypeScript e Svelte)
 npm test           # test unitari (Vitest)
 npm run build      # prova che l'app si costruisca per la produzione
+npm run copertura  # facoltativo: quanta parte di src/lib provano i test (dettaglio in coverage/index.html)
 ```
+
+I test stanno accanto al codice (`src/lib/cassa.ts` → `src/lib/cassa.test.ts`) e provano la logica senza browser: dove
+serve, `fetch`, la memoria del browser, il tempo e la Web NFC sono finti (`vi.stubGlobal`, `vi.useFakeTimers`).
 
 ### Programma per Windows
 

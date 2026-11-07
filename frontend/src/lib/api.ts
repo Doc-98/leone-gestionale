@@ -675,22 +675,38 @@ function leggiCookie(nome: string): string | undefined {
 async function richiesta<T>(metodo: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (metodo !== 'GET') {
-    if (!leggiCookie('XSRF-TOKEN')) await fetch('/api/auth/csrf', { credentials: 'same-origin' });
-    const token = leggiCookie('XSRF-TOKEN');
-    if (token) headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
-  }
   let res: Response;
   try {
+    // anche la richiesta del token CSRF può trovare il server spento: è lo stesso errore «non risponde»
+    if (metodo !== 'GET') {
+      if (!leggiCookie('XSRF-TOKEN')) await fetch('/api/auth/csrf', { credentials: 'same-origin' });
+      const token = leggiCookie('XSRF-TOKEN');
+      if (token) headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
+    }
     res = await fetch(path, { method: metodo, headers, credentials: 'same-origin', body: body === undefined ? undefined : JSON.stringify(body) });
   } catch {
     throw new ErroreApi(0, 'Il server non risponde. Controlla la connessione.');
   }
   if (res.status === 401 && path !== '/api/auth/login') throw new NonAutenticato('Sessione scaduta.');
-  const testo = await res.text();
-  const dati = testo ? JSON.parse(testo) : undefined;
-  if (!res.ok) throw new ErroreApi(res.status, dati?.detail ?? (res.status === 403 ? 'Non hai i permessi per questa operazione.' : `Errore ${res.status}`), dati?.avviso === true);
+  const dati = leggiJson(await res.text());
+  if (!res.ok) throw new ErroreApi(res.status, dati?.detail ?? messaggioDiStato(res.status), dati?.avviso === true);
   return dati as T;
+}
+
+/** Il corpo della risposta come JSON; una pagina d'errore (es. HTML di un proxy) vale come corpo vuoto. */
+function leggiJson(testo: string): { detail?: string; avviso?: boolean } | undefined {
+  if (!testo) return undefined;
+  try {
+    return JSON.parse(testo);
+  } catch {
+    return undefined;
+  }
+}
+
+function messaggioDiStato(status: number): string {
+  if (status === 403) return 'Non hai i permessi per questa operazione.';
+  if (status === 502 || status === 503 || status === 504) return 'Il server non risponde. Riprova tra poco.';
+  return `Errore ${status}`;
 }
 
 export const api = {

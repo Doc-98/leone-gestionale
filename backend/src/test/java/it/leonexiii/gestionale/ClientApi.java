@@ -58,6 +58,18 @@ final class ClientApi {
         return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /**
+     * Come una macchina di phon e docce: niente sessione né CSRF, solo la chiave del dispositivo (se c'è). Con il corpo
+     * a {@code null} la richiesta non ha corpo.
+     */
+    HttpResponse<String> macchina(String metodo, String path, String chiave, String json) throws IOException, InterruptedException {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path))
+            .method(metodo, json == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(json));
+        if (json != null) b.header("Content-Type", "application/json");
+        if (chiave != null) b.header("X-Chiave-Dispositivo", chiave);
+        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
     HttpResponse<String> login(String email, String password) throws IOException, InterruptedException {
         return post("/api/auth/login", "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}", true);
     }

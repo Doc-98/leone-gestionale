@@ -2,36 +2,11 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /** Account dello staff: password temporanea da cambiare, disattivazione immediata, reimpostazione (ADR 0012). */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class AccountTest {
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email, String password) throws Exception {
-        var c = new ClientApi(porta);
-        var r = c.login(email, password);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
+class AccountTest extends ProvaApi {
     @Test
     void unNuovoAccountCambiaLaPasswordESiPuoDisattivare() throws Exception {
         var admin = come("admin@demo.leone", "demo1234");

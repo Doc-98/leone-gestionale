@@ -2,49 +2,22 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /** Listino per stagione, prezzi per frequenza e gruppo, regole di prezzo, importo proposto e cambiato (ADR 0018, parti 3–4). */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class ListinoTest {
+class ListinoTest extends ProvaApi {
 
     static final String DELFINO_GIALLO = "00000000-0000-0000-0000-000000000615";
     static final String ALUNNI = "00000000-0000-0000-0000-000000000901";
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    private String crea(ClientApi c, String path, String corpo) throws Exception {
-        var r = c.post(path, corpo);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
-        return (String) json(r).get("id");
-    }
 
     @Test
     void listinoRegoleEImportoProposto() throws Exception {
         var admin = come("admin@demo.leone");
         var segr = come("segreteria@demo.leone");
-        String stagione = crea(admin, "/api/stagioni", "{\"nome\":\"2050/51\",\"dal\":\"2050-09-01\",\"al\":\"2051-08-31\",\"quota\":35}");
+        String stagione = creaId(admin, "/api/stagioni", "{\"nome\":\"2050/51\",\"dal\":\"2050-09-01\",\"al\":\"2051-08-31\",\"quota\":35}");
 
         // offerte: un corso con prezzo per frequenza e per gruppo; il carnet e gli «altri importi»
         String corso = """
@@ -53,8 +26,8 @@ class ListinoTest {
         assertThat(segr.post("/api/listino/offerte", corso.formatted(stagione, "\"" + DELFINO_GIALLO + "\"", ALUNNI)).statusCode()).isEqualTo(403);
         assertThat(admin.post("/api/listino/offerte", corso.formatted(stagione, "", ALUNNI)).statusCode()).isEqualTo(400);
         String offerta = (String) json(admin.post("/api/listino/offerte", corso.formatted(stagione, "\"" + DELFINO_GIALLO + "\"", ALUNNI))).get("id");
-        String altro = crea(admin, "/api/listino/offerte", "{\"stagioneId\":\"" + stagione + "\",\"nome\":\"Quota gara\",\"tipo\":\"ALTRO\",\"prezzi\":[{\"importo\":50}]}");
-        crea(admin, "/api/listino/offerte", """
+        String altro = creaId(admin, "/api/listino/offerte", "{\"stagioneId\":\"" + stagione + "\",\"nome\":\"Quota gara\",\"tipo\":\"ALTRO\",\"prezzi\":[{\"importo\":50}]}");
+        creaId(admin, "/api/listino/offerte", """
             {"stagioneId":"%s","nome":"Carnet prova","tipo":"CARNET","ingressi":10,"validitaMesi":3,"prezzi":[{"importo":130}]}""".formatted(stagione));
 
         // regole della stagione
@@ -76,7 +49,7 @@ class ListinoTest {
         assertThat(pagina).contains("Prova listino").contains("\"tipo\":\"RIDUZIONE_TARDIVA\",\"attiva\":true").contains("{\"dal\":\"2050-11-01\",\"percentuale\":10}");
 
         // importo proposto: listino, riduzione per iscrizione tardiva, rate
-        String persona = crea(segr, "/api/clienti", "{\"nome\":\"Listino\",\"cognome\":\"Prova\",\"dataNascita\":\"2018-02-02\"}");
+        String persona = creaId(segr, "/api/clienti", "{\"nome\":\"Listino\",\"cognome\":\"Prova\",\"dataNascita\":\"2018-02-02\"}");
         var p1 = json(segr.get("/api/clienti/" + persona + "/proposta?offertaId=" + offerta + "&volte=1&dal=2050-09-10"));
         assertThat(p1).containsEntry("listino", 500.00).containsEntry("proposto", 500.00).containsEntry("riduzionePercentuale", 0);
         assertThat(p1.get("rate").toString()).contains("importo=250.0").contains("scadenza=2050-09-15");
@@ -88,14 +61,14 @@ class ListinoTest {
             .containsEntry("proposto", 560.00);
 
         // negli «Alunni dell'Istituto» vale il loro prezzo, se più basso
-        crea(segr, "/api/clienti/" + persona + "/gruppi", "{\"gruppoId\":\"" + ALUNNI + "\"}");
+        creaId(segr, "/api/clienti/" + persona + "/gruppi", "{\"gruppoId\":\"" + ALUNNI + "\"}");
         var p2 = json(segr.get("/api/clienti/" + persona + "/proposta?offertaId=" + offerta + "&volte=1&dal=2050-09-10"));
         assertThat(p2).containsEntry("proposto", 450.00).containsEntry("prezzoBase", 500.00).containsEntry("gruppoId", ALUNNI);
 
         // vendita dal listino: l'importo proposto; uno diverso solo con il motivo
-        String abb = crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":1,\"dal\":\"2050-09-10\"}");
+        String abb = creaId(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":1,\"dal\":\"2050-09-10\"}");
         assertThat(segr.post("/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":2,\"dal\":\"2050-09-10\",\"importo\":600}").statusCode()).isEqualTo(400);
-        String abb2 = crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":2,\"dal\":\"2050-09-10\",\"importo\":600,\"motivoImporto\":\"Fratello iscritto\"}");
+        String abb2 = creaId(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + offerta + "\",\"volteASettimana\":2,\"dal\":\"2050-09-10\",\"importo\":600,\"motivoImporto\":\"Fratello iscritto\"}");
         assertThat(segr.post("/api/clienti/" + persona + "/abbonamenti", "{\"offertaId\":\"" + altro + "\",\"dal\":\"2050-09-10\"}").statusCode()).isEqualTo(400);
         String scheda = segr.get("/api/clienti/" + persona).body();
         assertThat(scheda).contains("\"importo\":450.00").contains("\"importoListino\":450.00").contains("\"motivoImporto\":\"Fratello iscritto\"")
@@ -123,7 +96,7 @@ class ListinoTest {
         @SuppressWarnings("unchecked")
         String contanti = (String) ((List<Map<String, Object>>) (List<?>) JsonParserFactory.getJsonParser().parseList(segr.get("/api/pagamenti/metodi").body()))
             .getFirst().get("id");
-        crea(segr, "/api/pagamenti", "{\"addebiti\":[\"" + rate.get(0).get("id") + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":225}]}");
+        creaId(segr, "/api/pagamenti", "{\"addebiti\":[\"" + rate.get(0).get("id") + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":225}]}");
 
         // recesso: rimborso secondo la regola, nel borsellino
         var rimborso = json(segr.get("/api/clienti/abbonamenti/" + abb + "/recesso?data=2050-10-15"));
@@ -143,7 +116,7 @@ class ListinoTest {
             .containsEntry("modo", "NESSUNA").containsEntry("giorniRestituiti", 0);
         assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb2 + "/restituzione?" + dalAl + "&certificato=true")))
             .containsEntry("modo", "BORSELLINO").containsEntry("giorniStop", 61).containsEntry("giorniRestituiti", 19).containsEntry("importo", 32.02);
-        String sosp = crea(segr, "/api/clienti/abbonamenti/" + abb2 + "/sospensioni", "{\"dal\":\"2050-10-01\",\"al\":\"2050-11-30\",\"certificato\":true}");
+        String sosp = creaId(segr, "/api/clienti/abbonamenti/" + abb2 + "/sospensioni", "{\"dal\":\"2050-10-01\",\"al\":\"2050-11-30\",\"certificato\":true}");
         assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=144.52");
         // il credito non allunga l'abbonamento
         assertThat(segr.get("/api/clienti/" + persona).body()).contains("\"giorniAllungati\":0,\"credito\":32.02").doesNotContain("\"alEffettivo\":\"2051-09");
@@ -155,7 +128,7 @@ class ListinoTest {
             "{\"attiva\":true,\"parametri\":{\"settimaneMinime\":6,\"settimaneCertificato\":4,\"settimaneRestituite\":\"OLTRE_SOGLIA\",\"restituzione\":\"A_SCELTA\"}}").statusCode()).isEqualTo(200);
         String sospesa = "{\"dal\":\"2050-10-01\",\"al\":\"2050-11-30\",\"certificato\":true%s}";
         assertThat(segr.post("/api/clienti/abbonamenti/" + abb2 + "/sospensioni", sospesa.formatted("")).statusCode()).isEqualTo(400);
-        crea(segr, "/api/clienti/abbonamenti/" + abb2 + "/sospensioni", sospesa.formatted(",\"restituzione\":\"ALLUNGA\""));
+        creaId(segr, "/api/clienti/abbonamenti/" + abb2 + "/sospensioni", sospesa.formatted(",\"restituzione\":\"ALLUNGA\""));
         assertThat(segr.get("/api/clienti/" + persona).body()).contains("\"alEffettivo\":\"2051-09-19\"");
 
         // recesso a scelta del cliente: con qualcosa da rimborsare bisogna dire dove va
@@ -165,7 +138,7 @@ class ListinoTest {
         @SuppressWarnings("unchecked")
         var rate2 = ((List<Map<String, Object>>) json(segr.get("/api/pagamenti/persone/" + persona)).get("addebiti")).stream()
             .filter(x -> abb2.equals(x.get("riferimentoId"))).toList();
-        crea(segr, "/api/pagamenti", "{\"addebiti\":[\"" + rate2.get(0).get("id") + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":300}]}");
+        creaId(segr, "/api/pagamenti", "{\"addebiti\":[\"" + rate2.get(0).get("id") + "\"],\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":300}]}");
         assertThat(json(segr.get("/api/clienti/abbonamenti/" + abb2 + "/recesso?data=2050-12-01"))).containsEntry("modo", "A_SCELTA").containsEntry("importo", 150.00);
         assertThat(segr.post("/api/clienti/abbonamenti/" + abb2 + "/termina", "{\"al\":\"2050-12-01\",\"recesso\":true}").statusCode()).isEqualTo(400);
         var esito2 = json(segr.post("/api/clienti/abbonamenti/" + abb2 + "/termina", "{\"al\":\"2050-12-01\",\"recesso\":true,\"rimborso\":\"DENARO\"}"));
@@ -176,7 +149,7 @@ class ListinoTest {
 
         // un'offerta già venduta non si elimina; il listino si copia nella stagione nuova con l'aumento
         assertThat(admin.delete("/api/listino/offerte/" + offerta).statusCode()).isEqualTo(409);
-        String nuova = crea(admin, "/api/stagioni", "{\"nome\":\"2051/52\",\"dal\":\"2051-09-01\",\"al\":\"2052-08-31\"}");
+        String nuova = creaId(admin, "/api/stagioni", "{\"nome\":\"2051/52\",\"dal\":\"2051-09-01\",\"al\":\"2052-08-31\"}");
         var copia = admin.post("/api/listino/copia", "{\"da\":\"" + stagione + "\",\"a\":\"" + nuova + "\",\"aumentoPercentuale\":10}");
         assertThat(copia.statusCode()).as(copia.body()).isEqualTo(200);
         assertThat(json(copia)).containsEntry("offerte", 3);

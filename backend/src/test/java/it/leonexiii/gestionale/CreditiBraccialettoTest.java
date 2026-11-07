@@ -2,50 +2,16 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /** Crediti scritti sul braccialetto, con le macchine non collegate (ADR 0025), nel formato di prova del profilo demo. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class CreditiBraccialettoTest {
+class CreditiBraccialettoTest extends ProvaApi {
 
     static final String PHON = "00000000-0000-0000-0000-000000000a01";
     static final String CODICE = "7B7B7B01";
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> mappa(Object o) {
-        return (Map<String, Object>) o;
-    }
-
-    private String crea(ClientApi c, String path, String corpo) throws Exception {
-        var r = c.post(path, corpo);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
-        return (String) json(r).get("id");
-    }
-
     /** Il blocco 4 del formato di prova con quei crediti. */
     private static String blocco(int crediti) {
         var h = HexFormat.of().withUpperCase();
@@ -73,11 +39,11 @@ class CreditiBraccialettoTest {
             assertThat(json(segr.get("/api/crediti-braccialetto/stato"))).containsEntry("sulBraccialetto", true).containsEntry("formato", "PROVA")
                 .containsEntry("pronto", true);
 
-            String persona = crea(segr, "/api/clienti", "{\"nome\":\"Chip\",\"cognome\":\"Prova\",\"dataNascita\":\"1990-01-01\"}");
+            String persona = creaId(segr, "/api/clienti", "{\"nome\":\"Chip\",\"cognome\":\"Prova\",\"dataNascita\":\"1990-01-01\"}");
             String braccialetto = (String) json(segr.post("/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + CODICE + "\"}")).get("id");
             @SuppressWarnings("unchecked")
             String contanti = (String) ((List<Object>) (List<?>) JsonParserFactory.getJsonParser().parseList(segr.get("/api/pagamenti/metodi").body())).stream()
-                .map(CreditiBraccialettoTest::mappa).filter(m -> "Contanti".equals(m.get("nome"))).findFirst().orElseThrow().get("id");
+                .map(ProvaApi::mappa).filter(m -> "Contanti".equals(m.get("nome"))).findFirst().orElseThrow().get("id");
             String paga = "\"metodi\":[{\"metodoId\":\"" + contanti + "\",\"importo\":5}]";
 
             // con i crediti sul braccialetto la ricarica «dal gestionale» non c'è

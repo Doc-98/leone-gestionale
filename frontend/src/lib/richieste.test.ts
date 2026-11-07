@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cosaCambia, descrivi, esito, ordinaDaCoprire, passi } from './richieste';
+import { cosaCambia, cosaDaFare, descrivi, descriviRichiestaSulTurno, esito, gruppoRichiesta, ordinaDaCoprire, passi } from './richieste';
 import type { Richiesta, Turno } from './api';
 
 const turno = (data: string): Turno => ({
@@ -75,5 +75,35 @@ describe('richieste per il coordinatore', () => {
     expect(quandoInviata('2026-11-01T08:12:00Z', '2026-11-01')).toBe('chiesta oggi alle 9:12');
     expect(quandoInviata('2026-10-31T20:40:00Z', '2026-11-01')).toBe('chiesta ieri alle 21:40');
     expect(quandoInviata('2026-10-28T10:00:00Z', '2026-11-01')).toBe('chiesta il 28/10');
+  });
+});
+
+describe('le richieste viste dal coordinatore', () => {
+  const marta = { id: 'marta', nome: 'Marta Neri' };
+
+  it('sostituzione: da coprire finché nessuno la prende, da decidere quando un collega c\'è', () => {
+    const aperta = base({});
+    expect(gruppoRichiesta(aperta)).toBe('Da coprire');
+    expect(cosaDaFare(aperta)).toBe('Sostituzione da coprire');
+    expect(descriviRichiestaSulTurno(aperta)).toBe('Luca Bianchi ha chiesto una sostituzione: proponila a un collega da «Richieste»');
+    const proposta = base({ collega: marta });
+    expect(gruppoRichiesta(proposta)).toBe('Aspettano il collega');
+    const presa = base({ stato: 'IN_ATTESA_APPROVAZIONE', collega: marta });
+    expect(gruppoRichiesta(presa)).toBe('Da decidere');
+    expect(cosaDaFare(presa)).toBe('Sostituzione da decidere');
+    expect(descriviRichiestaSulTurno(presa)).toBe('Marta Neri sostituirebbe Luca Bianchi: da decidere in «Richieste»');
+  });
+
+  it('cambio orario e scambio', () => {
+    const cambio = base({ tipo: 'CAMBIO_ORARIO', stato: 'IN_ATTESA_APPROVAZIONE', nuovoInizio: '16:00:00', nuovoFine: '19:00:00' });
+    expect(cosaDaFare(cambio)).toBe('Cambio orario da decidere');
+    expect(gruppoRichiesta(cambio)).toBe('Da decidere');
+    expect(descriviRichiestaSulTurno(cambio)).toBe('C\'è un cambio orario da decidere su questo turno (16:00–19:00)');
+    const scambio = base({ tipo: 'SCAMBIO', collega: marta });
+    expect(cosaDaFare(scambio)).toBe('Scambio in attesa del collega');
+    expect(gruppoRichiesta(scambio)).toBe('Aspettano il collega');
+    expect(descriviRichiestaSulTurno(scambio)).toBe('C\'è uno scambio con Marta Neri in corso su questo turno');
+    expect(descriviRichiestaSulTurno(base({ tipo: 'SCAMBIO' }))).toContain('un collega');
+    expect(cosaDaFare(base({ tipo: 'SCAMBIO', stato: 'IN_ATTESA_APPROVAZIONE', collega: marta }))).toBe('Scambio da decidere');
   });
 });

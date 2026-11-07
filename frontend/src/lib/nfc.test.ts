@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { codiceDecimale, codiceValido, motivoNfcAssente, normalizzaCodice } from './nfc';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { codiceDecimale, codiceValido, leggiConNfc, motivoNfcAssente, normalizzaCodice } from './nfc';
 
 describe('codici dei braccialetti', () => {
   it('toglie i separatori e mette in maiuscolo', () => {
@@ -37,5 +37,42 @@ describe('tag NFC comuni', () => {
     expect(normalizzaCodice('04:5a:3b:c2:91:6e:80')).toBe('045A3BC2916E80');
     expect(codiceValido('045A3BC2916E80')).toBe(true);
     expect(codiceDecimale('045A3BC2916E80')).toBeNull();
+  });
+});
+
+describe('lettura con la Web NFC', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** Un NDEFReader finto: il test «appoggia» i braccialetti chiamando leggi(). */
+  function lettoreFinto() {
+    let suLettura: (e: { serialNumber?: string }) => void = () => {};
+    const scan = vi.fn(async () => {});
+    class NDEFReader {
+      addEventListener(_tipo: string, f: (e: { serialNumber?: string }) => void) { suLettura = f; }
+      scan = scan;
+    }
+    vi.stubGlobal('window', { NDEFReader });
+    return { scan, leggi: (serialNumber?: string) => suLettura({ serialNumber }) };
+  }
+
+  it('normalizza i codici e ignora lo stesso braccialetto letto di nuovo subito dopo', async () => {
+    vi.useFakeTimers();
+    const finto = lettoreFinto();
+    const letti: string[] = [];
+    const segnale = new AbortController().signal;
+    await leggiConNfc((c) => letti.push(c), segnale, 2500);
+    expect(finto.scan).toHaveBeenCalledWith({ signal: segnale });
+    finto.leggi('04:a1:b2:c3');
+    finto.leggi('04:A1:B2:C3'); // ancora appoggiato
+    finto.leggi(undefined); // un tag senza seriale
+    finto.leggi('d0:00:00:01');
+    vi.advanceTimersByTime(1000);
+    finto.leggi('d0:00:00:01');
+    vi.advanceTimersByTime(3000);
+    finto.leggi('d0:00:00:01'); // ripassato dopo la pausa: vale
+    expect(letti).toEqual(['04A1B2C3', 'D0000001', 'D0000001']);
   });
 });

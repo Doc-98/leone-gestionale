@@ -18,5 +18,6 @@ export default defineConfig(({ command }) => ({
   server: {
     proxy: { '/api': 'http://localhost:8080' },
   },
-  test: { include: ['src/**/*.test.ts'] },
+  // «npm run copertura»: quanta parte di src/lib provano i test (rapporto anche in coverage/index.html)
+  test: { include: ['src/**/*.test.ts'], coverage: { include: ['src/lib/**'], reporter: ['text-summary', 'html'] } },
 }));

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { applicaScrittura, LettoreSimulato, lettoreChip, memoriaVuota, type Deposito } from './chip.svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { applicaScrittura, depositoLocale, LettoreSimulato, lettoreChip, memoriaVuota, type Deposito } from './chip.svelte';
 import type { StatoCreditiBraccialetto } from './api';
 
 const accesso = { chip: 'MIFARE_CLASSIC_1K', chiavi: [], blocchi: [4] };
@@ -38,5 +38,24 @@ describe('quale lettore', () => {
     expect(lettoreChip(stato({ pronto: false })).perche).toBe('formato sconosciuto');
     expect(lettoreChip(stato({ sulBraccialetto: false })).lettore).toBeNull();
     expect(lettoreChip(stato({ formato: 'ROMANO' })).perche).toContain('programma per Windows');
+  });
+});
+
+describe('dove il lettore simulato tiene le memorie', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('nel browser, separate per braccialetto', () => {
+    const memoria = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => memoria.get(k) ?? null, setItem: (k: string, v: string) => memoria.set(k, v) });
+    depositoLocale.scrivi('AA000001', { 4: 'ff'.repeat(16) });
+    expect(JSON.parse(memoria.get('leone:chip-simulato:AA000001')!)).toEqual({ 4: 'ff'.repeat(16) });
+    expect(depositoLocale.leggi('AA000001')).toEqual({ 4: 'ff'.repeat(16) });
+    expect(depositoLocale.leggi('AA000002')).toBeNull();
+  });
+
+  it('senza memoria del browser, finché la pagina è aperta', () => {
+    vi.stubGlobal('localStorage', { getItem: () => { throw new Error('bloccato'); }, setItem: () => { throw new Error('bloccato'); } });
+    depositoLocale.scrivi('BB000001', { 4: '01'.repeat(16) });
+    expect(depositoLocale.leggi('BB000001')).toEqual({ 4: '01'.repeat(16) });
   });
 });

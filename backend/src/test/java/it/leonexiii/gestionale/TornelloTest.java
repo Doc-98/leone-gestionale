@@ -2,76 +2,20 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Il tornello: tutti i motivi del rosso insieme, con il nome della persona; fascia oraria configurabile; più
  * braccialetti; ban del braccialetto o della persona; smarrito; golden pass; carnet con rientro. Il tempo è fermato
  * su domenica 2 gennaio 2028 (la domenica è libera nei dati demo).
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import({TestcontainersConfiguration.class, TornelloTest.Tempo.class})
-@ActiveProfiles("demo")
-class TornelloTest {
+class TornelloTest extends ProvaApi {
 
-    static final ZoneId ROMA = ZoneId.of("Europe/Rome");
     static final String IMPIANTO = "00000000-0000-0000-0000-0000000000b1";
     static final String VASCA_PICCOLA = "00000000-0000-0000-0000-0000000000c2";
-
-    /** Un orologio che i test spostano a piacere. */
-    static final class OrologioDiProva extends Clock {
-        private volatile Instant adesso = Instant.now();
-
-        void alle(String quando) {
-            adesso = LocalDateTime.parse(quando).atZone(ROMA).toInstant();
-        }
-
-        @Override public ZoneId getZone() { return ROMA; }
-        @Override public Clock withZone(ZoneId zone) { return this; }
-        @Override public Instant instant() { return adesso; }
-    }
-
-    @TestConfiguration(proxyBeanMethods = false)
-    static class Tempo {
-        @Bean
-        @Primary
-        OrologioDiProva orologioDiProva() {
-            return new OrologioDiProva();
-        }
-    }
-
-    @LocalServerPort
-    int porta;
-
-    @Autowired
-    OrologioDiProva orologio;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
 
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> motivi(Map<String, Object> esito) {
@@ -93,14 +37,8 @@ class TornelloTest {
         return json(r);
     }
 
-    private String crea(ClientApi c, String path, String corpo) throws Exception {
-        var r = c.post(path, corpo);
-        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
-        return (String) json(r).get("id");
-    }
-
     private String cliente(ClientApi segr, String nome) throws Exception {
-        return crea(segr, "/api/clienti", "{\"nome\":\"" + nome + "\",\"cognome\":\"Prova\",\"dataNascita\":\"2019-03-10\"}");
+        return creaId(segr, "/api/clienti", "{\"nome\":\"" + nome + "\",\"cognome\":\"Prova\",\"dataNascita\":\"2019-03-10\"}");
     }
 
     @Test
@@ -120,7 +58,7 @@ class TornelloTest {
         assertThat(b1.statusCode()).as(b1.body()).isEqualTo(201);
         String idPrimo = (String) json(b1).get("id");
         assertThat(json(b1).get("codice")).isEqualTo(primo);
-        String idSecondo = crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + secondo + "\"}");
+        String idSecondo = creaId(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + secondo + "\"}");
         assertThat(segr.post("/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + secondo + "\"}").statusCode()).isEqualTo(409);
 
         // niente certificato, tesseramento, abbonamento: tre motivi insieme, e il nome di chi porta il braccialetto
@@ -133,25 +71,25 @@ class TornelloTest {
         assertThat(p.get("braccialettiAttivi")).isEqualTo(2);
 
         // certificato scaduto ieri: blocca; poi quello nuovo
-        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-01\"}");
+        creaId(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-01\"}");
         assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).contains("CERTIFICATO_SCADUTO");
-        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-02\"}");
+        creaId(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-01-02\"}");
         assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).doesNotContain("CERTIFICATO_SCADUTO", "CERTIFICATO_MANCANTE");
 
         // tesseramento senza dati: la stagione in corso (impostata dalla società), 2027/28
-        crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        creaId(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
         assertThat(segr.post("/api/clienti/" + persona + "/tesseramenti", "{}").statusCode()).isEqualTo(409);
         var scheda = json(segr.get("/api/clienti/" + persona));
         assertThat(scheda.toString()).contains("stagione=2027/28").contains("dal=2027-09-01").contains("al=2028-08-31");
 
         // un turno la domenica alle 06:00-06:45, iscrizione e abbonamento al corso
-        String corso = crea(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Corso del tornello\",\"tipo\":\"ALTRO\"}");
+        String corso = creaId(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Corso del tornello\",\"tipo\":\"ALTRO\"}");
         var l = coord.post("/api/corsi/" + corso + "/lezioni", """
             {"giornoSettimana":7,"inizio":"06:00","fine":"06:45","validaDal":"2028-01-01","spazi":["%s"]}""".formatted(VASCA_PICCOLA));
         assertThat(l.statusCode()).as(l.body()).isEqualTo(201);
         @SuppressWarnings("unchecked") String lezione = (String) ((Map<String, Object>) json(l).get("valore")).get("id");
         assertThat(segr.post("/api/lezioni/" + lezione + "/iscritti", "{\"personaId\":\"" + persona + "\",\"dal\":\"2028-01-01\"}").statusCode()).isEqualTo(201);
-        crea(segr, "/api/clienti/" + persona + "/abbonamenti",
+        creaId(segr, "/api/clienti/" + persona + "/abbonamenti",
             "{\"tipo\":\"CORSO\",\"corsoId\":\"" + corso + "\",\"volteASettimana\":1,\"dal\":\"2027-09-01\",\"al\":\"2028-06-30\"}");
 
         // fascia: da 10 minuti prima dell'inizio fino alla fine
@@ -176,13 +114,13 @@ class TornelloTest {
         assertThat(coord.get("/api/accessi/regole").body()).contains("\"codice\":\"FASCIA_ORARIA\"").contains("\"minutiPrima\"");
 
         // ban del singolo braccialetto: l'altro funziona
-        String banB = crea(segr, "/api/accessi/ban", "{\"braccialettoId\":\"" + idPrimo + "\",\"motivo\":\"Ceduto a un'altra persona\"}");
+        String banB = creaId(segr, "/api/accessi/ban", "{\"braccialettoId\":\"" + idPrimo + "\",\"motivo\":\"Ceduto a un'altra persona\"}");
         var bannato = passa(staff, "2028-01-02T06:00", primo);
         assertThat(codici(bannato)).containsExactly("BRACCIALETTO_BANNATO");
         assertThat(motivi(bannato).getFirst().get("messaggio").toString()).contains("Ceduto a un'altra persona");
         assertThat(passa(staff, "2028-01-02T06:00", secondo).get("verde")).isEqualTo(true);
         // ban della persona: tutti i suoi braccialetti
-        String banP = crea(segr, "/api/accessi/ban", "{\"personaId\":\"" + persona + "\",\"motivo\":\"Comportamento scorretto\",\"al\":\"2028-01-31\"}");
+        String banP = creaId(segr, "/api/accessi/ban", "{\"personaId\":\"" + persona + "\",\"motivo\":\"Comportamento scorretto\",\"al\":\"2028-01-31\"}");
         assertThat(codici(passa(staff, "2028-01-02T06:00", secondo))).containsExactly("PERSONA_BANNATA");
         assertThat(codici(passa(staff, "2028-01-02T06:00", primo))).containsExactly("BRACCIALETTO_BANNATO", "PERSONA_BANNATA");
         assertThat(segr.post("/api/accessi/ban/" + banB + "/revoca", "{}").statusCode()).isEqualTo(204);
@@ -199,7 +137,7 @@ class TornelloTest {
 
         // golden pass: verde anche fuori orario e senza certificato valido, ma il braccialetto smarrito resta rosso
         assertThat(staff.post("/api/accessi/persone/" + persona + "/golden-pass", "{}").statusCode()).isEqualTo(403);
-        String gp = crea(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova\"}");
+        String gp = creaId(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova\"}");
         var dorato = passa(staff, "2028-01-03T21:00", secondo);
         assertThat(dorato.get("verde")).isEqualTo(true);
         assertThat(dorato.get("goldenPass")).isEqualTo(true);
@@ -245,10 +183,10 @@ class TornelloTest {
         orologio.alle("2028-01-02T11:00");
         String persona = cliente(segr, "Carla");
         String codice = nuovoCodice();
-        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
-        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
-        crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
-        crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":2,\"dal\":\"2028-01-01\"}");
+        creaId(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        creaId(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        creaId(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        creaId(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":2,\"dal\":\"2028-01-01\"}");
 
         // il carnet non ha fascia oraria: primo passaggio, scala
         var e1 = passa(staff, "2028-01-02T12:00", codice);
@@ -276,17 +214,17 @@ class TornelloTest {
         var staff = come("marta@demo.leone");
         orologio.alle("2028-01-02T09:00");
         // un «nuoto libero» della domenica 12:00-14:00
-        String corso = crea(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Libero domenicale\",\"tipo\":\"NUOTO_LIBERO\"}");
+        String corso = creaId(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Libero domenicale\",\"tipo\":\"NUOTO_LIBERO\"}");
         var l = coord.post("/api/corsi/" + corso + "/lezioni", """
             {"giornoSettimana":7,"inizio":"12:00","fine":"14:00","validaDal":"2028-01-01","spazi":["%s"]}""".formatted(VASCA_PICCOLA));
         assertThat(l.statusCode()).as(l.body()).isEqualTo(201);
 
         String persona = cliente(segr, "Dario");
         String codice = nuovoCodice();
-        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
-        crea(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
-        crea(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
-        crea(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"corsoId\":\"" + corso + "\",\"dal\":\"2028-01-01\"}");
+        creaId(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        creaId(segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        creaId(segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        creaId(segr, "/api/clienti/" + persona + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"corsoId\":\"" + corso + "\",\"dal\":\"2028-01-01\"}");
 
         // prima delle 11:50 no; nella fascia sì e scala; il lunedì il corso non c'è
         var presto = passa(staff, "2028-01-02T11:00", codice);
@@ -299,17 +237,17 @@ class TornelloTest {
         // a entrata libera, invece, a qualsiasi ora
         String altro = cliente(segr, "Elio");
         String codice2 = nuovoCodice();
-        crea(segr, "/api/accessi/persone/" + altro + "/braccialetti", "{\"codice\":\"" + codice2 + "\"}");
-        crea(segr, "/api/clienti/" + altro + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
-        crea(segr, "/api/clienti/" + altro + "/tesseramenti", "{}");
-        crea(segr, "/api/clienti/" + altro + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"dal\":\"2028-01-01\"}");
+        creaId(segr, "/api/accessi/persone/" + altro + "/braccialetti", "{\"codice\":\"" + codice2 + "\"}");
+        creaId(segr, "/api/clienti/" + altro + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        creaId(segr, "/api/clienti/" + altro + "/tesseramenti", "{}");
+        creaId(segr, "/api/clienti/" + altro + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":5,\"dal\":\"2028-01-01\"}");
         assertThat(passa(staff, "2028-01-03T21:00", codice2).get("verde")).isEqualTo(true);
     }
 
     private String clienteInRegola(ClientiDemo d, String nome, String nascita) throws Exception {
-        String persona = crea(d.segr, "/api/clienti", "{\"nome\":\"" + nome + "\",\"cognome\":\"Prova\",\"dataNascita\":\"" + nascita + "\"}");
-        crea(d.segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
-        crea(d.segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
+        String persona = creaId(d.segr, "/api/clienti", "{\"nome\":\"" + nome + "\",\"cognome\":\"Prova\",\"dataNascita\":\"" + nascita + "\"}");
+        creaId(d.segr, "/api/clienti/" + persona + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        creaId(d.segr, "/api/clienti/" + persona + "/tesseramenti", "{}");
         return persona;
     }
 
@@ -317,7 +255,7 @@ class TornelloTest {
 
     private String braccialetto(ClientApi segr, String persona) throws Exception {
         String codice = nuovoCodice();
-        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        creaId(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
         return codice;
     }
 
@@ -335,9 +273,9 @@ class TornelloTest {
 
         // sotto controllo: entra, ma con un avviso, e la segreteria lo vede tra le segnalazioni
         String adulto = clienteInRegola(d, "Guido", "1980-05-05");
-        crea(d.segr, "/api/clienti/" + adulto + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":20,\"dal\":\"2028-01-01\"}");
+        creaId(d.segr, "/api/clienti/" + adulto + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":20,\"dal\":\"2028-01-01\"}");
         String cod = braccialetto(d.segr, adulto);
-        crea(d.segr, "/api/accessi/ban", "{\"tipo\":\"SORVEGLIANZA\",\"personaId\":\"" + adulto + "\",\"motivo\":\"Verificare con chi entra\"}");
+        creaId(d.segr, "/api/accessi/ban", "{\"tipo\":\"SORVEGLIANZA\",\"personaId\":\"" + adulto + "\",\"motivo\":\"Verificare con chi entra\"}");
         var e = passa(d.staff, "2028-01-02T10:00", cod);
         assertThat(e.get("verde")).isEqualTo(true);
         assertThat(codici(e)).containsExactly("PERSONA_SOTTO_CONTROLLO");
@@ -353,14 +291,14 @@ class TornelloTest {
             assertThat(motivi(subito).stream().filter(m -> m.get("codice").equals("PASSAGGIO_RIPETUTO")).findFirst().orElseThrow().get("messaggio").toString())
                 .contains("alle 10:00").contains("dalle 10:05");
             assertThat(passa(d.staff, "2028-01-02T10:05", cod).get("verde")).isEqualTo(true);
-            crea(d.segr, "/api/accessi/persone/" + adulto + "/autorizzazioni", "{\"tipo\":\"ACCOMPAGNATORE\"}");
+            creaId(d.segr, "/api/accessi/persone/" + adulto + "/autorizzazioni", "{\"tipo\":\"ACCOMPAGNATORE\"}");
             assertThat(passa(d.staff, "2028-01-02T10:06", cod).get("verde")).isEqualTo(true);
         } finally {
             assertThat(d.admin.put("/api/accessi/regole/RIPASSAGGIO", "{\"attiva\":false}").statusCode()).isEqualTo(204);
         }
 
         // uscita (spenta di base): acceso, il minorenne esce solo con il permesso firmato; l'adulto sempre
-        String bambino = crea(d.segr, "/api/clienti", "{\"nome\":\"Ivo\",\"cognome\":\"Prova\",\"dataNascita\":\"2016-04-04\"}");
+        String bambino = creaId(d.segr, "/api/clienti", "{\"nome\":\"Ivo\",\"cognome\":\"Prova\",\"dataNascita\":\"2016-04-04\"}");
         String codB = braccialetto(d.segr, bambino);
         assertThat(esci(d.staff, "2028-01-02T11:00", codB).get("verde")).isEqualTo(true); // regola spenta
         assertThat(d.admin.put("/api/accessi/regole/USCITA", "{\"attiva\":true}").statusCode()).isEqualTo(204);
@@ -369,22 +307,33 @@ class TornelloTest {
             assertThat(codici(fuori)).containsExactly("USCITA_NON_AUTORIZZATA"); // all'uscita non contano certificato e abbonamento
             assertThat(fuori.get("verso")).isEqualTo("USCITA");
             assertThat(d.segr.post("/api/accessi/persone/" + bambino + "/autorizzazioni", "{\"tipo\":\"USCITA_AUTONOMA\"}").statusCode()).isEqualTo(400);
-            crea(d.segr, "/api/accessi/persone/" + bambino + "/autorizzazioni",
+            assertThat(d.segr.post("/api/accessi/persone/" + bambino + "/autorizzazioni",
+                "{\"tipo\":\"USCITA_AUTONOMA\",\"firmataDa\":\"Un genitore\",\"dal\":\"2028-01-10\",\"al\":\"2028-01-05\"}").statusCode()).isEqualTo(400);
+            String permesso = creaId(d.segr, "/api/accessi/persone/" + bambino + "/autorizzazioni",
                 "{\"tipo\":\"USCITA_AUTONOMA\",\"firmataDa\":\"Un genitore\",\"firmataIl\":\"2028-01-01\"}");
             assertThat(esci(d.staff, "2028-01-02T11:01", codB).get("verde")).isEqualTo(true);
             assertThat(esci(d.staff, "2028-01-02T11:01", cod).get("verde")).isEqualTo(true);
+            // revocato (anche due volte di seguito), il permesso non vale più
+            assertThat(d.segr.post("/api/accessi/autorizzazioni/" + permesso + "/revoca", "{}").statusCode()).isEqualTo(204);
+            assertThat(d.segr.post("/api/accessi/autorizzazioni/" + permesso + "/revoca", "{}").statusCode()).isEqualTo(204);
+            assertThat(codici(esci(d.staff, "2028-01-02T11:02", codB))).containsExactly("USCITA_NON_AUTORIZZATA");
+            assertThat(d.segr.post("/api/accessi/autorizzazioni/" + UUID.randomUUID() + "/revoca", "{}").statusCode()).isEqualTo(404);
+            // un permesso che inizia domani non vale oggi
+            creaId(d.segr, "/api/accessi/persone/" + bambino + "/autorizzazioni",
+                "{\"tipo\":\"USCITA_AUTONOMA\",\"firmataDa\":\"Un genitore\",\"dal\":\"2028-01-03\"}");
+            assertThat(codici(esci(d.staff, "2028-01-02T11:03", codB))).containsExactly("USCITA_NON_AUTORIZZATA");
         } finally {
             assertThat(d.admin.put("/api/accessi/regole/USCITA", "{\"attiva\":false}").statusCode()).isEqualTo(204);
         }
 
         // certificato provvisorio: firmato il 1/1, vale al massimo 30 giorni (fino al 30/1), con un avviso
-        String nuovo = crea(d.segr, "/api/clienti", "{\"nome\":\"Lia\",\"cognome\":\"Prova\",\"dataNascita\":\"1990-01-01\"}");
-        crea(d.segr, "/api/clienti/" + nuovo + "/tesseramenti", "{}");
-        String abb = crea(d.segr, "/api/clienti/" + nuovo + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":20,\"dal\":\"2028-01-01\",\"al\":\"2028-02-29\"}");
+        String nuovo = creaId(d.segr, "/api/clienti", "{\"nome\":\"Lia\",\"cognome\":\"Prova\",\"dataNascita\":\"1990-01-01\"}");
+        creaId(d.segr, "/api/clienti/" + nuovo + "/tesseramenti", "{}");
+        String abb = creaId(d.segr, "/api/clienti/" + nuovo + "/abbonamenti", "{\"tipo\":\"CARNET\",\"ingressi\":20,\"dal\":\"2028-01-01\",\"al\":\"2028-02-29\"}");
         String codL = braccialetto(d.segr, nuovo);
         assertThat(d.segr.post("/api/clienti/" + nuovo + "/certificati", "{\"tipo\":\"PROVVISORIO\",\"rilasciatoIl\":\"2028-01-01\",\"scadenza\":\"2028-03-01\"}").statusCode())
             .isEqualTo(400); // manca chi l'ha firmato
-        crea(d.segr, "/api/clienti/" + nuovo + "/certificati",
+        creaId(d.segr, "/api/clienti/" + nuovo + "/certificati",
             "{\"tipo\":\"PROVVISORIO\",\"rilasciatoIl\":\"2028-01-01\",\"scadenza\":\"2028-03-01\",\"firmatoDa\":\"Lia Prova\"}");
         var prov = passa(d.staff, "2028-01-02T12:00", codL);
         assertThat(prov.get("verde")).isEqualTo(true);
@@ -393,8 +342,8 @@ class TornelloTest {
         assertThat(codici(passa(d.staff, "2028-01-31T12:00", codL))).containsExactly("CERTIFICATO_SCADUTO");
 
         // sospensione: nei giorni sospesi non vale, la scadenza si allunga di altrettanti giorni
-        crea(d.segr, "/api/clienti/" + nuovo + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
-        crea(d.segr, "/api/clienti/abbonamenti/" + abb + "/sospensioni", "{\"dal\":\"2028-01-10\",\"al\":\"2028-01-19\",\"motivo\":\"Infortunio\"}");
+        creaId(d.segr, "/api/clienti/" + nuovo + "/certificati", "{\"tipo\":\"NON_AGONISTICO\",\"scadenza\":\"2028-12-31\"}");
+        creaId(d.segr, "/api/clienti/abbonamenti/" + abb + "/sospensioni", "{\"dal\":\"2028-01-10\",\"al\":\"2028-01-19\",\"motivo\":\"Infortunio\"}");
         assertThat(d.segr.post("/api/clienti/abbonamenti/" + abb + "/sospensioni", "{\"dal\":\"2028-01-15\",\"al\":\"2028-01-20\"}").statusCode()).isEqualTo(409);
         var sospeso = passa(d.staff, "2028-01-12T12:00", codL);
         assertThat(codici(sospeso)).containsExactly("ABBONAMENTO_SOSPESO");
@@ -412,9 +361,9 @@ class TornelloTest {
         var coord = come("coordinatore@demo.leone");
         orologio.alle("2028-06-11T08:00"); // una domenica in cui nessun altro test passa dal tornello
 
-        String persona = crea(segr, "/api/clienti", "{\"nome\":\"Ornella\",\"cognome\":\"Banco\",\"dataNascita\":\"1990-05-01\"}");
+        String persona = creaId(segr, "/api/clienti", "{\"nome\":\"Ornella\",\"cognome\":\"Banco\",\"dataNascita\":\"1990-05-01\"}");
         String codice = nuovoCodice();
-        crea(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
+        creaId(segr, "/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + codice + "\"}");
         String sconosciuto = nuovoCodice();
         // passando il braccialetto nella ricerca dei clienti si apre la sua scheda
         assertThat(json(segr.get("/api/accessi/braccialetti?codice=" + codice)).get("personaId")).isEqualTo(persona);
@@ -437,7 +386,7 @@ class TornelloTest {
         assertThat(((Map<String, Object>) g.get("conteggi")).get("fermati")).isEqualTo(3);
 
         // con il golden pass passa in verde: non è più da sistemare, è tra i sistemati
-        crea(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova del banco\"}");
+        creaId(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova del banco\"}");
         assertThat(passa(staff, "2028-06-11T09:10", codice).get("verde")).isEqualTo(true);
         g = json(staff.get("/api/accessi/giornata"));
         assertThat((List<?>) g.get("daSistemare")).hasSize(1);
@@ -454,5 +403,42 @@ class TornelloTest {
         conti = (Map<String, Object>) json(staff.get("/api/accessi/giornata")).get("conteggi");
         assertThat(conti.get("dentro")).isEqualTo(0);
         assertThat(conti.get("uscite")).isEqualTo(1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void alBancoITurniDiOggiDiChiPassa() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var staff = come("staff@demo.leone");
+        var coord = come("coordinatore@demo.leone");
+        orologio.alle("2028-06-18T09:00"); // un'altra domenica tutta per questo test
+        String corso = creaId(coord, "/api/corsi", "{\"impiantoId\":\"" + IMPIANTO + "\",\"nome\":\"Corso del banco\",\"tipo\":\"ALTRO\"}");
+        String domenica = (String) mappa(crea(coord, "/api/corsi/" + corso + "/lezioni", """
+            {"giornoSettimana":7,"inizio":"10:00","fine":"10:45","validaDal":"2028-06-01","spazi":["%s"],"posti":5}""".formatted(VASCA_PICCOLA)).get("valore")).get("id");
+        String sabato = (String) mappa(crea(coord, "/api/corsi/" + corso + "/lezioni", """
+            {"giornoSettimana":6,"inizio":"18:00","fine":"18:45","validaDal":"2028-06-01","spazi":["%s"],"posti":5}""".formatted(VASCA_PICCOLA)).get("valore")).get("id");
+        // la lezione del sabato 17 è spostata a oggi alle 12
+        crea(coord, "/api/lezioni/" + sabato + "/eccezioni",
+            "{\"data\":\"2028-06-17\",\"tipo\":\"SPOSTATA\",\"nuovaData\":\"2028-06-18\",\"nuovoInizio\":\"12:00\",\"nuovoFine\":\"12:45\"}");
+
+        String persona = (String) crea(segr, "/api/lezioni/" + domenica + "/iscritti",
+            "{\"nuovaPersona\":{\"nome\":\"Bruno\",\"cognome\":\"Banco\",\"dataNascita\":\"2015-02-02\"},\"dal\":\"2028-06-01\"}").get("personaId");
+        crea(segr, "/api/lezioni/" + sabato + "/iscritti", "{\"personaId\":\"" + persona + "\",\"dal\":\"2028-06-01\"}");
+        String compagna = (String) crea(segr, "/api/lezioni/" + domenica + "/iscritti",
+            "{\"nuovaPersona\":{\"nome\":\"Carla\",\"cognome\":\"Banco\"},\"dal\":\"2028-06-01\"}").get("personaId");
+        String codice = braccialetto(segr, persona);
+        braccialetto(segr, compagna);
+        creaId(coord, "/api/accessi/persone/" + persona + "/golden-pass", "{\"motivo\":\"Prova dei turni al banco\"}");
+        assertThat(passa(staff, "2028-06-18T09:50", codice).get("verde")).isEqualTo(true);
+
+        var g = json(staff.get("/api/accessi/giornata"));
+        // chi è passato vede i suoi turni di oggi in ordine di orario, compreso quello spostato
+        var suoi = elenco(mappa(g.get("turni")).get(persona));
+        assertThat(suoi).extracting(t -> t.get("inizio")).containsExactly("10:00:00", "12:00:00");
+        assertThat(suoi.getFirst()).containsEntry("corso", "Corso del banco").containsEntry("tipo", "ALTRO").containsEntry("iscritti", 2);
+        assertThat(suoi.get(1)).containsEntry("lezioneId", sabato).containsEntry("fine", "12:45:00").containsEntry("iscritti", 1);
+        // per ogni turno di oggi, quanti iscritti sono già entrati (Carla non ancora)
+        assertThat(mappa(g.get("arrivati"))).containsEntry(domenica, 1).containsEntry(sabato, 1);
+        assertThat(mappa(g.get("turni"))).doesNotContainKey(compagna);
     }
 }

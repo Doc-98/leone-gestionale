@@ -2,46 +2,18 @@ package it.leonexiii.gestionale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.http.HttpResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.json.JsonParserFactory;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /** Ruoli come dati: permessi modificabili, ruoli nuovi, assegnazioni che valgono subito (ADR 0010). */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("demo")
-class RuoliTest {
+class RuoliTest extends ProvaApi {
 
     static final String ACCOUNT_LUCA = "00000000-0000-0000-0000-000000000203";
     static final String ACCOUNT_ADMIN = "00000000-0000-0000-0000-000000000201";
-
-    @LocalServerPort
-    int porta;
-
-    private ClientApi come(String email) throws Exception {
-        var c = new ClientApi(porta);
-        assertThat(c.login(email, "demo1234").statusCode()).isEqualTo(200);
-        return c;
-    }
-
-    private static Map<String, Object> json(HttpResponse<String> r) {
-        return JsonParserFactory.getJsonParser().parseMap(r.body());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> mappa(Object o) {
-        return (Map<String, Object>) o;
-    }
 
     @Test
     void laSegreteriaGestisceTuttoTranneRuoliERegole() throws Exception {
@@ -69,7 +41,7 @@ class RuoliTest {
         // un turno di un altro istruttore (Delfino Verde, l'ultimo lunedì): Luca non ne vede la lista
         LocalDate lunedi = LocalDate.now(ZoneId.of("Europe/Rome")).with(TemporalAdjusters.previous(DayOfWeek.MONDAY));
         @SuppressWarnings("unchecked")
-        var verde = ((List<Object>) json(luca.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(RuoliTest::mappa)
+        var verde = ((List<Object>) json(luca.get("/api/piano?da=" + lunedi + "&a=" + lunedi)).get("occorrenze")).stream().map(ProvaApi::mappa)
             .filter(o -> "Delfino Verde".equals(o.get("titolo"))).findFirst().orElseThrow();
         String lista = "/api/lezioni/" + verde.get("lezioneId") + "/iscritti?data=" + lunedi;
         assertThat(luca.get(lista).statusCode()).isEqualTo(403);
@@ -100,10 +72,10 @@ class RuoliTest {
         // ADMIN ha sempre tutto; nessuno toglie a se stesso il ruolo di admin
         assertThat(admin.put("/api/ruoli/ADMIN", "{\"nome\":\"Admin\",\"permessi\":[\"CLIENTI\"]}").statusCode()).isEqualTo(400);
         @SuppressWarnings("unchecked")
-        var admins = ((List<Object>) json(admin.get("/api/ruoli")).get("ruoli")).stream().map(RuoliTest::mappa)
+        var admins = ((List<Object>) json(admin.get("/api/ruoli")).get("ruoli")).stream().map(ProvaApi::mappa)
             .filter(x -> "ADMIN".equals(x.get("codice"))).findFirst().orElseThrow();
         @SuppressWarnings("unchecked")
-        String mia = ((List<Object>) admins.get("persone")).stream().map(RuoliTest::mappa)
+        String mia = ((List<Object>) admins.get("persone")).stream().map(ProvaApi::mappa)
             .filter(x -> ACCOUNT_ADMIN.equals(x.get("accountId"))).map(x -> (String) x.get("assegnazioneId")).findFirst().orElseThrow();
         assertThat(admin.delete("/api/assegnazioni/" + mia).statusCode()).isEqualTo(409);
     }
