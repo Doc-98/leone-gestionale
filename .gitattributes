@@ -1,3 +1,6 @@
 # Script del Maven Wrapper: fine riga giuste per ogni sistema (altrimenti non partono)
 backend/mvnw text eol=lf
 backend/mvnw.cmd text eol=crlf
+# Script di avvio per Windows: fine riga di Windows
+avvia.cmd text eol=crlf
+avvia.ps1 text eol=crlf

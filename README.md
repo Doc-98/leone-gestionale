@@ -60,6 +60,24 @@ In breve, quando è tutto pronto:
 | Backend (Java, Spring Boot) | http://localhost:8080 | `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=demo"` in `backend` |
 | Frontend (Svelte, Vite) | http://localhost:5173 | `npm run dev` in `frontend` |
 
+**Il modo veloce**: installati i programmi e scaricato il codice (passi 0 e 1), basta un **doppio clic su
+`avvia.cmd`** nella cartella del progetto. Lo script accende Docker Desktop se è spento, il database, il backend (in una
+sua finestra) e, quando il backend è pronto, il frontend (in un'altra), installa le dipendenze del frontend quando
+servono e apre il browser. Funziona da qualunque cartella sia il progetto, su qualunque computer. Da PowerShell, con
+le opzioni:
+
+```powershell
+.\avvia.ps1             # dati demo
+.\avvia.ps1 -Aggiorna   # prima scarica l'ultima versione (git pull) e aggiorna le dipendenze
+.\avvia.ps1 -Locale     # dati demo + i dati veri di backend\dati-locali (vedi sotto)
+.\avvia.ps1 -Azzera     # cancella il database: i dati demo ripartono da capo
+.\avvia.ps1 -Ferma      # ferma backend, frontend e database (i dati restano)
+```
+
+Se PowerShell rifiuta lo script («l'esecuzione di script è disabilitata»), usa `avvia.cmd` (accetta le stesse opzioni,
+es. `.\avvia.cmd -Locale`), oppure una volta sola `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. I passi qui
+sotto sono quello che lo script fa da solo: servono se qualcosa va storto o se si preferisce avviare a mano.
+
 ### 0. Installare i programmi necessari (una volta sola)
 
 | Programma | A cosa serve | Installazione su Windows (PowerShell) | Controllo |
