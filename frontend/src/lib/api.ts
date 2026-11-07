@@ -694,6 +694,8 @@ async function richiesta<T>(metodo: string, path: string, body?: unknown): Promi
 }
 
 export const api = {
+  /** per la pagina di accesso, senza accesso: il nome della società e se è la demo */
+  ambiente: () => richiesta<{ societa: string; demo: boolean }>('GET', '/api/ambiente'),
   me: () => richiesta<Me>('GET', '/api/me'),
   login: (email: string, password: string) => richiesta<Me>('POST', '/api/auth/login', { email, password }),
   logout: () => richiesta<void>('POST', '/api/auth/logout'),

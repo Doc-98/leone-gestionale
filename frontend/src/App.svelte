@@ -24,6 +24,8 @@
   import Segnalazioni from './components/Segnalazioni.svelte';
   import Foglio from './components/Foglio.svelte';
   import CambioPassword from './routes/CambioPassword.svelte';
+  import Accesso from './components/Accesso.svelte';
+  import Marchio from './components/Marchio.svelte';
   import ListaAttesa from './routes/ListaAttesa.svelte';
   import Scadenze from './routes/Scadenze.svelte';
   import Societa from './routes/Societa.svelte';
@@ -193,7 +195,7 @@
   // il nome della società (il gestionale serve a qualsiasi società)
   let nomeSocieta = $state('');
   $effect(() => {
-    if (sessione.utente) api.societa().then((d) => (nomeSocieta = d.nome)).catch(() => {});
+    if (sessione.utente) api.ambiente().then((d) => (nomeSocieta = d.societa)).catch(() => {});
   });
   const iniziali = $derived(((sessione.utente?.nome ?? ' ')[0] + (sessione.utente?.cognome ?? ' ')[0]).toUpperCase());
   // Telefono: al massimo cinque voci in basso, le prime per il ruolo; il resto in «Altro»
@@ -276,23 +278,25 @@
 {/snippet}
 
 {#if paginaLettore}
-  <main class="accesso"><LettoreTelefono /></main>
+  <LettoreTelefono />
 {:else if !sessione.pronto}
   <p class="muted centro">Caricamento…</p>
 {:else if !sessione.utente}
-  <main class="accesso"><Login /></main>
+  <Login />
 {:else if sessione.utente.deveCambiarePassword}
-  <main class="accesso">
-    <h1 class="page-title">Nuova password</h1>
+  <!-- primo accesso: la password temporanea va cambiata prima di tutto -->
+  <Accesso societa={nomeSocieta} titolo="Ciao {sessione.utente.nome}. Prima di iniziare, una password tua."
+    testo="Sei entrato con la password temporanea che ti ha dato la segreteria. Scegline una che conosci solo tu: serve una volta, poi si entra sempre con questa.">
+    <h1 class="titolo-acc">Nuova password</h1>
     <CambioPassword obbligatorio />
-  </main>
+  </Accesso>
 {:else}
   <div class="guscio" class:desktop={schermo.larga}>
     {#if schermo.larga}
       <aside class="lato">
         <div class="marchio">
-          <span class="d logo">Leone</span>
-          <span class="lbl">{nomeSocieta || 'Gestionale'}</span>
+          <Marchio misura={34} />
+          <span class="nome-m"><span class="logo">Leone</span><span class="lbl">{nomeSocieta || 'Gestionale'}</span></span>
         </div>
         <div class="scorrevole">
           <div class="traccia" class:imp={inImpostazioni}>
@@ -478,8 +482,11 @@
     position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: var(--space-20);
     padding: var(--space-20) var(--space-12); background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto;
   }
-  .marchio { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-10); }
-  .logo { font-size: 26px; font-weight: 800; color: var(--cloro); line-height: 1; }
+  .marchio { display: flex; align-items: center; gap: var(--space-10); padding: 0 var(--space-10); }
+  .nome-m { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+  .nome-m .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .logo { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1; letter-spacing: -0.01em; }
+  .titolo-acc { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: var(--text-4xl); line-height: 1.1; letter-spacing: -0.01em; }
   .gruppo-nav { display: flex; flex-direction: column; gap: var(--space-2); }
   .gruppo-nav > .lbl { padding: 0 var(--space-10) var(--space-4); font-size: var(--text-2xs); }
   .voce-nav {

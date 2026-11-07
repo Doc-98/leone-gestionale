@@ -32,6 +32,10 @@ class AccessoETurniTest {
         var c = new ClientApi(porta);
         assertThat(c.get("/api/me").statusCode()).isEqualTo(401);
         assertThat(c.get("/api/turni/miei").statusCode()).isEqualTo(401);
+        // la pagina di accesso legge il nome della società e se è la demo, senza accesso
+        var a = c.get("/api/ambiente");
+        assertThat(a.statusCode()).isEqualTo(200);
+        assertThat(a.body()).contains("\"demo\":true").contains("\"societa\":");
     }
 
     @Test

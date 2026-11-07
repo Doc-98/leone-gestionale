@@ -96,7 +96,10 @@ Per un'icona nuova si disegna sulla stessa griglia con lo stesso tratto e si agg
 
 ## Logo
 
-Non c'è ancora un marchio: il nome «Leone» si scrive in `display` 800, `cloro`, con sotto il nome della società in `.lbl`. Il programma per Windows usa per ora l'icona di Tauri.
+**«La corsia»** (scelta a novembre 2026, tra tre direzioni del mockup «Accesso, lettore e marchio»): una L di bordo vasca con i galleggianti della corsia che la attraversano, bianca su un quadrato `cloro` con raggio 16 su 64. Parla di piscina senza essere solo piscina: la L vale per ogni sport. È `components/Marchio.svelte` (`misura` in px): sotto i 24px i galleggianti si tolgono e la L si ingrossa, così resta leggibile; la favicon (`public/favicon.svg`) è questa versione piccola. Accanto al simbolo il nome «Leone» in `display` 800 `ink` (non `cloro`: il verde del simbolo è già quello delle azioni, il nome non deve sembrare cliccabile) e sotto, in `.lbl`, il nome della società.
+
+- **Dove:** barra laterale (34px), pagine prima di entrare (44px, su `hero`), lettore NFC del telefono (34px), pagina iniziale del programma per Windows (`desktop/avvio/icona.svg`), icone del programma (`desktop/src-tauri/icons`, generate con `tauri icon` da un PNG 1024 del simbolo).
+- **Pagine prima di entrare** (`components/Accesso.svelte`): a sinistra un pannello `hero` con il marchio, il saluto in `display` 40px e le «corsie» (fasce arrotondate che escono dal bordo, `on-ink-veil` e una `cloro`); a destra il modulo, largo al massimo 420px. Sul telefono il pannello diventa una fascia in alto. Il nome della società e se è la demo arrivano da `/api/ambiente`, che si legge senza accesso.
 
 ## Dove vive
 

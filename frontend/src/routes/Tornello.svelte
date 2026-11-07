@@ -182,10 +182,9 @@
       <button class="btn btn-primary" disabled={inCorso || !codice.trim()}>Controlla</button>
     </div>
     <span class="impost"><Azione icona="impostazioni" etichetta="Scegli come mostrare il banco" premuto={scegliViste} onclick={() => (scegliViste = !scegliViste)} /></span>
+    {#if !nfc}<LettoreTelefonoPc />{/if}
   </form>
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
-  {#if !nfc}<LettoreTelefonoPc />{/if}
-
   {#if scegliViste}
     <section class="card viste" aria-label="Come mostrare il banco">
       <div class="vista-riga">

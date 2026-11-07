@@ -19,7 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 class AccountAttivoFilter extends OncePerRequestFilter {
 
-    private static final Set<String> CON_PASSWORD_TEMPORANEA = Set.of("/api/me", "/api/me/password", "/api/auth/logout", "/api/auth/csrf");
+    private static final Set<String> CON_PASSWORD_TEMPORANEA = Set.of("/api/me", "/api/me/password", "/api/auth/logout", "/api/auth/csrf", "/api/ambiente");
 
     private final Autorizzazioni autorizzazioni;
 
