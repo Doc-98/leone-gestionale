@@ -6,6 +6,7 @@
   import { api, messaggioErrore, type MetodoPagamento, type SchedaBorsellino, type StatoCreditiBraccialetto, type Utilizzo } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
+  import { ESITI_MACCHINA } from '../lib/macchine';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -88,7 +89,6 @@
     if (ok) azione = null;
   }
 
-  const ESITI: Record<string, string> = { OK: 'Usato', GRATIS: 'Gratis', CREDITI_FINITI: 'Crediti finiti', SCONOSCIUTO: 'Sconosciuto', NON_ATTIVO: 'Non attivo', SERVIZIO_SPENTO: 'Spento' };
   const movimenti = $derived(tutti ? dati?.movimenti ?? [] : (dati?.movimenti ?? []).slice(0, 8));
   const segno = (n: number) => (n > 0 ? '+' : '−');
 
@@ -230,7 +230,7 @@
           {#each utilizzi as u (u.id)}
             <li>
               <span class="small grow">{u.servizio ?? u.dispositivo}{u.postazione ? ` ${u.postazione}` : ''} <span class="muted">· {dataBreve(dataDi(u.istante))} {oraDi(u.istante)}{u.simulato ? ' · simulato' : ''}</span></span>
-              <span class="tag {u.esito === 'OK' || u.esito === 'GRATIS' ? 't-soft' : 't-warn'}">{ESITI[u.esito] ?? u.esito}{u.crediti ? ` · ${u.crediti} cr.` : ''}</span>
+              <span class="tag {u.esito === 'OK' || u.esito === 'GRATIS' ? 't-soft' : 't-warn'}">{ESITI_MACCHINA[u.esito] ?? u.esito}{u.crediti ? ` · ${u.crediti} cr.` : ''}</span>
             </li>
           {:else}
             <li class="muted small">Nessun utilizzo.</li>

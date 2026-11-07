@@ -54,3 +54,9 @@ Il gestionale resta generico: altre società hanno macchine collegate.
 - Per usare le macchine vere servono: il tipo di chip, le chiavi dei settori, il formato dei crediti (e come sono cifrati),
   e un lettore da scrivania che scriva (PC/SC). Con questi si scrivono un nuovo `FormatoBraccialetto` e il lettore del PC.
 - Se un giorno le macchine si collegano, basta tornare a `SERVER`: chiavi dei dispositivi e API dell'ADR 0018 ci sono già.
+
+**La pagina di lavoro (7/11/2026).** «Phon e docce» sotto Accessi segue la variante B del mockup del 28/10 («il banco
+dei crediti»), l'unica delle tre che funziona anche con le macchine non collegate: si passa il braccialetto (o si
+cerca per nome) e si apre il borsellino del cliente con la ricarica già pronta, dal lettore della memoria se i crediti
+stanno sul braccialetto. Con le macchine collegate a destra compaiono chi oggi ha avuto «crediti finiti» e non ha
+ancora ricaricato, e lo stato delle macchine; il simulatore resta, chiuso, in fondo.
