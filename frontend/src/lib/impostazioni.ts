@@ -28,6 +28,9 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Rate', dove: 'Prezzi › Regole di prezzo', sezione: 'prezzi', ancora: 'rate', parole: 'rate rata pagamento dilazione scadenza seconda' },
   { titolo: 'Sospensione per malattia', dove: 'Prezzi › Regole di prezzo', sezione: 'prezzi', ancora: 'sospensione', parole: 'sospensione malattia infortunio certificato stop' },
   { titolo: 'Metodi di pagamento', dove: 'Prezzi › Metodi di pagamento', sezione: 'metodi', parole: 'metodo pagamento contanti carta bonifico satispay incassare' },
+  { titolo: 'Ricevute: numerazione e serie', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'serie', parole: 'ricevuta ricevute numero numerazione serie fattura fatture formato' },
+  { titolo: 'Cosa c\'è scritto sulla ricevuta', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'scritto', parole: 'ricevuta intestata codice fiscale marca bollo dicitura detrazione firma' },
+  { titolo: 'Come si consegna la ricevuta', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'consegna', parole: 'ricevuta stampa email pdf figli famiglia dopo pagamento' },
   { titolo: 'Una famiglia paga per più persone', dove: 'Prezzi › Metodi di pagamento', sezione: 'metodi', ancora: 'famiglia', parole: 'famiglia fratelli pagamento unico insieme' },
   // Clienti e accessi
   { titolo: 'Regole del tornello', dove: 'Clienti e accessi › Tornello', sezione: 'regole', parole: 'tornello regole controlli rosso verde accesso' },

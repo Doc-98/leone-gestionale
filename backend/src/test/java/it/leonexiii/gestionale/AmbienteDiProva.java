@@ -50,9 +50,12 @@ class AmbienteDiProva {
     /** Le email non partono: restano qui, e i test le leggono. */
     static final class CasellaFinta extends JavaMailSenderImpl {
         final List<SimpleMailMessage> arrivate = new CopyOnWriteArrayList<>();
+        /** Le email con allegati (es. le ricevute in PDF). */
+        final List<jakarta.mail.internet.MimeMessage> conAllegati = new CopyOnWriteArrayList<>();
 
         @Override public void send(SimpleMailMessage m) { arrivate.add(m); }
         @Override public void send(SimpleMailMessage... m) { arrivate.addAll(List.of(m)); }
+        @Override public void send(jakarta.mail.internet.MimeMessage m) { conAllegati.add(m); }
 
         List<SimpleMailMessage> per(String email) {
             return arrivate.stream().filter(m -> m.getTo() != null && List.of(m.getTo()).contains(email)).toList();

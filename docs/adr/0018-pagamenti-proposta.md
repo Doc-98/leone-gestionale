@@ -4,7 +4,7 @@
 stagioni), 2 (gruppi di clienti), 3–4 (listino e regole, con l'importo proposto alla vendita e il rimborso calcolato
 al recesso), 5 (addebiti e pagamenti, 24/10/2026: vedi «Come è fatta la parte 5» in fondo), 7–9 (borsellino,
 braccialetto, servizi a crediti con simulatore, 24/10/2026: vedi «Come sono fatte le parti 7–9»), 6 (chi non paga,
-7/11/2026: vedi «Come è fatta la parte 6»).
+7/11/2026: vedi «Come è fatta la parte 6»), 10 (ricevute, 7/11/2026: vedi «Come è fatta la parte 10»).
 
 **Contesto.** Il gestionale deve servire a una società sportiva qualsiasi (vedi «Principi» in `docs/architettura.md`):
 listino, sconti, rate, rimborsi e regole cambiano da una società all'altra e da una stagione all'altra. Le regole della
@@ -130,3 +130,24 @@ paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
 **Conseguenze.** Molte tabelle nuove e un modulo `pagamenti`; gli abbonamenti attuali (ADR 0009) diventano righe del
 listino vendute a una persona. Le parti 10–11 dipendono da risposte ancora aperte (formato delle ricevute, fattura
 elettronica, cosa serve all'amministrazione).
+
+## Come è fatta la parte 10 (ricevute)
+
+- Modulo `ricevute` (dipende da pagamenti, identita, societa, notifiche). Migrazione V27: `serie_ricevute`,
+  `impostazioni_ricevute` (una riga), `ricevuta`.
+- **Serie e numerazione.** Più serie (di base «Ricevute», `{stagione}-{numero}` a 4 cifre, che riparte ogni stagione;
+  «Fatture», spenta). Il formato usa `{stagione}`, `{anno}` e `{numero}` (obbligatorio); si riparte ogni stagione, ogni
+  anno o mai. Il numero si prende bloccando la riga della serie, non si riusa mai (nemmeno dopo un annullamento) e il
+  «parti da» si può cambiare solo finché il periodo è vuoto.
+- **Fotografia.** Una ricevuta salva intestatario, beneficiari, righe e dicitura come erano al momento (jsonb): se poi
+  cambia un indirizzo o un prezzo, la ricevuta già fatta non cambia. Per correggerla si annulla (con il motivo) e se ne
+  fa una nuova, che prende il numero successivo; la vecchia resta, barrata, con il rimando alla nuova.
+- **Una o più.** Intestata a chi paga (con i nomi dei figli) o a chi frequenta; quando un genitore paga per più figli
+  si chiede (o si sceglie una volta per tutte) se farne una per famiglia o una per figlio.
+- **Dopo il pagamento.** Come dicono le impostazioni: pannello con stampa, PDF ed email; stampa subito; oppure niente
+  (si fa su richiesta, anche dallo storico). Se c'è l'email di chi paga e l'opzione è accesa, parte in allegato.
+- **Annullare il pagamento** annulla da sé le sue ricevute (evento `Pagamenti.PagamentoAnnullato`).
+- **PDF** con OpenPDF (A4): intestazione della società, righe, totale, riquadro per la marca da bollo sopra la soglia,
+  dicitura (con `{beneficiario}` e `{nascita}`), riga per la firma; le annullate hanno la scritta «ANNULLATA».
+- Dicitura, soglia e importo del bollo di base sono indicativi: vanno confermati con l'amministrazione.
+

@@ -42,6 +42,14 @@ public class Posta {
 
     @Transactional
     public Esito invia(UUID personaId, String destinatario, String oggetto, String testo, UUID inviataDa) {
+        return invia(personaId, destinatario, oggetto, testo, inviataDa, null);
+    }
+
+    /** Un file da allegare (es. il PDF di una ricevuta). */
+    public record Allegato(String nome, String tipo, byte[] dati) {}
+
+    /** Come {@link #invia(UUID, String, String, String, UUID)}, con un allegato (se non è null). */
+    public Esito invia(UUID personaId, String destinatario, String oggetto, String testo, UUID inviataDa, Allegato allegato) {
         Stato stato;
         String errore = null;
         JavaMailSender smtp = mittenteSmtp.getIfAvailable();
@@ -53,13 +61,28 @@ public class Posta {
             errore = "Server di posta non configurato.";
         } else {
             try {
-                SimpleMailMessage m = new SimpleMailMessage();
-                m.setFrom(mittente);
-                m.setTo(java.util.Arrays.stream(destinatario.split(",")).map(String::strip).filter(x -> !x.isEmpty()).toArray(String[]::new));
-                m.setSubject(oggetto);
-                m.setText(testo);
-                smtp.send(m);
+                String[] a = java.util.Arrays.stream(destinatario.split(",")).map(String::strip).filter(x -> !x.isEmpty()).toArray(String[]::new);
+                if (allegato == null) {
+                    SimpleMailMessage m = new SimpleMailMessage();
+                    m.setFrom(mittente);
+                    m.setTo(a);
+                    m.setSubject(oggetto);
+                    m.setText(testo);
+                    smtp.send(m);
+                } else {
+                    var m = smtp.createMimeMessage();
+                    var h = new org.springframework.mail.javamail.MimeMessageHelper(m, true, "UTF-8");
+                    h.setFrom(mittente);
+                    h.setTo(a);
+                    h.setSubject(oggetto);
+                    h.setText(testo);
+                    h.addAttachment(allegato.nome(), new org.springframework.core.io.ByteArrayResource(allegato.dati()), allegato.tipo());
+                    smtp.send(m);
+                }
                 stato = Stato.INVIATA;
+            } catch (jakarta.mail.MessagingException e) {
+                stato = Stato.ERRORE;
+                errore = e.getMessage();
             } catch (RuntimeException e) {
                 stato = Stato.ERRORE;
                 errore = e.getMessage();

@@ -1,6 +1,8 @@
 <script lang="ts">
   import Azione from './Azione.svelte';
   import Icona from './Icona.svelte';
+  import RicevuteCliente from './RicevuteCliente.svelte';
+  import RicevuteDopoPagamento from './RicevuteDopoPagamento.svelte';
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type Addebito, type Conto, type MetodoPagamento, type PagamentiFamiglia } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
@@ -22,6 +24,9 @@
   let errore = $state('');
   let messaggio = $state('');
   let tuttoLoStorico = $state(false);
+  /** Le ricevute di un pagamento appena registrato (o scelto nello storico), e la versione dell'elenco delle ricevute. */
+  let ricevutePer = $state<{ ids: string[]; beneficiari: number; appena: boolean; annullato?: boolean } | null>(null);
+  let versioneRicevute = $state(0);
 
   const puoPagare = $derived(sessione.puo('PAGAMENTI'));
   const puoAnnullare = $derived(sessione.puo('PAGAMENTI_ANNULLA'));
@@ -55,6 +60,7 @@
       await azione();
       await carica();
       messaggio = fatto;
+      versioneRicevute++;
       cambiato?.();
       return true;
     } catch (e) {
@@ -88,7 +94,9 @@
   function apriPagamento(soloScaduti = false) {
     if (!scelti.length) scelti = propri.filter((a) => !soloScaduti || a.stato === 'SCADUTO').map((a) => a.id);
     const tutore = conto!.paganti.find((p) => p.personaId !== id);
-    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi.find((m) => !m.borsellino)?.id ?? '', importo: '', riferimento: '' }], note: '', separati: false };
+    // l'importo parte da quanto c'è da pagare per ciò che è già spuntato (anche se l'hai spuntato prima di aprire)
+    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi.find((m) => !m.borsellino)?.id ?? '', importo: residuoScelto ? String(residuoScelto) : '', riferimento: '' }],
+      note: '', separati: false };
   }
 
   // l'importo della prima riga segue quanto si sceglie di pagare, finché c'è un solo metodo
@@ -110,15 +118,19 @@
 
   async function registra() {
     const m = modulo!;
-    const ok = await esegui(() => api.registraPagamento({
+    const beneficiari = persone;
+    let ids: string[] = [];
+    const ok = await esegui(async () => ids = (await api.registraPagamento({
       paganteId: m.paganteId, data: m.data, importo: totale, addebiti: daPagare.map((a) => a.id),
       metodi: m.righe.map((r) => ({ metodoId: r.metodoId, importo: Number(r.importo), riferimento: r.riferimento.trim() || null })),
       note: m.note.trim() || null, separati: m.separati,
-    }), persone > 1 && (famiglia === 'PER_PERSONA' || (famiglia === 'A_SCELTA' && m.separati))
+    })).ids, persone > 1 && (famiglia === 'PER_PERSONA' || (famiglia === 'A_SCELTA' && m.separati))
       ? `Pagamento di ${euro(totale)} registrato: uno per ogni persona.` : `Pagamento di ${euro(totale)} registrato.`);
     if (ok) {
       modulo = null;
       scelti = [];
+      // con un pagamento per persona, ognuno ha già un solo beneficiario
+      ricevutePer = { ids, beneficiari: ids.length > 1 ? 1 : beneficiari, appena: true };
     }
   }
 
@@ -157,6 +169,12 @@
   </div>
   {#if messaggio}<p class="msg ok nomargin" role="status">{messaggio}</p>{/if}
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
+  {#if ricevutePer}
+    {#key ricevutePer.ids.join()}
+      <RicevuteDopoPagamento pagamentoIds={ricevutePer.ids} beneficiari={ricevutePer.beneficiari} appena={ricevutePer.appena} annullato={ricevutePer.annullato}
+        chiudi={() => { ricevutePer = null; versioneRicevute++; }} cambiate={() => versioneRicevute++} />
+    {/key}
+  {/if}
 
   {#if conto}
     <!-- Cosa c'è da pagare -->
@@ -276,6 +294,8 @@
                     <Azione icona="incassato" tono="cloro" etichetta={`Segna incassato: ${m.metodo} di ${euro(m.importo)}`} onclick={() => esegui(() => api.incassa(m.id), `${m.metodo} di ${euro(m.importo)} segnato incassato.`)} />
                   {/if}
                 {/each}
+                <Azione icona="ricevuta" etichetta="Le ricevute di questo pagamento" premuto={ricevutePer?.ids.length === 1 && ricevutePer.ids[0] === p.id}
+                  onclick={() => (ricevutePer = { ids: [p.id], beneficiari: new Set(p.voci.map((v) => v.personaId)).size, appena: false, annullato: !!p.annullatoIl })} />
                 {#if p.annullatoIl}<span class="tag t-altro">Annullato</span>
                 {:else if puoAnnullare && annulla?.id !== p.id}<Azione icona="annulla" etichetta="Annulla il pagamento" onclick={() => (annulla = { tipo: 'pagamento', id: p.id, motivo: '' })} />{/if}
               </div>
@@ -297,6 +317,7 @@
         {/if}
       </div>
     {/if}
+    <RicevuteCliente personaId={id} versione={versioneRicevute + versione} />
   {:else if !errore}
     <p class="muted small">Caricamento…</p>
   {/if}

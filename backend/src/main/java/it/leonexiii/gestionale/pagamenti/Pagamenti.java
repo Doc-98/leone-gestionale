@@ -54,6 +54,15 @@ public class Pagamenti {
         }
     }
 
+    /** Quello che serve per fare la ricevuta di un pagamento (modulo ricevute): chi paga, quando, come, cosa. */
+    public record PerRicevuta(UUID id, UUID paganteId, LocalDate data, BigDecimal importo, boolean attivo, List<String> metodi, List<VoceRicevuta> voci) {}
+
+    /** Una riga della ricevuta: cosa si è pagato, per chi (il beneficiario) e quanto. */
+    public record VoceRicevuta(UUID addebitoId, UUID personaId, String descrizione, BigDecimal importo, Origine origine) {}
+
+    /** Un pagamento è stato annullato (le sue ricevute si annullano con lui). */
+    public record PagamentoAnnullato(UUID pagamentoId, String motivo, UUID da) {}
+
     public record Metodo(UUID id, String nome, boolean daIncassare, boolean attivo, int ordine, boolean borsellino) {}
 
     record PagamentoDiAddebito(UUID pagamentoId, LocalDate data, BigDecimal importo) {}
@@ -440,6 +449,22 @@ public class Pagamenti {
         return ids;
     }
 
+    /** Il pagamento visto da una ricevuta. */
+    @Transactional(readOnly = true)
+    public Optional<PerRicevuta> perRicevuta(UUID pagamentoId) {
+        return pagamenti.findById(pagamentoId).map(p -> {
+            Map<UUID, String> nomiMetodi = metodi.findAll().stream().collect(Collectors.toMap(MetodoPagamento::getId, MetodoPagamento::getNome));
+            Map<UUID, Addebito> suoi = addebiti.findAllById(p.getVoci().stream().map(Pagamento.Voce::getAddebitoId).toList()).stream()
+                .collect(Collectors.toMap(Addebito::getId, a -> a));
+            List<VoceRicevuta> voci = p.getVoci().stream().map(v -> {
+                Addebito a = suoi.get(v.getAddebitoId());
+                return new VoceRicevuta(v.getAddebitoId(), a.getPersonaId(), a.getDescrizione(), v.getImporto(), a.getOrigine());
+            }).toList();
+            return new PerRicevuta(p.getId(), p.getPaganteId(), p.getData(), p.getImporto(), p.attivo(),
+                p.getMetodi().stream().map(m -> nomiMetodi.getOrDefault(m.getMetodoId(), "?")).distinct().toList(), voci);
+        });
+    }
+
     @Transactional
     void annullaPagamento(UUID id, Motivo in, UUID da) {
         String motivo = motivo(in);
@@ -447,6 +472,7 @@ public class Pagamenti {
         p.annulla(motivo, da, orologio.instant());
         pagamenti.flush();
         movimenti.annullaPagamento(id, da);
+        eventi.publishEvent(new PagamentoAnnullato(id, motivo, da));
         addebiti.findAllById(p.getVoci().stream().map(Pagamento.Voce::getAddebitoId).toList()).stream()
             .filter(a -> a.getOrigine() == Origine.TESSERAMENTO && a.getRiferimentoId() != null)
             .map(Addebito::getRiferimentoId).distinct().forEach(r -> pubblicaSaldato(Origine.TESSERAMENTO, r));

@@ -76,6 +76,13 @@
         aggiungi('Prezzi e pagamenti', { k: 'Metodi di pagamento', v: `${attivi.length}${daInc.length ? ` · ${daInc.join(', ')} da incassare` : ''}` });
       }
     }
+    if (visibile('ricevute')) {
+      const r = await prova(api.impostazioniRicevute);
+      const uso = r?.serie.find((x) => x.attiva && x.tipo === 'RICEVUTA');
+      if (r) aggiungi('Prezzi e pagamenti', { k: 'Ricevute', v: uso ? `prossima ${uso.prossima}` : 'nessuna serie accesa' });
+      if (r?.mancaIntestazione.length)
+        da({ titolo: 'Alle ricevute manca l\'intestazione', spiega: `Nei dati della società manca: ${r.mancaIntestazione.join(', ')}.`, href: '#/societa', icona: 'ricevuta' });
+    }
     if (visibile('regole')) {
       const regole = await prova(api.regole);
       if (regole) aggiungi('Clienti e accessi', { k: 'Controlli del tornello', v: `${regole.filter((r) => r.attiva).length} attivi su ${regole.length}` });

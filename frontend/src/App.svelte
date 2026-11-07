@@ -34,6 +34,7 @@
   import AccountRuoli from './routes/AccountRuoli.svelte';
   import Incassi from './routes/Incassi.svelte';
   import MetodiPagamento from './routes/MetodiPagamento.svelte';
+  import ImpostazioniRicevute from './routes/ImpostazioniRicevute.svelte';
   import Macchine from './routes/Macchine.svelte';
   import PhonDocce from './routes/PhonDocce.svelte';
   import RegolePrezzo from './routes/RegolePrezzo.svelte';
@@ -45,7 +46,7 @@
   import Icona from './components/Icona.svelte';
   import Azione from './components/Azione.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'aspetto' | 'impostazioni';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'ricevute' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'aspetto' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Prezzi e pagamenti' | 'Clienti e accessi' | 'Staff' | 'Sistema';
   interface Sezione {
     id: Scheda;
@@ -90,6 +91,8 @@
       spiega: 'Come cambia il prezzo durante la stagione: la riduzione per chi si iscrive tardi, le rate e quanto si rimborsa a chi recede' },
     { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'metodi',
       spiega: 'Contanti, carta, bonifico…: quali si usano, quali si segnano incassati a mano, e come paga una famiglia' },
+    { id: 'ricevute', nome: 'Ricevute', titolo: 'Ricevute', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'ricevuta',
+      spiega: 'Come si numerano, cosa c\'è scritto e come arrivano a chi paga' },
     { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: 'regole',
       spiega: 'Cosa controlla il tornello a ogni passaggio' },
     { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['CLIENTI'], larga: true, icona: 'promemoria',
@@ -263,6 +266,7 @@
     {:else if corrente.id === 'calendario'}<Calendario />
     {:else if corrente.id === 'listino'}<Listino />
     {:else if corrente.id === 'metodi'}<MetodiPagamento />
+    {:else if corrente.id === 'ricevute'}<ImpostazioniRicevute />
     {:else if corrente.id === 'incassi'}<Incassi />
     {:else if corrente.id === 'macchine'}<Macchine />
     {:else if corrente.id === 'servizi'}<PhonDocce />

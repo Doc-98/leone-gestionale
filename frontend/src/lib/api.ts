@@ -713,6 +713,91 @@ function messaggioDiStato(status: number): string {
   return `Errore ${status}`;
 }
 
+// ── Ricevute ──────────────────────────────────────────────────────────
+
+export type TipoSerie = 'RICEVUTA' | 'FATTURA';
+export type RiparteSerie = 'STAGIONE' | 'ANNO' | 'MAI';
+
+export interface ImpostazioniRicevute {
+  intestata: 'PAGANTE' | 'BENEFICIARIO';
+  codiciFiscali: boolean;
+  bollo: boolean;
+  bolloSoglia: number;
+  bolloImporto: number;
+  dicitura: string | null;
+  firma: boolean;
+  dopo: 'CHIEDI' | 'STAMPA' | 'NIENTE';
+  email: boolean;
+  famiglia: 'CHIEDI' | 'FAMIGLIA' | 'PERSONA';
+}
+
+export interface SerieRicevute {
+  id: string;
+  nome: string;
+  tipo: TipoSerie;
+  attiva: boolean;
+  formato: string;
+  cifre: number;
+  riparte: RiparteSerie;
+  prossimoNumero: number | null;
+  /** il periodo in corso (es. «2026/27») e quante ricevute ha */
+  periodo: string;
+  emesse: number;
+  /** il numero della prossima ricevuta */
+  prossima: string;
+}
+
+export interface ModificaSerieRicevute {
+  nome: string;
+  attiva: boolean;
+  formato: string;
+  cifre: number;
+  riparte: RiparteSerie;
+  prossimoNumero: number | null;
+}
+
+export interface PaginaRicevute {
+  impostazioni: ImpostazioniRicevute;
+  serie: SerieRicevute[];
+  /** cosa manca ai dati della società perché l'intestazione sia completa */
+  mancaIntestazione: string[];
+}
+
+export interface SoggettoRicevuta {
+  id: string;
+  nome: string;
+  cognome: string;
+  codiceFiscale: string | null;
+  indirizzo: string | null;
+  dataNascita: string | null;
+  email: string | null;
+}
+
+export interface Ricevuta {
+  id: string;
+  numero: string;
+  serieId: string;
+  serie: string;
+  tipo: TipoSerie;
+  data: string;
+  pagamentoId: string;
+  intestatario: SoggettoRicevuta;
+  beneficiari: SoggettoRicevuta[];
+  righe: { addebitoId: string; personaId: string; descrizione: string; per: string; importo: number }[];
+  totale: number;
+  metodi: string;
+  bollo: number | null;
+  dicitura: string | null;
+  creataIl: string;
+  annullataIl: string | null;
+  motivoAnnullamento: string | null;
+  sostituitaDa: string | null;
+  sostituitaDaNumero: string | null;
+  stampataIl: string | null;
+  inviataIl: string | null;
+  inviataA: string | null;
+}
+
 export const api = {
   /** per la pagina di accesso, senza accesso: il nome della società e se è la demo */
   ambiente: () => richiesta<{ societa: string; demo: boolean }>('GET', '/api/ambiente'),
@@ -936,6 +1021,18 @@ export const api = {
   conto: (personaId: string) => richiesta<Conto>('GET', `/api/pagamenti/persone/${personaId}`),
   registraPagamento: (p: NuovoPagamento) => richiesta<{ id: string; ids: string[] }>('POST', '/api/pagamenti', p),
   annullaPagamento: (id: string, motivo: string) => richiesta<void>('POST', `/api/pagamenti/${id}/annulla`, { motivo }),
+  // Ricevute (ADR 0018, parte 10)
+  impostazioniRicevute: () => richiesta<PaginaRicevute>('GET', '/api/ricevute/impostazioni'),
+  modificaImpostazioniRicevute: (i: ImpostazioniRicevute) => richiesta<ImpostazioniRicevute>('PUT', '/api/ricevute/impostazioni', i),
+  creaSerieRicevute: (nome: string, tipo: TipoSerie) => richiesta<SerieRicevute>('POST', '/api/ricevute/serie', { nome, tipo }),
+  modificaSerieRicevute: (id: string, s: ModificaSerieRicevute) => richiesta<SerieRicevute>('PUT', `/api/ricevute/serie/${id}`, s),
+  emettiRicevute: (pagamentoId: string, modo?: 'FAMIGLIA' | 'PERSONA') => richiesta<Ricevuta[]>('POST', '/api/ricevute', { pagamentoId, modo: modo ?? null }),
+  ricevuteDiPagamento: (pagamentoId: string) => richiesta<Ricevuta[]>('GET', `/api/ricevute?pagamentoId=${pagamentoId}`),
+  ricevuteDiPersona: (personaId: string) => richiesta<Ricevuta[]>('GET', `/api/ricevute?personaId=${personaId}`),
+  annullaRicevuta: (id: string, motivo: string, rifai: boolean) => richiesta<Ricevuta[]>('POST', `/api/ricevute/${id}/annulla`, { motivo, rifai }),
+  inviaRicevuta: (id: string, email?: string) => richiesta<{ stato: StatoEmail; errore: string | null; ricevuta: Ricevuta }>('POST', `/api/ricevute/${id}/invia`, { email: email ?? null }),
+  ricevutaStampata: (id: string) => richiesta<Ricevuta>('POST', `/api/ricevute/${id}/stampata`, {}),
+  urlPdfRicevuta: (id: string, scarica = false) => `/api/ricevute/${id}/pdf${scarica ? '?scarica=true' : ''}`,
   nuovoAddebito: (a: { personaId: string; descrizione: string; importo: number; scadenza?: string | null; offertaId?: string | null; note?: string | null }) =>
     richiesta<{ id: string }>('POST', '/api/pagamenti/addebiti', a),
   annullaAddebito: (id: string, motivo: string) => richiesta<void>('POST', `/api/pagamenti/addebiti/${id}/annulla`, { motivo }),
