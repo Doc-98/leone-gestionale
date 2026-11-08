@@ -1,6 +1,6 @@
 # Leone Gestionale – architettura
 
-Stato: 7 novembre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello e banco, scheda cliente completa, scadenze e promemoria, liste d'attesa, telefono come lettore (ADR 0009–0017, 0021); dei pagamenti (ADR 0018) ci sono impostazioni, listino e regole, addebiti e incassi, borsellino, braccialetto, phon e docce (anche con i crediti sul braccialetto, ADR 0025) chi non paga e ricevute; mancano cassa e rinnovi.
+Stato: 8 novembre 2026 · fasi 1 (turni dello staff) e 2 (piano vasca) completate, con versione PC e programma per Windows. Fase 3 in corso: tornello e banco, scheda cliente completa, scadenze e promemoria, liste d'attesa, telefono come lettore (ADR 0009–0017, 0021); dei pagamenti (ADR 0018) ci sono impostazioni, listino e regole, addebiti e incassi, borsellino, braccialetto, phon e docce (anche con i crediti sul braccialetto, ADR 0025) chi non paga, ricevute e cassa; mancano i rinnovi.
 
 ## Obiettivo
 
@@ -231,7 +231,9 @@ erDiagram
   per più figli) con `pagamento_metodo` (anche più metodi insieme; «da incassare» finché il bonifico non arriva) e
   `pagamento_addebito` (quanto di ogni addebito), `metodo_pagamento` (elenco modificabile). Il tesseramento sa di
   essere pagato dall'evento `Pagamenti.Saldato`. Ricevute: modulo `ricevute` (parte 10: `serie_ricevute`, `impostazioni_ricevute`, `ricevuta` con
-  intestatario, beneficiari e righe fotografati). Cassa: parte 11.
+  intestatario, beneficiari e righe fotografati). Cassa: modulo `cassa` (parte 11: `cassa`, `impostazioni_cassa`,
+  `sessione_cassa` con contati, differenza e totali fotografati, `movimento_cassa`; i pagamenti sanno da quale cassa
+  sono passati).
 - Borsellino (modulo `pagamenti`, ADR 0018 parti 7–8): `regole_borsellino` (una riga), `movimento_borsellino` (euro e
   crediti, con scadenza per gli euro in entrata), `uscita` (soldi restituiti); cauzione del braccialetto come addebito.
 - Modulo `servizi` (parte 9): `servizio` (phon, doccia: crediti per uso, gratuiti al giorno), `dispositivo` (macchine e

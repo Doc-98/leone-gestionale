@@ -49,7 +49,7 @@
   }
 
   const salva = (m: MetodoPagamento, cambi: Partial<MetodoPagamento>, fatto: string) =>
-    esegui(() => api.modificaMetodoPagamento(m.id, { nome: m.nome, daIncassare: m.daIncassare, attivo: m.attivo, ordine: m.ordine, ...cambi }), fatto);
+    esegui(() => api.modificaMetodoPagamento(m.id, { nome: m.nome, daIncassare: m.daIncassare, contanti: m.contanti, attivo: m.attivo, ordine: m.ordine, ...cambi }), fatto);
 
   async function sposta(i: number, verso: -1 | 1) {
     const a = metodi[i], b = metodi[i + verso];
@@ -67,6 +67,7 @@
   <section class="card sez">
     <div class="sez-t"><h2 class="grow">Metodi</h2><span class="spiega">in quest'ordine quando si registra un pagamento</span></div>
     <p class="muted small nomargin spiega-m">«Da incassare» (es. bonifico): il pagamento resta nell'elenco «Da incassare» finché qualcuno non lo segna arrivato sul conto.
+      «Nel cassetto» (di solito i contanti): conta nei contanti attesi alla chiusura di cassa.
       Un metodo spento non si propone più, ma resta nei pagamenti già registrati.</p>
     <div class="elenco">
     <ul class="righe">
@@ -83,6 +84,7 @@
           {:else}
             <strong class="grow">{m.nome}</strong>
             {#if m.daIncassare}<span class="tag t-warn">Da incassare</span>{/if}
+            {#if m.contanti}<span class="tag t-soft">Nel cassetto</span>{/if}
             {#if m.borsellino}<span class="tag t-soft">Il credito in euro di chi paga</span>{/if}
             {#if !m.attivo}<span class="tag t-altro">Spento</span>{/if}
             {#if puo}
@@ -92,7 +94,9 @@
                 {#if !m.borsellino}
                   <Azione icona="matita" etichetta={`Rinomina «${m.nome}»`} onclick={() => (modifica = { id: m.id, nome: m.nome })} />
                   <Azione icona="attesa" etichetta="Da incassare a mano" premuto={m.daIncassare}
-                    onclick={() => salva(m, { daIncassare: !m.daIncassare }, m.daIncassare ? `${m.nome}: incassato subito.` : `${m.nome}: da incassare a mano.`)} />
+                    onclick={() => salva(m, { daIncassare: !m.daIncassare, contanti: false }, m.daIncassare ? `${m.nome}: incassato subito.` : `${m.nome}: da incassare a mano.`)} />
+                  <Azione icona="euro" etichetta="Finisce nel cassetto (conta alla chiusura di cassa)" premuto={m.contanti}
+                    onclick={() => salva(m, { contanti: !m.contanti, daIncassare: false }, m.contanti ? `${m.nome}: non conta più nel cassetto.` : `${m.nome}: conta nei contanti attesi della cassa.`)} />
                 {/if}
                 <Azione icona="spegni" etichetta={m.attivo ? `Spegni «${m.nome}»` : `Riaccendi «${m.nome}»`}
                   onclick={() => salva(m, { attivo: !m.attivo }, m.attivo ? `${m.nome} spento.` : `${m.nome} riacceso.`)} />

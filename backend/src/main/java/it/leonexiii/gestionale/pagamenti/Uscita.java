@@ -32,10 +32,14 @@ class Uscita {
     private Instant registratoIl;
     @Column(name = "annullato_il")
     private Instant annullatoIl;
+    /** La cassa da cui sono usciti i soldi (vuoto = la principale). */
+    @Column(name = "cassa_id")
+    private UUID cassaId;
 
     protected Uscita() {}
 
-    Uscita(UUID personaId, LocalDate data, BigDecimal importo, UUID metodoId, String descrizione, UUID registratoDa, Instant ora) {
+    Uscita(UUID personaId, LocalDate data, BigDecimal importo, UUID metodoId, String descrizione, UUID registratoDa, Instant ora, UUID cassaId) {
+        this.cassaId = cassaId;
         this.id = UUID.randomUUID();
         this.personaId = personaId;
         this.data = data;
@@ -55,4 +59,5 @@ class Uscita {
     UUID getRegistratoDa() { return registratoDa; }
     Instant getRegistratoIl() { return registratoIl; }
     Instant getAnnullatoIl() { return annullatoIl; }
+    UUID getCassaId() { return cassaId; }
 }

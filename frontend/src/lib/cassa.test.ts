@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PagamentoRegistrato, VoceScadenza } from './api';
-import { andamento, contanti, nelFiltro, perGiornoScadenze, quando, registro, settimane, tipoBreve, urgenza } from './cassa';
+import type { PaginaCassa, StatoCassa } from './api';
+import { andamento, conSegno, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, numeroDa, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
+import { euro } from './listino';
 
 const voce = (p: Partial<VoceScadenza>): VoceScadenza => ({
   tipo: 'CERTIFICATO', personaId: 'p', nome: 'A', cognome: 'B', eta: 30, descrizione: 'd', corso: null, stagione: null, scadenza: null, giorni: null,
@@ -10,7 +12,7 @@ let n = 0;
 const pag = (data: string, ora: string, metodi: [string, number][], o: Partial<PagamentoRegistrato> = {}): PagamentoRegistrato => ({
   id: String(++n), data, importo: metodi.reduce((a, m) => a + m[1], 0), paganteId: 'x', pagante: 'Paola', note: null, registratoDa: null,
   registratoIl: `${data}T${ora}:00Z`, annullatoIl: null, motivoAnnullamento: null,
-  metodi: metodi.map(([metodo, importo], i) => ({ id: `${n}-${i}`, metodoId: metodo, metodo, importo, daIncassare: false, incassatoIl: null, riferimento: null })),
+  metodi: metodi.map(([metodo, importo], i) => ({ id: `${n}-${i}`, metodoId: metodo, metodo, importo, daIncassare: false, contanti: metodo === 'Contanti', incassatoIl: null, riferimento: null })),
   voci: [{ addebitoId: 'a', descrizione: 'Quota', personaId: 's', persona: 'Sofia', importo: 0 }], ...o,
 });
 
@@ -55,7 +57,7 @@ describe('incassi', () => {
     const d = {
       pagamenti: [pag('2026-10-27', '09:00', [['Contanti', 50]]), pag('2026-10-27', '10:00', [['Carta', 40], ['Contanti', 10.5]]),
         pag('2026-10-27', '11:00', [['Contanti', 99]], { annullatoIl: '2026-10-27T11:05:00Z' })],
-      uscite: [{ id: 'u', data: '2026-10-27', personaId: 'x', persona: 'Mario', metodo: 'Contanti', importo: 5, descrizione: 'Cauzione', registratoDa: null, registratoIl: '2026-10-27T09:30:00Z' }],
+      uscite: [{ id: 'u', data: '2026-10-27', personaId: 'x', persona: 'Mario', metodo: 'Contanti', contanti: true, importo: 5, descrizione: 'Cauzione', registratoDa: null, registratoIl: '2026-10-27T09:30:00Z' }],
     };
     expect(contanti(d)).toEqual({ entrati: 60.5, usciti: 5 });
     const r = registro(d);
@@ -72,3 +74,41 @@ describe('incassi', () => {
     expect(s.map((x) => [x.etichetta, x.totale])).toEqual([['1–4', 10], ['5–7', 30]]);
   });
 });
+
+describe('chiusura di cassa', () => {
+  it('legge gli importi scritti a mano', () => {
+    expect(numeroDa('1.234,50')).toBe(1234.5);
+    expect(numeroDa('12.5')).toBe(12.5);
+    expect(numeroDa(' € 20 ')).toBe(20);
+    expect(numeroDa('')).toBeNull();
+    expect(numeroDa('dieci')).toBeNull();
+  });
+
+  it('conta per tagli senza errori di arrotondamento', () => {
+    expect(sommaTagli({ '50': 2, '20': 1, '0.1': 3, '0.2': 1, '0.05': 1 })).toBe(120.55);
+    expect(sommaTagli({ '10': -2, '5': 1.7 })).toBe(5);
+    expect(sommaTagli({})).toBe(0);
+  });
+
+  it('dice se la cassa torna e con il segno', () => {
+    expect(esitoDifferenza(0.001).tono).toBe('ok');
+    expect(esitoDifferenza(3).tono).toBe('piu');
+    expect(esitoDifferenza(-2).testo).toBe('Mancano dei contanti');
+    expect(conSegno(-2, euro)).toBe(`−${euro(2)}`);
+    expect(conSegno(3, euro)).toBe(`+${euro(3)}`);
+    expect(lasciatoProposto(80, { importoFondo: 100 })).toBe(80);
+    expect(lasciatoProposto(250, { importoFondo: 100 })).toBe(100);
+  });
+
+  it('sceglie la cassa del computer e sa quando serve aprire', () => {
+    const stato = (id: string, principale: boolean) => ({ cassa: { id, nome: id, attiva: true, principale, ordine: 0 } }) as StatoCassa;
+    const p = { impostazioni: { casse: 'PER_POSTAZIONE', fondo: 'RIPORTATO', importoFondo: 100, chiusura: 'TURNO' }, casse: [], stati: [stato('a', true), stato('b', false)] } as PaginaCassa;
+    expect(statoDaMostrare(p, 'b')?.cassa.id).toBe('b');
+    expect(statoDaMostrare(p, 'sparita')?.cassa.id).toBe('a');
+    expect(statoDaMostrare({ ...p, impostazioni: { ...p.impostazioni, casse: 'UNICA' } }, 'b')?.cassa.id).toBe('a');
+    expect(serveAprire({ chiusura: 'GIORNATA', fondo: 'RIPORTATO' })).toBe(false);
+    expect(serveAprire({ chiusura: 'GIORNATA', fondo: 'CONTATO' })).toBe(true);
+    expect(serveAprire({ chiusura: 'TURNO', fondo: 'FISSO' })).toBe(true);
+  });
+});
+

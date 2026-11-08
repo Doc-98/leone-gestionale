@@ -676,8 +676,35 @@ function leggiCookie(nome: string): string | undefined {
     ?.slice(nome.length + 1);
 }
 
+// ── La cassa di questo computer ───────────────────────────────────────
+
+const CHIAVE_CASSA = 'leone:cassa';
+
+/**
+ * Con una cassa per postazione ogni computer dice di quale cassa è (ADR 0018, parte 11): la scelta resta su questo
+ * dispositivo, per tutti gli account, e va con ogni richiesta (intestazione X-Cassa). Senza, la cassa principale.
+ */
+export function cassaDelComputer(): string | null {
+  try {
+    return localStorage.getItem(CHIAVE_CASSA);
+  } catch {
+    return null;
+  }
+}
+
+export function scegliCassaDelComputer(id: string | null) {
+  try {
+    if (id) localStorage.setItem(CHIAVE_CASSA, id);
+    else localStorage.removeItem(CHIAVE_CASSA);
+  } catch {
+    /* niente memoria: i pagamenti vanno nella principale */
+  }
+}
+
 async function richiesta<T>(metodo: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
+  const cassa = cassaDelComputer();
+  if (cassa) headers['X-Cassa'] = cassa;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   let res: Response;
   try {
@@ -1038,6 +1065,21 @@ export const api = {
   annullaAddebito: (id: string, motivo: string) => richiesta<void>('POST', `/api/pagamenti/addebiti/${id}/annulla`, { motivo }),
   incassa: (metodoUsatoId: string, il?: string) => richiesta<void>('POST', `/api/pagamenti/metodi-usati/${metodoUsatoId}/incassa`, { il: il ?? null }),
   incassi: (da: string, a: string) => richiesta<Incassi>('GET', `/api/pagamenti/incassi?da=${da}&a=${a}`),
+  cassa: () => richiesta<PaginaCassa>('GET', '/api/cassa'),
+  modificaImpostazioniCassa: (i: ImpostazioniCassa) => richiesta<ImpostazioniCassa>('PUT', '/api/cassa/impostazioni', i),
+  creaCassa: (nome: string) => richiesta<Cassa>('POST', '/api/cassa/casse', { nome }),
+  modificaCassa: (id: string, m: { nome?: string; attiva?: boolean; principale?: boolean; ordine?: number }) => richiesta<Cassa>('PUT', `/api/cassa/casse/${id}`, m),
+  apriCassa: (id: string, fondo?: number) => richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/apri`, fondo == null ? {} : { fondo }),
+  movimentoCassa: (id: string, tipo: TipoMovimentoCassa, importo: number, descrizione?: string) =>
+    richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/movimenti`, { tipo, importo, descrizione }),
+  annullaMovimentoCassa: (id: string) => richiesta<SessioneCassa>('POST', `/api/cassa/movimenti/${id}/annulla`, {}),
+  chiudiCassa: (id: string, c: { contati: number; lasciato?: number | null; note?: string | null; attesiVisti?: number | null }) =>
+    richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/chiudi`, c),
+  riapriCassa: (sessioneId: string, motivo: string) => richiesta<SessioneCassa>('POST', `/api/cassa/sessioni/${sessioneId}/riapri`, { motivo }),
+  chiusureCassa: (da: string, a: string, cassaId?: string) =>
+    richiesta<SessioneCassa[]>('GET', `/api/cassa/sessioni?da=${da}&a=${a}${cassaId ? `&cassaId=${cassaId}` : ''}`),
+  chiusuraCassa: (id: string) => richiesta<SessioneCassa>('GET', `/api/cassa/sessioni/${id}`),
+  urlPdfChiusura: (id: string, scarica = false) => `/api/cassa/sessioni/${id}/pdf${scarica ? '?scarica=true' : ''}`,
   daIncassare: () => richiesta<DaIncassare[]>('GET', '/api/pagamenti/da-incassare'),
   metodiPagamento: () => richiesta<MetodoPagamento[]>('GET', '/api/pagamenti/metodi'),
   creaMetodoPagamento: (m: NuovoMetodoPagamento) => richiesta<MetodoPagamento>('POST', '/api/pagamenti/metodi', m),
@@ -1568,6 +1610,8 @@ export interface MetodoUsato {
   metodo: string;
   importo: number;
   daIncassare: boolean;
+  /** finisce nel cassetto (di solito i contanti) */
+  contanti: boolean;
   incassatoIl: string | null;
   riferimento: string | null;
 }
@@ -1622,6 +1666,8 @@ export interface MetodoPagamento {
   id: string;
   nome: string;
   daIncassare: boolean;
+  /** finisce nel cassetto: conta nei contanti attesi alla chiusura di cassa */
+  contanti: boolean;
   attivo: boolean;
   ordine: number;
   borsellino: boolean;
@@ -1630,6 +1676,7 @@ export interface MetodoPagamento {
 export interface NuovoMetodoPagamento {
   nome: string;
   daIncassare?: boolean;
+  contanti?: boolean;
   attivo?: boolean;
   ordine?: number;
 }
@@ -1641,7 +1688,7 @@ export interface Incassi {
   perMetodo: { metodoId: string; metodo: string; importo: number; daIncassare: number; uscite: number }[];
   pagamenti: PagamentoRegistrato[];
   /** soldi restituiti (cauzione, credito in denaro) */
-  uscite: { id: string; data: string; personaId: string; persona: string | null; metodo: string; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string }[];
+  uscite: { id: string; data: string; personaId: string; persona: string | null; metodo: string; contanti: boolean; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string }[];
 }
 
 export interface DaIncassare {
@@ -1836,4 +1883,76 @@ export interface Utilizzo {
   crediti: number;
   postazione: string | null;
   simulato: boolean;
+}
+
+// ── Cassa ─────────────────────────────────────────────────────────────
+
+export type CasseModo = 'UNICA' | 'PER_POSTAZIONE';
+export type FondoModo = 'FISSO' | 'RIPORTATO' | 'CONTATO';
+export type ChiusuraModo = 'TURNO' | 'GIORNATA';
+export type TipoMovimentoCassa = 'VERSAMENTO' | 'SPESA' | 'AGGIUNTA';
+
+export interface ImpostazioniCassa {
+  casse: CasseModo;
+  fondo: FondoModo;
+  importoFondo: number;
+  chiusura: ChiusuraModo;
+}
+
+export interface Cassa {
+  id: string;
+  nome: string;
+  attiva: boolean;
+  principale: boolean;
+  ordine: number;
+}
+
+export interface ContiCassa {
+  fondo: number;
+  entrati: number;
+  usciti: number;
+  versamenti: number;
+  spese: number;
+  aggiunte: number;
+  attesi: number | null;
+  perMetodo: { metodo: string; contanti: boolean; entrate: number; uscite: number }[];
+  pagamenti: number;
+}
+
+/** Un'apertura e chiusura; id vuoto = quella che si aprirebbe adesso. «contanti» e «movimenti» solo nel dettaglio. */
+export interface SessioneCassa {
+  id: string | null;
+  cassaId: string;
+  cassa: string;
+  dal: string;
+  apertaIl: string | null;
+  apertaDa: string | null;
+  esplicita: boolean;
+  fondo: number;
+  fondoAtteso: number | null;
+  chiusaIl: string | null;
+  chiusaDa: string | null;
+  attesi: number | null;
+  contati: number | null;
+  differenza: number | null;
+  lasciato: number | null;
+  versato: number | null;
+  note: string | null;
+  conti: ContiCassa;
+  contanti: { id: string; tipo: 'ENTRATA' | 'USCITA'; istante: string; metodo: string; importo: number; chi: string | null; descrizione: string; aCassaChiusa: boolean }[] | null;
+  movimenti: { id: string; tipo: TipoMovimentoCassa; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string; annullato: boolean }[] | null;
+}
+
+export interface StatoCassa {
+  cassa: Cassa;
+  aperta: boolean;
+  corrente: SessioneCassa;
+  ultimaChiusa: SessioneCassa | null;
+  fondoProposto: number;
+}
+
+export interface PaginaCassa {
+  impostazioni: ImpostazioniCassa;
+  casse: Cassa[];
+  stati: StatoCassa[];
 }

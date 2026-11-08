@@ -55,6 +55,9 @@ class Pagamento {
     private UUID registratoDa;
     @Column(name = "registrato_il", nullable = false)
     private Instant registratoIl;
+    /** La cassa da cui è passato (vuoto = la principale). */
+    @Column(name = "cassa_id")
+    private UUID cassaId;
     @Column(name = "annullato_il")
     private Instant annullatoIl;
     @Column(name = "annullato_da")
@@ -72,7 +75,8 @@ class Pagamento {
 
     protected Pagamento() {}
 
-    Pagamento(UUID paganteId, LocalDate data, BigDecimal importo, String note, UUID registratoDa, Instant ora) {
+    Pagamento(UUID paganteId, LocalDate data, BigDecimal importo, String note, UUID registratoDa, Instant ora, UUID cassaId) {
+        this.cassaId = cassaId;
         this.id = UUID.randomUUID();
         this.paganteId = paganteId;
         this.data = data;
@@ -102,6 +106,7 @@ class Pagamento {
     String getNote() { return note; }
     UUID getRegistratoDa() { return registratoDa; }
     Instant getRegistratoIl() { return registratoIl; }
+    UUID getCassaId() { return cassaId; }
     Instant getAnnullatoIl() { return annullatoIl; }
     String getMotivoAnnullamento() { return motivoAnnullamento; }
     List<PagamentoMetodo> getMetodi() { return metodi; }

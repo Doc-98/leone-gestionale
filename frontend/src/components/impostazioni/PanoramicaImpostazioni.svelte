@@ -83,6 +83,15 @@
       if (r?.mancaIntestazione.length)
         da({ titolo: 'Alle ricevute manca l\'intestazione', spiega: `Nei dati della società manca: ${r.mancaIntestazione.join(', ')}.`, href: '#/societa', icona: 'ricevuta' });
     }
+    if (visibile('cassa')) {
+      const c = await prova(api.cassa);
+      if (c) {
+        const i = c.impostazioni;
+        const casse = i.casse === 'UNICA' ? 'una cassa' : `${c.casse.filter((x) => x.attiva).length} casse`;
+        const fondo = i.fondo === 'FISSO' ? `fondo fisso ${euro(i.importoFondo)}` : i.fondo === 'RIPORTATO' ? 'fondo riportato' : 'fondo contato';
+        aggiungi('Prezzi e pagamenti', { k: 'Cassa', v: `${casse} · ${fondo} · chiusura ${i.chiusura === 'TURNO' ? 'a fine turno' : 'a fine giornata'}` });
+      }
+    }
     if (visibile('regole')) {
       const regole = await prova(api.regole);
       if (regole) aggiungi('Clienti e accessi', { k: 'Controlli del tornello', v: `${regole.filter((r) => r.attiva).length} attivi su ${regole.length}` });

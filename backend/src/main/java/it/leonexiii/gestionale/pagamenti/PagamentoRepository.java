@@ -16,6 +16,9 @@ interface PagamentoRepository extends JpaRepository<Pagamento, UUID> {
 
     List<Pagamento> findByDataBetweenOrderByDataDescRegistratoIlDesc(LocalDate da, LocalDate a);
 
+    /** Registrati dopo «da» e fino ad «a» (compreso), per la cassa. */
+    List<Pagamento> findByRegistratoIlGreaterThanAndRegistratoIlLessThanEqualOrderByRegistratoIl(java.time.Instant da, java.time.Instant a);
+
     @Query("select distinct p from Pagamento p join p.metodi m where m.incassatoIl is null and p.annullatoIl is null")
     List<Pagamento> conDaIncassare();
 

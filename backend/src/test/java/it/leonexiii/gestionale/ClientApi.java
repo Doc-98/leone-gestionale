@@ -15,10 +15,18 @@ final class ClientApi {
     private final String base;
     private final CookieManager cookie = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
     private final HttpClient http;
+    /** La cassa di questo «computer» (intestazione X-Cassa, come la manda il frontend), o null. */
+    private String cassa;
 
     ClientApi(int porta) {
         this.base = "http://localhost:" + porta;
         this.http = HttpClient.newBuilder().cookieHandler(cookie).build();
+    }
+
+    /** Da qui in poi le richieste dicono di venire da quella cassa (null = nessuna). */
+    ClientApi dallaCassa(String cassaId) {
+        this.cassa = cassaId;
+        return this;
     }
 
     HttpResponse<String> get(String path) throws IOException, InterruptedException {
@@ -55,6 +63,7 @@ final class ClientApi {
             if (tokenCsrf() == null) get("/api/auth/csrf");
             b.header("X-XSRF-TOKEN", tokenCsrf());
         }
+        if (cassa != null) b.header("X-Cassa", cassa);
         return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 

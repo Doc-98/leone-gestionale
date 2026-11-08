@@ -31,6 +31,9 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Ricevute: numerazione e serie', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'serie', parole: 'ricevuta ricevute numero numerazione serie fattura fatture formato' },
   { titolo: 'Cosa c\'è scritto sulla ricevuta', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'scritto', parole: 'ricevuta intestata codice fiscale marca bollo dicitura detrazione firma' },
   { titolo: 'Come si consegna la ricevuta', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'consegna', parole: 'ricevuta stampa email pdf figli famiglia dopo pagamento' },
+  { titolo: 'Le casse: una o una per postazione', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'casse', parole: 'cassa casse postazione segreteria cassetto computer' },
+  { titolo: 'Fondo cassa', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'fondo', parole: 'fondo cassa resto riportato fisso contato apertura' },
+  { titolo: 'Chiusura di cassa', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'chiusura', parole: 'chiusura cassa turno giornata contati differenza versamento' },
   { titolo: 'Una famiglia paga per più persone', dove: 'Prezzi › Metodi di pagamento', sezione: 'metodi', ancora: 'famiglia', parole: 'famiglia fratelli pagamento unico insieme' },
   // Clienti e accessi
   { titolo: 'Regole del tornello', dove: 'Clienti e accessi › Tornello', sezione: 'regole', parole: 'tornello regole controlli rosso verde accesso' },

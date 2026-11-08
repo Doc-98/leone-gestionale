@@ -63,7 +63,14 @@ public class Pagamenti {
     /** Un pagamento è stato annullato (le sue ricevute si annullano con lui). */
     public record PagamentoAnnullato(UUID pagamentoId, String motivo, UUID da) {}
 
-    public record Metodo(UUID id, String nome, boolean daIncassare, boolean attivo, int ordine, boolean borsellino) {}
+    public record Metodo(UUID id, String nome, boolean daIncassare, boolean contanti, boolean attivo, int ordine, boolean borsellino) {}
+
+    /**
+     * Un'entrata o un'uscita vista dalla cassa (modulo cassa): un metodo usato in un pagamento (tipo ENTRATA) o dei soldi
+     * restituiti (USCITA), con la cassa da cui sono passati (vuoto = la principale) e se il metodo finisce nel cassetto.
+     */
+    public record VoceCassa(UUID id, String tipo, Instant istante, UUID cassaId, UUID metodoId, String metodo, boolean contanti, boolean daIncassare,
+                            BigDecimal importo, String chi, String descrizione) {}
 
     record PagamentoDiAddebito(UUID pagamentoId, LocalDate data, BigDecimal importo) {}
 
@@ -71,7 +78,7 @@ public class Pagamenti {
                        LocalDate scadenza, String stato, Origine origine, UUID riferimentoId, Integer rata, Integer rate, String note,
                        Instant annullatoIl, String motivoAnnullamento, List<PagamentoDiAddebito> pagamenti) {}
 
-    record MetodoUsato(UUID id, UUID metodoId, String metodo, BigDecimal importo, boolean daIncassare, LocalDate incassatoIl, String riferimento) {}
+    record MetodoUsato(UUID id, UUID metodoId, String metodo, BigDecimal importo, boolean daIncassare, boolean contanti, LocalDate incassatoIl, String riferimento) {}
 
     record VocePagata(UUID addebitoId, String descrizione, UUID personaId, String persona, BigDecimal importo) {}
 
@@ -109,14 +116,14 @@ public class Pagamenti {
     /** Per metodo: incassato, di cui da incassare, e uscito (soldi restituiti). */
     record TotaleMetodo(UUID metodoId, String metodo, BigDecimal importo, BigDecimal daIncassare, BigDecimal uscite) {}
 
-    record UscitaDto(UUID id, LocalDate data, UUID personaId, String persona, String metodo, BigDecimal importo, String descrizione, String registratoDa, Instant registratoIl) {}
+    record UscitaDto(UUID id, LocalDate data, UUID personaId, String persona, String metodo, boolean contanti, BigDecimal importo, String descrizione, String registratoDa, Instant registratoIl) {}
 
     record Incassi(LocalDate da, LocalDate a, BigDecimal totale, List<TotaleMetodo> perMetodo, List<PagamentoDto> pagamenti, List<UscitaDto> uscite) {}
 
     record DaIncassare(UUID id, UUID pagamentoId, LocalDate data, UUID paganteId, String pagante, String metodo, BigDecimal importo, String riferimento,
                        List<String> per) {}
 
-    record NuovoMetodo(String nome, Boolean daIncassare, Boolean attivo, Integer ordine) {}
+    record NuovoMetodo(String nome, Boolean daIncassare, Boolean contanti, Boolean attivo, Integer ordine) {}
 
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2);
 
@@ -320,7 +327,7 @@ public class Pagamenti {
         return lista.stream().map(p -> new PagamentoDto(p.getId(), p.getData(), p.getImporto(), p.getPaganteId(), nomi.get(p.getPaganteId()),
             p.getMetodi().stream().map(m -> {
                 MetodoPagamento mp = met.get(m.getMetodoId());
-                return new MetodoUsato(m.getId(), m.getMetodoId(), mp == null ? "?" : mp.getNome(), m.getImporto(), mp != null && mp.isDaIncassare(),
+                return new MetodoUsato(m.getId(), m.getMetodoId(), mp == null ? "?" : mp.getNome(), m.getImporto(), mp != null && mp.isDaIncassare(), mp != null && mp.isContanti(),
                     m.getIncassatoIl(), m.getRiferimento());
             }).toList(),
             p.getVoci().stream().map(v -> {
@@ -423,7 +430,7 @@ public class Pagamenti {
         List<UUID> ids = new ArrayList<>();
         for (List<Addebito> gruppo : gruppi) {
             BigDecimal totale = gruppo.stream().map(a -> quote.get(a.getId())).reduce(ZERO, BigDecimal::add);
-            Pagamento p = new Pagamento(pagante, data, totale, in.note(), da, orologio.instant());
+            Pagamento p = new Pagamento(pagante, data, totale, in.note(), da, orologio.instant(), CassaDellaRichiesta.id());
             BigDecimal manca = totale;
             for (int i = 0; i < in.metodi().size() && manca.signum() > 0; i++) {
                 BigDecimal parte = restiMetodi.get(i).min(manca);
@@ -447,6 +454,47 @@ public class Pagamenti {
         daPagare.stream().filter(a -> a.getOrigine() == Origine.TESSERAMENTO && a.getRiferimentoId() != null)
             .map(Addebito::getRiferimentoId).distinct().forEach(r -> pubblicaSaldato(Origine.TESSERAMENTO, r));
         return ids;
+    }
+
+    /**
+     * Le entrate e le uscite registrate dopo «da» e fino ad «a» compreso (vuoto = fino a adesso), per la cassa: i
+     * pagamenti annullati e le uscite annullate non ci sono.
+     */
+    @Transactional(readOnly = true)
+    public List<VoceCassa> vociCassa(Instant da, Instant a) {
+        Instant fine = a != null ? a : orologio.instant();
+        var pag = pagamenti.findByRegistratoIlGreaterThanAndRegistratoIlLessThanEqualOrderByRegistratoIl(da, fine).stream().filter(Pagamento::attivo).toList();
+        var out = uscite.findByRegistratoIlGreaterThanAndRegistratoIlLessThanEqualOrderByRegistratoIl(da, fine).stream().filter(u -> u.getAnnullatoIl() == null).toList();
+        Map<UUID, MetodoPagamento> met = metodi.findAll().stream().collect(Collectors.toMap(MetodoPagamento::getId, x -> x));
+        Set<UUID> ids = new HashSet<>();
+        pag.forEach(p -> ids.add(p.getPaganteId()));
+        out.forEach(u -> ids.add(u.getPersonaId()));
+        Map<UUID, String> nomi = ids.isEmpty() ? Map.of() : persone.nomiCompleti(ids);
+        Map<UUID, Addebito> voci = addebiti.findAllById(pag.stream().flatMap(p -> p.getVoci().stream()).map(Pagamento.Voce::getAddebitoId)
+            .collect(Collectors.toSet())).stream().collect(Collectors.toMap(Addebito::getId, x -> x));
+        List<VoceCassa> lista = new ArrayList<>();
+        for (Pagamento p : pag) {
+            String per = p.getVoci().stream().map(v -> voci.containsKey(v.getAddebitoId()) ? voci.get(v.getAddebitoId()).getDescrizione() : "?")
+                .distinct().collect(Collectors.joining(" · "));
+            for (PagamentoMetodo m : p.getMetodi()) {
+                MetodoPagamento mp = met.get(m.getMetodoId());
+                lista.add(new VoceCassa(p.getId(), "ENTRATA", p.getRegistratoIl(), p.getCassaId(), m.getMetodoId(), mp == null ? "?" : mp.getNome(),
+                    mp != null && mp.isContanti(), mp != null && mp.isDaIncassare(), m.getImporto(), nomi.get(p.getPaganteId()), per));
+            }
+        }
+        for (Uscita u : out) {
+            MetodoPagamento mp = met.get(u.getMetodoId());
+            lista.add(new VoceCassa(u.getId(), "USCITA", u.getRegistratoIl(), u.getCassaId(), u.getMetodoId(), mp == null ? "?" : mp.getNome(),
+                mp != null && mp.isContanti(), false, u.getImporto(), nomi.get(u.getPersonaId()), u.getDescrizione()));
+        }
+        lista.sort(Comparator.comparing(VoceCassa::istante));
+        return lista;
+    }
+
+    /** I metodi di pagamento, nell'ordine della società (per i totali della cassa). */
+    @Transactional(readOnly = true)
+    public List<Metodo> elencoMetodi() {
+        return metodi();
     }
 
     /** Il pagamento visto da una ricevuta. */
@@ -511,7 +559,7 @@ public class Pagamenti {
         out.forEach(u -> tot.computeIfPresent(u.getMetodoId(), (k, t) -> new TotaleMetodo(k, t.metodo(), t.importo(), t.daIncassare(), t.uscite().add(u.getImporto()))));
         BigDecimal totale = tot.values().stream().map(TotaleMetodo::importo).reduce(ZERO, BigDecimal::add);
         var usciteDto = out.stream().map(u -> new UscitaDto(u.getId(), u.getData(), u.getPersonaId(), nomi.get(u.getPersonaId()),
-            met.containsKey(u.getMetodoId()) ? met.get(u.getMetodoId()).getNome() : "?", u.getImporto(), u.getDescrizione(),
+            met.containsKey(u.getMetodoId()) ? met.get(u.getMetodoId()).getNome() : "?", met.containsKey(u.getMetodoId()) && met.get(u.getMetodoId()).isContanti(), u.getImporto(), u.getDescrizione(),
             u.getRegistratoDa() == null ? null : nomi.get(u.getRegistratoDa()), u.getRegistratoIl())).toList();
         return new Incassi(inizio, fine, totale, tot.values().stream().filter(t -> t.importo().signum() > 0 || t.uscite().signum() > 0).toList(), lista, usciteDto);
     }
@@ -534,13 +582,13 @@ public class Pagamenti {
     @Transactional
     Metodo creaMetodo(NuovoMetodo in) {
         int ordine = in.ordine() != null ? in.ordine() : metodi.findAll().stream().mapToInt(MetodoPagamento::getOrdine).max().orElse(0) + 1;
-        return metodi.saveAndFlush(new MetodoPagamento(in.nome(), Boolean.TRUE.equals(in.daIncassare()), ordine)).dto();
+        return metodi.saveAndFlush(new MetodoPagamento(in.nome(), Boolean.TRUE.equals(in.daIncassare()), Boolean.TRUE.equals(in.contanti()), ordine)).dto();
     }
 
     @Transactional
     Metodo modificaMetodo(UUID id, NuovoMetodo in) {
         MetodoPagamento m = metodi.findById(id).orElseThrow(() -> new NonTrovato("Metodo di pagamento non trovato."));
-        m.modifica(in.nome(), in.daIncassare() != null ? in.daIncassare() : m.isDaIncassare(), in.attivo() != null ? in.attivo() : m.isAttivo(),
+        m.modifica(in.nome(), in.daIncassare() != null ? in.daIncassare() : m.isDaIncassare(), in.contanti() != null ? in.contanti() : m.isContanti(), in.attivo() != null ? in.attivo() : m.isAttivo(),
             in.ordine() != null ? in.ordine() : m.getOrdine());
         return metodi.saveAndFlush(m).dto();
     }

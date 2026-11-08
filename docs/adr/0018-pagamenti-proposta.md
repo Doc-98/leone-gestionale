@@ -4,7 +4,7 @@
 stagioni), 2 (gruppi di clienti), 3–4 (listino e regole, con l'importo proposto alla vendita e il rimborso calcolato
 al recesso), 5 (addebiti e pagamenti, 24/10/2026: vedi «Come è fatta la parte 5» in fondo), 7–9 (borsellino,
 braccialetto, servizi a crediti con simulatore, 24/10/2026: vedi «Come sono fatte le parti 7–9»), 6 (chi non paga,
-7/11/2026: vedi «Come è fatta la parte 6»), 10 (ricevute, 7/11/2026: vedi «Come è fatta la parte 10»).
+7/11/2026: vedi «Come è fatta la parte 6»), 10 (ricevute, 7/11/2026: vedi «Come è fatta la parte 10»), 11 (cassa, 8/11/2026: vedi «Come è fatta la parte 11»).
 
 **Contesto.** Il gestionale deve servire a una società sportiva qualsiasi (vedi «Principi» in `docs/architettura.md`):
 listino, sconti, rate, rimborsi e regole cambiano da una società all'altra e da una stagione all'altra. Le regole della
@@ -92,7 +92,7 @@ paga) → 10–11 (ricevute e cassa) → 12 (rinnovi).
   La chiusura di cassa vera (fondo cassa, contati) è la parte 11. Da ottobre 2026 la pagina ha tre viste a scelta
   (cassa del giorno, periodo, registro) e mostra già il riquadro della chiusura: fondo e contati si scrivono e la
   differenza si calcola sul momento, ma non si salva niente e i pulsanti dicono che la funzione è in sviluppo, finché
-  la segreteria non spiega come si chiude la cassa oggi.
+  la segreteria non spiega come si chiude la cassa oggi. (Superato dalla parte 11, fatta configurabile senza aspettare.)
 
 **Come sono fatte le parti 7–9.**
 - Il credito sta **sul server**, non sul braccialetto (che porta solo il numero di serie, come quello della Leone): i
@@ -150,4 +150,29 @@ elettronica, cosa serve all'amministrazione).
 - **PDF** con OpenPDF (A4): intestazione della società, righe, totale, riquadro per la marca da bollo sopra la soglia,
   dicitura (con `{beneficiario}` e `{nascita}`), riga per la firma; le annullate hanno la scritta «ANNULLATA».
 - Dicitura, soglia e importo del bollo di base sono indicativi: vanno confermati con l'amministrazione.
+
+## Come è fatta la parte 11 (cassa)
+
+- Modulo `cassa` (dipende da pagamenti, identita, societa). Migrazione V28: `cassa`, `impostazioni_cassa` (una riga),
+  `sessione_cassa`, `movimento_cassa`; in più `metodo_pagamento.contanti` (quali metodi finiscono nel cassetto: non
+  più riconosciuti dal nome) e `cassa_id` su `pagamento` e `uscita`.
+- Fatta senza aspettare come si chiude oggi la cassa alla Leone: le tre scelte dell'elenco sopra sono impostazioni.
+  **Casse**: una sola, o una per postazione (ogni computer sceglie la sua nella pagina Incassi; la scelta resta sul
+  dispositivo e va con ogni richiesta nell'intestazione `X-Cassa`; senza, o con una cassa che non c'è più, la
+  principale). **Fondo**: fisso (si lascia sempre lo stesso, il resto si versa), riportato (si riparte da quello
+  lasciato) o contato a ogni apertura (si vede se torna con quello lasciato). **Chiusura**: per turno (chi entra apre
+  la cassa) o per giornata (si apre da sola alla prima operazione o alla chiusura).
+- **Sessione.** Conta quello che passa dalla cassa tra la chiusura prima (esclusa) e la sua: niente buchi né doppioni,
+  e i pagamenti fatti a cassa chiusa finiscono nella sessione dopo, segnati. Attesi = fondo + contanti entrati −
+  contanti restituiti − versamenti − spese + aggiunte. Alla chiusura: contati (anche per tagli), differenza, quanto si
+  lascia (il resto è «versato») e una nota; se nel frattempo gli attesi sono cambiati (un pagamento arrivato mentre si
+  contava) la chiusura si rifiuta. I totali per metodo si fotografano (jsonb): annullare dopo un pagamento non cambia
+  una chiusura fatta.
+- **Movimenti a mano**: versamento (banca, cassaforte), spesa pagata con la cassa, aggiunta (monete); si annullano
+  finché la sessione è aperta.
+- **Riaprire** solo l'ultima chiusura di una cassa e solo se dopo non si è aperto niente, con il motivo e il permesso
+  «Annullare pagamenti»; resta la nota con chi e quando.
+- Pagina Incassi: la cassa di oggi nella colonna di lato; per un giorno passato le sue chiusure; una quarta vista
+  «Chiusure di cassa» con le differenze del periodo e il CSV. Riepilogo PDF (OpenPDF) da firmare. Impostazioni ›
+  Cassa. Dati demo: le chiusure delle ultime due settimane.
 

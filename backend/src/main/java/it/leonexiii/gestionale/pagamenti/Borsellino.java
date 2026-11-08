@@ -346,7 +346,7 @@ public class Borsellino {
                 .orElseThrow(() -> new IllegalArgumentException("Scegli con quale metodo restituire i soldi."))
             : metodi.findById(metodoId).orElseThrow(() -> new NonTrovato("Metodo di pagamento non trovato."));
         if (m.isBorsellino()) throw new IllegalArgumentException("Per restituire nel borsellino scegli «nel borsellino», non il metodo.");
-        return uscite.saveAndFlush(new Uscita(persona, oggi, importo, m.getId(), descrizione, da, orologio.instant())).getId();
+        return uscite.saveAndFlush(new Uscita(persona, oggi, importo, m.getId(), descrizione, da, orologio.instant(), CassaDellaRichiesta.id())).getId();
     }
 
     /** Genitori, figli, fratelli e sorelle: a chi si può trasferire il credito. */

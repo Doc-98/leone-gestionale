@@ -41,8 +41,9 @@ chi è entrato, chi è da sistemare, i turni di oggi di chi passa (ADR 0021).
   (riduzioni, sconti, rate, recesso), addebiti e incassi con più metodi, borsellino con credito in euro e crediti,
   cauzione del braccialetto, phon e docce con le macchine collegate al server o con i crediti scritti sul braccialetto
   (ADR 0025), chi non paga (avviso e poi rosso al tornello, promemoria, elenco nelle scadenze, tutto spento di base),
-  ricevute (serie numerate, una per famiglia o per figlio, PDF, stampa ed email, annullo e rifacimento).
-  Da fare: cassa, precedenza nei rinnovi.
+  ricevute (serie numerate, una per famiglia o per figlio, PDF, stampa ed email, annullo e rifacimento), cassa (una o
+  una per postazione, fondo, chiusura con contati e differenza, versamenti, storico e riepilogo in PDF).
+  Da fare: precedenza nei rinnovi.
 - *Staff*: area personale con le proprie ore, gruppi di staff, turni accavallati solo con avviso, postazioni per
   sesso (ADR 0022, 0023); account con password temporanea e ruoli con i loro permessi (ADR 0010, 0012).
 

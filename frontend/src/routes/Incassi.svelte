@@ -1,18 +1,20 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
-  import ChiusuraCassa from '../components/cassa/ChiusuraCassa.svelte';
+  import CassaOggi from '../components/cassa/CassaOggi.svelte';
+  import ChiusuraRiga from '../components/cassa/ChiusuraRiga.svelte';
   import DaIncassareLista from '../components/cassa/DaIncassare.svelte';
-  import { api, messaggioErrore, type DaIncassare, type Incassi } from '../lib/api';
-  import { andamento, CHIUSURA_IN_SVILUPPO, coloreMetodo, contanti, registro, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
+  import { api, messaggioErrore, type DaIncassare, type Incassi, type SessioneCassa } from '../lib/api';
+  import { andamento, coloreMetodo, conSegno, contanti, registro, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
   import { aggiungiGiorni, dataBreve, daIso, GIORNI, iso, lunedi, MESI, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
 
   /**
-   * Gli incassi, in tre viste a scelta (dalla rotella; si ricorda per account): la cassa del giorno con la chiusura,
-   * il periodo con l'andamento giorno per giorno, il registro di entrate e uscite come un libro cassa. In tutte ci
-   * sono i pagamenti da incassare (bonifici) da segnare quando arrivano. La chiusura di cassa è ancora in sviluppo.
+   * Gli incassi, in quattro viste a scelta (dalla rotella; si ricorda per account): la cassa del giorno con la
+   * chiusura (oggi) o le chiusure fatte (un altro giorno), il periodo con l'andamento giorno per giorno, il registro di
+   * entrate e uscite come un libro cassa, lo storico delle chiusure di cassa. Nelle prime tre ci sono i pagamenti da
+   * incassare (bonifici) da segnare quando arrivano.
    */
   const oggi = iso(new Date());
   let vista = $state<VistaIncassi>(leggiPreferenza<VistaIncassi>('incassi.vista', 'cassa', VISTE_INCASSI.map((v) => v.id)));
@@ -23,6 +25,8 @@
   let a = $state(oggi);
   let dati = $state<Incassi | null>(null);
   let aperti = $state<DaIncassare[]>([]);
+  let chiusure = $state<SessioneCassa[]>([]);
+  let versioneCassa = $state(0);
   let errore = $state('');
   let messaggio = $state('');
 
@@ -42,15 +46,40 @@
 
   async function carica() {
     errore = '';
+    const conChiusure = vista === 'chiusure' || (vista === 'cassa' && da !== oggi);
     try {
-      [dati, aperti] = await Promise.all([api.incassi(da, a), api.daIncassare()]);
+      [dati, aperti, chiusure] = await Promise.all([
+        vista === 'chiusure' ? Promise.resolve(dati ?? { da, a, totale: 0, perMetodo: [], pagamenti: [], uscite: [] }) : api.incassi(da, a),
+        api.daIncassare(),
+        conChiusure ? api.chiusureCassa(da, a) : Promise.resolve([]),
+      ]);
+      versioneCassa++;
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco a caricare gli incassi.');
     }
   }
   $effect(() => {
+    void vista;
     if (da && a && a >= da) carica();
   });
+
+  /** CSV delle chiusure per l'amministrazione: una per riga. */
+  function esportaChiusure() {
+    const q = (v: string | number | null) => `"${String(v ?? '').replaceAll('"', '""')}"`;
+    const n = (v: number | null) => (v ?? 0).toFixed(2).replace('.', ',');
+    const righe = [['Chiusa il', 'Cassa', 'Chiusa da', 'Fondo', 'Contanti incassati', 'Restituiti', 'Versamenti e spese', 'Attesi', 'Contati', 'Differenza', 'Lasciato', 'Versato', 'Note'].map(q).join(';')];
+    for (const s of chiusure)
+      righe.push([`${s.chiusaIl!.slice(0, 10)} ${oraDi(s.chiusaIl!)}`, s.cassa, s.chiusaDa, n(s.fondo), n(s.conti.entrati), n(s.conti.usciti), n(s.conti.versamenti + s.conti.spese),
+        n(s.attesi), n(s.contati), n(s.differenza), n(s.lasciato), n(s.versato), s.note].map(q).join(';'));
+    const url = URL.createObjectURL(new Blob(['﻿' + righe.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+    const link = Object.assign(document.createElement('a'), { href: url, download: `chiusure-${da}${a !== da ? '-' + a : ''}.csv` });
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  const differenze = $derived(chiusure.reduce((t, s) => t + Math.round((s.differenza ?? 0) * 100), 0) / 100);
+  const nonTornano = $derived(chiusure.filter((s) => Math.round((s.differenza ?? 0) * 100) !== 0).length);
+  const versato = $derived(chiusure.reduce((t, s) => t + Math.round((s.versato ?? 0) * 100), 0) / 100);
+  const piuCasse = $derived(new Set(chiusure.map((s) => s.cassaId)).size > 1);
 
   async function incassa(x: DaIncassare) {
     messaggio = '';
@@ -137,7 +166,9 @@
         <button type="button" aria-pressed={filtroRegistro === 'uscite'} onclick={() => (filtroRegistro = 'uscite')}>Uscite</button>
       </div>
     {/if}
-    {#if dati?.pagamenti.length}<button class="btn btn-secondary" onclick={esporta}><Icona nome="scarica" />Esporta (CSV)</button>{/if}
+    {#if vista === 'chiusure'}
+      {#if chiusure.length}<button class="btn btn-secondary" onclick={esportaChiusure}><Icona nome="scarica" />Esporta (CSV)</button>{/if}
+    {:else if dati?.pagamenti.length}<button class="btn btn-secondary" onclick={esporta}><Icona nome="scarica" />Esporta (CSV)</button>{/if}
     <Azione icona="impostazioni" etichetta="Scegli come mostrare gli incassi" premuto={scegliVista} onclick={() => (scegliVista = !scegliVista)} />
   </div>
 
@@ -214,7 +245,18 @@
         {/if}
       </div>
       <aside class="dx">
-        <ChiusuraCassa entrati={cassa.entrati} usciti={cassa.usciti} giorno={da === oggi ? 'stamattina' : nomeGiorno(da)} />
+        {#if da === oggi}
+          <CassaOggi versione={versioneCassa} cambiata={carica} />
+        {:else}
+          <section class="card chiusure-g" aria-label="Le chiusure di cassa del giorno">
+            <h2 class="lbl">Chiusure di cassa · {nomeGiorno(da)}</h2>
+            {#if chiusure.length}
+              <ul class="lista-ch">{#each chiusure as s (s.id)}<ChiusuraRiga chiusura={s} conCassa={piuCasse} />{/each}</ul>
+            {:else}
+              <p class="muted small nomargin">Nessuna chiusura in questo giorno. Contanti del giorno: {euro(cassa.entrati - cassa.usciti)} (entrati meno restituiti, senza il fondo).</p>
+            {/if}
+          </section>
+        {/if}
         <DaIncassareLista {aperti} {oggi} onincassa={incassa} />
       </aside>
     </div>
@@ -290,6 +332,20 @@
         <DaIncassareLista {aperti} {oggi} onincassa={incassa} />
       </aside>
     </div>
+  {:else if vista === 'chiusure'}
+    <div class="tiles">
+      <div class="tile hero-t"><span class="lbl">{periodo}</span><span class="v">{chiusure.length}</span><span class="n">{chiusure.length === 1 ? 'chiusura di cassa' : 'chiusure di cassa'}</span></div>
+      <div class="tile" class:arancio={nonTornano > 0}><span class="lbl">Non tornano</span><span class="v">{nonTornano}</span><span class="n">{nonTornano ? 'con una differenza' : 'tutte tornano'}</span></div>
+      <div class="tile"><span class="lbl">Differenze</span><span class="v">{conSegno(differenze, euro)}</span><span class="n">in più e in meno, sommate</span></div>
+      <div class="tile"><span class="lbl">Versato</span><span class="v">{euro(versato)}</span><span class="n">tolto dal cassetto alle chiusure</span></div>
+    </div>
+    <section class="blocco">
+      <h2 class="lbl">Chiusure · le più recenti per prime</h2>
+      <ul class="card lista-ch">
+        {#each chiusure as s (s.id)}<ChiusuraRiga chiusura={s} conCassa={piuCasse} />{:else}<li class="muted small vuoto">Nessuna chiusura in questo periodo.</li>{/each}
+      </ul>
+      <p class="muted small nomargin">Il riepilogo di ogni chiusura si stampa da firmare e conservare. Per correggere l'ultima chiusura (es. contati sbagliati) si riapre dalla cassa di oggi.</p>
+    </section>
   {:else}
     <div class="tiles">
       <div class="tile"><span class="lbl">Entrate</span><span class="v">{euro(dati.totale)}</span><span class="n">{validi.length === 1 ? '1 pagamento' : `${validi.length} pagamenti`}</span></div>
@@ -333,7 +389,7 @@
             <span class="riga-m"><span class="m-nome"><i style:background={colore(m.metodo)}></i>{m.metodo}</span><span class="m imp">{euro(m.importo)}</span></span>
           {/each}
           <span class="riga-m tot"><span>Totale</span><span class="m imp">{euro(dati.totale)}</span></span>
-          <button class="btn btn-primary" onclick={() => (messaggio = CHIUSURA_IN_SVILUPPO)}>Chiudi la cassa…</button>
+          <button class="btn btn-primary" onclick={() => { da = a = oggi; cambiaVista('cassa'); }}>Vai alla cassa di oggi</button>
         </section>
       </aside>
     </div>
@@ -425,6 +481,10 @@
   .m-riga .imp { text-align: right; font-size: var(--text-md); }
   .riga-m { display: flex; justify-content: space-between; font-size: var(--text-md); }
   .riga-m.tot { padding-top: var(--space-8); border-top: 1px solid var(--line); font-weight: 700; }
+  .chiusure-g { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
+  .chiusure-g .lista-ch { margin: 0 calc(-1 * var(--space-16)); }
+  .lista-ch { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+  .lista-ch .vuoto { display: block; padding: var(--space-16); }
 
   @media (max-width: 900px) {
     .tiles, .tiles.cinque { grid-template-columns: repeat(2, minmax(0, 1fr)); }
