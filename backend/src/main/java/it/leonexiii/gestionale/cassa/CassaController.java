@@ -33,9 +33,48 @@ class CassaController {
     private static final DateTimeFormatter FILE = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm").withZone(CassaService.FUSO);
 
     private final CassaService cassa;
+    private final CassaforteService cassaforte;
 
-    CassaController(CassaService cassa) {
+    CassaController(CassaService cassa, CassaforteService cassaforte) {
         this.cassa = cassa;
+        this.cassaforte = cassaforte;
+    }
+
+    @GetMapping("/avvisi")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI')")
+    CassaService.Avvisi avvisi() {
+        return cassa.avvisi();
+    }
+
+    @PostMapping("/casse/{id}/confronta")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI')")
+    CassaService.EsitoConfronto confronta(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody CassaService.Confronto in) {
+        return cassa.confronta(id, in, u.personaId());
+    }
+
+    @PostMapping("/sessioni/{id}/controlla")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI_ANNULLA')")
+    CassaService.SessioneDto controlla(@AuthenticationPrincipal Utente u, @PathVariable UUID id, @RequestBody(required = false) CassaService.Controllo in) {
+        return cassa.controlla(id, in, u.personaId());
+    }
+
+    @GetMapping("/cassaforte")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI')")
+    CassaforteService.Cassaforte cassaforte() {
+        return cassaforte.cassaforte();
+    }
+
+    @PostMapping("/versamenti")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI')")
+    CassaforteService.VersamentoDto versa(@AuthenticationPrincipal Utente u, @RequestBody CassaforteService.NuovoVersamento in) {
+        return cassaforte.versa(in, u.personaId());
+    }
+
+    @PostMapping("/versamenti/{id}/annulla")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI_ANNULLA')")
+    CassaforteService.VersamentoDto annullaVersamento(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        return cassaforte.annulla(id, u.personaId());
     }
 
     @GetMapping

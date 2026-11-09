@@ -1073,8 +1073,14 @@ export const api = {
   movimentoCassa: (id: string, tipo: TipoMovimentoCassa, importo: number, descrizione?: string) =>
     richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/movimenti`, { tipo, importo, descrizione }),
   annullaMovimentoCassa: (id: string) => richiesta<SessioneCassa>('POST', `/api/cassa/movimenti/${id}/annulla`, {}),
-  chiudiCassa: (id: string, c: { contati: number; lasciato?: number | null; note?: string | null; attesiVisti?: number | null }) =>
+  chiudiCassa: (id: string, c: { contati: number; lasciato?: number | null; note?: string | null; attesiVisti?: number | null; riscontri?: RiscontroScritto[] }) =>
     richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/chiudi`, c),
+  confrontaCassa: (id: string, contati: number, riscontri: RiscontroScritto[]) => richiesta<EsitoConfronto>('POST', `/api/cassa/casse/${id}/confronta`, { contati, riscontri }),
+  avvisiCassa: () => richiesta<AvvisiCassa>('GET', '/api/cassa/avvisi'),
+  controllaChiusura: (sessioneId: string, nota?: string) => richiesta<SessioneCassa>('POST', `/api/cassa/sessioni/${sessioneId}/controlla`, { nota: nota || null }),
+  cassaforte: () => richiesta<Cassaforte>('GET', '/api/cassa/cassaforte'),
+  versaInBanca: (v: { data: string; distinta?: string; note?: string; chiusure?: string[] }) => richiesta<VersamentoBanca>('POST', '/api/cassa/versamenti', v),
+  annullaVersamento: (id: string) => richiesta<VersamentoBanca>('POST', `/api/cassa/versamenti/${id}/annulla`, {}),
   riapriCassa: (sessioneId: string, motivo: string) => richiesta<SessioneCassa>('POST', `/api/cassa/sessioni/${sessioneId}/riapri`, { motivo }),
   chiusureCassa: (da: string, a: string, cassaId?: string) =>
     richiesta<SessioneCassa[]>('GET', `/api/cassa/sessioni?da=${da}&a=${a}${cassaId ? `&cassaId=${cassaId}` : ''}`),
@@ -1668,6 +1674,8 @@ export interface MetodoPagamento {
   daIncassare: boolean;
   /** finisce nel cassetto: conta nei contanti attesi alla chiusura di cassa */
   contanti: boolean;
+  /** alla chiusura di cassa si riscontra con lo scontrino del POS */
+  riscontro: boolean;
   attivo: boolean;
   ordine: number;
   borsellino: boolean;
@@ -1677,6 +1685,7 @@ export interface NuovoMetodoPagamento {
   nome: string;
   daIncassare?: boolean;
   contanti?: boolean;
+  riscontro?: boolean;
   attivo?: boolean;
   ordine?: number;
 }
@@ -1892,11 +1901,37 @@ export type FondoModo = 'FISSO' | 'RIPORTATO' | 'CONTATO';
 export type ChiusuraModo = 'TURNO' | 'GIORNATA';
 export type TipoMovimentoCassa = 'VERSAMENTO' | 'SPESA' | 'AGGIUNTA';
 
+export type ControlloModo = 'NESSUNA' | 'OLTRE' | 'TUTTE';
+
 export interface ImpostazioniCassa {
   casse: CasseModo;
   fondo: FondoModo;
   importoFondo: number;
   chiusura: ChiusuraModo;
+  /** conta alla cieca: gli attesi si vedono al confronto */
+  cieca: boolean;
+  /** differenza tollerata (0 = ogni differenza) */
+  tolleranza: number;
+  controllo: ControlloModo;
+  /** si pagano piccole spese con la cassa */
+  spese: boolean;
+  /** conto della cassaforte e dei versamenti in banca */
+  banca: boolean;
+  /** ore dopo cui una cassa aperta fa scattare l'avviso (0 = mai) */
+  oreAvviso: number;
+}
+
+export interface RiscontroScritto {
+  metodoId: string;
+  importo: number;
+}
+
+/** Un metodo riscontrato con il POS: atteso dai pagamenti, scritto dallo scontrino (null = non scritto). */
+export interface RiscontroCassa {
+  metodo: string;
+  atteso: number;
+  dichiarato: number | null;
+  differenza: number;
 }
 
 export interface Cassa {
@@ -1907,16 +1942,19 @@ export interface Cassa {
   ordine: number;
 }
 
+/** Con la conta alla cieca, finché la cassa è aperta, entrati, usciti e attesi sono null (e perMetodo è vuoto). */
 export interface ContiCassa {
   fondo: number;
-  entrati: number;
-  usciti: number;
+  entrati: number | null;
+  usciti: number | null;
   versamenti: number;
   spese: number;
   aggiunte: number;
   attesi: number | null;
   perMetodo: { metodo: string; contanti: boolean; entrate: number; uscite: number }[];
   pagamenti: number;
+  quanteEntrate: number;
+  quanteUscite: number;
 }
 
 /** Un'apertura e chiusura; id vuoto = quella che si aprirebbe adesso. «contanti» e «movimenti» solo nel dettaglio. */
@@ -1939,13 +1977,59 @@ export interface SessioneCassa {
   versato: number | null;
   note: string | null;
   conti: ContiCassa;
-  contanti: { id: string; tipo: 'ENTRATA' | 'USCITA'; istante: string; metodo: string; importo: number; chi: string | null; descrizione: string; aCassaChiusa: boolean }[] | null;
+  contanti: { id: string; tipo: 'ENTRATA' | 'USCITA'; istante: string; metodo: string; importo: number; chi: string | null; descrizione: string; operatore: string | null; aCassaChiusa: boolean }[] | null;
   movimenti: { id: string; tipo: TipoMovimentoCassa; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string; annullato: boolean }[] | null;
+  /** conta alla cieca: gli importi si vedono al confronto */
+  nascosti: boolean;
+  primoConteggio: number | null;
+  riscontri: RiscontroCassa[] | null;
+  daControllare: boolean;
+  controllataIl: string | null;
+  controllataDa: string | null;
+  notaControllo: string | null;
+  /** finito in cassaforte (versato alla chiusura + versamenti durante il turno) */
+  perCassaforte: number | null;
+  inBanca: boolean;
+}
+
+export interface EsitoConfronto {
+  sessione: SessioneCassa;
+  contati: number;
+  differenza: number;
+  oltre: boolean;
+  primoConteggio: number | null;
+  riscontri: RiscontroCassa[];
+  notaObbligatoria: boolean;
+  daControllare: boolean;
+}
+
+export interface AvvisiCassa {
+  daControllare: number;
+  aperteDaTroppo: { cassaId: string; cassa: string; apertaIl: string; apertaDa: string | null }[];
+  inCassaforte: number | null;
+}
+
+export interface VersamentoBanca {
+  id: string;
+  data: string;
+  importo: number;
+  distinta: string | null;
+  note: string | null;
+  registratoDa: string | null;
+  registratoIl: string;
+  annullato: boolean;
+}
+
+export interface Cassaforte {
+  totale: number;
+  chiusure: SessioneCassa[];
+  versamenti: VersamentoBanca[];
 }
 
 export interface StatoCassa {
   cassa: Cassa;
   aperta: boolean;
+  apertaDaTroppo: boolean;
   corrente: SessioneCassa;
   ultimaChiusa: SessioneCassa | null;
   fondoProposto: number;
@@ -1955,4 +2039,7 @@ export interface PaginaCassa {
   impostazioni: ImpostazioniCassa;
   casse: Cassa[];
   stati: StatoCassa[];
+  /** i metodi da riscontrare con il POS alla chiusura */
+  daRiscontrare: { id: string; nome: string }[];
+  avvisi: AvvisiCassa;
 }

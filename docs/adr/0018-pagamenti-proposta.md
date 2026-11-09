@@ -175,4 +175,22 @@ elettronica, cosa serve all'amministrazione).
 - Pagina Incassi: la cassa di oggi nella colonna di lato; per un giorno passato le sue chiusure; una quarta vista
   «Chiusure di cassa» con le differenze del periodo e il CSV. Riepilogo PDF (OpenPDF) da firmare. Impostazioni ›
   Cassa. Dati demo: le chiusure delle ultime due settimane.
+- **I controlli** (9/11/2026, V29), dopo un confronto con le pratiche del settore e con programmi di cassa diffusi
+  (Square, Odoo, Lightspeed, Mangomint); tutti configurabili:
+  - *conta alla cieca* (accesa di base): di una cassa aperta non si mostrano gli importi attesi, ma solo il fondo, quanti
+    pagamenti e i movimenti a mano; il confronto (`POST /casse/{id}/confronta`) li mostra e tiene il primo conteggio,
+    così un riconteggio resta visibile nello storico e nel PDF;
+  - *differenza tollerata* (5 € di base, 0 = ogni differenza): oltre, o con un riscontro che non torna, la nota è
+    obbligatoria;
+  - *controllo* (NESSUNA / OLTRE / TUTTE, di base OLTRE): la chiusura resta «da controllare» finché chi può annullare i
+    pagamenti, e non chi l'ha chiusa, la segna come controllata (con una nota); numero sulla voce Incassi;
+  - *riscontro con il POS*: per i metodi segnati (di base il bancomat) si scrive il totale dello scontrino di chiusura;
+    atteso, scritto e differenza si fotografano nella chiusura;
+  - *avviso* se una cassa resta aperta più di N ore (14 di base);
+  - *spese con la cassa* sì o no;
+  - *cassaforte e banca* (spento di base): quello versato alle chiusure (più i versamenti durante il turno) resta in
+    cassaforte finché non si registra il versamento in banca con il giorno e la distinta; una chiusura già in banca non
+    si riapre, un versamento annullato rimette le chiusure in cassaforte.
+  - Fuori: il registratore telematico (la chiusura è un documento interno) e il nascondere i totali dei contanti nelle
+    altre viste di Incassi.
 

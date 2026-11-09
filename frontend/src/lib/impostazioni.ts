@@ -33,6 +33,8 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Come si consegna la ricevuta', dove: 'Prezzi › Ricevute', sezione: 'ricevute', ancora: 'consegna', parole: 'ricevuta stampa email pdf figli famiglia dopo pagamento' },
   { titolo: 'Le casse: una o una per postazione', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'casse', parole: 'cassa casse postazione segreteria cassetto computer' },
   { titolo: 'Fondo cassa', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'fondo', parole: 'fondo cassa resto riportato fisso contato apertura' },
+  { titolo: 'Conta alla cieca e differenza tollerata', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'conteggio', parole: 'cieca conta tolleranza differenza controllo responsabile riscontro pos bancomat scontrino' },
+  { titolo: 'Cassaforte, banca e spese con la cassa', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'tolti', parole: 'cassaforte banca versamento distinta spese avviso aperta' },
   { titolo: 'Chiusura di cassa', dove: 'Prezzi › Cassa', sezione: 'cassa', ancora: 'chiusura', parole: 'chiusura cassa turno giornata contati differenza versamento' },
   { titolo: 'Una famiglia paga per più persone', dove: 'Prezzi › Metodi di pagamento', sezione: 'metodi', ancora: 'famiglia', parole: 'famiglia fratelli pagamento unico insieme' },
   // Clienti e accessi

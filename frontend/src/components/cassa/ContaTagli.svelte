@@ -3,8 +3,7 @@
   import { euro } from '../../lib/listino';
 
   /** Contare il cassetto per tagli: quanti pezzi di ogni banconota e moneta; il totale va al campo «Contati». */
-  let { totale }: { totale: (t: number) => void } = $props();
-  let pezzi = $state<Record<string, number | null>>({});
+  let { totale, pezzi = $bindable({}) }: { totale: (t: number) => void; pezzi?: Record<string, number | null> } = $props();
   const somma = $derived(sommaTagli(pezzi));
   $effect(() => totale(somma));
   const nome = (v: number) => (v >= 1 ? `${v} €` : `${Math.round(v * 100)} cent`);

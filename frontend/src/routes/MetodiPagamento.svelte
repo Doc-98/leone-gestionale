@@ -67,7 +67,7 @@
   <section class="card sez">
     <div class="sez-t"><h2 class="grow">Metodi</h2><span class="spiega">in quest'ordine quando si registra un pagamento</span></div>
     <p class="muted small nomargin spiega-m">«Da incassare» (es. bonifico): il pagamento resta nell'elenco «Da incassare» finché qualcuno non lo segna arrivato sul conto.
-      «Nel cassetto» (di solito i contanti): conta nei contanti attesi alla chiusura di cassa.
+      «Nel cassetto» (di solito i contanti): conta nei contanti attesi alla chiusura di cassa. Quali metodi si riscontrano con il POS si sceglie nelle impostazioni della cassa.
       Un metodo spento non si propone più, ma resta nei pagamenti già registrati.</p>
     <div class="elenco">
     <ul class="righe">
@@ -85,6 +85,7 @@
             <strong class="grow">{m.nome}</strong>
             {#if m.daIncassare}<span class="tag t-warn">Da incassare</span>{/if}
             {#if m.contanti}<span class="tag t-soft">Nel cassetto</span>{/if}
+            {#if m.riscontro}<span class="tag t-soft">Riscontro POS</span>{/if}
             {#if m.borsellino}<span class="tag t-soft">Il credito in euro di chi paga</span>{/if}
             {#if !m.attivo}<span class="tag t-altro">Spento</span>{/if}
             {#if puo}

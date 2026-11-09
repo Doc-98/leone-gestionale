@@ -125,6 +125,17 @@
   // Il telefono come lettore NFC di un PC: pagina a sé, senza accesso (ADR 0017)
   let paginaLettore = $state(location.hash.startsWith('#/lettore'));
   let daApprovare = $state(0);
+  /** Sulla voce Incassi: chiusure da controllare (per chi può controllare) e casse aperte da troppo. */
+  let avvisiCassa = $state(0);
+  async function contaAvvisiCassa() {
+    if (!sessione.puo('PAGAMENTI')) return;
+    try {
+      const a = await api.avvisiCassa();
+      avvisiCassa = (sessione.puo('PAGAMENTI_ANNULLA') ? a.daControllare : 0) + a.aperteDaTroppo.length;
+    } catch {
+      /* il menù resta senza numero */
+    }
+  }
   let programma = $state<InfoProgramma | null>(null);
   // Programma per Windows: versione nuova disponibile e stato del controllo («Cerca aggiornamenti»)
   let aggiornamento = $state<AggiornamentoProgramma | null>(null);
@@ -228,6 +239,11 @@
     [...new Set((sessione.utente?.ruoli ?? []).map((r) => NOMI_RUOLI[r.ruolo] ?? r.ruolo.charAt(0) + r.ruolo.slice(1).toLowerCase().replaceAll('_', ' ')))].join(' · ') || 'Nessun ruolo',
   );
 
+  // il numero sulla voce Incassi si aggiorna a ogni cambio di pagina (es. dopo aver controllato una chiusura)
+  $effect(() => {
+    void scheda;
+    contaAvvisiCassa();
+  });
   $effect(() => {
     if (sessione.puo('APPROVAZIONI')) api.richiesteDaGestire().then((r) => (daApprovare = r.filter((x) => x.stato === 'IN_ATTESA_APPROVAZIONE' || (x.tipo === 'SOSTITUZIONE' && !x.collega)).length)).catch(() => {});
   });
@@ -283,6 +299,7 @@
 
 {#snippet badge(s: Sezione)}
   {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} richieste da gestire">{daApprovare}</span>{/if}
+  {#if s.id === 'incassi' && avvisiCassa}<span class="badge warn" aria-label="{avvisiCassa} avvisi della cassa">{avvisiCassa}</span>{/if}
 {/snippet}
 
 {#if paginaLettore}
@@ -461,7 +478,7 @@
         {/each}
         {#if nelMenu.length || impostazioni.length}
           <button class:on={menuAltro || inImpostazioni || nelMenu.some((s) => s.id === scheda)} aria-expanded={menuAltro} aria-controls="menu-altro"
-                  onclick={() => (menuAltro = !menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}</button>
+                  onclick={() => (menuAltro = !menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}{#if nelMenu.some((s) => s.id === 'incassi') && avvisiCassa}<span class="badge warn">{avvisiCassa}</span>{/if}</button>
         {/if}
       </nav>
     {/if}
@@ -564,5 +581,6 @@
     color: var(--ink); text-decoration: none; font-weight: 500; }
   .altro a :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
   .altro a.on { background: var(--cloro-soft); color: var(--cloro-ink); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
   .badge { min-width: 18px; height: 18px; border-radius: 9px; background: var(--cloro); color: var(--on-cloro); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
 </style>

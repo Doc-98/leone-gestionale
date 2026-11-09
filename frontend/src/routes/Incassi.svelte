@@ -3,9 +3,10 @@
   import Icona from '../components/Icona.svelte';
   import CassaOggi from '../components/cassa/CassaOggi.svelte';
   import ChiusuraRiga from '../components/cassa/ChiusuraRiga.svelte';
+  import CassaforteBox from '../components/cassa/Cassaforte.svelte';
   import DaIncassareLista from '../components/cassa/DaIncassare.svelte';
-  import { api, messaggioErrore, type DaIncassare, type Incassi, type SessioneCassa } from '../lib/api';
-  import { andamento, coloreMetodo, conSegno, contanti, registro, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
+  import { api, messaggioErrore, type AvvisiCassa, type DaIncassare, type Incassi, type SessioneCassa } from '../lib/api';
+  import { andamento, coloreMetodo, conSegno, contanti, perPersona, registro, statoChiusura, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
   import { aggiungiGiorni, dataBreve, daIso, GIORNI, iso, lunedi, MESI, oraDi } from '../lib/date';
   import { euro } from '../lib/listino';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
@@ -26,6 +27,8 @@
   let dati = $state<Incassi | null>(null);
   let aperti = $state<DaIncassare[]>([]);
   let chiusure = $state<SessioneCassa[]>([]);
+  let avvisi = $state<AvvisiCassa | null>(null);
+  let soloDaControllare = $state(false);
   let versioneCassa = $state(0);
   let errore = $state('');
   let messaggio = $state('');
@@ -53,6 +56,7 @@
         api.daIncassare(),
         conChiusure ? api.chiusureCassa(da, a) : Promise.resolve([]),
       ]);
+      if (vista === 'chiusure') avvisi = await api.avvisiCassa().catch(() => null);
       versioneCassa++;
     } catch (e) {
       errore = messaggioErrore(e, 'Non riesco a caricare gli incassi.');
@@ -67,10 +71,11 @@
   function esportaChiusure() {
     const q = (v: string | number | null) => `"${String(v ?? '').replaceAll('"', '""')}"`;
     const n = (v: number | null) => (v ?? 0).toFixed(2).replace('.', ',');
-    const righe = [['Chiusa il', 'Cassa', 'Chiusa da', 'Fondo', 'Contanti incassati', 'Restituiti', 'Versamenti e spese', 'Attesi', 'Contati', 'Differenza', 'Lasciato', 'Versato', 'Note'].map(q).join(';')];
+    const righe = [['Chiusa il', 'Cassa', 'Chiusa da', 'Fondo', 'Contanti incassati', 'Restituiti', 'Versamenti e spese', 'Attesi', 'Primo conteggio', 'Contati', 'Differenza', 'Lasciato', 'In cassaforte', 'Stato', 'Controllata da', 'Note'].map(q).join(';')];
     for (const s of chiusure)
       righe.push([`${s.chiusaIl!.slice(0, 10)} ${oraDi(s.chiusaIl!)}`, s.cassa, s.chiusaDa, n(s.fondo), n(s.conti.entrati), n(s.conti.usciti), n(s.conti.versamenti + s.conti.spese),
-        n(s.attesi), n(s.contati), n(s.differenza), n(s.lasciato), n(s.versato), s.note].map(q).join(';'));
+        n(s.attesi), n(s.primoConteggio ?? s.contati), n(s.contati), n(s.differenza), n(s.lasciato), n(s.perCassaforte ?? s.versato), statoChiusura(s).testo,
+        s.controllataDa, s.note].map(q).join(';'));
     const url = URL.createObjectURL(new Blob(['﻿' + righe.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     const link = Object.assign(document.createElement('a'), { href: url, download: `chiusure-${da}${a !== da ? '-' + a : ''}.csv` });
     link.click();
@@ -80,6 +85,13 @@
   const nonTornano = $derived(chiusure.filter((s) => Math.round((s.differenza ?? 0) * 100) !== 0).length);
   const versato = $derived(chiusure.reduce((t, s) => t + Math.round((s.versato ?? 0) * 100), 0) / 100);
   const piuCasse = $derived(new Set(chiusure.map((s) => s.cassaId)).size > 1);
+  const daControllare = $derived(chiusure.filter((s) => statoChiusura(s).tono === 'warn'));
+  const visteChiusure = $derived(soloDaControllare ? daControllare : chiusure);
+  const persone = $derived(perPersona(chiusure));
+  function chiusuraCambiata(n: SessioneCassa) {
+    chiusure = chiusure.map((s) => (s.id === n.id ? { ...s, ...n, contanti: null, movimenti: null } : s));
+    api.avvisiCassa().then((x) => (avvisi = x)).catch(() => {});
+  }
 
   async function incassa(x: DaIncassare) {
     messaggio = '';
@@ -335,17 +347,54 @@
   {:else if vista === 'chiusure'}
     <div class="tiles">
       <div class="tile hero-t"><span class="lbl">{periodo}</span><span class="v">{chiusure.length}</span><span class="n">{chiusure.length === 1 ? 'chiusura di cassa' : 'chiusure di cassa'}</span></div>
-      <div class="tile" class:arancio={nonTornano > 0}><span class="lbl">Non tornano</span><span class="v">{nonTornano}</span><span class="n">{nonTornano ? 'con una differenza' : 'tutte tornano'}</span></div>
+      {#if avvisi?.daControllare}
+        <div class="tile arancio"><span class="lbl">Da controllare</span><span class="v">{avvisi.daControllare}</span><span class="n">{daControllare.length === avvisi.daControllare ? 'in questo periodo' : `${daControllare.length} in questo periodo`}</span></div>
+      {:else}
+        <div class="tile" class:arancio={nonTornano > 0}><span class="lbl">Non tornano</span><span class="v">{nonTornano}</span><span class="n">{nonTornano ? 'con una differenza' : 'tutte tornano'}</span></div>
+      {/if}
       <div class="tile"><span class="lbl">Differenze</span><span class="v">{conSegno(differenze, euro)}</span><span class="n">in più e in meno, sommate</span></div>
-      <div class="tile"><span class="lbl">Versato</span><span class="v">{euro(versato)}</span><span class="n">tolto dal cassetto alle chiusure</span></div>
+      {#if avvisi?.inCassaforte != null}
+        <div class="tile"><span class="lbl">In cassaforte</span><span class="v">{euro(avvisi.inCassaforte)}</span><span class="n">da portare in banca</span></div>
+      {:else}
+        <div class="tile"><span class="lbl">Versato</span><span class="v">{euro(versato)}</span><span class="n">tolto dal cassetto alle chiusure</span></div>
+      {/if}
     </div>
-    <section class="blocco">
-      <h2 class="lbl">Chiusure · le più recenti per prime</h2>
-      <ul class="card lista-ch">
-        {#each chiusure as s (s.id)}<ChiusuraRiga chiusura={s} conCassa={piuCasse} />{:else}<li class="muted small vuoto">Nessuna chiusura in questo periodo.</li>{/each}
-      </ul>
-      <p class="muted small nomargin">Il riepilogo di ogni chiusura si stampa da firmare e conservare. Per correggere l'ultima chiusura (es. contati sbagliati) si riapre dalla cassa di oggi.</p>
-    </section>
+    <div class="colonne-ch">
+      <section class="blocco princ-ch">
+        <div class="filtri-ch" role="group" aria-label="Quali chiusure">
+          <button type="button" class="chip" aria-pressed={!soloDaControllare} onclick={() => (soloDaControllare = false)}>Tutte</button>
+          <button type="button" class="chip" aria-pressed={soloDaControllare} onclick={() => (soloDaControllare = true)}>Da controllare{#if daControllare.length}<span class="n-ch">{daControllare.length}</span>{/if}</button>
+        </div>
+        <ul class="card lista-ch">
+          {#each visteChiusure as s (s.id)}<ChiusuraRiga chiusura={s} conCassa={piuCasse} cambiata={chiusuraCambiata} />
+          {:else}<li class="muted small vuoto">{soloDaControllare ? 'Niente da controllare in questo periodo.' : 'Nessuna chiusura in questo periodo.'}</li>{/each}
+        </ul>
+        <p class="muted small nomargin">Il riepilogo di ogni chiusura si stampa da firmare e conservare. Per correggere l'ultima chiusura (es. contati sbagliati) si riapre dalla cassa di oggi.</p>
+      </section>
+      <aside class="lato-ch">
+        {#if avvisi?.aperteDaTroppo.length}
+          <section class="card pann-ch">
+            <span class="lbl">Avvisi</span>
+            {#each avvisi.aperteDaTroppo as x (x.cassaId)}
+              <p class="avviso-ch"><Icona nome="attesa" /><span>«{x.cassa}» è aperta dal {dataBreve(x.apertaIl.slice(0, 10))} alle {oraDi(x.apertaIl)}{x.apertaDa ? `, da ${x.apertaDa}` : ''}.</span></p>
+            {/each}
+          </section>
+        {/if}
+        {#if avvisi?.inCassaforte != null}<CassaforteBox cambiata={carica} />{/if}
+        {#if persone.length}
+          <section class="card pann-ch">
+            <span class="lbl">Chi ha chiuso · {periodo.toLowerCase()}</span>
+            <div class="chi-t" role="table" aria-label="Chi ha chiuso">
+              <div class="r-ch th" role="row"><span role="columnheader">Persona</span><span role="columnheader" class="n">Chiusure</span><span role="columnheader" class="n">Differenze</span></div>
+              {#each persone as p (p.chi)}
+                <div class="r-ch" role="row"><span role="cell">{p.chi}</span><span role="cell" class="n">{p.chiusure}</span><span role="cell" class="n" class:meno={p.differenze < 0}>{conSegno(p.differenze, euro)}</span></div>
+              {/each}
+            </div>
+            <span class="muted small">Per vedere se le differenze si ripetono: anche i soldi in più sono un segnale (un resto sbagliato a un cliente).</span>
+          </section>
+        {/if}
+      </aside>
+    </div>
   {:else}
     <div class="tiles">
       <div class="tile"><span class="lbl">Entrate</span><span class="v">{euro(dati.totale)}</span><span class="n">{validi.length === 1 ? '1 pagamento' : `${validi.length} pagamenti`}</span></div>
@@ -484,6 +533,20 @@
   .chiusure-g { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
   .chiusure-g .lista-ch { margin: 0 calc(-1 * var(--space-16)); }
   .lista-ch { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+  .colonne-ch { display: flex; flex-wrap: wrap; gap: var(--space-18, 18px); align-items: flex-start; }
+  .princ-ch { flex: 999 1 600px; min-width: 0; }
+  .lato-ch { flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; gap: var(--space-14); }
+  .filtri-ch { display: flex; gap: var(--space-8); flex-wrap: wrap; }
+  .n-ch { margin-left: var(--space-6); min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-size: var(--text-xs); display: inline-grid; place-items: center; }
+  .pann-ch { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
+  .avviso-ch { display: flex; gap: var(--space-8); align-items: flex-start; margin: 0; padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--warn-bg); color: var(--warn); font-size: var(--text-sm); font-weight: 600; }
+  .avviso-ch :global(.ic) { width: 18px; height: 18px; flex-shrink: 0; }
+  .chi-t { display: flex; flex-direction: column; font-size: var(--text-sm); }
+  .r-ch { display: grid; grid-template-columns: minmax(0, 1fr) 72px 96px; gap: var(--space-8); padding: 7px 0; border-top: 1px solid var(--line-soft); }
+  .r-ch.th { border-top: none; padding-top: 0; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .r-ch .n { text-align: right; }
+  .r-ch:not(.th) .n { font-family: var(--font-mono); }
+  .r-ch .meno { color: var(--ferma-fg); }
   .lista-ch .vuoto { display: block; padding: var(--space-16); }
 
   @media (max-width: 900px) {

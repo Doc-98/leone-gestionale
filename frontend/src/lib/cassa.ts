@@ -1,4 +1,4 @@
-import type { ImpostazioniCassa, Incassi, PaginaCassa, PagamentoRegistrato, StatoCassa, TipoMovimentoCassa, TipoScadenza, VoceScadenza } from './api';
+import type { ControlloModo, ImpostazioniCassa, Incassi, PaginaCassa, PagamentoRegistrato, SessioneCassa, StatoCassa, TipoMovimentoCassa, TipoScadenza, VoceScadenza } from './api';
 import { aggiungiGiorni, daIso, iso, lunedi } from './date';
 
 /**
@@ -224,3 +224,38 @@ export function spiegaFondo(imp: Pick<ImpostazioniCassa, 'fondo' | 'importoFondo
   if (imp.fondo === 'RIPORTATO') return 'Si parte da quello lasciato alla chiusura prima.';
   return 'A ogni apertura si riconta il fondo e si vede se torna con quello lasciato.';
 }
+
+/** La differenza va oltre la tolleranza (con tolleranza 0, ogni differenza conta). */
+export function oltreTolleranza(differenza: number, tolleranza: number): boolean {
+  const d = Math.abs(cent(differenza));
+  return cent(tolleranza) === 0 ? d !== 0 : d > cent(tolleranza);
+}
+
+/** Lo stato di una chiusura nello storico, dal più importante: da controllare, controllata, non torna, torna. */
+export function statoChiusura(s: Pick<SessioneCassa, 'daControllare' | 'controllataIl' | 'differenza' | 'riscontri'>): { testo: string; tono: 'warn' | 'cloro' | 'ferma' | 'passa' } {
+  if (s.daControllare && !s.controllataIl) return { testo: 'Da controllare', tono: 'warn' };
+  if (s.controllataIl) return { testo: 'Controllata', tono: 'cloro' };
+  const torna = cent(s.differenza ?? 0) === 0 && !(s.riscontri ?? []).some((r) => r.dichiarato != null && cent(r.differenza) !== 0);
+  return torna ? { testo: 'Torna', tono: 'passa' } : { testo: 'Non torna', tono: 'ferma' };
+}
+
+/** Chi ha chiuso, quante volte e con che differenze sommate (per vedere se si ripetono): le persone con più chiusure prima. */
+export function perPersona(chiusure: Pick<SessioneCassa, 'chiusaDa' | 'differenza'>[]): { chi: string; chiusure: number; differenze: number; nonTornano: number }[] {
+  const m = new Map<string, { chi: string; chiusure: number; c: number; nonTornano: number }>();
+  for (const s of chiusure) {
+    const chi = s.chiusaDa ?? '—';
+    const x = m.get(chi) ?? { chi, chiusure: 0, c: 0, nonTornano: 0 };
+    x.chiusure++;
+    x.c += cent(s.differenza ?? 0);
+    if (cent(s.differenza ?? 0) !== 0) x.nonTornano++;
+    m.set(chi, x);
+  }
+  return [...m.values()].sort((a, b) => b.chiusure - a.chiusure || a.chi.localeCompare(b.chi)).map((x) => ({ chi: x.chi, chiusure: x.chiusure, differenze: x.c / 100, nonTornano: x.nonTornano }));
+}
+
+export const CONTROLLI: { id: ControlloModo; nome: string }[] = [
+  { id: 'NESSUNA', nome: 'Nessuna' },
+  { id: 'OLTRE', nome: 'Oltre la tolleranza' },
+  { id: 'TUTTE', nome: 'Tutte' },
+];
+

@@ -79,6 +79,8 @@ final class PdfChiusura {
         if (c.aggiunte().signum() > 0) riga(conto, "+ Aggiunte", euro(c.aggiunte()), normale);
         totale(conto, "Contanti attesi", euro(s.attesi()), grassetto);
         riga(conto, "Contati", euro(s.contati()), grassetto);
+        if (s.primoConteggio() != null && s.primoConteggio().compareTo(s.contati()) != 0)
+            riga(conto, "   (primo conteggio, prima di ricontare: " + euro(s.primoConteggio()) + ")", "", piccolo);
         int segno = s.differenza().signum();
         Font fd = font(Font.BOLD, 10, segno == 0 ? VERDE : ROSSO);
         riga(conto, segno == 0 ? "Differenza: la cassa torna" : segno > 0 ? "Differenza: in più" : "Differenza: mancano", (segno > 0 ? "+" : "") + euro(s.differenza()), fd);
@@ -99,6 +101,24 @@ final class PdfChiusura {
                 met.addCell(cella(m.uscite().signum() == 0 ? "—" : euro(m.uscite()), normale, Element.ALIGN_RIGHT));
             }
             doc.add(met);
+            doc.add(spazio(16));
+        }
+
+        // riscontri con il POS
+        if (s.riscontri() != null && !s.riscontri().isEmpty()) {
+            doc.add(new Paragraph("RISCONTRO CON IL POS", etichetta));
+            doc.add(spazio(4));
+            PdfPTable ris = tabella(new float[] {2.4f, 1.3f, 1.3f, 1.3f});
+            intestazione(ris, etichetta, "METODO", "ATTESO", "SCONTRINO", "DIFFERENZA");
+            for (var r : s.riscontri()) {
+                ris.addCell(cella(r.metodo(), normale, Element.ALIGN_LEFT));
+                ris.addCell(cella(euro(r.atteso()), normale, Element.ALIGN_RIGHT));
+                ris.addCell(cella(r.dichiarato() == null ? "non scritto" : euro(r.dichiarato()), normale, Element.ALIGN_RIGHT));
+                int sd = r.differenza().signum();
+                ris.addCell(cella(r.dichiarato() == null ? "—" : sd == 0 ? "torna" : (sd > 0 ? "+" : "") + euro(r.differenza()),
+                    font(Font.BOLD, 10, r.dichiarato() == null || sd == 0 ? INCHIOSTRO : ROSSO), Element.ALIGN_RIGHT));
+            }
+            doc.add(ris);
             doc.add(spazio(16));
         }
 
@@ -136,7 +156,8 @@ final class PdfChiusura {
         PdfPTable firme = tabella(new float[] {1, 0.3f, 1});
         firme.addCell(firma("Chi ha chiuso la cassa", piccolo));
         firme.addCell(vuota());
-        firme.addCell(firma("Chi ha controllato", piccolo));
+        firme.addCell(firma(s.controllataIl() != null ? "Controllata da " + s.controllataDa() + " il " + ORA.format(s.controllataIl())
+            + (s.notaControllo() != null ? ": " + s.notaControllo() : "") : s.daControllare() ? "Chi ha controllato (da controllare)" : "Chi ha controllato", piccolo));
         doc.add(firme);
         doc.close();
         return out.toByteArray();

@@ -4,13 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  * Cassa (ADR 0018, parte 11): apertura per turno con il fondo riportato, contanti attesi, spese, chiusura con la
  * differenza, un pagamento annullato dopo non cambia la chiusura fatta, riapertura; casse per postazione con il fondo
- * fisso e la chiusura a fine giornata, versamenti, fondo da contare a ogni apertura.
+ * fisso e la chiusura a fine giornata, versamenti, fondo da contare a ogni apertura; i controlli (conta alla cieca,
+ * tolleranza, riscontro con il POS, controllo del responsabile, avviso, cassaforte e banca).
+ * In ordine e con le date che crescono (maggio, giugno, luglio 2030): una sessione conta dalla chiusura prima.
  */
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CassaTest extends ProvaApi {
 
     private String persona(ClientApi segr, String nome) throws Exception {
@@ -43,17 +49,24 @@ class CassaTest extends ProvaApi {
      * conta dalla chiusura prima, e i dati demo e le altre prove hanno pagamenti in altre date.
      */
     private static void azzera(ClientApi c, String cassa) throws Exception {
-        double attesi = num(conti(stato(c, cassa)).get("attesi"));
+        // il confronto mostra gli attesi anche con la conta alla cieca
+        var esito = c.post("/api/cassa/casse/" + cassa + "/confronta", "{\"contati\":0}");
+        assertThat(esito.statusCode()).as(esito.body()).isEqualTo(200);
+        double attesi = num(mappa(mappa(json(esito).get("sessione")).get("conti")).get("attesi"));
         var r = c.post("/api/cassa/casse/" + cassa + "/chiudi", "{\"contati\":" + attesi + ",\"lasciato\":" + Math.min(100, attesi) + "}");
         assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
     }
 
     @Test
+    @Order(1)
     void unTurnoConIlFondoRiportato() throws Exception {
         var segr = come("segreteria@demo.leone");
         var coord = come("coordinatore@demo.leone");
         var staff = come("staff@demo.leone");
         orologio.alle("2030-05-06T08:00");
+        // qui gli attesi si vedono sempre (la conta alla cieca ha la sua prova)
+        assertThat(come("admin@demo.leone").put("/api/cassa/impostazioni",
+            "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\",\"cieca\":false}").statusCode()).isEqualTo(200);
         var pagina = json(segr.get("/api/cassa"));
         assertThat(mappa(pagina.get("impostazioni"))).containsEntry("casse", "UNICA").containsEntry("fondo", "RIPORTATO").containsEntry("chiusura", "TURNO");
         String cassa = (String) elenco(pagina.get("casse")).stream().filter(c -> Boolean.TRUE.equals(c.get("principale"))).findFirst().orElseThrow().get("id");
@@ -140,12 +153,13 @@ class CassaTest extends ProvaApi {
     }
 
     @Test
+    @Order(2)
     void unaCassaPerPostazioneConIlFondoFisso() throws Exception {
         var segr = come("segreteria@demo.leone");
         var staff = come("staff@demo.leone");
         var admin = come("admin@demo.leone");
         orologio.alle("2030-06-03T08:00");
-        String imp = "{\"casse\":\"PER_POSTAZIONE\",\"fondo\":\"FISSO\",\"importoFondo\":150,\"chiusura\":\"GIORNATA\"}";
+        String imp = "{\"casse\":\"PER_POSTAZIONE\",\"fondo\":\"FISSO\",\"importoFondo\":150,\"chiusura\":\"GIORNATA\",\"cieca\":false}";
         assertThat(staff.put("/api/cassa/impostazioni", imp).statusCode()).isEqualTo(403);
         assertThat(admin.put("/api/cassa/impostazioni", imp.replace("150", "-1")).statusCode()).isEqualTo(400);
         assertThat(admin.put("/api/cassa/impostazioni", imp).statusCode()).isEqualTo(200);
@@ -205,5 +219,106 @@ class CassaTest extends ProvaApi {
             .isEqualTo(200);
         assertThat(admin.put("/api/cassa/casse/" + due, "{\"attiva\":false}").statusCode()).isEqualTo(200);
         assertThat(elenco(json(segr.get("/api/cassa")).get("stati"))).hasSize(1);
+    }
+
+    @Test
+    @Order(3)
+    void iControlliDellaChiusura() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var coord = come("coordinatore@demo.leone");
+        var admin = come("admin@demo.leone");
+        orologio.alle("2030-07-01T07:00");
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":false,\"banca\":false,\"oreAvviso\":2}").statusCode()).isEqualTo(200);
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"controllo\":\"QUALCUNA\"}").statusCode()).isEqualTo(400);
+        var pagina = json(segr.get("/api/cassa"));
+        String cassa = (String) elenco(pagina.get("casse")).stream().filter(c -> Boolean.TRUE.equals(c.get("principale"))).findFirst().orElseThrow().get("id");
+        assertThat(elenco(pagina.get("daRiscontrare"))).extracting(m -> m.get("nome")).containsExactly("Bancomat");
+        azzera(segr, cassa);
+        double fondo = num(stato(segr, cassa).get("fondoProposto"));
+        // il conto della cassaforte parte da quando si accende (la chiusura delle 7 non c'entra)
+        orologio.alle("2030-07-01T07:30");
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"banca\":true}").statusCode()).isEqualTo(200);
+
+        // alla cieca: della cassa aperta si vedono il fondo e quanti pagamenti, non gli importi
+        orologio.alle("2030-07-01T08:00");
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/apri", "{}").statusCode()).isEqualTo(200);
+        String eva = persona(segr, "Eva");
+        orologio.alle("2030-07-01T09:00");
+        paga(segr, eva, "Contanti", 60);
+        orologio.alle("2030-07-01T09:10");
+        paga(segr, eva, "Bancomat", 40);
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/movimenti", "{\"tipo\":\"SPESA\",\"importo\":3}").statusCode()).isEqualTo(400);
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/movimenti", "{\"tipo\":\"VERSAMENTO\",\"importo\":20}").statusCode()).isEqualTo(200);
+        var s = stato(segr, cassa);
+        var corrente = mappa(s.get("corrente"));
+        assertThat(corrente).containsEntry("nascosti", true).containsEntry("contanti", null);
+        assertThat(conti(s)).containsEntry("attesi", null).containsEntry("entrati", null).containsEntry("quanteEntrate", 1).containsEntry("pagamenti", 2);
+        assertThat(s).containsEntry("apertaDaTroppo", false);
+
+        // dopo 2 ore aperta: l'avviso
+        orologio.alle("2030-07-01T11:00");
+        assertThat(stato(segr, cassa)).containsEntry("apertaDaTroppo", true);
+        assertThat(elenco(json(segr.get("/api/cassa/avvisi")).get("aperteDaTroppo"))).hasSize(1);
+
+        // il confronto: mancano 12 € (oltre i 5 tollerati), il POS torna; resta il primo conteggio
+        var esito = json(segr.post("/api/cassa/casse/" + cassa + "/confronta", "{\"contati\":" + (fondo + 28)
+            + ",\"riscontri\":[{\"metodoId\":\"" + metodoPagamento(segr, "Bancomat") + "\",\"importo\":40}]}"));
+        assertThat(num(esito.get("differenza"))).isEqualTo(-12);
+        assertThat(esito).containsEntry("oltre", true).containsEntry("notaObbligatoria", true).containsEntry("daControllare", true);
+        assertThat(num(mappa(mappa(esito.get("sessione")).get("conti")).get("attesi"))).isEqualTo(fondo + 40);
+        assertThat(mappa(esito.get("sessione"))).containsEntry("nascosti", false);
+        assertThat(elenco(esito.get("riscontri"))).singleElement().satisfies(r -> assertThat(num(r.get("differenza"))).isZero());
+
+        // riconta: 2 € in meno, dentro la tolleranza; ma con un POS che non torna serve la nota
+        String bancomat = metodoPagamento(segr, "Bancomat");
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/chiudi", "{\"contati\":" + (fondo + 38) + ",\"lasciato\":100,"
+            + "\"riscontri\":[{\"metodoId\":\"" + bancomat + "\",\"importo\":35}]}").statusCode()).isEqualTo(400);
+        var ch = json(segr.post("/api/cassa/casse/" + cassa + "/chiudi", "{\"contati\":" + (fondo + 38) + ",\"lasciato\":100,"
+            + "\"riscontri\":[{\"metodoId\":\"" + bancomat + "\",\"importo\":40}]}"));
+        assertThat(num(ch.get("primoConteggio"))).isEqualTo(fondo + 28);
+        assertThat(num(ch.get("differenza"))).isEqualTo(-2);
+        assertThat(ch).containsEntry("daControllare", false);
+        assertThat(num(ch.get("perCassaforte"))).isEqualTo(fondo + 38 - 100 + 20);
+        double primaInCassaforte = num(ch.get("perCassaforte"));
+
+        // un'altra sessione che non torna: nota obbligatoria, poi da controllare
+        orologio.alle("2030-07-01T15:00");
+        paga(segr, eva, "Contanti", 50);
+        orologio.alle("2030-07-01T19:00");
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/chiudi", "{\"contati\":140,\"lasciato\":100}").statusCode()).isEqualTo(400);
+        var seconda = json(segr.post("/api/cassa/casse/" + cassa + "/chiudi", "{\"contati\":140,\"lasciato\":100,\"note\":\"Non trovo 10 euro\"}"));
+        assertThat(seconda).containsEntry("daControllare", true);
+        String id = (String) seconda.get("id");
+        assertThat(json(segr.get("/api/cassa/avvisi")).get("daControllare")).isEqualTo(1);
+        assertThat(segr.post("/api/cassa/sessioni/" + id + "/controlla", "{}").statusCode()).isEqualTo(403);
+        var controllata = json(coord.post("/api/cassa/sessioni/" + id + "/controlla", "{\"nota\":\"Riconteggiato con Anna\"}"));
+        assertThat(controllata).containsEntry("controllataDa", "Paolo Galli").containsEntry("notaControllo", "Riconteggiato con Anna");
+        assertThat(coord.post("/api/cassa/sessioni/" + id + "/controlla", "{}").statusCode()).isEqualTo(409);
+        assertThat(json(segr.get("/api/cassa/avvisi")).get("daControllare")).isEqualTo(0);
+
+        // cassaforte e banca: le due chiusure, poi in banca; una chiusura in banca non si riapre
+        var forte = json(segr.get("/api/cassa/cassaforte"));
+        assertThat(num(forte.get("totale"))).isEqualTo(primaInCassaforte + 40);
+        assertThat(elenco(forte.get("chiusure"))).hasSize(2);
+        assertThat(segr.post("/api/cassa/versamenti", "{\"data\":\"2030-07-02\"}").statusCode()).isEqualTo(400);
+        var versamento = segr.post("/api/cassa/versamenti", "{\"data\":\"2030-07-01\",\"distinta\":\"0042\"}");
+        assertThat(versamento.statusCode()).as(versamento.body()).isEqualTo(201);
+        assertThat(num(json(versamento).get("importo"))).isEqualTo(primaInCassaforte + 40);
+        assertThat(num(json(segr.get("/api/cassa/cassaforte")).get("totale"))).isZero();
+        assertThat(coord.post("/api/cassa/sessioni/" + id + "/riapri", "{\"motivo\":\"Prova\"}").statusCode()).isEqualTo(409);
+        String vid = (String) json(versamento).get("id");
+        assertThat(segr.post("/api/cassa/versamenti/" + vid + "/annulla", "{}").statusCode()).isEqualTo(403);
+        assertThat(coord.post("/api/cassa/versamenti/" + vid + "/annulla", "{}").statusCode()).isEqualTo(200);
+        assertThat(num(json(segr.get("/api/cassa/cassaforte")).get("totale"))).isEqualTo(primaInCassaforte + 40);
+        var pdf = segr.scarica("/api/cassa/sessioni/" + id + "/pdf");
+        assertThat(new String(pdf.body(), 0, 4)).isEqualTo("%PDF");
+
+        // si torna alle scelte di base
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
+        assertThat(segr.get("/api/cassa/cassaforte").statusCode()).isEqualTo(409);
     }
 }

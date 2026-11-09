@@ -232,8 +232,8 @@ erDiagram
   `pagamento_addebito` (quanto di ogni addebito), `metodo_pagamento` (elenco modificabile). Il tesseramento sa di
   essere pagato dall'evento `Pagamenti.Saldato`. Ricevute: modulo `ricevute` (parte 10: `serie_ricevute`, `impostazioni_ricevute`, `ricevuta` con
   intestatario, beneficiari e righe fotografati). Cassa: modulo `cassa` (parte 11: `cassa`, `impostazioni_cassa`,
-  `sessione_cassa` con contati, differenza e totali fotografati, `movimento_cassa`; i pagamenti sanno da quale cassa
-  sono passati).
+  `sessione_cassa` con contati, primo conteggio, differenza, riscontri e totali fotografati, controllo del responsabile,
+  `movimento_cassa`, `versamento_banca`; i pagamenti sanno da quale cassa sono passati).
 - Borsellino (modulo `pagamenti`, ADR 0018 parti 7–8): `regole_borsellino` (una riga), `movimento_borsellino` (euro e
   crediti, con scadenza per gli euro in entrata), `uscita` (soldi restituiti); cauzione del braccialetto come addebito.
 - Modulo `servizi` (parte 9): `servizio` (phon, doccia: crediti per uso, gratuiti al giorno), `dispositivo` (macchine e

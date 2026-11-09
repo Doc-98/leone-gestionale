@@ -27,6 +27,9 @@ class MetodoPagamento {
     /** Finisce nel cassetto (di solito solo i contanti): conta nei contanti attesi alla chiusura di cassa. */
     @Column(nullable = false)
     private boolean contanti;
+    /** Alla chiusura di cassa si riscontra con lo scontrino del POS (bancomat, carte). */
+    @Column(nullable = false)
+    private boolean riscontro;
 
     protected MetodoPagamento() {}
 
@@ -40,6 +43,7 @@ class MetodoPagamento {
         if (borsellino && (daIncassare || contanti || (this.nome != null && nome != null && !this.nome.equals(nome.strip()))))
             throw new IllegalArgumentException("Il borsellino si può solo spegnere o spostare.");
         if (daIncassare && contanti) throw new IllegalArgumentException("Un metodo da incassare a mano non finisce nel cassetto.");
+        if (contanti && riscontro) riscontro = false; // i contanti si contano, non si riscontrano
         if (nome == null || nome.isBlank() || nome.strip().length() > 60) throw new IllegalArgumentException("Dai un nome al metodo (al massimo 60 caratteri).");
         this.nome = nome.strip();
         this.daIncassare = daIncassare;
@@ -49,7 +53,7 @@ class MetodoPagamento {
     }
 
     Pagamenti.Metodo dto() {
-        return new Pagamenti.Metodo(id, nome, daIncassare, contanti, attivo, ordine, borsellino);
+        return new Pagamenti.Metodo(id, nome, daIncassare, contanti, riscontro, attivo, ordine, borsellino);
     }
 
     UUID getId() { return id; }
@@ -58,5 +62,11 @@ class MetodoPagamento {
     boolean isAttivo() { return attivo; }
     boolean isBorsellino() { return borsellino; }
     boolean isContanti() { return contanti; }
+    boolean isRiscontro() { return riscontro; }
+
+    void riscontro(boolean r) {
+        if (r && (contanti || daIncassare || borsellino)) throw new IllegalArgumentException("Si riscontrano con il POS solo i metodi pagati al banco con carta o app.");
+        this.riscontro = r;
+    }
     int getOrdine() { return ordine; }
 }

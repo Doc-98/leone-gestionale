@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PagamentoRegistrato, VoceScadenza } from './api';
 import type { PaginaCassa, StatoCassa } from './api';
-import { andamento, conSegno, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, numeroDa, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
+import { andamento, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, numeroDa, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
 import { euro } from './listino';
 
 const voce = (p: Partial<VoceScadenza>): VoceScadenza => ({
@@ -102,13 +102,43 @@ describe('chiusura di cassa', () => {
 
   it('sceglie la cassa del computer e sa quando serve aprire', () => {
     const stato = (id: string, principale: boolean) => ({ cassa: { id, nome: id, attiva: true, principale, ordine: 0 } }) as StatoCassa;
-    const p = { impostazioni: { casse: 'PER_POSTAZIONE', fondo: 'RIPORTATO', importoFondo: 100, chiusura: 'TURNO' }, casse: [], stati: [stato('a', true), stato('b', false)] } as PaginaCassa;
+    const p = { impostazioni: { casse: 'PER_POSTAZIONE', fondo: 'RIPORTATO', importoFondo: 100, chiusura: 'TURNO' }, casse: [], stati: [stato('a', true), stato('b', false)] } as unknown as PaginaCassa;
     expect(statoDaMostrare(p, 'b')?.cassa.id).toBe('b');
     expect(statoDaMostrare(p, 'sparita')?.cassa.id).toBe('a');
     expect(statoDaMostrare({ ...p, impostazioni: { ...p.impostazioni, casse: 'UNICA' } }, 'b')?.cassa.id).toBe('a');
     expect(serveAprire({ chiusura: 'GIORNATA', fondo: 'RIPORTATO' })).toBe(false);
     expect(serveAprire({ chiusura: 'GIORNATA', fondo: 'CONTATO' })).toBe(true);
     expect(serveAprire({ chiusura: 'TURNO', fondo: 'FISSO' })).toBe(true);
+  });
+});
+
+describe('controlli della chiusura', () => {
+  it('sa quando la differenza va oltre la tolleranza', () => {
+    expect(oltreTolleranza(-5, 5)).toBe(false);
+    expect(oltreTolleranza(-5.01, 5)).toBe(true);
+    expect(oltreTolleranza(0.1 + 0.2 - 0.3, 0)).toBe(false);
+    expect(oltreTolleranza(0.01, 0)).toBe(true);
+  });
+
+  it('dà lo stato di una chiusura', () => {
+    const base = { daControllare: false, controllataIl: null, differenza: 0, riscontri: null };
+    expect(statoChiusura(base).testo).toBe('Torna');
+    expect(statoChiusura({ ...base, differenza: -2 }).testo).toBe('Non torna');
+    expect(statoChiusura({ ...base, riscontri: [{ metodo: 'Bancomat', atteso: 40, dichiarato: 35, differenza: -5 }] }).testo).toBe('Non torna');
+    expect(statoChiusura({ ...base, riscontri: [{ metodo: 'Bancomat', atteso: 40, dichiarato: null, differenza: 0 }] }).testo).toBe('Torna');
+    expect(statoChiusura({ ...base, daControllare: true, differenza: -12 }).tono).toBe('warn');
+    expect(statoChiusura({ ...base, daControllare: true, controllataIl: '2030-07-01T10:00:00Z' }).testo).toBe('Controllata');
+  });
+
+  it('somma le differenze per persona', () => {
+    const r = perPersona([
+      { chiusaDa: 'Carla Ferri', differenza: -12.5 },
+      { chiusaDa: 'Anna Villa', differenza: 0.5 },
+      { chiusaDa: 'Carla Ferri', differenza: 0 },
+      { chiusaDa: null, differenza: 0.1 },
+    ]);
+    expect(r[0]).toEqual({ chi: 'Carla Ferri', chiusure: 2, differenze: -12.5, nonTornano: 1 });
+    expect(r.map((x) => x.chi).sort()).toEqual(['Anna Villa', 'Carla Ferri', '—'].sort());
   });
 });
 

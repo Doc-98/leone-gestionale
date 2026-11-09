@@ -23,6 +23,11 @@ class Sessione {
     /** I totali per metodo alla chiusura: entrate e uscite, e se il metodo finisce nel cassetto. */
     public record TotaleMetodo(String metodo, boolean contanti, BigDecimal entrate, BigDecimal uscite) {}
 
+    /** Un metodo riscontrato con lo scontrino del POS: atteso dai pagamenti, scritto da chi chiude (vuoto = non scritto). */
+    public record Riscontro(String metodo, BigDecimal atteso, BigDecimal dichiarato, BigDecimal differenza) {
+        boolean torna() { return dichiarato == null || differenza.signum() == 0; }
+    }
+
     /** La fotografia dei conti alla chiusura (se poi si annulla un pagamento, la chiusura fatta non cambia). */
     public record Riepilogo(List<TotaleMetodo> perMetodo, int pagamenti, BigDecimal entrati, BigDecimal usciti, BigDecimal versamenti,
                             BigDecimal spese, BigDecimal aggiunte) {}
@@ -54,6 +59,22 @@ class Sessione {
     private String note;
     @JdbcTypeCode(SqlTypes.JSON)
     private Riepilogo riepilogo;
+    @Column(name = "primo_conteggio")
+    private BigDecimal primoConteggio;
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Riscontro> riscontri;
+    @Column(name = "da_controllare")
+    private boolean daControllare;
+    @Column(name = "controllata_il")
+    private Instant controllataIl;
+    @Column(name = "controllata_da")
+    private UUID controllataDa;
+    @Column(name = "nota_controllo")
+    private String notaControllo;
+    @Column(name = "per_cassaforte")
+    private BigDecimal perCassaforte;
+    @Column(name = "versamento_id")
+    private UUID versamentoId;
 
     protected Sessione() {}
 
@@ -68,8 +89,17 @@ class Sessione {
         this.fondoAtteso = fondoAtteso;
     }
 
-    void chiudi(Instant ora, UUID da, BigDecimal attesi, BigDecimal contati, BigDecimal lasciato, String note, Riepilogo riepilogo) {
+    /** Il primo confronto con gli attesi (conta alla cieca): resta il primo conteggio, anche se poi si riconta. */
+    void confrontato(BigDecimal contati) {
+        if (primoConteggio == null) this.primoConteggio = contati;
+    }
+
+    void chiudi(Instant ora, UUID da, BigDecimal attesi, BigDecimal contati, BigDecimal lasciato, String note, Riepilogo riepilogo,
+                List<Riscontro> riscontri, boolean daControllare, BigDecimal versamentiNelTurno) {
         if (chiusaIl != null) throw new IllegalStateException("La cassa è già chiusa.");
+        if (primoConteggio == null) this.primoConteggio = contati;
+        this.riscontri = riscontri;
+        this.daControllare = daControllare;
         this.chiusaIl = ora;
         this.chiusaDa = da;
         this.attesi = attesi;
@@ -77,6 +107,7 @@ class Sessione {
         this.differenza = contati.subtract(attesi);
         this.lasciato = lasciato;
         this.versato = contati.subtract(lasciato);
+        this.perCassaforte = versato.add(versamentiNelTurno);
         this.riepilogo = riepilogo;
         aggiungiNota(note);
     }
@@ -91,8 +122,25 @@ class Sessione {
         this.lasciato = null;
         this.versato = null;
         this.riepilogo = null;
+        this.primoConteggio = null;
+        this.riscontri = null;
+        this.daControllare = false;
+        this.controllataIl = null;
+        this.controllataDa = null;
+        this.notaControllo = null;
+        this.perCassaforte = null;
         aggiungiNota("Riaperta " + quando + (chi == null ? "" : " da " + chi) + ": " + motivo);
     }
+
+    /** Un responsabile l'ha controllata (e scrive, se vuole, cosa ha verificato). */
+    void controlla(Instant ora, UUID da, String nota) {
+        if (chiusaIl == null) throw new IllegalStateException("La cassa è ancora aperta.");
+        this.controllataIl = ora;
+        this.controllataDa = da;
+        this.notaControllo = nota == null || nota.isBlank() ? null : nota.strip();
+    }
+
+    void inBanca(UUID versamento) { this.versamentoId = versamento; }
 
     private void aggiungiNota(String testo) {
         if (testo == null || testo.isBlank()) return;
@@ -120,4 +168,12 @@ class Sessione {
     BigDecimal getVersato() { return versato; }
     String getNote() { return note; }
     Riepilogo getRiepilogo() { return riepilogo; }
+    BigDecimal getPrimoConteggio() { return primoConteggio; }
+    List<Riscontro> getRiscontri() { return riscontri; }
+    boolean isDaControllare() { return daControllare; }
+    Instant getControllataIl() { return controllataIl; }
+    UUID getControllataDa() { return controllataDa; }
+    String getNotaControllo() { return notaControllo; }
+    BigDecimal getPerCassaforte() { return perCassaforte; }
+    UUID getVersamentoId() { return versamentoId; }
 }

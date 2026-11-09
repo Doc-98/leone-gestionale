@@ -2,7 +2,7 @@
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Cassa, type ChiusuraModo, type FondoModo, type ImpostazioniCassa, type MetodoPagamento, type PaginaCassa } from '../lib/api';
-  import { numeroDa, spiegaFondo } from '../lib/cassa';
+  import { CONTROLLI, numeroDa, spiegaFondo } from '../lib/cassa';
   import { euro } from '../lib/listino';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -10,7 +10,7 @@
    * Impostazioni della cassa (ADR 0018, parte 11): una cassa o una per postazione, come funziona il fondo e quando si
    * chiude. Le casse si aggiungono e si cambiano subito; le scelte si salvano dalla barra in basso.
    */
-  type Bozza = Omit<ImpostazioniCassa, 'importoFondo'> & { importoFondo: string };
+  type Bozza = Omit<ImpostazioniCassa, 'importoFondo' | 'tolleranza' | 'oreAvviso'> & { importoFondo: string; tolleranza: string; oreAvviso: string };
   let pagina = $state<PaginaCassa | null>(null);
   let metodi = $state<MetodoPagamento[]>([]);
   let bozza = $state<Bozza | null>(null);
@@ -25,7 +25,7 @@
     try {
       [pagina, metodi] = await Promise.all([api.cassa(), api.metodiPagamento()]);
       const i = pagina.impostazioni;
-      bozza = { ...i, importoFondo: String(i.importoFondo).replace('.', ',') };
+      bozza = { ...i, importoFondo: String(i.importoFondo).replace('.', ','), tolleranza: String(i.tolleranza).replace('.', ','), oreAvviso: String(i.oreAvviso) };
       originale = JSON.stringify(bozza);
     } catch (e) {
       errore = messaggioErrore(e);
@@ -35,6 +35,10 @@
 
   const sporco = $derived(!!bozza && JSON.stringify(bozza) !== originale);
   const fondoN = $derived(bozza ? numeroDa(bozza.importoFondo) : null);
+  const tolleranzaN = $derived(bozza ? numeroDa(bozza.tolleranza) : null);
+  const oreN = $derived(bozza && /^\d{1,2}$/.test(bozza.oreAvviso.trim()) ? Number(bozza.oreAvviso) : null);
+  const valida = $derived(fondoN != null && tolleranzaN != null && tolleranzaN >= 0 && oreN != null && oreN <= 72);
+  const pagabili = $derived(metodi.filter((m) => m.attivo && !m.contanti && !m.daIncassare && !m.borsellino));
   const aperte = $derived(pagina?.stati.filter((s) => s.aperta).map((s) => s.cassa.nome) ?? []);
   const nelCassetto = $derived(metodi.filter((m) => m.contanti && m.attivo).map((m) => m.nome));
 
@@ -43,7 +47,7 @@
     errore = '';
     messaggio = '';
     try {
-      await api.modificaImpostazioniCassa({ ...bozza, importoFondo: fondoN ?? -1 });
+      await api.modificaImpostazioniCassa({ ...bozza, importoFondo: fondoN ?? -1, tolleranza: tolleranzaN ?? -1, oreAvviso: oreN ?? -1 });
       await carica();
       messaggio = 'Salvato: vale dalla prossima apertura.';
     } catch (e) {
@@ -150,6 +154,40 @@
             <span>Contano nei contanti attesi solo i metodi segnati «nel cassetto».{#if !nelCassetto.length}{' '}<strong class="manca">Nessuno lo è.</strong>{/if}</span></span>
             <span class="ctl"><span class="esempio">{nelCassetto.join(', ') || '—'}</span><a class="mini-btn" href="#/metodi">Metodi di pagamento →</a></span></div>
         </section>
+
+        <section class="card sez" id="imp-conteggio" aria-label="Il conteggio e il controllo">
+          <div class="sez-t"><h2 class="grow">Il conteggio e il controllo</h2><span class="spiega">come si usa nel settore</span></div>
+          <div class="riga-imp"><span class="t"><b>Conta alla cieca</b>
+            <span>Chi chiude conta senza vedere i contanti attesi; il confronto arriva dopo. È la pratica consigliata: il conto non si «aggiusta» sul numero atteso.</span></span>
+            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.cieca} aria-label="Conta alla cieca" disabled={!puo} onclick={() => (bozza!.cieca = !bozza!.cieca)}><span></span></button></span></div>
+          <div class="riga-imp"><span class="t"><b>Differenza tollerata</b>
+            <span>Fino a questa cifra, in più o in meno, si chiude e basta. Oltre: si propone di ricontare, la nota diventa obbligatoria e la chiusura può andare controllata. 0 = ogni differenza.</span></span>
+            <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.tolleranza} disabled={!puo} aria-label="Differenza tollerata" /><span class="unita">€</span></span></div>
+          {@render scelte('Quali chiusure controlla un responsabile', 'Chi può annullare i pagamenti le segna come controllate (non chi le ha chiuse); sul riepilogo stampato compare chi e quando.',
+            seg(bozza.controllo, CONTROLLI, (v) => (bozza!.controllo = v)))}
+          <div class="riga-imp"><span class="t"><b>Riscontro con il POS</b>
+            <span>Per i metodi scelti, alla chiusura si scrive il totale dello scontrino di chiusura del POS e si vede se torna con i pagamenti registrati. Si cambia subito, senza salvare.</span></span>
+            <span class="ctl chips-m">
+              {#each pagabili as m (m.id)}
+                <button type="button" class="chip" aria-pressed={m.riscontro} disabled={!puo}
+                  onclick={() => esegui(() => api.modificaMetodoPagamento(m.id, { nome: m.nome, daIncassare: m.daIncassare, contanti: m.contanti, attivo: m.attivo, ordine: m.ordine, riscontro: !m.riscontro }),
+                    m.riscontro ? `${m.nome}: non si riscontra più.` : `${m.nome}: si riscontra con il POS.`)}>{m.nome}</button>
+              {:else}<span class="muted small">Nessun metodo con carta o app.</span>{/each}
+            </span></div>
+        </section>
+
+        <section class="card sez" id="imp-tolti" aria-label="I soldi tolti dal cassetto">
+          <div class="sez-t"><h2 class="grow">I soldi tolti dal cassetto</h2><span class="spiega">spese, cassaforte, banca</span></div>
+          <div class="riga-imp"><span class="t"><b>Spese pagate con la cassa</b>
+            <span>Spento, il cassetto serve solo per incassi e resto: le piccole spese passano da una cassa a parte (come si consiglia di solito).</span></span>
+            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.spese} aria-label="Spese pagate con la cassa" disabled={!puo} onclick={() => (bozza!.spese = !bozza!.spese)}><span></span></button></span></div>
+          <div class="riga-imp"><span class="t"><b>Tieni il conto della cassaforte e della banca</b>
+            <span>Quello versato alle chiusure resta «in cassaforte» finché qualcuno non segna che è stato portato in banca, con il giorno e la distinta. Il conto parte da quando si accende.</span></span>
+            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.banca} aria-label="Conto della cassaforte e della banca" disabled={!puo} onclick={() => (bozza!.banca = !bozza!.banca)}><span></span></button></span></div>
+          <div class="riga-imp"><span class="t"><b>Avvisa se una cassa resta aperta</b>
+            <span>Dopo queste ore dall'apertura, un avviso a chi entra in cassa e, sulla voce Incassi, a chi usa la cassa. 0 = mai.</span></span>
+            <span class="ctl"><input class="inp m corto" inputmode="numeric" bind:value={bozza.oreAvviso} disabled={!puo} aria-label="Ore dopo cui avvisare" /><span class="unita">ore</span></span></div>
+        </section>
       </div>
 
       <aside class="lato">
@@ -164,7 +202,14 @@
             <span class="r"><span>Contati</span><span class="m">{euro((fondoN ?? 0) + 198)}</span></span>
             <span class="r meno"><span>Differenza</span><span class="m">−{euro(2)}</span></span>
           </div>
+          <ul class="cosa">
+            <li>{bozza.cieca ? 'Si conta alla cieca: gli attesi compaiono dopo il conteggio, e resta il primo conteggio se si riconta.' : 'Gli attesi si vedono mentre si conta.'}</li>
+            <li>{tolleranzaN ? `Fino a ${euro(tolleranzaN)} di differenza si chiude e basta; oltre serve la nota.` : 'Ogni differenza chiede la nota.'}
+              {bozza.controllo === 'TUTTE' ? ' Ogni chiusura va controllata da un responsabile.' : bozza.controllo === 'OLTRE' ? ' Quelle oltre vanno controllate da un responsabile.' : ''}</li>
+            {#if pagabili.some((m) => m.riscontro)}<li>Si riscontrano con il POS: {pagabili.filter((m) => m.riscontro).map((m) => m.nome).join(', ')}.</li>{/if}
+          </ul>
           <p class="muted small nomargin">Alla chiusura si dice quanto si lascia per la volta dopo; il resto è da versare. Il riepilogo si stampa da firmare. L'ultima chiusura si può riaprire, con il motivo, da chi può annullare i pagamenti.</p>
+          <p class="muted small nomargin">Il gestionale non sostituisce il registratore telematico: il riepilogo della chiusura è un documento interno.</p>
         </section>
       </aside>
     </div>
@@ -173,7 +218,7 @@
       <div class="salva-bar" role="status">
         <span>Ci sono modifiche non salvate</span>
         <button type="button" class="vuoto" onclick={() => (bozza = JSON.parse(originale))}>Annulla</button>
-        <button type="button" class="chiaro" disabled={fondoN == null} onclick={salva}>Salva</button>
+        <button type="button" class="chiaro" disabled={!valida} onclick={salva}>Salva</button>
       </div>
     {/if}
   {:else if !errore}
@@ -198,6 +243,8 @@
   .corto { width: 110px; text-align: right; }
   .unita { font-size: var(--text-md); color: var(--muted); }
   .seg { min-width: 280px; }
+  .cosa { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: var(--space-6); font-size: var(--text-sm); }
+  .chips-m { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: flex-end; max-width: 360px; }
   .esempio { font-size: var(--text-md); font-weight: 600; padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--carta); }
   .manca { color: var(--warn); font-weight: 600; }
   .avviso-r { margin: 0 var(--space-16) var(--space-12); }

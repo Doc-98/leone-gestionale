@@ -15,6 +15,15 @@ interface SessioneRepository extends JpaRepository<Sessione, UUID> {
 
     boolean existsByChiusaIlIsNull();
 
+    List<Sessione> findByChiusaIlIsNull();
+
+    long countByDaControllareTrueAndControllataIlIsNullAndChiusaIlIsNotNull();
+
+    /** In cassaforte: chiuse dopo «dal», con qualcosa messo da parte e non ancora portate in banca. */
+    List<Sessione> findByChiusaIlGreaterThanEqualAndVersamentoIdIsNullAndPerCassaforteGreaterThanOrderByChiusaIl(Instant dal, java.math.BigDecimal zero);
+
+    List<Sessione> findByVersamentoId(UUID versamento);
+
     /** Le chiusure tra «da» (compreso) e «a» (escluso), le più recenti per prime. */
     List<Sessione> findByChiusaIlGreaterThanEqualAndChiusaIlLessThanOrderByChiusaIlDesc(Instant da, Instant a);
 }
