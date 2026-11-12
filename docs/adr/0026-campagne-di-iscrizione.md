@@ -118,6 +118,9 @@ proposta spiega ogni spostamento, e la segreteria può bloccare a mano un'assegn
   fiscale non basta.
 - **Account inattivi**: dopo N mesi senza accessi e senza iscrizioni un avviso per email, dopo altri M giorni l'account
   si disattiva. Le persone restano finché servono (ricevute, obblighi di legge).
+- **Telefono, tablet e computer**: la stessa area si adatta allo schermo. Sul telefono una colonna; da tablet e computer
+  un menu in alto, l'elenco delle richieste a sinistra e il dettaglio a destra, il QR accanto ai dati da copiare e, nella
+  richiesta nuova, i turni come una settimana con un riepilogo a lato.
 - Le famiglie vedono le richieste con lo stato, la posizione, il posto offerto con il conto alla rovescia e come pagare;
   possono confermare le riconferme, rinunciare, cambiare preferenze e «aspetto fino al».
 - **Come pagare**: di persona in segreteria (indirizzo e orari, un dato nuovo della società); con un bonifico, con il QR
