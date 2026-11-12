@@ -21,7 +21,7 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0015](0015-lista-attesa-e-cambio-turno.md) | Lista d'attesa dei turni pieni e cambio di turno | accettata |
 | [0016](0016-aggiornamento-programma-windows.md) | Aggiornamento automatico del programma per Windows | accettata |
 | [0017](0017-telefono-come-lettore.md) | Il telefono come lettore NFC del PC | accettata |
-| [0018](0018-pagamenti-proposta.md) | Pagamenti, listino, borsellino e ricevute | accettata, in costruzione (parti 1–11 fatte) |
+| [0018](0018-pagamenti-proposta.md) | Pagamenti, listino, borsellino e ricevute | accettata (parti 1–11 fatte; la 12 è diventata l'ADR 0026) |
 | [0019](0019-icone-e-azioni.md) | Sistema visivo: icone al posto dei link-testo, quattro forme di azione | accettata |
 | [0020](0020-corsi-parco-istruttori-cadenza.md) | Corsi: parco istruttori, istruttori per turno, turni mensili | accettata |
 | [0021](0021-banco-del-tornello.md) | Il banco del tornello: la giornata, chi è da sistemare, viste a scelta | accettata |
@@ -29,3 +29,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0023](0023-gestione-turni.md) | Gestione dei turni: accavallamenti con avviso, una persona per postazione, postazioni per sesso, calendario della stagione | accettata |
 | [0024](0024-impostazioni.md) | Impostazioni: panoramica, ricerca condivisa, aree riordinate, salvataggio unico | accettata |
 | [0025](0025-crediti-sul-braccialetto.md) | Crediti di phon e docce sul braccialetto, con le macchine non collegate | accettata |
+| [0026](0026-campagne-di-iscrizione.md) | Campagne di iscrizione: riconferme, graduatoria, assegnazione dei turni, area per le famiglie | proposta |

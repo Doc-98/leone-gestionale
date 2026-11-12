@@ -63,6 +63,7 @@ un'opzione con i suoi tempi, o un permesso.
 12. **Precedenza nei rinnovi**: periodo di prelazione per la stagione nuova; le richieste di iscrizione vanno in coda
     in ordine di arrivo, prima chi era iscritto nella stagione precedente e i gruppi con precedenza (es. alunni), poi
     gli altri. Riusa la lista d'attesa (ADR 0015).
+    *(Novembre 2026: è diventata una cosa più grande, vedi l'ADR 0026.)*
 
 **Ordine proposto.** 1–2 (impostazioni e gruppi) → 3–4 (listino e regole, con l'importo proposto all'iscrizione) →
 5 (addebiti e pagamenti) → 7–9 (borsellino, braccialetto, servizi, con un simulatore della macchina) → 6 (chi non
