@@ -32,6 +32,7 @@ $compose = Join-Path $progetto 'infra\docker-compose.yml'
 $fileFinestre = Join-Path $progetto '.avvio-finestre.json'
 $urlBackend = 'http://localhost:8080/actuator/health'
 $urlFrontend = 'http://localhost:5173'
+$urlVetrina = 'http://localhost:5173/demo.html'  # la vetrina della demo (ADR 0027)
 
 function Passo($testo) { Write-Host "`n> $testo" -ForegroundColor Cyan }
 function Ok($testo) { Write-Host "  $testo" -ForegroundColor Green }
@@ -178,7 +179,7 @@ if (-not (Test-Path $installate) -or (Get-Item -Force $lock).LastWriteTime -gt (
 if (Risponde $urlFrontend) {
     Ok 'È già acceso: lo lascio com''è'
 } else {
-    $processoFrontend = Apri-Finestra 'Leone · frontend' $cartellaFrontend 'npm run dev'
+    $processoFrontend = Apri-Finestra 'Leone · frontend' $cartellaFrontend 'npm run dev:telefono'  # anche nella rete locale: il QR della vetrina
     $finestre.frontend = $processoFrontend.Id
     Write-Host '  Aspetto che sia pronto' -NoNewline
     if (-not (Attendi $urlFrontend 90 $processoFrontend 'frontend')) { Fine 'Il frontend non risponde: guarda la sua finestra.' }
@@ -194,7 +195,7 @@ if ($prima) {
 $finestre | ConvertTo-Json | Set-Content $fileFinestre
 
 # --- Fatto ----------------------------------------------------------------------------------------------------------
-Write-Host "`nIl gestionale è su $urlFrontend" -ForegroundColor Green
+Write-Host "`nLa demo è su $urlVetrina (il gestionale da solo: $urlFrontend)" -ForegroundColor Green
 Write-Host '  Account demo: segreteria@demo.leone, coordinatore@demo.leone, staff@demo.leone, admin@demo.leone · password demo1234'
 Write-Host '  Per fermare tutto: .\avvia.ps1 -Ferma (o chiudi le finestre di backend e frontend)'
-if (-not $SenzaBrowser) { Start-Process $urlFrontend }
+if (-not $SenzaBrowser) { Start-Process $urlVetrina }

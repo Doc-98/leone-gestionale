@@ -173,6 +173,12 @@ Lascia aperta anche questa finestra. Le modifiche al codice del frontend si vedo
 Apri http://localhost:5173 ed entra con uno degli account demo (vedi «Provare il gestionale», sotto), ad esempio
 `segreteria@demo.leone` con password `demo1234`.
 
+**La vetrina della demo** (ADR 0027) è su http://localhost:5173/demo.html, ed è quella che `avvia.cmd` apre da solo:
+si sceglie cosa provare (gestionale da computer o da telefono; l'app delle famiglie arriverà da telefono, tablet e
+computer) e dalla barra in alto si cambia versione in qualsiasi momento. Telefono e tablet stanno in una cornice della
+loro misura; «Entra come…» fa l'accesso con un account demo e «Sul telefono» mostra il QR per aprire la stessa versione
+su un telefono vero nella stessa Wi-Fi (per questo `avvia.cmd` avvia il frontend con `npm run dev:telefono`).
+
 ### Aggiornare all'ultima versione
 
 Quando su GitHub c'è codice nuovo:

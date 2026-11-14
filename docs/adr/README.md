@@ -30,3 +30,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0024](0024-impostazioni.md) | Impostazioni: panoramica, ricerca condivisa, aree riordinate, salvataggio unico | accettata |
 | [0025](0025-crediti-sul-braccialetto.md) | Crediti di phon e docce sul braccialetto, con le macchine non collegate | accettata |
 | [0026](0026-campagne-di-iscrizione.md) | Campagne di iscrizione: riconferme, graduatoria, assegnazione dei turni, area per le famiglie | proposta |
+| [0027](0027-area-famiglie-e-vetrina-demo.md) | App delle famiglie accanto al gestionale, pubblicata da sola con un tunnel; vetrina della demo | accettata |
