@@ -37,7 +37,7 @@ class AttesaService {
      */
     record VoceAttesa(UUID id, UUID personaId, String nome, String cognome, LocalDate dataNascita, Integer eta, Instant aggiuntaIl,
                       String note, Instant avvisataIl, boolean avvisoAVoce, LocalDate rispostaEntro, Instant senzaRispostaIl,
-                      Instant confermaChiestaIl, Instant confermataIl, int posizione, List<String> contatti) {}
+                      Instant confermaChiestaIl, Instant confermataIl, int posizione, List<String> contatti, boolean passaggio) {}
 
     /** Un turno del corso con i posti: occupati oggi, liberi (negativi se in soprannumero), da quando si libera un posto. */
     record TurnoPosti(UUID lezioneId, UUID corsoId, String corso, String tipo, String colore, Integer etaDa, Integer etaA, int giornoSettimana, LocalTime inizio,
@@ -334,13 +334,13 @@ class AttesaService {
         Map<UUID, List<VoceAttesa>> out = new java.util.HashMap<>();
         for (List<Attesa> turno : perTurno.values()) {
             List<VoceAttesa> voci = new ArrayList<>();
-            List<Attesa> ordinate = turno.stream().sorted(Comparator.comparing(Attesa::getAggiuntaIl).thenComparing(Attesa::getId)).toList();
+            List<Attesa> ordinate = turno.stream().sorted(Attesa.ORDINE).toList();
             for (int k = 0; k < ordinate.size(); k++) {
                 Attesa a = ordinate.get(k);
                 Persone.PersonaScheda p = schede.get(a.getPersonaId());
                 Integer eta = p.dataNascita() == null ? null : Period.between(p.dataNascita(), oggi).getYears();
                 voci.add(new VoceAttesa(a.getId(), p.id(), p.nome(), p.cognome(), p.dataNascita(), eta, a.getAggiuntaIl(), a.getNote(), a.getAvvisataIl(),
-                    a.isAvvisoAVoce(), a.getRispostaEntro(), a.getSenzaRispostaIl(), a.getConfermaChiestaIl(), a.getConfermataIl(), k + 1, contatti.getOrDefault(p.id(), List.of())));
+                    a.isAvvisoAVoce(), a.getRispostaEntro(), a.getSenzaRispostaIl(), a.getConfermaChiestaIl(), a.getConfermataIl(), k + 1, contatti.getOrDefault(p.id(), List.of()), a.getPassaggioId() != null));
             }
             out.put(turno.getFirst().getLezioneId(), voci);
         }

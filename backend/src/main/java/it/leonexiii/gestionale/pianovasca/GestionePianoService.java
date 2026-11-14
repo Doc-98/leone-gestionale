@@ -35,11 +35,15 @@ class GestionePianoService {
 
     /** Un corso con il suo parco istruttori ({@code istruttore} è il primo, per compatibilità) e i turni. */
     record CorsoDto(UUID id, UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA,
-                    PersonaBreve istruttore, List<PersonaBreve> istruttori, String note, boolean attivo, String colore, List<LezioneDto> lezioni) {}
+                    PersonaBreve istruttore, List<PersonaBreve> istruttori, String note, boolean attivo, String colore, List<LezioneDto> lezioni,
+                    UUID livelloSuccessivoId) {}
 
-    /** {@code istruttori} è il parco; se manca vale {@code istruttoreId} (un solo istruttore, come prima). */
+    /**
+     * {@code istruttori} è il parco; se manca vale {@code istruttoreId} (un solo istruttore, come prima).
+     * {@code livelloSuccessivoId}: il corso in cui si passa dopo questo (ADR 0026), dello stesso impianto.
+     */
     record CorsoInput(UUID impiantoId, String nome, TipoCorso tipo, String livello, Integer etaDa, Integer etaA, UUID istruttoreId,
-                      List<UUID> istruttori, String note, Boolean attivo, String colore) {}
+                      List<UUID> istruttori, String note, Boolean attivo, String colore, UUID livelloSuccessivoId) {}
 
     /** {@code istruttori}: chi tiene il turno (se manca vale {@code istruttoreId}); {@code cadenza}: di base ogni settimana. */
     record LezioneInput(int giornoSettimana, LocalTime inizio, LocalTime fine, LocalDate validaDal, LocalDate validaAl,
@@ -109,6 +113,7 @@ class GestionePianoService {
         parco.forEach(p -> controllaIstruttore(p, in.impiantoId()));
         Corso c = new Corso(in.impiantoId());
         c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), parco, in.note(), in.attivo() == null || in.attivo(), in.colore());
+        livelloSuccessivo(c, in.livelloSuccessivoId());
         corsi.saveAndFlush(c);
         return dto(c, List.of(), nomi(List.of(c), List.of()), Numeri.NESSUNO);
     }
@@ -119,6 +124,7 @@ class GestionePianoService {
         List<UUID> parco = elenco(in.istruttori(), in.istruttoreId());
         parco.forEach(p -> controllaIstruttore(p, c.getImpiantoId()));
         c.modifica(in.nome(), in.tipo(), in.livello(), in.etaDa(), in.etaA(), parco, in.note(), in.attivo() == null ? c.isAttivo() : in.attivo(), in.colore());
+        livelloSuccessivo(c, in.livelloSuccessivoId());
         corsi.flush();
         List<Lezione> sue = lezioni.deiCorsi(List.of(id));
         return dto(c, sue, nomi(List.of(c), sue), numeri(sue));
@@ -300,6 +306,20 @@ class GestionePianoService {
         }
     }
 
+    /** Il livello successivo è un corso dello stesso impianto, e la catena dei livelli non torna su sé stessa. */
+    private void livelloSuccessivo(Corso c, UUID successivoId) {
+        if (successivoId == null) {
+            c.livelloSuccessivo(null);
+            return;
+        }
+        Corso dopo = corsi.findById(successivoId).orElseThrow(() -> new IllegalArgumentException("Il livello successivo non esiste."));
+        if (!dopo.getImpiantoId().equals(c.getImpiantoId())) throw new IllegalArgumentException("Il livello successivo deve essere un corso dello stesso impianto.");
+        Set<UUID> visti = new java.util.HashSet<>();
+        for (Corso x = dopo; x != null && visti.add(x.getId()); x = x.getLivelloSuccessivoId() == null ? null : corsi.findById(x.getLivelloSuccessivoId()).orElse(null))
+            if (x.getId().equals(c.getId())) throw new IllegalArgumentException("Con questo livello successivo i livelli girerebbero in tondo: «" + dopo.getNome() + "» porta già a «" + c.getNome() + "».");
+        c.livelloSuccessivo(successivoId);
+    }
+
     private void controllaIstruttore(UUID personaId, UUID impiantoId) {
         if (personaId == null) return;
         if (!persone.haPermesso(personaId, Permesso.TURNI, impiantoId) && !persone.haPermesso(personaId, Permesso.PIANO_MODIFICA, impiantoId))
@@ -367,7 +387,7 @@ class GestionePianoService {
         return new CorsoDto(c.getId(), c.getImpiantoId(), c.getNome(), c.getTipo(), c.getLivello(), c.getEtaDa(), c.getEtaA(),
             breve(c.getIstruttoreId(), nomi), brevi(c.getIstruttori(), c.getIstruttoreId(), nomi), c.getNote(), c.isAttivo(), c.getColore(),
             sue.stream().sorted(Comparator.comparing(Lezione::getGiornoSettimana).thenComparing(Lezione::getInizio))
-                .map(l -> dto(l, nomi, numeri)).toList());
+                .map(l -> dto(l, nomi, numeri)).toList(), c.getLivelloSuccessivoId());
     }
 
     private static LezioneDto dto(Lezione l, Map<UUID, String> nomi, Numeri numeri) {

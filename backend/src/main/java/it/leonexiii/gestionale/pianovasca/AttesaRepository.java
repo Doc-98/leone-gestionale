@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 interface AttesaRepository extends JpaRepository<Attesa, UUID> {
 
     /** Chi aspetta nei turni indicati, in ordine di arrivo. */
-    @Query("select a from Attesa a where a.stato = 'IN_ATTESA' and a.lezioneId in :lezioni order by a.aggiuntaIl, a.id")
+    @Query("select a from Attesa a where a.stato = 'IN_ATTESA' and a.lezioneId in :lezioni order by case when a.passaggioId is null then 1 else 0 end, a.aggiuntaIl, a.id")
     List<Attesa> inAttesa(Collection<UUID> lezioni);
 
     @Query("select distinct a.lezioneId from Attesa a where a.stato = 'IN_ATTESA'")
@@ -21,4 +21,7 @@ interface AttesaRepository extends JpaRepository<Attesa, UUID> {
 
     @Query("select a from Attesa a where a.stato = 'IN_ATTESA' and a.lezioneId = :lezioneId and a.personaId = :personaId")
     Optional<Attesa> inAttesa(UUID lezioneId, UUID personaId);
+
+    @Query("select a from Attesa a where a.stato = 'IN_ATTESA' and a.passaggioId = :passaggioId")
+    List<Attesa> delPassaggio(UUID passaggioId);
 }

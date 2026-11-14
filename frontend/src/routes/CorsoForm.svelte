@@ -4,10 +4,12 @@
   import { TIPI_CORSO } from '../lib/piano';
   import SceltaIstruttori from '../components/SceltaIstruttori.svelte';
 
-  let { corso, impiantoId, personale, fatto }: {
+  let { corso, impiantoId, personale, corsi = [], fatto }: {
     corso: Corso | null;
     impiantoId: string;
     personale: PersonaBreve[];
+    /** per scegliere il livello successivo (si usano quelli dello stesso impianto) */
+    corsi?: Corso[];
     fatto: (c: Corso, messaggio: string) => void;
   } = $props();
 
@@ -21,6 +23,10 @@
   let note = $state(c?.note ?? '');
   let attivo = $state(c?.attivo ?? true);
   let colore = $state(c?.colore ?? '');
+  let successivo = $state(c?.livelloSuccessivoId ?? '');
+  const possibiliSuccessivi = $derived(
+    corsi.filter((x) => x.impiantoId === (c?.impiantoId ?? impiantoId) && x.id !== c?.id && (x.attivo || x.id === successivo)),
+  );
   // Colori dei livelli più comuni (Delfino Giallo, Verde, Azzurro, Rosso, Nero…) e qualche altro
   const COLORI = ['#E07A5F', '#E6B400', '#2E9E5B', '#2F8FD8', '#D23B3B', '#2B2B2B', '#5B6C7D', '#8E5BB5', '#E57BB0', '#1FA3A3'];
   let errore = $state('');
@@ -34,7 +40,7 @@
     errore = '';
     lavoro = true;
     const dati = { impiantoId: c?.impiantoId ?? impiantoId, nome, tipo, livello: livello || null, etaDa: numero(etaDa), etaA: numero(etaA),
-      istruttori, note: note || null, attivo, colore: colore || null };
+      istruttori, note: note || null, attivo, colore: colore || null, livelloSuccessivoId: successivo || null };
     try {
       const salvato = corso ? await api.modificaCorso(corso.id, dati) : await api.creaCorso(dati);
       fatto(salvato, corso ? 'Corso aggiornato.' : 'Corso creato: ora aggiungi le lezioni.');
@@ -54,6 +60,14 @@
     </label>
     <label class="field"><span class="lbl">Livello (facoltativo)</span><input class="inp" bind:value={livello} maxlength="60" /></label>
   </div>
+  {#if possibiliSuccessivi.length}
+    <label class="field"><span class="lbl">Livello successivo</span>
+      <select class="inp" bind:value={successivo}>
+        <option value="">Nessuno</option>
+        {#each possibiliSuccessivi as x (x.id)}<option value={x.id}>{x.nome}</option>{/each}
+      </select>
+    </label>
+  {/if}
   <div class="due">
     <label class="field"><span class="lbl">Età da</span><input class="inp m" type="number" min="0" max="120" bind:value={etaDa} /></label>
     <label class="field"><span class="lbl">Età fino a</span><input class="inp m" type="number" min="0" max="120" bind:value={etaA} /></label>

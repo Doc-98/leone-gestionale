@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Comparator;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -63,6 +64,14 @@ class Attesa {
     @Column(name = "confermata_il")
     private Instant confermataIl;
 
+    /** Nata da un passaggio di livello durante l'anno (ADR 0026): viene prima di chi aspetta senza essere passato. */
+    @Column(name = "passaggio_id")
+    private UUID passaggioId;
+
+    /** L'ordine della lista: prima chi è passato di livello, poi in ordine di arrivo. */
+    static final Comparator<Attesa> ORDINE = Comparator.comparing((Attesa a) -> a.passaggioId == null)
+        .thenComparing(Attesa::getAggiuntaIl).thenComparing(Attesa::getId);
+
     protected Attesa() {}
 
     Attesa(UUID lezioneId, UUID personaId, String note, UUID aggiuntaDa, Instant adesso) {
@@ -116,4 +125,9 @@ class Attesa {
     Instant getConfermataIl() { return confermataIl; }
     Instant getChiusaIl() { return chiusaIl; }
     boolean inAttesa() { return stato == Stato.IN_ATTESA; }
+    UUID getPassaggioId() { return passaggioId; }
+
+    void perPassaggio(UUID passaggioId) {
+        this.passaggioId = passaggioId;
+    }
 }

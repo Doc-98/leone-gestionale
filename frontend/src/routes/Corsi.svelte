@@ -271,7 +271,7 @@
 
 {#if nuovo}
   <Foglio titolo="Nuovo corso" chiudi={() => (nuovo = false)}>
-    <CorsoForm corso={null} impiantoId={impiantoNuovo} {personale} fatto={async (c, testo) => { await carica(); nuovo = false; messaggio = testo; apri(c); }} />
+    <CorsoForm corso={null} impiantoId={impiantoNuovo} {personale} {corsi} fatto={async (c, testo) => { await carica(); nuovo = false; messaggio = testo; apri(c); }} />
   </Foglio>
 {/if}
 

@@ -260,6 +260,7 @@ const COSA: Record<EventoAttesa['tipo'], string> = {
   CONFERMATA: 'conferma che aspetta',
   ISCRITTA: 'iscrizione dalla lista ·',
   RINUNCIA: 'esce dalla lista ·',
+  ENTRATA_ALTROVE: 'entrata in un altro turno del livello, esce da',
 };
 
 /** «Sara Neri · avviso per email · Delfino Giallo mar 17:00 · ieri» */

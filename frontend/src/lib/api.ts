@@ -9,7 +9,7 @@ export type Ruolo = string;
 /** Cosa può fare un ruolo (ADR 0010). L'ambito per impianto lo controlla il server. */
 export type Permesso =
   | 'TURNI' | 'PIANIFICAZIONE' | 'APPROVAZIONI' | 'ORE_STAFF' | 'ANAGRAFICHE_STAFF'
-  | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE'
+  | 'PIANO_MODIFICA' | 'ISCRIZIONI' | 'PRESENZE' | 'LIVELLI'
   | 'CLIENTI' | 'BRACCIALETTI' | 'GOLDEN_PASS' | 'SCONTI' | 'PAGAMENTI' | 'PAGAMENTI_FLESSIBILI' | 'PAGAMENTI_ANNULLA' | 'BORSELLINO' | 'BORSELLINO_RIMBORSI'
   | 'REGOLE_TORNELLO' | 'RUOLI' | 'ACCOUNT' | 'IMPOSTAZIONI';
 
@@ -352,6 +352,8 @@ export interface VoceAttesa {
   confermataIl: string | null;
   posizione: number;
   contatti: string[];
+  /** nata da un passaggio di livello durante l'anno: viene prima degli altri */
+  passaggio: boolean;
 }
 /** Un turno del corso con i posti: liberi negativi = soprannumero; liberoDal = primo giorno con un posto (null = mai). */
 export interface TurnoPosti {
@@ -381,7 +383,7 @@ export interface PaginaAttesa {
   turni: TurnoPosti[];
   storico: EventoAttesa[];
 }
-export type TipoEventoAttesa = 'AGGIUNTA' | 'AVVISATA' | 'AVVISATA_A_VOCE' | 'SENZA_RISPOSTA' | 'CONFERMA_CHIESTA' | 'CONFERMATA' | 'ISCRITTA' | 'RINUNCIA';
+export type TipoEventoAttesa = 'AGGIUNTA' | 'AVVISATA' | 'AVVISATA_A_VOCE' | 'SENZA_RISPOSTA' | 'CONFERMA_CHIESTA' | 'CONFERMATA' | 'ISCRITTA' | 'RINUNCIA' | 'ENTRATA_ALTROVE';
 /** Una riga dello storico delle liste d'attesa. */
 export interface EventoAttesa {
   quando: string;
@@ -503,6 +505,56 @@ export interface Corso {
   attivo: boolean;
   colore: string | null;
   lezioni: Lezione[];
+  /** il corso in cui si passa dopo questo (ADR 0026) */
+  livelloSuccessivoId: string | null;
+}
+
+/** Livelli (ADR 0026): un turno di un corso che ha un livello successivo, con gli esiti già dati. */
+export interface TurnoLivelli {
+  lezioneId: string;
+  corsoId: string;
+  corso: string;
+  colore: string | null;
+  giornoSettimana: number;
+  inizio: string;
+  fine: string;
+  successivoId: string;
+  successivo: string;
+  coloreSuccessivo: string | null;
+  iscritti: number;
+  passano: number;
+  continuano: number;
+  /** l'utente insegna in questo turno */
+  mio: boolean;
+}
+
+export interface PaginaLivelli {
+  stagioneId: string;
+  stagione: string;
+  riferimento: string;
+  /** ha il permesso «Livelli»: vede i turni di tutti */
+  tutti: boolean;
+  turni: TurnoLivelli[];
+}
+
+export type EsitoLivello = 'PASSA' | 'CONTINUA';
+
+export interface BambinoLivelli {
+  iscrizioneId: string;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  eta: number | null;
+  esito: EsitoLivello | null;
+  /** passato di livello durante l'anno: in attesa di un posto nel livello nuovo (posizione migliore tra i turni) */
+  passaggio: { id: string; decisoIl: string; posizione: number | null } | null;
+}
+
+export interface DettaglioLivelli {
+  stagioneId: string;
+  stagione: string;
+  turno: TurnoLivelli;
+  bambini: BambinoLivelli[];
 }
 
 export interface CorsoInput {
@@ -517,6 +569,7 @@ export interface CorsoInput {
   note: string | null;
   attivo: boolean;
   colore: string | null;
+  livelloSuccessivoId: string | null;
 }
 
 export interface LezioneInput {
@@ -908,6 +961,12 @@ export const api = {
   creaGruppo: (g: NuovoGruppo) => richiesta<{ id: string }>('POST', '/api/gruppi', g),
   modificaGruppo: (id: string, g: NuovoGruppo & { attivo: boolean }) => richiesta<void>('PUT', `/api/gruppi/${id}`, g),
   ordinaPrecedenze: (ordine: string[]) => richiesta<void>('PUT', '/api/gruppi/precedenze', { ordine }),
+  livelli: () => richiesta<PaginaLivelli>('GET', '/api/livelli'),
+  turnoLivelli: (lezioneId: string) => richiesta<DettaglioLivelli>('GET', `/api/livelli/turni/${lezioneId}`),
+  esitiLivello: (lezioneId: string, esiti: { personaId: string; esito: EsitoLivello | null }[]) =>
+    richiesta<DettaglioLivelli>('PUT', `/api/livelli/turni/${lezioneId}/esiti`, { esiti }),
+  passaDiLivello: (iscrizioneId: string) => richiesta<DettaglioLivelli>('POST', '/api/livelli/passaggi', { iscrizioneId }),
+  annullaPassaggio: (id: string) => richiesta<DettaglioLivelli>('POST', `/api/livelli/passaggi/${id}/annulla`, {}),
   gruppiDaVerificare: () => richiesta<AppartenenzaDaVerificare[]>('GET', '/api/gruppi/da-verificare'),
   verificaAppartenenza: (appartenenzaId: string) => richiesta<void>('POST', `/api/clienti/appartenenze/${appartenenzaId}/verifica`, {}),
   membriGruppo: (id: string) => richiesta<MembroGruppo[]>('GET', `/api/gruppi/${id}/persone`),

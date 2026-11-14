@@ -27,6 +27,7 @@
   import Accesso from './components/Accesso.svelte';
   import Marchio from './components/Marchio.svelte';
   import ListaAttesa from './routes/ListaAttesa.svelte';
+  import Livelli from './routes/Livelli.svelte';
   import Scadenze from './routes/Scadenze.svelte';
   import Societa from './routes/Societa.svelte';
   import Calendario from './routes/Calendario.svelte';
@@ -47,7 +48,7 @@
   import Icona from './components/Icona.svelte';
   import Azione from './components/Azione.svelte';
 
-  type Scheda = 'turni' | 'richieste' | 'ore' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'ricevute' | 'cassa' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'aspetto' | 'impostazioni';
+  type Scheda = 'turni' | 'richieste' | 'ore' | 'livelli' | 'piano' | 'corsi' | 'tornello' | 'clienti' | 'pianifica' | 'approva' | 'modelli' | 'postazioni' | 'tariffe' | 'regole' | 'ruoli' | 'scadenze' | 'promemoria' | 'account' | 'attesa' | 'societa' | 'calendario' | 'listino' | 'metodi' | 'ricevute' | 'cassa' | 'incassi' | 'macchine' | 'servizi' | 'prezzi' | 'aspetto' | 'impostazioni';
   type AreaImpostazioni = 'La società' | 'Prezzi e pagamenti' | 'Clienti e accessi' | 'Staff' | 'Sistema';
   interface Sezione {
     id: Scheda;
@@ -61,6 +62,8 @@
     spiega?: string;
     /** Visibile a chi ha almeno uno di questi permessi; senza, a tutti. */
     permessi?: Permesso[];
+    /** In alternativa ai permessi: visibile se questa condizione è vera (es. chi insegna in un corso con livelli). */
+    anche?: () => boolean;
     larga?: boolean;
     icona: NomeIcona;
   }
@@ -70,6 +73,8 @@
     { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', larga: true, icona: 'turni' },
     { id: 'richieste', nome: 'Le mie richieste', breve: 'Le mie', titolo: 'Le mie richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: 'ore' },
+    { id: 'livelli', nome: 'I miei corsi', breve: 'Corsi', titolo: 'Esiti e passaggi di livello', gruppo: 'Il mio lavoro', permessi: ['LIVELLI'],
+      anche: () => insegnaConLivelli, larga: true, icona: 'corsi' },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: 'piano' },
     { id: 'attesa', nome: 'Liste d\'attesa', breve: 'Attesa', titolo: 'Liste d\'attesa', gruppo: 'Piscina', permessi: ['ISCRIZIONI'], larga: true, icona: 'attesa' },
     { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: 'corsi' },
@@ -174,7 +179,13 @@
     return () => window.removeEventListener('hashchange', f);
   });
 
-  const visibili = $derived(SEZIONI.filter((s) => !s.permessi || sessione.puo(...s.permessi)));
+  /** Chi tiene turni di corsi con un livello successivo vede «I miei corsi» anche senza il permesso «Livelli». */
+  let insegnaConLivelli = $state(false);
+  $effect(() => {
+    if (!sessione.utente) return;
+    api.livelli().then((p) => (insegnaConLivelli = p.turni.some((t) => t.mio))).catch(() => (insegnaConLivelli = false));
+  });
+  const visibili = $derived(SEZIONI.filter((s) => !s.permessi || sessione.puo(...s.permessi) || (s.anche?.() ?? false)));
   // le sezioni di lavoro (nella barra) e le impostazioni (sotto un'unica voce)
   const lavoro = $derived(visibili.filter((s) => s.gruppo !== 'Impostazioni'));
   const impostazioni = $derived(visibili.filter((s) => s.gruppo === 'Impostazioni'));
@@ -270,6 +281,7 @@
     {#if corrente.id === 'turni'}<Turni />
     {:else if corrente.id === 'richieste'}<Richieste />
     {:else if corrente.id === 'ore'}<Ore />
+    {:else if corrente.id === 'livelli'}<Livelli />
     {:else if corrente.id === 'pianifica'}<Pianifica />
     {:else if corrente.id === 'approva'}<Approva cambiate={(n) => (daApprovare = n)} />
     {:else if corrente.id === 'modelli'}<Modelli />

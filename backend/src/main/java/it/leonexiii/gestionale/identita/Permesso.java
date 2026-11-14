@@ -14,6 +14,7 @@ public enum Permesso {
     PIANO_MODIFICA("Piscina", "Modifica del piano", "Corsi, turni dei corsi, eventi, chiusure e fasce", true),
     ISCRIZIONI("Piscina", "Iscrizioni", "Iscrivere e ritirare dai turni dei corsi, vedere tutte le liste", true),
     PRESENZE("Piscina", "Presenze di tutti", "Segnare le presenze di tutti i turni, non solo dei propri", true),
+    LIVELLI("Piscina", "Livelli", "Esiti di fine stagione e passaggi di livello di tutti i corsi (gli istruttori li danno per i loro turni)", true),
     CLIENTI("Clienti e accessi", "Clienti", "Scheda cliente: certificati, tesseramenti, abbonamenti", true),
     BRACCIALETTI("Clienti e accessi", "Braccialetti e ban", "Assegnare braccialetti, segnarli smarriti, bannare", true),
     GOLDEN_PASS("Clienti e accessi", "Golden pass", "Dare e togliere il golden pass", true),

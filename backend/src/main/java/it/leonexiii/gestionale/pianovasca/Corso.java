@@ -58,6 +58,10 @@ class Corso {
     @Column(nullable = false)
     private boolean attivo;
 
+    /** Il corso in cui si passa dopo questo (es. Delfino Giallo → Delfino Verde); vuoto = nessuno. */
+    @Column(name = "livello_successivo_id")
+    private UUID livelloSuccessivoId;
+
     protected Corso() {}
 
     Corso(UUID impiantoId) {
@@ -104,4 +108,10 @@ class Corso {
     String getNote() { return note; }
     boolean isAttivo() { return attivo; }
     String getColore() { return colore; }
+    UUID getLivelloSuccessivoId() { return livelloSuccessivoId; }
+
+    void livelloSuccessivo(UUID corsoId) {
+        if (id.equals(corsoId)) throw new IllegalArgumentException("Il livello successivo non può essere il corso stesso.");
+        this.livelloSuccessivoId = corsoId;
+    }
 }

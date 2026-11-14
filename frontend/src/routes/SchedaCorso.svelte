@@ -383,7 +383,7 @@
       <section class="card blocco dettagli">
         <h2>Dettagli del corso</h2>
         {#if gestore}
-          <CorsoForm {corso} impiantoId={corso.impiantoId} {personale} fatto={async (_c, testo) => { await ricarica(); messaggio = testo; }} />
+          <CorsoForm {corso} impiantoId={corso.impiantoId} {personale} {corsi} fatto={async (_c, testo) => { await ricarica(); messaggio = testo; }} />
         {:else}
           <dl>
             <dt>Tipo</dt><dd>{TIPI_CORSO[corso.tipo]}</dd>

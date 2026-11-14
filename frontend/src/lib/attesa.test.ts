@@ -10,7 +10,7 @@ let n = 0;
 const voce = (nome: string, o: Partial<VoceAttesa> = {}): VoceAttesa => ({
   id: `v${++n}`, personaId: `p-${nome}`, nome, cognome: 'Rossi', dataNascita: null, eta: 8, aggiuntaIl: '2026-10-01T09:00:00Z', note: null,
   avvisataIl: null, avvisoAVoce: false, rispostaEntro: null, senzaRispostaIl: null, confermaChiestaIl: null, confermataIl: null, posizione: 1,
-  contatti: ['famiglia@example.org'], ...o,
+  contatti: ['famiglia@example.org'], passaggio: false, ...o,
 });
 const turno = (corso: string, attesa: VoceAttesa[], o: Partial<TurnoPosti> = {}): TurnoPosti => ({
   lezioneId: `l-${corso}`, corsoId: `c-${corso}`, corso, tipo: 'SCUOLA_NUOTO', colore: null, etaDa: 6, etaA: 9, giornoSettimana: 1, inizio: '17:00:00',
