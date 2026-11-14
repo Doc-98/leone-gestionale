@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from '../Azione.svelte';
   import Icona from '../Icona.svelte';
   import ContaTagli from './ContaTagli.svelte';
   import { untrack } from 'svelte';
@@ -226,8 +227,8 @@
           <span class="mov"><span class="grow"><b>{nomeTipo(m.tipo).nome}</b>{m.descrizione !== nomeTipo(m.tipo).nome ? ` · ${m.descrizione}` : ''}
             <span class="muted small"> · {oraDi(m.registratoIl)}{m.registratoDa ? `, ${nome1(m.registratoDa)}` : ''}</span></span>
             <span class="m">{nomeTipo(m.tipo).segno}{euro(m.importo)}</span>
-            <button type="button" class="mini-x" aria-label={`Annulla ${nomeTipo(m.tipo).nome.toLowerCase()} di ${euro(m.importo)}`} disabled={lavoro}
-              onclick={() => fai(() => api.annullaMovimentoCassa(m.id))}><Icona nome="chiudi" /></button></span>
+            <Azione icona="annulla" etichetta={`Annulla ${nomeTipo(m.tipo).nome.toLowerCase()} di ${euro(m.importo)}`} conferma="Annulla?" disabled={lavoro}
+              onclick={() => fai(() => api.annullaMovimentoCassa(m.id))} /></span>
         {/each}
         {#if s.nascosti}
           <span class="spiega-c">Conta alla cieca: i contanti attesi si vedono dopo il conteggio.</span>
@@ -414,8 +415,6 @@
   .ora { color: var(--muted); min-width: 40px; }
   .tronca { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .mov { display: flex; align-items: center; gap: var(--space-8); font-size: var(--text-md); padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
-  .mini-x { position: relative; width: 32px; height: 32px; border-radius: 50%; border: none; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; flex-shrink: 0; }
-  .mini-x::after { content: ''; position: absolute; inset: -6px; }
   .nuovo-mov { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12); border-radius: var(--radius-md); border: 1px solid var(--line); }
   .riga-f { display: flex; gap: var(--space-8); flex-wrap: wrap; }
   .riga-f .inp { height: 40px; }

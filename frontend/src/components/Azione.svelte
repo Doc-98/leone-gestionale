@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import Icona from './Icona.svelte';
   import type { NomeIcona } from '../lib/icone';
+  import { creaConferma, etichettaArmata } from '../lib/conferma';
 
   /**
    * Pulsante-icona: l'azione di una riga o di un'intestazione, senza testo a vista.
@@ -38,22 +40,14 @@
   } = $props();
 
   let armata = $state(false);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  function disarma() {
-    armata = false;
-    clearTimeout(timer);
-  }
+  const due = creaConferma((v) => (armata = v));
+  onDestroy(due.disarma);
 
   function clic(e: MouseEvent) {
-    if (conferma && !armata) {
+    if (conferma && !due.tocca()) {
       e.preventDefault();
-      armata = true;
-      clearTimeout(timer);
-      timer = setTimeout(disarma, 5000);
       return;
     }
-    disarma();
     onclick?.();
   }
 </script>
@@ -70,12 +64,12 @@
     class:danger={tono === 'danger'}
     class:cloro={tono === 'cloro'}
     class:armata
-    aria-label={armata ? `${conferma} (tocca di nuovo per confermare)` : etichetta}
+    aria-label={armata && conferma ? etichettaArmata(conferma) : etichetta}
     title={armata ? undefined : etichetta}
     aria-pressed={premuto}
     {disabled}
     onclick={clic}
-    onblur={disarma}
+    onblur={due.disarma}
   >
     {#if armata}<span>{conferma}</span>{:else}<Icona nome={icona} />{/if}
   </button>

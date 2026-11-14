@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type Corso, type GruppoClienti, type NuovaOfferta, type Offerta, type PaginaListino, type Stagione, type TipoOfferta } from '../lib/api';
   import { dataLunga, iso } from '../lib/date';
   import { etichettaVolte, euro, VOLTE } from '../lib/listino';
@@ -151,7 +152,6 @@
   };
   async function elimina() {
     const { id, b } = offerta!;
-    if (!confirm(`Togliere «${b.nome}» dal listino?`)) return;
     if (await esegui(() => api.eliminaOfferta(id!), `«${b.nome}» tolta dal listino.`)) offerta = null;
   }
   function toggleCorso(id: string) {
@@ -325,7 +325,7 @@
               <button class="btn btn-primary grow" disabled={!salvabile}>{offerta.id ? 'Salva' : 'Aggiungi al listino'}</button>
               {#if offerta.id}
                 <button type="button" class="btn btn-secondary" onclick={accendi}>{b.attiva ? 'Spegni' : 'Riaccendi'}</button>
-                <button type="button" class="btn btn-danger" aria-label="Elimina" onclick={elimina}><Icona nome="cestino" /></button>
+                <Conferma class="btn btn-danger" etichetta="Elimina" domanda="Elimina?" onclick={elimina}><Icona nome="cestino" /></Conferma>
               {/if}
             </div>
           {/if}

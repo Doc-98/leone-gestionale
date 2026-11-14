@@ -1,6 +1,7 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import { onDestroy, tick, untrack } from 'svelte';
   import {
     api, ErroreApi, messaggioErrore,
@@ -613,8 +614,8 @@
                   <button class="verifica" title="La famiglia l'ha dichiarato: verificato, dà i vantaggi del gruppo"
                           onclick={() => esegui(() => api.verificaAppartenenza(g.appartenenzaId), `«${g.nome}» verificato.`)}>Verifica</button>
                 {/if}
-                <button class="togli" aria-label={`Togli dal gruppo ${g.nome}`} title="Togli dal gruppo"
-                        onclick={() => confermato('gr' + g.appartenenzaId) && esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}>{#if conferma === 'gr' + g.appartenenzaId}conferma{:else}<Icona nome="chiudi" />{/if}</button>
+                <Conferma class="togli" etichetta={`Togli dal gruppo ${g.nome}`} title="Togli dal gruppo" domanda="Togli?"
+                          onclick={() => esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}><Icona nome="chiudi" /></Conferma>
               </span>
             {:else}
               <span class="muted">—</span>
@@ -1124,10 +1125,11 @@
   .recesso { display: flex; align-items: center; gap: var(--space-6); color: var(--cloro-ink); font-weight: 600; }
   .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
   .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
-  .togli { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
+  .tag.gruppo :global(.togli) { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
     color: inherit; cursor: pointer; font: inherit; padding: 0 4px; min-width: 20px; border-radius: var(--radius-pill); }
-  .togli:hover { background: var(--surface-sunken); }
-  .togli :global(.ic) { width: 14px; height: 14px; stroke-width: 2.2; }
+  .tag.gruppo :global(.togli:hover) { background: var(--surface-sunken); }
+  .tag.gruppo :global(.togli .ic) { width: 14px; height: 14px; stroke-width: 2.2; }
+  .tag.gruppo :global(button.togli.conf-armata) { height: 22px; padding: 0 var(--space-6); font-size: var(--text-xs); border-radius: var(--radius-pill); }
   .scegli-gruppo { width: auto; min-height: 30px; height: 30px; padding: 0 var(--space-8); appearance: auto; font-size: var(--text-sm); }
   .tre { display: grid; grid-template-columns: 110px minmax(0, 1fr) 80px; gap: var(--space-10); }
   @media (max-width: 560px) { .due.stretto { grid-template-columns: 1fr; } }

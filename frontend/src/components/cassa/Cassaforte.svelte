@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icona from '../Icona.svelte';
+  import Azione from '../Azione.svelte';
   import { api, messaggioErrore, type Cassaforte } from '../../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../../lib/date';
   import { euro } from '../../lib/listino';
@@ -70,8 +70,8 @@
         {#each cf.versamenti as v (v.id)}
           <li class:annullato={v.annullato}><span>{dataBreve(v.data)}{v.distinta ? ` · distinta ${v.distinta}` : ''}{v.annullato ? ' · annullato' : ''}</span>
             <span class="dx"><span class="m">{euro(v.importo)}</span>
-              {#if puoAnnullare && !v.annullato}<button type="button" class="mini-x" aria-label={`Annulla il versamento del ${dataBreve(v.data)}`} disabled={lavoro}
-                onclick={() => fai(() => api.annullaVersamento(v.id))}><Icona nome="annulla" /></button>{/if}</span></li>
+              {#if puoAnnullare && !v.annullato}<Azione icona="annulla" etichetta={`Annulla il versamento del ${dataBreve(v.data)}`} conferma="Annulla?" disabled={lavoro}
+                onclick={() => fai(() => api.annullaVersamento(v.id))} />{/if}</span></li>
         {/each}
       </ul>
     {/if}
@@ -90,6 +90,4 @@
   .campo { display: flex; flex-direction: column; gap: var(--space-4); }
   .campo .inp { height: 40px; }
   .bottoni { display: flex; gap: var(--space-8); flex-wrap: wrap; }
-  .mini-x { position: relative; width: 32px; height: 32px; border-radius: 50%; border: none; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
-  .mini-x::after { content: ''; position: absolute; inset: -6px; }
 </style>

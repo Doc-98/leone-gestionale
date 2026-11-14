@@ -1,6 +1,7 @@
 <script lang="ts">
   import Azione from '../Azione.svelte';
   import Icona from '../Icona.svelte';
+  import Conferma from '../Conferma.svelte';
   import AvvisoPosto from './AvvisoPosto.svelte';
   import { api, messaggioErrore, type PaginaAttesa, type TurnoPosti, type VoceAttesa } from '../../lib/api';
   import {
@@ -161,7 +162,7 @@
                   {/if}
                   <button role="menuitem" onclick={() => { menu = null; azioni.iscrivi(t.voce, t.turno); }}><Icona nome="persona-piu" />Iscrivi{t.tocca ? '' : ' (in soprannumero se pieno)'}</button>
                   <button role="menuitem" onclick={() => { menu = null; azioni.esegui(() => api.confermataAttesa(t.voce.id), `${nome(p)} aspetta ancora: segnato.`); }}><Icona nome="check" />Aspetta ancora</button>
-                  <button role="menuitem" class="danger" onclick={() => { menu = null; azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} tolto dalla lista di ${t.turno.corso}.`); }}><Icona nome="cestino" />Togli dalla lista</button>
+                  <Conferma role="menuitem" class="danger" domanda="Togli?" onclick={() => { menu = null; azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} tolto dalla lista di ${t.turno.corso}.`); }}><Icona nome="cestino" />Togli dalla lista</Conferma>
                 {/each}
               </div>
             {/if}
@@ -227,11 +228,11 @@
   .menu-wrap { position: relative; }
   .menu-azioni { position: absolute; right: 0; top: calc(100% + var(--space-6)); z-index: 10; width: 280px; padding: var(--space-6); display: flex; flex-direction: column;
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(16, 33, 43, 0.14); }
-  .menu-azioni button { display: flex; align-items: center; gap: var(--space-10); min-height: 44px; padding: 0 var(--space-10); border: none; background: none;
+  .menu-azioni :global(button) { display: flex; align-items: center; gap: var(--space-10); min-height: 44px; padding: 0 var(--space-10); border: none; background: none;
     border-radius: var(--radius-sm); font: inherit; font-size: var(--text-md); color: var(--ink); cursor: pointer; text-align: left; }
-  .menu-azioni button:hover { background: var(--carta); }
-  .menu-azioni button :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
-  .menu-azioni button.danger, .menu-azioni button.danger :global(.ic) { color: var(--danger); }
+  .menu-azioni :global(button:hover) { background: var(--carta); }
+  .menu-azioni :global(button .ic) { width: 18px; height: 18px; color: var(--muted); }
+  .menu-azioni :global(button.danger), .menu-azioni :global(button.danger .ic) { color: var(--danger); }
   .menu-azioni .gruppo { padding: var(--space-8) var(--space-10) var(--space-2); }
 
   .piede { display: flex; align-items: center; padding: var(--space-10) var(--space-16); }

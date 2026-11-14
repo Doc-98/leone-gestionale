@@ -1,6 +1,7 @@
 <script lang="ts">
   import Azione from '../Azione.svelte';
   import Icona from '../Icona.svelte';
+  import Conferma from '../Conferma.svelte';
   import AvvisoPosto from './AvvisoPosto.svelte';
   import { api, type PaginaAttesa, type TurnoPosti, type VoceAttesa } from '../../lib/api';
   import {
@@ -79,13 +80,13 @@
                   <button class="btn btn-quieto btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                   <button class="btn btn-primary btn-sm" aria-pressed={avviso?.voce.id === v.id} onclick={() => (avviso = { voce: v, turno: t })}>Avvisa</button>
                 {:else if s === 'avvisata'}
-                  <button class="btn btn-quieto btn-sm" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} ha rinunciato: tolto dalla lista.`)}>Ha rinunciato</button>
+                  <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} ha rinunciato: tolto dalla lista.`)}>Ha rinunciato</Conferma>
                   <button class="btn btn-primary btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                 {:else if p.poi.length}
                   <button class="btn btn-quieto btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                   <button class="btn btn-primary btn-sm" onclick={() => proponi(v, t, p.poi[0])}>Proponi a {p.poi[0].nome}</button>
                 {:else}
-                  <button class="btn btn-quieto btn-sm" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} tolto dalla lista.`)}>Ha rinunciato</button>
+                  <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} tolto dalla lista.`)}>Ha rinunciato</Conferma>
                   <button class="btn btn-primary btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                 {/if}
               </span>
