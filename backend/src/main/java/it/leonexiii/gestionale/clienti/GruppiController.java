@@ -1,10 +1,12 @@
 package it.leonexiii.gestionale.clienti;
 
+import it.leonexiii.gestionale.identita.Utente;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +47,27 @@ class GruppiController {
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
     void modifica(@PathVariable UUID id, @RequestBody GruppiService.NuovoGruppo in) {
         gruppi.modifica(id, in);
+    }
+
+    @PutMapping("/gruppi/precedenze")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    void ordinaPrecedenze(@RequestBody GruppiService.OrdinePrecedenze in) {
+        gruppi.ordinaPrecedenze(in);
+    }
+
+    /** Le appartenenze dichiarate dalle famiglie che aspettano la verifica della segreteria (ADR 0026). */
+    @GetMapping("/gruppi/da-verificare")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI')")
+    List<GruppiService.DaVerificare> daVerificare() {
+        return gruppi.daVerificare();
+    }
+
+    @PostMapping("/clienti/appartenenze/{id}/verifica")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI')")
+    void verifica(@AuthenticationPrincipal Utente u, @PathVariable UUID id) {
+        gruppi.verifica(id, u.personaId());
     }
 
     @GetMapping("/gruppi/{id}/persone")

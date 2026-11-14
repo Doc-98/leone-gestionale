@@ -67,4 +67,45 @@ class SocietaEGruppiTest extends ProvaApi {
         assertThat(admin.put("/api/gruppi/" + gruppo, "{\"nome\":\"Convenzione aziendale\",\"attivo\":false}").statusCode()).isEqualTo(204);
         assertThat(segr.post("/api/clienti/" + persona + "/gruppi", "{\"gruppoId\":\"" + gruppo + "\"}").statusCode()).isEqualTo(409);
     }
+
+    @Test
+    void gruppiConVantaggi() throws Exception {
+        var admin = come("admin@demo.leone");
+        var segr = come("segreteria@demo.leone");
+        // demo: gli alunni dell'Istituto hanno la precedenza 1, 7 giorni per pagare e si possono dichiarare
+        String elenco = segr.get("/api/gruppi").body();
+        assertThat(elenco).contains("\"precedenza\":1").contains("\"giorniPerPagare\":7").contains("Frequenta la scuola dell'Istituto")
+            .contains("\"daVerificare\":1");
+
+        // un gruppo nuovo con precedenza va in fondo all'ordine; i giorni vanno da 1 a 60; la frase serve se è dichiarabile
+        assertThat(admin.post("/api/gruppi", "{\"nome\":\"Troppi giorni\",\"giorniPerPagare\":90}").statusCode()).isEqualTo(400);
+        assertThat(admin.post("/api/gruppi", "{\"nome\":\"Senza frase\",\"dichiarabile\":true}").statusCode()).isEqualTo(400);
+        var r = admin.post("/api/gruppi", "{\"nome\":\"Dipendenti comunali\",\"conPrecedenza\":true,\"giorniPerPagare\":5}");
+        assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
+        String nuovo = (String) json(r).get("id");
+        assertThat(segr.get("/api/gruppi").body()).contains("\"id\":\"" + nuovo + "\",\"nome\":\"Dipendenti comunali\"")
+            .containsPattern("\"nome\":\"Dipendenti comunali\"[^}]*\"precedenza\":3");
+
+        // l'ordine si cambia elencandoli tutti
+        String istituto = "00000000-0000-0000-0000-000000000901", squadra = "00000000-0000-0000-0000-000000000902";
+        assertThat(segr.put("/api/gruppi/precedenze", "{\"ordine\":[\"" + nuovo + "\"]}").statusCode()).isEqualTo(403);
+        assertThat(admin.put("/api/gruppi/precedenze", "{\"ordine\":[\"" + nuovo + "\"]}").statusCode()).isEqualTo(400);
+        var ordina = admin.put("/api/gruppi/precedenze", "{\"ordine\":[\"" + nuovo + "\",\"" + istituto + "\",\"" + squadra + "\"]}");
+        assertThat(ordina.statusCode()).as(ordina.body()).isEqualTo(204);
+        assertThat(segr.get("/api/gruppi").body()).containsPattern("\"nome\":\"Dipendenti comunali\"[^}]*\"precedenza\":1")
+            .containsPattern("\"nome\":\"Squadra agonistica\"[^}]*\"precedenza\":3");
+        // spenta la precedenza, l'ordine si ricompatta
+        assertThat(admin.put("/api/gruppi/" + nuovo, "{\"nome\":\"Dipendenti comunali\",\"conPrecedenza\":false,\"giorniPerPagare\":5}").statusCode()).isEqualTo(204);
+        assertThat(segr.get("/api/gruppi").body()).containsPattern("\"nome\":\"Alunni dell'Istituto\"[^}]*\"precedenza\":1")
+            .containsPattern("\"nome\":\"Squadra agonistica\"[^}]*\"precedenza\":2");
+
+        // la dichiarazione di Emma aspetta la verifica; verificata, sparisce dall'elenco
+        String da = segr.get("/api/gruppi/da-verificare").body();
+        assertThat(da).contains("Emma").contains("Frequenta la scuola dell'Istituto");
+        String appartenenza = da.replaceAll("(?s).*\"appartenenzaId\":\"([^\"]+)\".*", "$1");
+        assertThat(come("staff@demo.leone").post("/api/clienti/appartenenze/" + appartenenza + "/verifica", "{}").statusCode()).isEqualTo(403);
+        assertThat(segr.post("/api/clienti/appartenenze/" + appartenenza + "/verifica", "{}").statusCode()).isEqualTo(204);
+        assertThat(segr.post("/api/clienti/appartenenze/" + appartenenza + "/verifica", "{}").statusCode()).isEqualTo(409);
+        assertThat(segr.get("/api/gruppi/da-verificare").body()).doesNotContain("Emma");
+    }
 }

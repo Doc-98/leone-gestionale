@@ -81,7 +81,15 @@ public class Clienti {
     public record IngressoScalato(EsitoCarnet esito, int usati, int ingressi) {}
 
     /** Un gruppo di clienti di cui la persona fa parte (es. per prezzi diversi o la precedenza nei rinnovi). */
-    public record GruppoDi(UUID appartenenzaId, UUID gruppoId, String nome, LocalDate dal) {}
+    public record GruppoDi(UUID appartenenzaId, UUID gruppoId, String nome, LocalDate dal, boolean verificata) {}
+
+    /**
+     * I vantaggi di una persona nelle campagne (ADR 0026), dai gruppi verificati attivi quel giorno: la precedenza più
+     * forte (1 = la prima; null = nessuna) con il nome del gruppo, e i giorni per pagare più generosi (null = quelli di base).
+     */
+    public record Vantaggi(Integer precedenza, String gruppoPrecedenza, Integer giorniPerPagare) {
+        public static final Vantaggi NESSUNO = new Vantaggi(null, null, null);
+    }
 
     private final CertificatoRepository certificati;
     private final TesseramentoRepository tesseramenti;
@@ -111,7 +119,27 @@ public class Clienti {
         var nomi = new java.util.HashMap<UUID, String>();
         gruppi.findAll().forEach(g -> nomi.put(g.getId(), g.getNome()));
         return appartenenze.attiveDi(personaId).stream()
-            .map(a -> new GruppoDi(a.getId(), a.getGruppoId(), nomi.get(a.getGruppoId()), a.getDal())).toList();
+            .map(a -> new GruppoDi(a.getId(), a.getGruppoId(), nomi.get(a.getGruppoId()), a.getDal(), a.isVerificata())).toList();
+    }
+
+    /** Vedi {@link Vantaggi}. */
+    @Transactional(readOnly = true)
+    public Vantaggi vantaggi(UUID personaId, LocalDate giorno) {
+        Map<UUID, GruppoClienti> perId = new java.util.HashMap<>();
+        gruppi.findAll().forEach(g -> perId.put(g.getId(), g));
+        Integer precedenza = null, giorni = null;
+        String nome = null;
+        for (AppartenenzaGruppo a : appartenenze.findAll()) {
+            if (!a.getPersonaId().equals(personaId) || !a.isVerificata() || !a.attivaIl(giorno)) continue;
+            GruppoClienti g = perId.get(a.getGruppoId());
+            if (g == null || !g.isAttivo()) continue;
+            if (g.getPrecedenza() != null && (precedenza == null || g.getPrecedenza() < precedenza)) {
+                precedenza = g.getPrecedenza();
+                nome = g.getNome();
+            }
+            if (g.getGiorniPerPagare() != null && (giorni == null || g.getGiorniPerPagare() > giorni)) giorni = g.getGiorniPerPagare();
+        }
+        return precedenza == null && giorni == null ? Vantaggi.NESSUNO : new Vantaggi(precedenza, nome, giorni);
     }
 
     @Transactional(readOnly = true)

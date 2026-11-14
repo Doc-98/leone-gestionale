@@ -905,8 +905,11 @@ export const api = {
   modificaStagione: (id: string, s: NuovaStagione) => richiesta<Stagione>('PUT', `/api/stagioni/${id}`, s),
   eliminaStagione: (id: string) => richiesta<void>('DELETE', `/api/stagioni/${id}`),
   gruppi: () => richiesta<GruppoClienti[]>('GET', '/api/gruppi'),
-  creaGruppo: (g: { nome: string; descrizione: string | null }) => richiesta<{ id: string }>('POST', '/api/gruppi', g),
-  modificaGruppo: (id: string, g: { nome: string; descrizione: string | null; attivo: boolean }) => richiesta<void>('PUT', `/api/gruppi/${id}`, g),
+  creaGruppo: (g: NuovoGruppo) => richiesta<{ id: string }>('POST', '/api/gruppi', g),
+  modificaGruppo: (id: string, g: NuovoGruppo & { attivo: boolean }) => richiesta<void>('PUT', `/api/gruppi/${id}`, g),
+  ordinaPrecedenze: (ordine: string[]) => richiesta<void>('PUT', '/api/gruppi/precedenze', { ordine }),
+  gruppiDaVerificare: () => richiesta<AppartenenzaDaVerificare[]>('GET', '/api/gruppi/da-verificare'),
+  verificaAppartenenza: (appartenenzaId: string) => richiesta<void>('POST', `/api/clienti/appartenenze/${appartenenzaId}/verifica`, {}),
   membriGruppo: (id: string) => richiesta<MembroGruppo[]>('GET', `/api/gruppi/${id}/persone`),
   aggiungiAlGruppo: (personaId: string, gruppoId: string) => richiesta<{ id: string }>('POST', `/api/clienti/${personaId}/gruppi`, { gruppoId }),
   togliDalGruppo: (appartenenzaId: string) => richiesta<void>('POST', `/api/clienti/appartenenze/${appartenenzaId}/chiudi`, {}),
@@ -1441,6 +1444,33 @@ export interface GruppoClienti {
   descrizione: string | null;
   attivo: boolean;
   persone: number;
+  /** Posizione nell'ordine delle precedenze (1 = la più forte); null = nessuna (ADR 0026). */
+  precedenza: number | null;
+  /** Giorni per pagare dopo il posto offerto; null = quelli di base. */
+  giorniPerPagare: number | null;
+  /** Le famiglie lo possono dichiarare nelle richieste, con questa frase; la segreteria lo verifica. */
+  dichiarabile: boolean;
+  fraseDichiarazione: string | null;
+  daVerificare: number;
+}
+export interface NuovoGruppo {
+  nome: string;
+  descrizione: string | null;
+  conPrecedenza?: boolean;
+  giorniPerPagare?: number | null;
+  dichiarabile?: boolean;
+  fraseDichiarazione?: string | null;
+}
+export interface AppartenenzaDaVerificare {
+  appartenenzaId: string;
+  gruppoId: string;
+  gruppo: string;
+  frase: string | null;
+  personaId: string;
+  nome: string;
+  cognome: string;
+  dataNascita: string | null;
+  dal: string;
 }
 export interface MembroGruppo {
   appartenenzaId: string;
@@ -1449,12 +1479,15 @@ export interface MembroGruppo {
   cognome: string;
   dataNascita: string | null;
   dal: string;
+  verificata: boolean;
 }
 export interface GruppoDi {
   appartenenzaId: string;
   gruppoId: string;
   nome: string;
   dal: string;
+  /** Falso se dichiarata da una famiglia e non ancora verificata: intanto non dà vantaggi né prezzi. */
+  verificata: boolean;
 }
 
 export type TipoOfferta = 'CORSO' | 'CARNET' | 'ALTRO';

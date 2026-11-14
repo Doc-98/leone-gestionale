@@ -608,7 +608,11 @@
           <dt>Gruppi</dt>
           <dd class="gruppi">
             {#each cliente.gruppi as g (g.appartenenzaId)}
-              <span class="tag t-soft gruppo">{g.nome}
+              <span class="tag t-soft gruppo" class:da-verificare={!g.verificata}>{g.nome}
+                {#if !g.verificata}
+                  <button class="verifica" title="La famiglia l'ha dichiarato: verificato, dà i vantaggi del gruppo"
+                          onclick={() => esegui(() => api.verificaAppartenenza(g.appartenenzaId), `«${g.nome}» verificato.`)}>Verifica</button>
+                {/if}
                 <button class="togli" aria-label={`Togli dal gruppo ${g.nome}`} title="Togli dal gruppo"
                         onclick={() => confermato('gr' + g.appartenenzaId) && esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}>{#if conferma === 'gr' + g.appartenenzaId}conferma{:else}<Icona nome="chiudi" />{/if}</button>
               </span>
@@ -1133,4 +1137,7 @@
   .sotto { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-10); border-top: 1px solid var(--line); }
   .punto { width: 10px; height: 10px; border-radius: 50%; background: var(--ferma); flex-shrink: 0; }
   .punto.v { background: var(--passa); }
+  .gruppo.da-verificare { background: var(--warn-bg); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn-line); }
+  .gruppo .verifica { border: none; border-radius: 999px; padding: 2px 8px; margin-left: 4px; background: var(--fill); color: var(--on-fill);
+    font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 </style>

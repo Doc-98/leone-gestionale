@@ -15,4 +15,10 @@ interface AppartenenzaGruppoRepository extends JpaRepository<AppartenenzaGruppo,
 
     @Query("select a.gruppoId, count(a) from AppartenenzaGruppo a where a.al is null group by a.gruppoId")
     List<Object[]> contaAttive();
+
+    @Query("select a.gruppoId, count(a) from AppartenenzaGruppo a where a.al is null and a.verificata = false group by a.gruppoId")
+    List<Object[]> contaDaVerificare();
+
+    @Query("select a from AppartenenzaGruppo a where a.al is null and a.verificata = false order by a.dal")
+    List<AppartenenzaGruppo> daVerificare();
 }

@@ -124,16 +124,41 @@
   }
 
   // ── Gruppi ────────────────────────────────────────────────────────────
-  let gruppo = $state<{ id: string | null; nome: string; descrizione: string; attivo: boolean } | null>(null);
+  type BozzaGruppo = { id: string | null; nome: string; descrizione: string; attivo: boolean; conPrecedenza: boolean; giorni: string; dichiarabile: boolean; frase: string };
+  let gruppo = $state<BozzaGruppo | null>(null);
+  const nuovoGruppo = (): BozzaGruppo => ({ id: null, nome: '', descrizione: '', attivo: true, conPrecedenza: false, giorni: '', dichiarabile: false, frase: '' });
+  const bozzaDi = (g: GruppoClienti): BozzaGruppo => ({
+    id: g.id, nome: g.nome, descrizione: g.descrizione ?? '', attivo: g.attivo, conPrecedenza: g.precedenza != null,
+    giorni: g.giorniPerPagare == null ? '' : String(g.giorniPerPagare), dichiarabile: g.dichiarabile, frase: g.fraseDichiarazione ?? '',
+  });
+  /** I gruppi con precedenza, nel loro ordine (1 = la più forte). */
+  const conPrecedenza = $derived(gruppi.filter((g) => g.precedenza != null).sort((a, b) => a.precedenza! - b.precedenza!));
+  async function sposta(i: number, verso: -1 | 1) {
+    const ordine = conPrecedenza.map((g) => g.id);
+    const j = i + verso;
+    if (j < 0 || j >= ordine.length) return;
+    [ordine[i], ordine[j]] = [ordine[j], ordine[i]];
+    errore = '';
+    try {
+      await api.ordinaPrecedenze(ordine);
+      gruppi = await api.gruppi();
+    } catch (e) {
+      errore = messaggioErrore(e);
+    }
+  }
   let aperto = $state('');
   let membri = $state<MembroGruppo[]>([]);
   async function salvaGruppo() {
     const g = gruppo!;
     const descrizione = g.descrizione.trim() || null;
+    const vantaggi = {
+      conPrecedenza: g.conPrecedenza, giorniPerPagare: g.giorni.trim() ? Number(g.giorni) : null,
+      dichiarabile: g.dichiarabile, fraseDichiarazione: g.dichiarabile ? g.frase.trim() || null : null,
+    };
     errore = '';
     try {
-      if (g.id) await api.modificaGruppo(g.id, { nome: g.nome, descrizione, attivo: g.attivo });
-      else await api.creaGruppo({ nome: g.nome, descrizione });
+      if (g.id) await api.modificaGruppo(g.id, { nome: g.nome, descrizione, attivo: g.attivo, ...vantaggi });
+      else await api.creaGruppo({ nome: g.nome, descrizione, ...vantaggi });
       gruppi = await api.gruppi();
       messaggio = g.id ? 'Gruppo salvato.' : `Gruppo «${g.nome.trim()}» creato.`;
       gruppo = null;
@@ -231,16 +256,25 @@
 
       <section class="card sez" id="imp-gruppi" aria-label="Gruppi di clienti">
         <div class="sez-t"><h2>Gruppi di clienti</h2><span class="spiega grow">Etichette per prezzi diversi e precedenza nei rinnovi; si danno dalla scheda del cliente.</span>
-          <button type="button" class="mini-btn" onclick={() => (gruppo = { id: null, nome: '', descrizione: '', attivo: true })}><Icona nome="piu" />Nuovo gruppo</button></div>
+          <button type="button" class="mini-btn" onclick={() => (gruppo = nuovoGruppo())}><Icona nome="piu" />Nuovo gruppo</button></div>
         {#if gruppo && !gruppo.id}{@render moduloGruppo()}{/if}
         {#each gruppi as g (g.id)}
           {#if gruppo?.id === g.id}
             {@render moduloGruppo()}
           {:else}
             <div class="gruppo-r" class:spento={!g.attivo}>
-              <span class="t"><b>{g.nome}{#if !g.attivo} <span class="pill">non attivo</span>{/if}</b><span>{g.descrizione ?? ''}</span></span>
+              <span class="t"><b>{g.nome}{#if !g.attivo} <span class="pill">non attivo</span>{/if}</b><span>{g.descrizione ?? ''}</span>
+                {#if g.precedenza != null || g.giorniPerPagare != null || g.dichiarabile}
+                  <span class="vantaggi">
+                    {#if g.precedenza != null}<span class="tag t-soft">{g.precedenza}ª precedenza</span>{/if}
+                    {#if g.giorniPerPagare != null}<span class="tag t-soft">{g.giorniPerPagare} giorni per pagare</span>{/if}
+                    {#if g.dichiarabile}<span class="tag t-soft">dichiarabile</span>{/if}
+                    {#if g.daVerificare}<span class="tag t-warn">{g.daVerificare === 1 ? '1 da verificare' : `${g.daVerificare} da verificare`}</span>{/if}
+                  </span>
+                {/if}
+              </span>
               <button class="mini-btn" type="button" aria-expanded={aperto === g.id} onclick={() => apriMembri(g)}><Icona nome="persone" />{g.persone === 1 ? '1 persona' : `${g.persone} persone`}</button>
-              <button class="mini-btn" type="button" onclick={() => (gruppo = { id: g.id, nome: g.nome, descrizione: g.descrizione ?? '', attivo: g.attivo })}>Modifica</button>
+              <button class="mini-btn" type="button" onclick={() => (gruppo = bozzaDi(g))}>Modifica</button>
             </div>
             {#if aperto === g.id}
               <div class="membri small">
@@ -251,6 +285,18 @@
         {:else}
           {#if !gruppo}<p class="muted small vuoto">Nessun gruppo.</p>{/if}
         {/each}
+        {#if conPrecedenza.length > 1}
+          <div class="ordine-p">
+            <span class="lbl">Ordine delle precedenze nelle graduatorie</span>
+            <ol>
+              {#each conPrecedenza as g, i (g.id)}
+                <li><span class="n">{i + 1}</span><span class="grow">{g.nome}</span>
+                  <button type="button" class="icon-btn piccolo" aria-label={`Sposta ${g.nome} più su`} title="Più su" disabled={i === 0} onclick={() => sposta(i, -1)}><Icona nome="su" /></button>
+                  <button type="button" class="icon-btn piccolo" aria-label={`Sposta ${g.nome} più giù`} title="Più giù" disabled={i === conPrecedenza.length - 1} onclick={() => sposta(i, 1)}><Icona nome="giu" /></button></li>
+              {/each}
+            </ol>
+          </div>
+        {/if}
       </section>
     </div>
 
@@ -287,11 +333,18 @@
       <label class="field"><span class="lbl">Nome</span><input class="inp" bind:value={g.nome} maxlength="80" /></label>
       <label class="field"><span class="lbl">Descrizione</span><input class="inp" bind:value={g.descrizione} maxlength="300" /></label>
     </div>
+    <label class="riga-switch"><span>Precedenza nelle graduatorie<br /><span class="muted small">Va in fondo all'ordine delle precedenze; l'ordine si cambia sotto l'elenco.</span></span>
+      <button type="button" class="switch" role="switch" aria-checked={g.conPrecedenza} aria-label="Precedenza nelle graduatorie" onclick={() => (g.conPrecedenza = !g.conPrecedenza)}><span></span></button></label>
+    <label class="field giorni"><span class="lbl">Giorni per pagare il posto offerto</span>
+      <span class="unita"><input class="inp m" type="number" min="1" max="60" bind:value={g.giorni} placeholder="di base" /><span>giorni</span></span></label>
+    <label class="riga-switch"><span>Le famiglie lo possono dichiarare<br /><span class="muted small">Lo segnano nella richiesta; vale solo dopo la verifica della segreteria.</span></span>
+      <button type="button" class="switch" role="switch" aria-checked={g.dichiarabile} aria-label="Dichiarabile dalle famiglie" onclick={() => (g.dichiarabile = !g.dichiarabile)}><span></span></button></label>
+    {#if g.dichiarabile}<label class="field"><span class="lbl">Cosa leggono le famiglie</span><input class="inp" bind:value={g.frase} maxlength="160" placeholder="es. Frequenta la scuola dell'Istituto" /></label>{/if}
     {#if g.id}<label class="riga-switch"><span>Attivo<br /><span class="muted small">Un gruppo non attivo resta sulle persone che ci sono, ma non se ne aggiungono altre.</span></span>
       <button type="button" class="switch" role="switch" aria-checked={g.attivo} aria-label="Gruppo attivo" onclick={() => (g.attivo = !g.attivo)}><span></span></button></label>{/if}
     <div class="row">
       <button type="button" class="btn btn-secondary grow" onclick={() => (gruppo = null)}>Annulla</button>
-      <button class="btn btn-primary grow" disabled={!g.nome.trim()}>{g.id ? 'Salva il gruppo' : 'Crea il gruppo'}</button>
+      <button class="btn btn-primary grow" disabled={!g.nome.trim() || (g.dichiarabile && !g.frase.trim())}>{g.id ? 'Salva il gruppo' : 'Crea il gruppo'}</button>
     </div>
   </form>
 {/snippet}
@@ -323,6 +376,13 @@
   .sez-t + .gruppo-r { border-top: none; }
   .gruppo-r .t { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .gruppo-r .t span { font-size: var(--text-sm); color: var(--muted); }
+  .gruppo-r .t .vantaggi { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-4); }
+  .gruppo-r .t .vantaggi .tag { color: inherit; }
+  .ordine-p { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-16) var(--space-16); border-top: 1px solid var(--line); }
+  .ordine-p ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-6); }
+  .ordine-p li { display: flex; align-items: center; gap: var(--space-10); padding: var(--space-6) var(--space-8) var(--space-6) var(--space-12); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+  .ordine-p .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: var(--on-fill); font-size: 12px; font-weight: 700; }
+  .icon-btn.piccolo { width: 36px; height: 36px; }
   .spento { opacity: 0.65; }
   .membri { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); padding: 0 var(--space-16) var(--space-12); }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); background: var(--carta); border-top: 1px solid var(--line-soft); }

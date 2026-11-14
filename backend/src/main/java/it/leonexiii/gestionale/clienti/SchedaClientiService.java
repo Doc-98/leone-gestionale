@@ -340,7 +340,7 @@ class SchedaClientiService {
     }
 
     private Set<UUID> gruppiDi(UUID personaId) {
-        return clienti.gruppiDi(personaId).stream().map(Clienti.GruppoDi::gruppoId).collect(Collectors.toSet());
+        return clienti.gruppiDi(personaId).stream().filter(Clienti.GruppoDi::verificata).map(Clienti.GruppoDi::gruppoId).collect(Collectors.toSet());
     }
 
     /**
