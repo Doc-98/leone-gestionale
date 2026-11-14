@@ -28,6 +28,11 @@
   --fill: #10212b;     /* pulsante primario, chip e giorno selezionati, numeri dei passi */
   --on-fill: #ffffff;
   --hero: #10212b;     /* card del turno principale e KPI del compenso: scuri in entrambi i temi */
+  /* Testo sui colori pieni (danger, warn, passa, ok): bianco in chiaro, inchiostro scuro dove il colore si schiarisce */
+  --on-danger: #ffffff;
+  --on-warn: #ffffff;
+  --on-passa: #ffffff;
+  --on-ok: #ffffff;
   --on-cloro: #ffffff; /* testo su btn-accent, pallino dell'interruttore acceso */
   --knob: #ffffff;     /* pallino dell'interruttore spento */
   /* Testo e segni sulle superfici hero */
@@ -38,6 +43,9 @@
   --on-ink-veil: rgba(255, 255, 255, 0.12);
   --on-ink-track: rgba(255, 255, 255, 0.14);
   --on-ink-badge: rgba(255, 255, 255, 0.2);
+  /* Pulsante chiaro sui fondi scuri (hero, barra di salvataggio): bianco con inchiostro scuro, uguali nei due temi */
+  --chiaro-su-hero: #ffffff;     /* fondo */
+  --on-chiaro-su-hero: #10212b;  /* testo, 16,5:1 */
   --mint: #5ee0b5;          /* «in corso»: solo su ink */
   --area-m: #2b59c3; --area-m-bg: #e3eafb; --area-m-fg: #1e3f99;
   --area-f: #b8367a; --area-f-bg: #f8e1ec; --area-f-fg: #8c2358;
@@ -123,6 +131,12 @@
   --on-fill: #10212b;
   --hero: #1d3945;
   --on-cloro: #0a1c22;
+  --on-danger: #10212b;
+  --on-warn: #10212b;
+  --on-passa: #10212b;
+  --on-ok: #10212b;
+  --chiaro-su-hero: #ffffff;
+  --on-chiaro-su-hero: #10212b;
   --knob: #f4f6f7;
   --area-m: #7a9cff;
   --area-m-bg: #1c2b52;
@@ -397,11 +411,13 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
 .unita { font-size: var(--text-md); color: var(--muted); }
 /* barra in basso: le modifiche di una pagina si salvano tutte insieme */
 .salva-bar { position: sticky; bottom: var(--space-16); align-self: center; z-index: 6; display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap;
-  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-18, 18px); border-radius: var(--radius-lg); background: var(--hero, var(--fill)); color: #fff;
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-18, 18px); border-radius: var(--radius-lg); background: var(--hero, var(--fill)); color: var(--on-ink);
   box-shadow: 0 8px 28px rgba(16, 33, 43, 0.25); font-size: var(--text-md); }
 .salva-bar button { height: 38px; padding: 0 var(--space-16); border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); font-weight: 700; cursor: pointer; }
-.salva-bar .chiaro { border: none; background: #fff; color: var(--ink); }
-.salva-bar .vuoto { border: 1px solid rgba(255, 255, 255, 0.35); background: transparent; color: #fff; font-weight: 600; }
+.salva-bar .chiaro { border: none; background: var(--chiaro-su-hero); color: var(--on-chiaro-su-hero); }
+.salva-bar .vuoto { border: 1px solid color-mix(in srgb, var(--on-ink) 35%, transparent); background: transparent; color: var(--on-ink); font-weight: 600; }
+/* Sotto i 1024 px c'è la barra di navigazione in basso (60 px, fissa): la barra di salvataggio le sta sopra */
+@media (max-width: 1023.98px) { .salva-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 60px + var(--space-12)); } }
 /* pulsante piccolo, e pillola di stato */
 .mini-btn { position: relative; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
   font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-6); text-decoration: none; }

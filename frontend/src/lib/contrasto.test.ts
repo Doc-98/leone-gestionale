@@ -45,6 +45,10 @@ const TESTO: [string, string][] = [
   ['area-a-fg', 'area-a-bg'], ['area-x-fg', 'area-x-bg'], ['area-v-fg', 'area-v-bg'],
   // pulsanti-icona: grigi a riposo, inchiostro al passaggio, pieni quando premuti, rossi se distruttivi
   ['muted', 'surface-sunken'], ['danger', 'surface-sunken'], ['cloro-ink', 'cloro-soft'],
+  // pulsante chiaro sui fondi scuri (salva-bar, Chiedi un cambio, Foglio ore, Scadenze)
+  ['on-chiaro-su-hero', 'chiaro-su-hero'],
+  // testo e spunte sui colori pieni: Annulla il turno, Elimina il ruolo, contatori, pillole scelte, esito tornello
+  ['on-danger', 'danger'], ['on-warn', 'warn'], ['on-ok', 'ok'], ['on-passa', 'passa'],
   // esito del tornello
   ['passa-fg', 'passa-bg'], ['ferma-fg', 'ferma-bg'], ['oro-fg', 'oro-bg'],
 ];

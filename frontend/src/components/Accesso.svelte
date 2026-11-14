@@ -6,7 +6,12 @@
    * La forma delle pagine prima di entrare (accesso, primo accesso): a sinistra il marchio e la società su fondo blu
    * notte con le corsie, a destra il modulo. Sul telefono il pannello scuro diventa una fascia in alto.
    */
-  let { societa = '', titolo, testo = '', piede = '', children }: { societa?: string; titolo: string; testo?: string; piede?: string; children: Snippet } = $props();
+  let { societa = '', titolo, testo = '', testoSempre = false, piede = '', children }: {
+    societa?: string; titolo: string; testo?: string;
+    /** Sul telefono la frase di accompagnamento si nasconde; qui no (es. il primo accesso, dove spiega perché cambiare la password). */
+    testoSempre?: boolean;
+    piede?: string; children: Snippet;
+  } = $props();
 </script>
 
 <main class="acc">
@@ -18,7 +23,7 @@
     </div>
     <div class="frase">
       <h2>{titolo}</h2>
-      {#if testo}<p>{testo}</p>{/if}
+      {#if testo}<p class:sempre={testoSempre}>{testo}</p>{/if}
     </div>
     {#if piede}<div class="piede">{piede}</div>{/if}
   </section>
@@ -55,7 +60,8 @@
     .acc { flex-direction: column; flex-wrap: nowrap; }
     .acc-hero { flex: none; padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px 22px; gap: 18px; }
     .frase h2 { font-size: var(--text-3xl); }
-    .frase p, .piede { display: none; }
+    .frase p:not(.sempre), .piede { display: none; }
+    .frase p.sempre { font-size: var(--text-md); }
     .corsie { right: -60px; top: 10px; bottom: auto; width: 180px; gap: var(--space-8); }
     .corsie i { height: 30px; border-radius: var(--radius-md); }
     .corsie i:nth-child(4) { height: 14px; border-radius: 7px; }

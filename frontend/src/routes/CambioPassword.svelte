@@ -89,6 +89,6 @@
   .segno { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong); box-sizing: border-box; display: grid; place-items: center; flex-shrink: 0; }
   .req li.ok { color: var(--passa-fg); }
   .req li.ok .segno { border: none; background: var(--passa); }
-  .segno svg { width: 12px; height: 12px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .segno svg { width: 12px; height: 12px; stroke: var(--on-passa); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .azioni { display: flex; gap: var(--space-8); flex-wrap: wrap; }
 </style>

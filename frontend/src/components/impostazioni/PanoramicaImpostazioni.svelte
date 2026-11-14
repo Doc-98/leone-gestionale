@@ -172,7 +172,7 @@
         <span class="testa-a"><span class="ico-a"><Icona nome={ICONE_AREA[a.nome] ?? a.voci[0].icona} /></span><h2 class="grow">{a.nome}</h2><Icona nome="dx" class="chev" /></span>
         {#if fatti[a.nome]?.length}
           <ul class="fatti">
-            {#each fatti[a.nome] as f (f.k)}<li><span class="k">{f.k}</span><span class="v">{f.v}</span></li>{/each}
+            {#each fatti[a.nome] as f (f.k)}<li><span class="k">{f.k}</span><span class="v" title={f.v}>{f.v}</span></li>{/each}
           </ul>
         {:else}
           <span class="muted small">{a.voci.map((v) => v.nome).join(' · ')}</span>
@@ -200,8 +200,9 @@
   .area :global(.chev) { width: 18px; height: 18px; color: var(--chevron); }
   .fatti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-6); }
   .fatti li { display: flex; align-items: baseline; gap: var(--space-8); font-size: var(--text-md); }
-  .fatti .k { color: var(--muted); flex: 1; min-width: 0; white-space: nowrap; }
-  .fatti .v { font-weight: 600; text-align: right; }
+  .fatti .k { color: var(--muted); flex: 0 0 auto; white-space: nowrap; }
+  /* il valore lungo si tronca con i puntini; l'etichetta resta intera */
+  .fatti .v { font-weight: 600; text-align: right; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .avvisa { display: flex; gap: var(--space-8); align-items: flex-start; padding: var(--space-8) var(--space-10); border-radius: var(--radius-sm); background: var(--warn-bg);
     color: var(--warn); font-size: var(--text-sm); font-weight: 600; }
   .avvisa :global(.ic) { width: 16px; height: 16px; margin-top: 1px; flex-shrink: 0; }

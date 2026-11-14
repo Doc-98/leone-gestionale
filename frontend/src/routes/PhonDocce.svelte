@@ -262,7 +262,8 @@
   .nota-m { margin: 0; padding: var(--space-10) var(--space-16) 0; }
   fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
   .largo-p { flex-basis: 380px !important; max-width: 440px !important; }
-  .tabella { overflow-x: auto; border-top: 1px solid var(--line-soft); }
+  /* position: l'etichetta nascosta (.sr) di «Acceso» è assoluta: senza questo ancoraggio usciva dal riquadro e allargava la pagina a 510 px */
+  .tabella { position: relative; overflow-x: auto; border-top: 1px solid var(--line-soft); }
   .serv { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
   .serv th { padding: var(--space-10) var(--space-16); text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
     border-bottom: 1px solid var(--line); white-space: nowrap; }

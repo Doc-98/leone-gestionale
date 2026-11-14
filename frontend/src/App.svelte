@@ -322,7 +322,7 @@
   <Login />
 {:else if sessione.utente.deveCambiarePassword}
   <!-- primo accesso: la password temporanea va cambiata prima di tutto -->
-  <Accesso societa={nomeSocieta} titolo="Ciao {sessione.utente.nome}. Prima di iniziare, una password tua."
+  <Accesso societa={nomeSocieta} testoSempre titolo="Ciao {sessione.utente.nome}. Prima di iniziare, una password tua."
     testo="Sei entrato con la password temporanea che ti ha dato la segreteria. Scegline una che conosci solo tu: serve una volta, poi si entra sempre con questa.">
     <h1 class="titolo-acc">Nuova password</h1>
     <CambioPassword obbligatorio />

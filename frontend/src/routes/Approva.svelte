@@ -378,7 +378,7 @@
   .tipo { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--surface-sunken); color: var(--seg-fg); white-space: nowrap; }
   .tipo.sost { background: var(--warn-bg); color: var(--warn); }
   .dettaglio { flex: 999 1 520px; max-width: none; padding: var(--space-20) var(--space-20); gap: var(--space-16); }
-  .niente { margin: var(--space-32) 0; text-align: center; }
+  .niente { margin: calc(var(--space-16) * 2) 0; text-align: center; }
   /* intestazione del dettaglio: tipo, titolo, giorno e orario su una fascia appena più scura */
   .testa-d { display: flex; flex-direction: column; gap: var(--space-8); margin: calc(-1 * var(--space-20)) calc(-1 * var(--space-20)) var(--space-4); padding: var(--space-16) var(--space-20);
     background: var(--surface-sunken); border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0; }

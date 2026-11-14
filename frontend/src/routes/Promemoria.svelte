@@ -297,11 +297,11 @@
   .scad-v { position: absolute; top: 8px; bottom: 8px; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--ferma); }
   .mail { position: absolute; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 6px; border-radius: 999px;
     border: 1.5px solid var(--cloro); background: var(--surface); font: inherit; font-size: var(--text-xs); font-weight: 700; color: var(--cloro-ink); cursor: pointer; white-space: nowrap; z-index: 1; }
-  .mail i { width: 18px; height: 18px; border-radius: 50%; background: var(--cloro); display: grid; place-items: center; color: #fff; }
+  .mail i { width: 18px; height: 18px; border-radius: 50%; background: var(--cloro); display: grid; place-items: center; color: var(--on-cloro); }
   .mail i :global(.ic) { width: 11px; height: 11px; }
   /* l'email del giorno stesso della scadenza parte subito dopo la linea rossa, senza coprirla */
   .mail.dopo { transform: translate(6px, -50%); }
-  .mail[aria-pressed='true'] { background: var(--cloro); color: #fff; }
+  .mail[aria-pressed='true'] { background: var(--cloro); color: var(--on-cloro); }
   .mail.spenta { border-color: var(--line-strong); color: var(--muted); }
   .mail.spenta i { background: var(--line-strong); }
   /* spenta e scelta: piena ma grigia, con il testo leggibile */

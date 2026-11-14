@@ -24,6 +24,8 @@
   let filtro = $state<FiltroTipo>('tutti');
   let cerca = $state('');
   let errore = $state('');
+  /** Al posto dei numeri finché i dati non ci sono: «…» mentre si carica, «—» se il caricamento è fallito */
+  const segnaposto = $derived(errore && !dati ? '—' : '…');
   let messaggio = $state('');
   let inviando = $state('');
   let scelte = $state<Record<string, boolean>>({});
@@ -161,17 +163,17 @@
 
   {#if vista === 'elenco'}
     <div class="riep">
-      <div class="tile rosso"><span class="lbl">Scaduti o mancanti</span><span class="v">{conta('scaduti')}</span><span class="n">da sistemare subito</span></div>
-      <div class="tile arancio"><span class="lbl">Scadono oggi</span><span class="v">{conta('oggi')}</span><span class="n">da domani rossi al tornello</span></div>
-      <div class="tile"><span class="lbl">Entro una settimana</span><span class="v">{conta('settimana')}</span><span class="n">fino a {oggi ? dataBreve(aggiungiGiorni(oggi, 7)) : '…'}</span></div>
-      <div class="tile"><span class="lbl">Più avanti</span><span class="v">{conta('avanti')}</span><span class="n">entro {entro} giorni</span></div>
+      <div class="tile rosso"><span class="lbl">Scaduti o mancanti</span><span class="v">{dati ? conta('scaduti') : segnaposto}</span><span class="n">da sistemare subito</span></div>
+      <div class="tile arancio"><span class="lbl">Scadono oggi</span><span class="v">{dati ? conta('oggi') : segnaposto}</span><span class="n">da domani rossi al tornello</span></div>
+      <div class="tile"><span class="lbl">Entro una settimana</span><span class="v">{dati ? conta('settimana') : segnaposto}</span><span class="n">fino a {oggi ? dataBreve(aggiungiGiorni(oggi, 7)) : '…'}</span></div>
+      <div class="tile"><span class="lbl">Più avanti</span><span class="v">{dati ? conta('avanti') : segnaposto}</span><span class="n">entro {entro} giorni</span></div>
     </div>
   {/if}
 
   <div class="barra">
     <div class="filtri" role="group" aria-label="Quali scadenze">
       {#each FILTRI as f (f.id)}
-        <button type="button" class="chip" aria-pressed={filtro === f.id} onclick={() => (filtro = f.id)}>{f.nome}<span class="m conto">{cercate.filter((v) => nelFiltro(v, f.id)).length}</span></button>
+        <button type="button" class="chip" aria-pressed={filtro === f.id} onclick={() => (filtro = f.id)}>{f.nome}<span class="m conto">{dati ? cercate.filter((v) => nelFiltro(v, f.id)).length : segnaposto}</span></button>
       {/each}
     </div>
     <span class="grow"></span>
@@ -326,13 +328,13 @@
   .tile.rosso { background: var(--ferma-bg); border-color: transparent; } .tile.rosso .v { color: var(--ferma); }
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
 
-  .bulk { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--hero); color: var(--on-fill); }
+  .bulk { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--hero); color: var(--on-ink); }
   .bulk-n { font-size: var(--text-sm); opacity: 0.75; }
   .b-chiaro, .b-vuoto { height: 36px; padding: 0 var(--space-14); border-radius: var(--radius-md); font: inherit; font-size: var(--text-sm); font-weight: 700; cursor: pointer;
     display: inline-flex; align-items: center; gap: var(--space-6); }
-  .b-chiaro { border: none; background: var(--surface); color: var(--ink); }
+  .b-chiaro { border: none; background: var(--chiaro-su-hero); color: var(--on-chiaro-su-hero); }
   .b-chiaro:disabled { opacity: 0.6; cursor: default; }
-  .b-vuoto { border: 1px solid color-mix(in srgb, var(--on-fill) 35%, transparent); background: transparent; color: var(--on-fill); font-weight: 600; }
+  .b-vuoto { border: 1px solid color-mix(in srgb, var(--on-ink) 35%, transparent); background: transparent; color: var(--on-ink); font-weight: 600; }
 
   .gruppo { display: flex; flex-direction: column; gap: var(--space-8); }
   .g-testa { display: flex; align-items: center; gap: var(--space-10); min-height: 28px; }

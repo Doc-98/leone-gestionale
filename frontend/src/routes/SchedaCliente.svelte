@@ -765,7 +765,7 @@
             <Azione icona="revoca" tono="danger" etichetta={b.tipo === 'BAN' ? 'Revoca il ban' : 'Togli la sorveglianza'} conferma="Revoca?" onclick={() => esegui(() => api.revocaBan(b.id), b.tipo === 'BAN' ? 'Ban revocato.' : 'Non è più sotto controllo.')} />
           </li>
         {:else}
-          <li class="muted small">Nessun ban, nessuna segnalazione.{#if !banPersona && !golden} Ban, sorveglianza e golden pass si danno da «Altre azioni», in alto.{/if}</li>
+          <li class="muted small">Nessun ban, nessuna segnalazione.{#if !banPersona && !golden}{' '}Ban, sorveglianza e golden pass si danno da «Altre azioni», in alto.{/if}</li>
         {/each}
       </ul>
       {#if banPersona}

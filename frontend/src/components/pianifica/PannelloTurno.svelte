@@ -187,6 +187,6 @@
   .riga-az { display: flex; gap: var(--space-8); justify-content: flex-end; }
   .fatto { padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--passa-bg); color: var(--passa-fg); font-size: var(--text-sm); font-weight: 600; }
   .fondo { display: flex; gap: var(--space-8); justify-content: space-between; flex-wrap: wrap; }
-  .rosso-pieno { height: 40px; padding: 0 var(--space-16); background: var(--danger); border: 1.5px solid var(--danger); color: #fff; }
+  .rosso-pieno { height: 40px; padding: 0 var(--space-16); background: var(--danger); border: 1.5px solid var(--danger); color: var(--on-danger); }
   .rosso-bordo { height: 40px; padding: 0 var(--space-16); background: var(--surface); border: 1.5px solid var(--danger); color: var(--danger); }
 </style>

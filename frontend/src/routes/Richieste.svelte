@@ -248,7 +248,7 @@
   .schede { grid-template-columns: repeat(4, auto); }
   .schede button { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; padding: 0 var(--space-8); }
   .schede .n { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; margin-left: 4px; border-radius: 9px; box-sizing: border-box;
-    background: var(--warn); color: #fff; font-size: 11px; font-weight: 700; }
+    background: var(--warn); color: var(--on-warn); font-size: 11px; font-weight: 700; }
   .viste { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); }
   .sezione { display: flex; flex-direction: column; gap: var(--space-8); }
   .sezione h2 { margin: 0; }

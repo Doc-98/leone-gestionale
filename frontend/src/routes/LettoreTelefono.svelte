@@ -254,7 +254,7 @@
   .invito { font-size: var(--text-xl); }
   .letto-ora { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--passa-bg); color: var(--passa-fg); text-align: left; }
   .cerchio { width: 36px; height: 36px; border-radius: 50%; background: var(--passa); display: grid; place-items: center; flex-shrink: 0; }
-  .cerchio svg { width: 20px; height: 20px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .cerchio svg { width: 20px; height: 20px; stroke: var(--on-passa); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .letto-ora b { font-size: 18px; color: var(--ink); }
   .col { display: flex; flex-direction: column; }
   .elenco { padding: var(--space-4) 0; }

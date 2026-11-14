@@ -185,7 +185,7 @@
                   <select class="inp" bind:value={elimina.sostituto}><option value="">Nessuno: perdono questi permessi</option>
                     {#each pagina.ruoli.filter((r) => r.codice !== ruolo.codice && r.codice !== 'ADMIN') as r (r.codice)}<option value={r.codice}>{r.nome}</option>{/each}</select></label>
               {/if}
-              <span class="row fine"><button type="button" class="btn btn-secondary" onclick={() => (elimina = null)}>Annulla</button><button type="button" class="btn btn-danger pieno" onclick={eliminaRuolo}>Elimina il ruolo</button></span>
+              <span class="row fine"><button type="button" class="btn btn-secondary" onclick={() => (elimina = null)}>Annulla</button><button type="button" class="btn btn-danger elimina" onclick={eliminaRuolo}>Elimina il ruolo</button></span>
             </div>
           {/if}
           {#if ruolo.diSistema}<div class="nota">{ruolo.modificabile ? 'È un ruolo predefinito: si può cambiare ma non eliminare.' : 'Admin ha sempre tutti i permessi: non si possono togliere.'}</div>{/if}
@@ -271,7 +271,7 @@
   .voce-r .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .voce-r .t b { font-size: var(--text-md); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .voce-r .t span { font-size: var(--text-xs); color: var(--muted); }
-  .scelta { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line-strong); background: var(--surface); display: grid; place-items: center; flex-shrink: 0; color: #fff; }
+  .scelta { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line-strong); background: var(--surface); display: grid; place-items: center; flex-shrink: 0; color: var(--on-cloro); }
   .scelta :global(.ic) { width: 12px; height: 12px; visibility: hidden; }
   .scelta.on { background: var(--cloro); border-color: var(--cloro); }
   .scelta.on :global(.ic) { visibility: visible; }
@@ -286,7 +286,7 @@
     border-bottom: 1px solid color-mix(in srgb, var(--ferma) 30%, transparent); font-size: var(--text-md); }
   .conferma .lbl { color: var(--ferma-fg); }
   .conferma select { max-width: 320px; appearance: auto; }
-  .pieno { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .elimina { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
   .fine { justify-content: flex-end; }
   .nota { padding: var(--space-8) var(--space-16); font-size: var(--text-xs); color: var(--muted); border-bottom: 1px solid var(--line-soft); }
   .gruppo-p { display: flex; gap: var(--space-8); padding: var(--space-8) var(--space-16); background: var(--carta); font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
@@ -317,7 +317,7 @@
   .conf .c.diversa { background: var(--warn-bg); }
   .conf .g { grid-column: 1 / -1; padding: var(--space-8) var(--space-16); background: var(--carta); font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
     color: var(--muted); border-top: 1px solid var(--line-soft); }
-  .si { width: 22px; height: 22px; border-radius: 50%; background: var(--cloro); display: grid; place-items: center; color: #fff; }
+  .si { width: 22px; height: 22px; border-radius: 50%; background: var(--cloro); display: grid; place-items: center; color: var(--on-cloro); }
   .si :global(.ic) { width: 12px; height: 12px; }
   .no { width: 22px; height: 2px; border-radius: 1px; background: var(--line-strong); }
   @media (max-width: 900px) { .due-c { grid-template-columns: 1fr; } }

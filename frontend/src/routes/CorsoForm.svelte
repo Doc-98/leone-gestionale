@@ -43,7 +43,7 @@
       istruttori, note: note || null, attivo, colore: colore || null, livelloSuccessivoId: successivo || null };
     try {
       const salvato = corso ? await api.modificaCorso(corso.id, dati) : await api.creaCorso(dati);
-      fatto(salvato, corso ? 'Corso aggiornato.' : 'Corso creato: ora aggiungi le lezioni.');
+      fatto(salvato, corso ? 'Corso aggiornato.' : 'Corso creato: ora aggiungi i turni.');
     } catch (err) {
       errore = messaggioErrore(err);
     } finally {

@@ -13,6 +13,7 @@
   let elenco = $state<Account[]>([]);
   let ruoli = $state<PaginaRuoli | null>(null);
   let errore = $state('');
+  let caricato = $state(false);
   let messaggio = $state('');
   let temporanea = $state<(PasswordTemporanea & { chi: string }) | null>(null);
   let nuovo = $state<{ nome: string; cognome: string; email: string; ruolo: string; impiantoId: string } | null>(null);
@@ -27,6 +28,8 @@
       if (daRuoli && !ruoli) ruoli = await api.ruoli();
     } catch (e) {
       errore = messaggioErrore(e);
+    } finally {
+      caricato = true;
     }
   }
   carica();
@@ -165,7 +168,7 @@
       </span>
     </li>
   {:else}
-    <li class="muted small">Nessun account.</li>
+    <li class="muted small">{caricato ? 'Nessun account.' : 'Caricamento…'}</li>
   {/each}
 </ul>
 {#if daRuoli}<p class="muted small nomargin">Cosa può fare ogni ruolo, e a chi darlo, si decide nella scheda <a href="#/account/ruoli">Ruoli</a>.</p>{/if}

@@ -21,7 +21,7 @@
    * schede Turni · Lista d'attesa · Dettagli. I turni si vedono per orario (una riga per orario standard, una colonna per
    * giorno) o per giorno; chi pianifica aggiunge un turno al volo da una casella libera.
    */
-  let { corso, corsi, spazi, fasce, personale, gestore, ricarica }: {
+  let { corso, corsi, spazi, fasce, personale, gestore, ricarica, messaggioIniziale = '' }: {
     corso: Corso;
     corsi: Corso[];
     spazi: SpazioPiano[];
@@ -29,6 +29,8 @@
     personale: PersonaBreve[];
     gestore: boolean;
     ricarica: () => Promise<unknown>;
+    /** Il messaggio di chi ci ha portato qui (es. «Corso creato…»). */
+    messaggioIniziale?: string;
   } = $props();
 
   type Scheda = 'turni' | 'attesa' | 'dettagli';
@@ -47,7 +49,8 @@
   $effect(() => salvaPreferenza('corso.turni', modo));
   const modoEffettivo = $derived<ModoTurni>(schermo.larga ? modo : 'giorno');
 
-  let messaggio = $state('');
+  // svelte-ignore state_referenced_locally
+  let messaggio = $state(messaggioIniziale);
   let errore = $state('');
   let avvisi = $state<string[]>([]);
   let foglio = $state<{ tipo: 'turno'; id: string } | { tipo: 'nuovo' } | null>(null);
@@ -613,12 +616,12 @@
   .rapido { position: absolute; top: calc(100% + 6px); left: 0; z-index: 6; width: min(400px, calc(100vw - 32px)); display: flex; flex-direction: column; overflow: hidden;
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(16, 33, 43, 0.14); color: var(--ink); cursor: default; }
   .rapido.dx { left: auto; right: 0; }
-  .rapido-testa { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-8); padding: var(--space-14) var(--space-10) var(--space-14) var(--space-16); background: var(--hero); color: var(--on-fill); }
-  .rapido-testa .lbl { margin: 0 0 2px; color: color-mix(in srgb, var(--on-fill) 78%, transparent); }
+  .rapido-testa { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-8); padding: var(--space-14) var(--space-10) var(--space-14) var(--space-16); background: var(--hero); color: var(--on-ink); }
+  .rapido-testa .lbl { margin: 0 0 2px; color: var(--on-ink-soft); }
   .titolo-r { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; }
   .titolo-r .m { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 500; letter-spacing: 0; }
-  .chiudi { color: var(--on-fill); }
-  .chiudi:hover { background: color-mix(in srgb, var(--on-fill) 14%, transparent) !important; }
+  .chiudi { color: var(--on-ink); }
+  .chiudi:hover { background: var(--on-ink-track) !important; }
   .rapido-corpo { display: flex; flex-direction: column; gap: var(--space-16); padding: var(--space-16); }
   .rapido-corpo > * + * { padding-top: var(--space-16); border-top: 1px solid var(--line-soft); }
   .campo-r { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; }

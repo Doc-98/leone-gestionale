@@ -87,7 +87,7 @@
   </label>
   <label class="field"><span class="lbl">Titolo</span><input class="inp" bind:value={titolo} maxlength="120" placeholder={titoloProposto} /></label>
   {#if tipo === 'LEZIONE_PRIVATA' || tipo === 'LEZIONE_PROVA'}
-    <p class="hint nomargin">Per ora niente nomi di clienti nel titolo: la scheda cliente arriva con la fase clienti e accessi.</p>
+    <p class="hint nomargin">Niente nomi di clienti nel titolo.</p>
   {/if}
   <div class="due">
     <label class="field"><span class="lbl">{fineGiorno || chiusura ? 'Dal' : 'Giorno'}</span><input class="inp" type="date" bind:value={giorno} required /></label>

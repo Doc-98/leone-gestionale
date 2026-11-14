@@ -279,8 +279,8 @@
   .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pa { grid-template-columns: auto auto; padding: 2px; }
   .pa button { min-height: 32px; padding: 0 var(--space-8); font-size: var(--text-xs); }
-  .pa button[aria-pressed='true']:first-child { background: var(--ok); color: #fff; }
-  .pa button[aria-pressed='true']:last-child { background: var(--danger); color: #fff; }
+  .pa button[aria-pressed='true']:first-child { background: var(--ok); color: var(--on-ok); }
+  .pa button[aria-pressed='true']:last-child { background: var(--danger); color: var(--on-danger); }
   .iscrivi { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-12); }
   .trovata { display: flex; justify-content: space-between; gap: var(--space-8); padding: var(--space-8) var(--space-10); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
   .trovata:hover { border-color: var(--cloro); }

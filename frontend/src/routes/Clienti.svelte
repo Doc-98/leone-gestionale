@@ -32,7 +32,10 @@
 
   onMount(() => {
     const f = () => {
+      const prima = scelto;
       scelto = leggiId();
+      // aprendo un'altra scheda (anche dal clic su un risultato) il modulo «Nuovo cliente» si chiude
+      if (scelto && scelto !== prima) nuovo = null;
       if (!scelto) caricaHome();
     };
     window.addEventListener('hashchange', f);
@@ -74,6 +77,7 @@
   }
 
   function apri(id: string) {
+    nuovo = null;
     cerca = '';
     trovate = [];
     cercato = false;
@@ -308,8 +312,12 @@
 
   .home { display: flex; flex-direction: column; gap: var(--space-24, 24px); }
   /* il pulsante sale sulla riga del titolo della pagina, senza coprirlo */
-  .testa { display: flex; align-items: center; margin: -64px 0 -16px; min-height: 48px; pointer-events: none; }
-  .testa .btn { pointer-events: auto; }
+  .testa { display: flex; align-items: center; min-height: 48px; }
+  /* da 1024 px (schermo.larga) la testata dell'app è libera a destra: il pulsante sale lì. Sotto, resta nel contenuto. */
+  @media (min-width: 1024px) {
+    .testa { margin: -64px 0 -16px; pointer-events: none; }
+    .testa .btn { pointer-events: auto; }
+  }
   .centro { display: flex; flex-direction: column; align-items: center; gap: var(--space-8); padding: var(--space-8) 0; }
   .cerca-g { position: relative; width: 100%; max-width: 640px; display: flex; align-items: center; }
   .cerca-g > :global(.ic) { position: absolute; left: 16px; color: var(--muted); pointer-events: none; }

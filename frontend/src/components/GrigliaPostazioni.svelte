@@ -27,7 +27,7 @@
     notifica?: string;
   }
 
-  let { colonne, postazioni, blocchi, scelto = '', evidenzia = '', oreRiga = false, etichetta, apri, nuovo, nuovaPostazione }: {
+  let { colonne, postazioni, blocchi, scelto = '', evidenzia = '', oreRiga = false, caricamento = false, etichetta, apri, nuovo, nuovaPostazione }: {
     colonne: Colonna[];
     postazioni: Postazione[];
     blocchi: Blocco[];
@@ -36,6 +36,8 @@
     evidenzia?: string;
     /** Le ore della settimana sotto il nome della postazione (e quante ne servono, se la postazione lo dice). */
     oreRiga?: boolean;
+    /** Le postazioni non sono ancora arrivate: «…» al posto di «Nessuna postazione». */
+    caricamento?: boolean;
     etichetta: string;
     apri: (id: string) => void;
     nuovo: (postazioneId: string, colonna: string) => void;
@@ -107,7 +109,7 @@
         </div>
       {/if}
     {:else}
-      <p class="muted small nessuna">Nessuna postazione: aggiungile da «Mansioni e postazioni».</p>
+      <p class="muted small nessuna">{caricamento ? '…' : 'Nessuna postazione: aggiungile da «Mansioni e postazioni».'}</p>
     {/each}
   </div>
 </div>

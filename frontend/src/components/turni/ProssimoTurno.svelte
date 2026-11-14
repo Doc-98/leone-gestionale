@@ -32,18 +32,18 @@
 </section>
 
 <style>
-  .prossimo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-16); border-radius: 16px; background: var(--hero); color: var(--on-fill); }
+  .prossimo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-16); border-radius: 16px; background: var(--hero); color: var(--on-ink); }
   .riga { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
   .riga b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .base { align-items: baseline; gap: var(--space-10); }
-  .lbl { color: color-mix(in srgb, var(--on-fill) 70%, transparent); }
-  .quando { font-size: var(--text-xs); font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--on-fill) 14%, transparent); white-space: nowrap; }
+  .lbl { color: var(--on-ink-muted); }
+  .quando { font-size: var(--text-xs); font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--on-ink-track); white-space: nowrap; }
   .orario { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
   .ore { opacity: 0.7; font-size: var(--text-md); white-space: nowrap; }
   .nota, .con { font-size: var(--text-sm); opacity: 0.85; }
   .bottoni { display: flex; gap: var(--space-8); }
   .bottoni button { flex: 1; min-height: 44px; border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); cursor: pointer; }
-  .pieno { border: none; background: #fff; color: var(--ink); font-weight: 700; }
-  .vuoto { border: 1px solid color-mix(in srgb, var(--on-fill) 35%, transparent); background: transparent; color: var(--on-fill); font-weight: 600; }
-  .vuoto[aria-pressed='true'] { background: color-mix(in srgb, var(--on-fill) 14%, transparent); }
+  .pieno { border: none; background: var(--chiaro-su-hero); color: var(--on-chiaro-su-hero); font-weight: 700; }
+  .vuoto { border: 1px solid color-mix(in srgb, var(--on-ink) 35%, transparent); background: transparent; color: var(--on-ink); font-weight: 600; }
+  .vuoto[aria-pressed='true'] { background: var(--on-ink-track); }
 </style>

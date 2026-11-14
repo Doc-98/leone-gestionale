@@ -160,8 +160,8 @@
   .tile .v { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
   .tile .n { font-size: var(--text-xs); color: var(--muted); }
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
-  .tile.hero-t { background: var(--hero); color: var(--on-fill); border-color: transparent; }
-  .tile.hero-t .lbl, .tile.hero-t .n { color: color-mix(in srgb, var(--on-fill) 72%, transparent); }
+  .tile.hero-t { background: var(--hero); color: var(--on-ink); border-color: transparent; }
+  .tile.hero-t .lbl, .tile.hero-t .n { color: var(--on-ink-muted); }
 
   .corpo { display: flex; flex-wrap: wrap; gap: var(--space-20) 24px; align-items: flex-start; }
   .principale { flex: 7 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }

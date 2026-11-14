@@ -100,8 +100,8 @@
   .sx { flex: 1 1 320px; max-width: 420px; display: flex; flex-direction: column; gap: var(--space-14); }
   .dx-col { flex: 3 1 520px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-14); }
   @media (max-width: 760px) { .sx { max-width: none; } }
-  .hero { display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-20); border-radius: 16px; background: var(--hero); color: var(--on-fill); }
-  .hero .lbl { color: color-mix(in srgb, var(--on-fill) 70%, transparent); }
+  .hero { display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-20); border-radius: 16px; background: var(--hero); color: var(--on-ink); }
+  .hero .lbl { color: var(--on-ink-muted); }
   .numeri { display: flex; align-items: flex-end; gap: var(--space-10); }
   .col { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .col.dx { align-items: flex-end; flex: 0 0 auto; }
@@ -110,8 +110,8 @@
   .soldi { font-size: 24px; font-weight: 600; white-space: nowrap; }
   .nota { font-size: var(--text-sm); opacity: 0.8; }
   .bottoni { display: flex; gap: var(--space-8); }
-  .pieno { flex: 1; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-6); border-radius: var(--radius-md); background: #fff;
-    color: var(--ink); font-weight: 700; font-size: var(--text-md); text-decoration: none; }
+  .pieno { flex: 1; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-6); border-radius: var(--radius-md); background: var(--chiaro-su-hero);
+    color: var(--on-chiaro-su-hero); font-weight: 700; font-size: var(--text-md); text-decoration: none; }
   .pieno :global(.ic) { width: 18px; height: 18px; }
   .calcolo { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-8); }
   .voce { display: flex; gap: var(--space-8); font-size: var(--text-md); }

@@ -471,15 +471,15 @@
   .verde { color: var(--passa); }
   .annullato { opacity: 0.5; text-decoration: line-through; }
 
-  .hero { display: flex; flex-direction: column; gap: var(--space-14); padding: var(--space-20) 22px; border-radius: var(--radius-xl); background: var(--hero); color: var(--on-fill); }
+  .hero { display: flex; flex-direction: column; gap: var(--space-14); padding: var(--space-20) 22px; border-radius: var(--radius-xl); background: var(--hero); color: var(--on-ink); }
   .hero-testa { display: flex; align-items: flex-end; gap: var(--space-16); flex-wrap: wrap; }
-  .chiaro { color: color-mix(in srgb, var(--on-fill) 78%, transparent); }
-  .tenue { color: color-mix(in srgb, var(--on-fill) 62%, transparent); }
-  .grande { font-family: var(--font-display); font-size: 44px; font-weight: 800; line-height: 1; color: var(--on-fill); }
-  .barra-metodi { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--on-fill) 15%, transparent); }
+  .chiaro { color: var(--on-ink-soft); }
+  .tenue { color: var(--on-ink-faint); }
+  .grande { font-family: var(--font-display); font-size: 44px; font-weight: 800; line-height: 1; color: var(--on-ink); }
+  .barra-metodi { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--on-ink-track); }
   .legenda { display: flex; flex-wrap: wrap; gap: var(--space-6) var(--space-16); }
   .legenda span { display: inline-flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
-  .legenda.chiaro span { color: var(--on-fill); }
+  .legenda.chiaro span { color: var(--on-ink); }
   .legenda i, .m-nome i, .tag-m i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
 
   .pagamenti { list-style: none; margin: 0; padding: 0; overflow: hidden; }
@@ -499,8 +499,8 @@
   .tile .v { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
   .tile .n { font-size: var(--text-xs); color: var(--muted); }
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
-  .tile.hero-t { background: var(--hero); color: var(--on-fill); border-color: transparent; }
-  .tile.hero-t .lbl, .tile.hero-t .n { color: color-mix(in srgb, var(--on-fill) 72%, transparent); }
+  .tile.hero-t { background: var(--hero); color: var(--on-ink); border-color: transparent; }
+  .tile.hero-t .lbl, .tile.hero-t .n { color: var(--on-ink-muted); }
 
   .grafico { padding: var(--space-16) var(--space-18, 18px); display: flex; flex-direction: column; gap: var(--space-12); }
   .g-testa { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; }

@@ -3,6 +3,7 @@
   import { api } from '../lib/api';
   import { oraDi } from '../lib/date';
   import { indirizzoPerTelefono, lettoreTelefono as l } from '../lib/lettore.svelte';
+  import { sessione } from '../lib/sessione.svelte';
 
   /**
    * I lettori di questo PC (ADR 0017, 0025): un'etichetta che dice com'è il lettore e, aperta, l'elenco — il lettore da
@@ -16,7 +17,9 @@
   let qr = $state('');
   let adesso = $state(Date.now());
   let sulBraccialetto = $state(false);
-  api.statoCreditiBraccialetto().then((s) => (sulBraccialetto = s.sulBraccialetto)).catch(() => {});
+  // Lo stato dei crediti lo vede solo chi ha uno di questi permessi (gli stessi che chiede il server): senza, non si chiede
+  if (sessione.puo('IMPOSTAZIONI', 'BORSELLINO', 'CLIENTI'))
+    api.statoCreditiBraccialetto().then((s) => (sulBraccialetto = s.sulBraccialetto)).catch(() => {});
 
   const indirizzo = $derived(indirizzoPerTelefono());
   const link = $derived(l.abbinamento ? `${indirizzo.url}/#/lettore/${l.abbinamento.token}` : '');

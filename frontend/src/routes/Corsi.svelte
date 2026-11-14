@@ -24,6 +24,8 @@
   let caricamento = $state(true);
   let errore = $state('');
   let messaggio = $state('');
+  /** Dopo «Nuovo corso» si apre la scheda: il messaggio si vede lì. */
+  let messaggioScheda = $state('');
   let nuovo = $state(false);
 
   let vista = $state<Vista>(leggiPreferenza<Vista>('corsi.vista', 'categorie', ['categorie', 'elenco']));
@@ -44,7 +46,10 @@
   const daIndirizzo = () => location.hash.split('/')[2] ?? null;
   let apertoId = $state<string | null>(daIndirizzo());
   onMount(() => {
-    const f = () => (apertoId = daIndirizzo());
+    const f = () => {
+      apertoId = daIndirizzo();
+      if (!apertoId) messaggioScheda = '';
+    };
     window.addEventListener('hashchange', f);
     return () => window.removeEventListener('hashchange', f);
   });
@@ -141,7 +146,7 @@
 
 {#if apertoId}
   {#if aperto}
-    <SchedaCorso corso={aperto} {corsi} {spazi} {fasce} {personale} gestore={gestiti.includes(aperto.impiantoId)} ricarica={carica} />
+    <SchedaCorso corso={aperto} {corsi} {spazi} {fasce} {personale} gestore={gestiti.includes(aperto.impiantoId)} ricarica={carica} messaggioIniziale={messaggioScheda} />
   {:else}
     <section class="page"><p class="muted">{caricamento ? 'Caricamento…' : 'Corso non trovato.'}</p>
       {#if !caricamento}<a href="#/corsi">→ Torna ai corsi</a>{/if}</section>
@@ -149,7 +154,7 @@
 {:else}
 <section class="page larga-c">
   <div class="testa">
-    <p class="muted nomargin grow">{totale.corsi} corsi attivi · {totale.turni} turni · {totale.iscritti.toLocaleString('it-IT')} iscrizioni</p>
+    <p class="muted nomargin grow">{caricamento ? 'Caricamento…' : `${totale.corsi} corsi attivi · ${totale.turni} turni · ${totale.iscritti.toLocaleString('it-IT')} iscrizioni`}</p>
     {#if impiantoNuovo}
       <button class="btn btn-primary compatto" onclick={() => ((nuovo = true), (messaggio = ''))}><Icona nome="piu" />Nuovo corso…</button>
     {/if}
@@ -186,7 +191,7 @@
   </div>
 
   <div class="filtri" role="group" aria-label="Categoria">
-    <button class="chip" aria-pressed={!categoria} onclick={() => (categoria = '')}>Tutte <span class="quanti">{filtrate.length}</span></button>
+    <button class="chip" aria-pressed={!categoria} onclick={() => (categoria = '')}>Tutte <span class="quanti">{caricamento ? '…' : filtrate.length}</span></button>
     {#each ORDINE_CATEGORIE.filter((t) => conteggi.get(t)) as t (t)}
       <button class="chip {colore(t)}" aria-pressed={categoria === t} onclick={() => (categoria = categoria === t ? '' : t)}>
         <span class="pallino"></span>{TIPI_CORSO[t]} <span class="quanti">{conteggi.get(t)}</span>
@@ -271,7 +276,7 @@
 
 {#if nuovo}
   <Foglio titolo="Nuovo corso" chiudi={() => (nuovo = false)}>
-    <CorsoForm corso={null} impiantoId={impiantoNuovo} {personale} {corsi} fatto={async (c, testo) => { await carica(); nuovo = false; messaggio = testo; apri(c); }} />
+    <CorsoForm corso={null} impiantoId={impiantoNuovo} {personale} {corsi} fatto={async (c, testo) => { await carica(); nuovo = false; messaggioScheda = testo; apri(c); }} />
   </Foglio>
 {/if}
 

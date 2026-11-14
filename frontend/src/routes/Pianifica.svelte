@@ -26,6 +26,9 @@
   let personale = $state<PersonaStaff[]>([]);
   let richieste = $state<Richiesta[]>([]);
   let caricamento = $state(true);
+  /** postazioni e staff si caricano a parte dai turni; le richieste solo con il permesso */
+  let anagrafica = $state(false);
+  let richiesteCaricate = $state(!sessione.puo('APPROVAZIONI'));
   let errore = $state('');
   let messaggio = $state('');
   let avviso = $state<{ testo: string; conferma: () => void } | null>(null);
@@ -38,7 +41,8 @@
 
   Promise.all([api.postazioni(), api.personale()])
     .then(([p, s]) => ((postazioni = p), (personale = s)))
-    .catch((e) => (errore = messaggioErrore(e)));
+    .catch((e) => (errore = messaggioErrore(e)))
+    .finally(() => (anagrafica = true));
 
   function carica() {
     caricamento = true;
@@ -46,7 +50,7 @@
       .then((t) => (turni = t))
       .catch((e) => (errore = messaggioErrore(e, 'Non riesco a caricare i turni.')))
       .finally(() => (caricamento = false));
-    if (sessione.puo('APPROVAZIONI')) api.richiesteDaGestire().then((r) => (richieste = r)).catch(() => {});
+    if (sessione.puo('APPROVAZIONI')) api.richiesteDaGestire().then((r) => (richieste = r)).catch(() => {}).finally(() => (richiesteCaricate = true));
   }
   $effect(() => {
     void settimana;
@@ -161,14 +165,14 @@
 
     <div class="riep">
       <div class="tile"><span class="lbl">Turni</span><span class="v">{caricamento ? '…' : attivi.length}</span><span class="n">questa settimana</span></div>
-      <div class="tile"><span class="lbl">Ore</span><span class="v">{formatH(oreTot).replace(' h', '')}</span><span class="n">di lavoro questa settimana</span></div>
-      <div class="tile"><span class="lbl">Persone</span><span class="v">{perPersona.size}</span><span class="n">in turno su {personale.length} dello staff</span></div>
-      <button type="button" class="tile" class:t-ferma={scoperti.length} class:t-passa={!scoperti.length && !caricamento} disabled={!scoperti.length}
+      <div class="tile"><span class="lbl">Ore</span><span class="v">{caricamento ? '…' : formatH(oreTot).replace(' h', '')}</span><span class="n">di lavoro questa settimana</span></div>
+      <div class="tile"><span class="lbl">Persone</span><span class="v">{caricamento ? '…' : perPersona.size}</span><span class="n">{anagrafica ? `in turno su ${personale.length} dello staff` : 'in turno'}</span></div>
+      <button type="button" class="tile" class:t-ferma={scoperti.length} class:t-passa={!scoperti.length && !caricamento} disabled={caricamento || !scoperti.length}
         onclick={() => scoperti[0] && (cambiaVista('postazione'), (aperto = { id: scoperti[0].id }))}>
-        <span class="lbl">Scoperti</span><span class="v">{scoperti.length}</span><span class="n">{scoperti.length ? 'turni senza nessuno · tocca per assegnare' : 'tutti i turni hanno qualcuno'}</span></button>
+        <span class="lbl">Scoperti</span><span class="v">{caricamento ? '…' : scoperti.length}</span><span class="n">{caricamento ? '' : scoperti.length ? 'turni senza nessuno · tocca per assegnare' : 'tutti i turni hanno qualcuno'}</span></button>
       {#if sessione.puo('APPROVAZIONI')}
-        <a class="tile" class:t-warn={richieste.length} href="#/approva"><span class="lbl">Richieste in attesa</span><span class="v">{richieste.length}</span>
-          <span class="n">{richieste.length ? [daDecidere ? `${daDecidere} da decidere` : '', daCoprire ? `${daCoprire} da coprire` : ''].filter(Boolean).join(' · ') + ' →' : 'niente da decidere'}</span></a>
+        <a class="tile" class:t-warn={richieste.length} href="#/approva"><span class="lbl">Richieste in attesa</span><span class="v">{richiesteCaricate ? richieste.length : '…'}</span>
+          <span class="n">{!richiesteCaricate ? '' : richieste.length ? [daDecidere ? `${daDecidere} da decidere` : '', daCoprire ? `${daCoprire} da coprire` : ''].filter(Boolean).join(' · ') + ' →' : 'niente da decidere'}</span></a>
       {/if}
     </div>
 
@@ -182,7 +186,7 @@
     {#if vista === 'postazione'}
       <div class="colonne-p">
         <div class="princ">
-          <GrigliaPostazioni {colonne} postazioni={postazioniGriglia} {blocchi} scelto={turnoAperto?.id ?? ''} {evidenzia} oreRiga etichetta="Turni della settimana per postazione"
+          <GrigliaPostazioni {colonne} postazioni={postazioniGriglia} {blocchi} scelto={turnoAperto?.id ?? ''} {evidenzia} oreRiga caricamento={!anagrafica} etichetta="Turni della settimana per postazione"
             apri={(id) => ((aperto = { id }), (messaggio = ''))} nuovo={(postazioneId, data) => ((aperto = { nuovo: { postazioneId, data } }), (messaggio = ''))}
             nuovaPostazione={sessione.puo('ANAGRAFICHE_STAFF') ? aggiungiPostazione : undefined} />
         </div>
@@ -249,7 +253,7 @@
     </div>
     <div class="testa-giorno">
       <span class="tg"><b>{giornoEsteso(giornoTel).replace(/^./, (c) => c.toUpperCase())}</b>
-        <span class="muted small">{attivi.filter((t) => t.data === giornoTel).length} turni{attivi.some((t) => t.data === giornoTel && !t.persona) ? ` · ${scoperto(attivi.filter((t) => t.data === giornoTel && !t.persona).length)}` : ''}</span></span>
+        <span class="muted small">{caricamento ? '…' : `${attivi.filter((t) => t.data === giornoTel).length} turni`}{!caricamento && attivi.some((t) => t.data === giornoTel && !t.persona) ? ` · ${scoperto(attivi.filter((t) => t.data === giornoTel && !t.persona).length)}` : ''}</span></span>
       <div class="seg due-s" role="group" aria-label="Quali turni">
         <button type="button" aria-pressed={!soloScoperti} onclick={() => (soloScoperti = false)}>Tutti</button>
         <button type="button" aria-pressed={soloScoperti} onclick={() => (soloScoperti = true)}>Scoperti</button>
