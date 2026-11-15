@@ -162,7 +162,7 @@
                   {/if}
                   <button role="menuitem" onclick={() => { menu = null; azioni.iscrivi(t.voce, t.turno); }}><Icona nome="persona-piu" />Iscrivi{t.tocca ? '' : ' (in soprannumero se pieno)'}</button>
                   <button role="menuitem" onclick={() => { menu = null; azioni.esegui(() => api.confermataAttesa(t.voce.id), `${nome(p)} aspetta ancora: segnato.`); }}><Icona nome="check" />Aspetta ancora</button>
-                  <Conferma role="menuitem" class="danger" domanda="Togli?" onclick={() => { menu = null; azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} tolto dalla lista di ${t.turno.corso}.`); }}><Icona nome="cestino" />Togli dalla lista</Conferma>
+                  <Conferma role="menuitem" class="danger" domanda="Rimuovi?" onclick={() => { menu = null; azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} rimosso dalla lista di ${t.turno.corso}.`); }}><Icona nome="cestino" />Rimuovi dalla lista</Conferma>
                 {/each}
               </div>
             {/if}

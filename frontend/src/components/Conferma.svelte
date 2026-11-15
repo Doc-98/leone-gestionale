@@ -7,7 +7,7 @@
    * system, «Azioni»). Il primo tocco arma il pulsante, che al posto del contenuto mostra la domanda («Elimina?»); il
    * secondo esegue. Si disarma da solo dopo 5 secondi o uscendo dal pulsante.
    * - `class`: le classi di pulsante di sempre (`btn btn-danger`, `mini-btn rosso`, `x-btn`…): a riposo l'aspetto non cambia.
-   * - `domanda`: breve, in forma di domanda («Elimina?», «Togli?», «Annulla?»).
+   * - `domanda`: breve, in forma di domanda («Elimina?», «Rimuovi?», «Annulla?»).
    * - `tono`: il colore da armato, come in `Azione`: `danger` (di norma: eliminare, togliere, annullare) o `cloro` per le
    *   azioni che non distruggono niente ma non si annullano («Nuova chiave?»).
    * - `etichetta`: il nome per lo screen reader a riposo, per i pulsanti senza testo a vista (la X).

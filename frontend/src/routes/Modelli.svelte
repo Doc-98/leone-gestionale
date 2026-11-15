@@ -155,7 +155,7 @@
 
   const togliRiga = () => esegui(async () => {
     if (!scelto || !riga?.id) return;
-    aggiornato(await api.togliRiga(scelto.id, riga.id), 'Turno tolto dalla settimana tipo.');
+    aggiornato(await api.togliRiga(scelto.id, riga.id), 'Turno eliminato dalla settimana tipo.');
     riga = null;
   });
 
@@ -322,7 +322,7 @@
   <span class="muted small">{testoRiservata(postazioneRiga)}Cambia la settimana tipo, non i turni già creati: vale dai prossimi mesi che generi.</span>
   <div class="azioni-r">
     <button class="btn btn-primary grow" type="button" disabled={lavoro} onclick={salvaRiga}>Salva</button>
-    {#if riga?.id}<Conferma class="btn btn-danger" disabled={lavoro} domanda="Togli?" onclick={togliRiga}>Togli</Conferma>{/if}
+    {#if riga?.id}<Conferma class="btn btn-danger" disabled={lavoro} domanda="Elimina?" onclick={togliRiga}>Elimina</Conferma>{/if}
   </div>
 {/snippet}
 

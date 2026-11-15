@@ -113,7 +113,7 @@
       await api.togliLezione(l.id);
       await ricarica();
       foglio = null;
-      messaggio = l.validaDal > oggi ? 'Turno eliminato.' : 'Turno tolto dal piano da domani; le date passate restano nello storico.';
+      messaggio = l.validaDal > oggi ? 'Turno eliminato.' : 'Turno rimosso dal piano da domani; le date passate restano nello storico.';
     } catch (e) {
       errore = messaggioErrore(e);
     }
@@ -525,7 +525,7 @@
           {/key}
           <div class="togli">
             <span class="muted small grow">{l.validaDal > oggi ? 'Il turno non è ancora iniziato: si elimina.' : 'Il turno smette da domani; le date passate restano nello storico.'}</span>
-            <Azione icona="cestino" tono="danger" etichetta="Togli il turno {nomeTurno(l)}" conferma="Togli?" onclick={() => togli(l)} />
+            <Azione icona="cestino" tono="danger" etichetta="Elimina il turno {nomeTurno(l)}" conferma="Elimina?" onclick={() => togli(l)} />
           </div>
         </details>
       {/if}

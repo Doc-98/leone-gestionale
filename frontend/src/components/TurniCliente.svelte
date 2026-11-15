@@ -112,7 +112,7 @@
         <div class="voce-l small">
           <span class="grow">{a.corso} · <span class="m">{quando(a)}</span> · <strong>{a.posizione}° in lista</strong>
             {#if a.liberi != null && a.liberi > 0}<span class="tag t-soft">posto libero</span>{/if}</span>
-          {#if puo}<Azione icona="cestino" tono="danger" etichetta={`Togli dalla lista d'attesa di ${a.corso}`} conferma="Togli?" onclick={() => togli(a.attesaId)} />{/if}
+          {#if puo}<Azione icona="cestino" tono="danger" etichetta={`Rimuovi dalla lista d'attesa di ${a.corso}`} conferma="Rimuovi?" onclick={() => togli(a.attesaId)} />{/if}
         </div>
       {/each}
       {#if puo}<a class="small" href="#/attesa">Liste d'attesa</a>{/if}

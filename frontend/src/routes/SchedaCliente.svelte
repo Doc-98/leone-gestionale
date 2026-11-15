@@ -614,7 +614,7 @@
                   <button class="verifica" title="La famiglia l'ha dichiarato: verificato, dà i vantaggi del gruppo"
                           onclick={() => esegui(() => api.verificaAppartenenza(g.appartenenzaId), `«${g.nome}» verificato.`)}>Verifica</button>
                 {/if}
-                <Conferma class="togli" etichetta={`Togli dal gruppo ${g.nome}`} title="Togli dal gruppo" domanda="Togli?"
+                <Conferma class="togli" etichetta={`Rimuovi dal gruppo ${g.nome}`} title="Rimuovi dal gruppo" domanda="Rimuovi?"
                           onclick={() => esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}><Icona nome="chiudi" /></Conferma>
               </span>
             {:else}
@@ -763,7 +763,7 @@
               {#if b.tipo === 'SORVEGLIANZA'}<span class="tag oro-t">Sotto controllo</span>{/if}
               <strong>{b.braccialettoId ? `Braccialetto ${b.codice}` : 'Persona'}</strong>{b.tipo === 'BAN' ? (b.braccialettoId ? ' bannato' : ' bannata') : ''}
               dal {dataBreve(b.dal)}{b.al ? ` al ${dataBreve(b.al)}` : ''}: {b.motivo}</span>
-            <Azione icona="revoca" tono="danger" etichetta={b.tipo === 'BAN' ? 'Revoca il ban' : 'Togli la sorveglianza'} conferma="Revoca?" onclick={() => esegui(() => api.revocaBan(b.id), b.tipo === 'BAN' ? 'Ban revocato.' : 'Non è più sotto controllo.')} />
+            <Azione icona="revoca" tono="danger" etichetta={b.tipo === 'BAN' ? 'Revoca il ban' : 'Revoca la sorveglianza'} conferma="Revoca?" onclick={() => esegui(() => api.revocaBan(b.id), b.tipo === 'BAN' ? 'Ban revocato.' : 'Non è più sotto controllo.')} />
           </li>
         {:else}
           <li class="muted small">Nessun ban, nessuna segnalazione.{#if !banPersona && !golden}{' '}Ban, sorveglianza e golden pass si danno da «Altre azioni», in alto.{/if}</li>

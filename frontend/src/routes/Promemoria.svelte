@@ -78,7 +78,7 @@
     if (!bozza) return;
     const id = bozza.id;
     scelta = '';
-    await esegui(() => api.eliminaPromemoria(id), 'Promemoria tolto.');
+    await esegui(() => api.eliminaPromemoria(id), 'Promemoria eliminato.');
   }
   async function aggiungi(tipo: TipoPromemoria) {
     errore = '';
@@ -243,7 +243,7 @@
               </div>
             </div>
             <div class="row fine">
-              <Conferma class="btn btn-danger" domanda="Togli?" onclick={togli}>Togli</Conferma>
+              <Conferma class="btn btn-danger" domanda="Elimina?" onclick={togli}>Elimina</Conferma>
               <button class="btn btn-primary largo" type="button" disabled={!cambiata} onclick={salva}>Salva</button>
             </div>
           </div>

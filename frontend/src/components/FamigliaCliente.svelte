@@ -88,7 +88,7 @@
               {#each RELAZIONI as r (r.id)}<option value={r.id}>{r.nome}</option>{/each}
             </select>
             <span class="grow"></span>
-            <Azione icona="scollega" tono="danger" etichetta={`Togli ${t.nome} ${t.cognome} dai tutori`} conferma="Togli?" onclick={() => chiudi(t)} />
+            <Azione icona="scollega" tono="danger" etichetta={`Rimuovi ${t.nome} ${t.cognome} dai tutori`} conferma="Rimuovi?" onclick={() => chiudi(t)} />
           </div>
           <div class="muted small">{[t.email, t.telefono].filter(Boolean).join(' · ') || 'Nessun contatto'}</div>
           <div class="interruttori">

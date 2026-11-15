@@ -88,7 +88,7 @@
   const passa = (b: BambinoLivelli) =>
     esegui(() => api.passaDiLivello(b.iscrizioneId), `${b.nome} è in lista d'attesa in ${turno?.successivo}, davanti a chi aspetta: intanto resta nel suo turno.`);
   const annulla = (b: BambinoLivelli) =>
-    esegui(() => api.annullaPassaggio(b.passaggio!.id), `${b.nome} resta in ${turno?.corso}: tolto dalle liste d'attesa di ${turno?.successivo}.`);
+    esegui(() => api.annullaPassaggio(b.passaggio!.id), `${b.nome} resta in ${turno?.corso}: rimosso dalle liste d'attesa di ${turno?.successivo}.`);
 
   const iniziali = (b: BambinoLivelli) => `${b.nome.charAt(0)}${b.cognome.charAt(0)}`.toUpperCase();
   const colore = (c: string | null) => c ?? 'var(--line-strong)';

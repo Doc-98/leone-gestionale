@@ -80,13 +80,13 @@
                   <button class="btn btn-quieto btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                   <button class="btn btn-primary btn-sm" aria-pressed={avviso?.voce.id === v.id} onclick={() => (avviso = { voce: v, turno: t })}>Avvisa</button>
                 {:else if s === 'avvisata'}
-                  <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} ha rinunciato: tolto dalla lista.`)}>Ha rinunciato</Conferma>
+                  <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} ha rinunciato: rimosso dalla lista.`)}>Ha rinunciato</Conferma>
                   <button class="btn btn-primary btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                 {:else if p.poi.length}
                   <button class="btn btn-quieto btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                   <button class="btn btn-primary btn-sm" onclick={() => proponi(v, t, p.poi[0])}>Proponi a {p.poi[0].nome}</button>
                 {:else}
-                  <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} tolto dalla lista.`)}>Ha rinunciato</Conferma>
+                  <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} rimosso dalla lista.`)}>Ha rinunciato</Conferma>
                   <button class="btn btn-primary btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                 {/if}
               </span>
@@ -119,8 +119,8 @@
                   {#each t.attesa as v (v.id)}
                     <li>
                       <span class="grow">{#if schede}<a class="nome" href={`#/clienti/${v.personaId}`}>{nome(v)}</a>{:else}<b>{nome(v)}</b>{/if}<span class="muted">{v.eta != null ? `, ${eta(v.eta)}` : ''} · da {giorniDiAttesa(v, pagina.oggi)} giorni{v.note ? ` · ${v.note}` : ''}</span></span>
-                      <Azione icona="cestino" tono="danger" etichetta={`Togli ${nome(v)} dalla lista d'attesa`} conferma="Togli?"
-                        onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} tolto dalla lista d'attesa.`)} />
+                      <Azione icona="cestino" tono="danger" etichetta={`Rimuovi ${nome(v)} dalla lista d'attesa`} conferma="Rimuovi?"
+                        onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} rimosso dalla lista d'attesa.`)} />
                     </li>
                   {/each}
                 </ol>

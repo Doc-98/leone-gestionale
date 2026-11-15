@@ -152,7 +152,7 @@
   };
   async function elimina() {
     const { id, b } = offerta!;
-    if (await esegui(() => api.eliminaOfferta(id!), `«${b.nome}» tolta dal listino.`)) offerta = null;
+    if (await esegui(() => api.eliminaOfferta(id!), `«${b.nome}» eliminata dal listino.`)) offerta = null;
   }
   function toggleCorso(id: string) {
     const b = offerta!.b;
@@ -294,7 +294,7 @@
             <div class="field"><span class="lbl">{b.tipo === 'CORSO' ? 'Prezzi per frequenza' : 'Prezzo'}</span>
               <div class="prezzi-g" style="--c: {b.colonne.length}">
                 <span></span>
-                {#each b.colonne as c (c)}<span class="h" title={nomeGruppo(c)}><span class="nome-c">{nomeGruppo(c).split(' ')[0]}</span>{#if c}<button type="button" class="x-btn piccolo" aria-label="Togli i prezzi per {nomeGruppo(c)}" onclick={() => (b.colonne = b.colonne.filter((x) => x !== c))}><Icona nome="chiudi" /></button>{/if}</span>{/each}
+                {#each b.colonne as c (c)}<span class="h" title={nomeGruppo(c)}><span class="nome-c">{nomeGruppo(c).split(' ')[0]}</span>{#if c}<button type="button" class="x-btn piccolo" aria-label="Elimina i prezzi per {nomeGruppo(c)}" onclick={() => (b.colonne = b.colonne.filter((x) => x !== c))}><Icona nome="chiudi" /></button>{/if}</span>{/each}
                 {#each b.righe as r (r)}
                   <span class="r">{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}</span>
                   {#each b.colonne as c (c)}<input class="inp m" inputmode="decimal" placeholder="—" bind:value={b.prezzi[chiave(r, c)]} aria-label="{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}, {nomeGruppo(c)}" />{/each}
