@@ -40,7 +40,9 @@ class CreditiBraccialettoTest extends ProvaApi {
                 .containsEntry("pronto", true);
 
             String persona = creaId(segr, "/api/clienti", "{\"nome\":\"Chip\",\"cognome\":\"Prova\",\"dataNascita\":\"1990-01-01\"}");
-            String braccialetto = (String) json(segr.post("/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + CODICE + "\"}")).get("id");
+            var nuovo = segr.post("/api/accessi/persone/" + persona + "/braccialetti", "{\"codice\":\"" + CODICE + "\"}");
+            assertThat(nuovo.statusCode()).as(nuovo.body()).isEqualTo(201);
+            String braccialetto = (String) json(nuovo).get("id");
             @SuppressWarnings("unchecked")
             String contanti = (String) ((List<Object>) (List<?>) JsonParserFactory.getJsonParser().parseList(segr.get("/api/pagamenti/metodi").body())).stream()
                 .map(ProvaApi::mappa).filter(m -> "Contanti".equals(m.get("nome"))).findFirst().orElseThrow().get("id");
