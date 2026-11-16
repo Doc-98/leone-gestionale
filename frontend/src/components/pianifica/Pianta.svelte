@@ -124,7 +124,7 @@
                   {@const p = personale.find((x) => x.id === t.persona!.id)}
                   <span class="chip-p" draggable={!!p} ondragstart={(e) => p && prendi(e, p, t)} ondragend={() => (sopra = '')} title="Trascina su un'altra postazione per spostare" role="listitem">
                     <span class="av">{iniziali(t.persona.nome)}</span><span class="n">{t.persona.nome}</span>
-                    <button type="button" class="x" aria-label={`Togli ${t.persona.nome} da ${r.postazione.nome}`} onclick={() => togli(t)}>×</button>
+                    <button type="button" class="x" aria-label={`Rimuovi ${t.persona.nome} da ${r.postazione.nome}`} onclick={() => togli(t)}>×</button>
                   </span>
                 {:else}
                   <span class="vuoto-t">{inMano ? (ok ? `Lascia qui ${nome1(inMano.persona.nome)}` : 'Non adatta') : 'Trascina qui un nome'}</span>

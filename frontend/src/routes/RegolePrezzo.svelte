@@ -272,7 +272,7 @@
           {#each bozza.riduzione.scaglioni as s, i (i)}
             <div class="passo"><span class="unita">Dal</span><input class="inp m" type="date" bind:value={s.data} min={stagione.dal} max={stagione.al} aria-label="Dal" />
               <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale" /><span class="unita">%</span>
-              <button type="button" class="x-btn" aria-label="Togli lo scaglione" onclick={() => (bozza!.riduzione.scaglioni = bozza!.riduzione.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
+              <button type="button" class="x-btn" aria-label="Elimina lo scaglione" onclick={() => (bozza!.riduzione.scaglioni = bozza!.riduzione.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
           {/each}
           <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.riduzione.scaglioni = [...bozza!.riduzione.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
         </div>
@@ -285,7 +285,7 @@
           {#each bozza.recesso.scaglioni as s, i (i)}
             <div class="passo"><span class="unita">Fino al</span><input class="inp m" type="date" bind:value={s.data} min={stagione.dal} max={stagione.al} aria-label="Fino al" />
               <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale rimborsata" /><span class="unita">%</span>
-              <button type="button" class="x-btn" aria-label="Togli lo scaglione" onclick={() => (bozza!.recesso.scaglioni = bozza!.recesso.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
+              <button type="button" class="x-btn" aria-label="Elimina lo scaglione" onclick={() => (bozza!.recesso.scaglioni = bozza!.recesso.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
           {/each}
           <div class="passo"><span class="unita">Dopo</span><span class="muted small">niente rimborso</span></div>
           <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.recesso.scaglioni = [...bozza!.recesso.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
@@ -319,7 +319,7 @@
         {#each Array.from({ length: bozza.rate.numero - 1 }) as _, i (i)}
           <div class="riga-imp"><span class="t"><b>{i + 2}ª rata entro il</b>{#if i === bozza.rate.numero - 2}<span>dopo questa data le rate non si offrono più</span>{/if}</span>
             <span class="ctl"><input class="inp m data" type="date" bind:value={bozza.rate.scadenze[i]} aria-label="Scadenza della {i + 2}ª rata" />
-              {#if bozza.rate.numero > 2}<button type="button" class="x-btn" aria-label="Togli la {i + 2}ª rata" onclick={() => { bozza!.rate.scadenze = bozza!.rate.scadenze.filter((_, j) => j !== i); bozza!.rate.numero--; }}><Icona nome="chiudi" /></button>{/if}</span></div>
+              {#if bozza.rate.numero > 2}<button type="button" class="x-btn" aria-label="Elimina la {i + 2}ª rata" onclick={() => { bozza!.rate.scadenze = bozza!.rate.scadenze.filter((_, j) => j !== i); bozza!.rate.numero--; }}><Icona nome="chiudi" /></button>{/if}</span></div>
         {/each}
         {#if bozza.rate.numero < 12}
           <div class="riga-imp"><button type="button" class="mini-btn tratt" onclick={() => bozza!.rate.numero++}><Icona nome="piu" />Aggiungi una rata</button>

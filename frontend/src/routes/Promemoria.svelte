@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type DatiSocieta, type PaginaPromemoria, type RegolaPromemoria, type StatoEmail, type TipoPromemoria } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
@@ -74,10 +75,10 @@
   const corpo = (r: RegolaPromemoria) => ({ giorni: Number(r.giorni), maxInvii: r.maxInvii == null ? null : Number(r.maxInvii), attivo: r.attivo, oggetto: r.oggetto, testo: r.testo });
   const salva = () => esegui(() => api.modificaPromemoria(bozza!.id, corpo(bozza!)), 'Promemoria salvato.');
   async function togli() {
-    if (!bozza || !confirm('Togliere questo promemoria?')) return;
+    if (!bozza) return;
     const id = bozza.id;
     scelta = '';
-    await esegui(() => api.eliminaPromemoria(id), 'Promemoria tolto.');
+    await esegui(() => api.eliminaPromemoria(id), 'Promemoria eliminato.');
   }
   async function aggiungi(tipo: TipoPromemoria) {
     errore = '';
@@ -242,7 +243,7 @@
               </div>
             </div>
             <div class="row fine">
-              <button class="btn btn-danger" type="button" onclick={togli}>Togli</button>
+              <Conferma class="btn btn-danger" domanda="Elimina?" onclick={togli}>Elimina</Conferma>
               <button class="btn btn-primary largo" type="button" disabled={!cambiata} onclick={salva}>Salva</button>
             </div>
           </div>

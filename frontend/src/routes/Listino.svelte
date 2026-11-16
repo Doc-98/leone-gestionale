@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type Corso, type GruppoClienti, type NuovaOfferta, type Offerta, type PaginaListino, type Stagione, type TipoOfferta } from '../lib/api';
   import { dataLunga, iso } from '../lib/date';
   import { etichettaVolte, euro, VOLTE } from '../lib/listino';
@@ -151,8 +152,7 @@
   };
   async function elimina() {
     const { id, b } = offerta!;
-    if (!confirm(`Togliere «${b.nome}» dal listino?`)) return;
-    if (await esegui(() => api.eliminaOfferta(id!), `«${b.nome}» tolta dal listino.`)) offerta = null;
+    if (await esegui(() => api.eliminaOfferta(id!), `«${b.nome}» eliminata dal listino.`)) offerta = null;
   }
   function toggleCorso(id: string) {
     const b = offerta!.b;
@@ -294,7 +294,7 @@
             <div class="field"><span class="lbl">{b.tipo === 'CORSO' ? 'Prezzi per frequenza' : 'Prezzo'}</span>
               <div class="prezzi-g" style="--c: {b.colonne.length}">
                 <span></span>
-                {#each b.colonne as c (c)}<span class="h" title={nomeGruppo(c)}><span class="nome-c">{nomeGruppo(c).split(' ')[0]}</span>{#if c}<button type="button" class="x-btn piccolo" aria-label="Togli i prezzi per {nomeGruppo(c)}" onclick={() => (b.colonne = b.colonne.filter((x) => x !== c))}><Icona nome="chiudi" /></button>{/if}</span>{/each}
+                {#each b.colonne as c (c)}<span class="h" title={nomeGruppo(c)}><span class="nome-c">{nomeGruppo(c).split(' ')[0]}</span>{#if c}<button type="button" class="x-btn piccolo" aria-label="Elimina i prezzi per {nomeGruppo(c)}" onclick={() => (b.colonne = b.colonne.filter((x) => x !== c))}><Icona nome="chiudi" /></button>{/if}</span>{/each}
                 {#each b.righe as r (r)}
                   <span class="r">{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}</span>
                   {#each b.colonne as c (c)}<input class="inp m" inputmode="decimal" placeholder="—" bind:value={b.prezzi[chiave(r, c)]} aria-label="{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}, {nomeGruppo(c)}" />{/each}
@@ -325,7 +325,7 @@
               <button class="btn btn-primary grow" disabled={!salvabile}>{offerta.id ? 'Salva' : 'Aggiungi al listino'}</button>
               {#if offerta.id}
                 <button type="button" class="btn btn-secondary" onclick={accendi}>{b.attiva ? 'Spegni' : 'Riaccendi'}</button>
-                <button type="button" class="btn btn-danger" aria-label="Elimina" onclick={elimina}><Icona nome="cestino" /></button>
+                <Conferma class="btn btn-danger" etichetta="Elimina" domanda="Elimina?" onclick={elimina}><Icona nome="cestino" /></Conferma>
               {/if}
             </div>
           {/if}

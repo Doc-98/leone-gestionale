@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../Icona.svelte';
+  import Conferma from '../Conferma.svelte';
   import { api, eAvviso, messaggioErrore, type PersonaStaff, type Postazione, type Richiesta, type Turno } from '../../lib/api';
   import { giornoEsteso, ora } from '../../lib/date';
   import { accavallato, candidati, formatH, gruppoDi, testoRiservata, type TurnoBreve } from '../../lib/gestione';
@@ -146,7 +147,7 @@
 
   {#if turno}
     <div class="fondo">
-      <button type="button" class="btn rosso-pieno" disabled={lavoro} onclick={annulla}>Annulla il turno</button>
+      <Conferma class="btn rosso-pieno" disabled={lavoro} domanda="Annulla?" onclick={annulla}>Annulla il turno</Conferma>
       {#if turno.persona}<button type="button" class="btn rosso-bordo" disabled={lavoro} onclick={() => salva(null, false, 'Il turno ora è scoperto.')}>Lascia scoperto</button>{/if}
     </div>
   {:else}
@@ -187,6 +188,8 @@
   .riga-az { display: flex; gap: var(--space-8); justify-content: flex-end; }
   .fatto { padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--passa-bg); color: var(--passa-fg); font-size: var(--text-sm); font-weight: 600; }
   .fondo { display: flex; gap: var(--space-8); justify-content: space-between; flex-wrap: wrap; }
-  .rosso-pieno { height: 40px; padding: 0 var(--space-16); background: var(--danger); border: 1.5px solid var(--danger); color: var(--on-danger); }
+  .fondo :global(.btn.rosso-pieno) { height: 40px; padding: 0 var(--space-16); background: var(--danger); border: 1.5px solid var(--danger); color: var(--on-danger); }
+  /* armato resta pieno: altrimenti «Annulla?» diventa uguale a «Lascia scoperto» lì accanto */
+  .fondo :global(button.btn.rosso-pieno.conf-armata.conf-armata) { background: var(--danger); border: 1.5px solid var(--danger); color: var(--on-danger); }
   .rosso-bordo { height: 40px; padding: 0 var(--space-16); background: var(--surface); border: 1.5px solid var(--danger); color: var(--danger); }
 </style>

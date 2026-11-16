@@ -1,6 +1,7 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type Richiesta, type Turno } from '../lib/api';
   import { ora } from '../lib/date';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
@@ -136,7 +137,7 @@
     {@render miniTurno(r.turno, '')}
     {@render passiDi(r)}
     {#if r.messaggio}<span class="muted small">«{r.messaggio}»</span>{/if}
-    <button class="btn btn-quieto btn-sm sx danger" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.annullaRichiesta(r.id), 'Richiesta annullata.')}>Annulla la richiesta</button>
+    <Conferma class="btn btn-quieto btn-sm sx danger" disabled={lavoro === r.id} domanda="Annulla?" onclick={() => azione(r.id, () => api.annullaRichiesta(r.id), 'Richiesta annullata.')}>Annulla la richiesta</Conferma>
   </article>
 {/snippet}
 
@@ -230,7 +231,7 @@
                 {#if occ}<span class="muted small">Quell'orario si sovrappone al tuo turno delle {ora(mioInTurno(r)!.inizio)}.</span>
                 {:else}<button class="btn btn-accent btn-sm sx" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.accetta(r.id), 'Grazie! Ora decide il coordinatore.')}>Lo copro io</button>{/if}
               {:else if scheda === 'mie'}
-                <button class="btn btn-quieto btn-sm sx danger" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.annullaRichiesta(r.id), 'Richiesta annullata.')}>Annulla la richiesta</button>
+                <Conferma class="btn btn-quieto btn-sm sx danger" disabled={lavoro === r.id} domanda="Annulla?" onclick={() => azione(r.id, () => api.annullaRichiesta(r.id), 'Richiesta annullata.')}>Annulla la richiesta</Conferma>
               {/if}
             </div>
           {/if}
@@ -280,7 +281,7 @@
   .passi .no i { background: var(--ferma); }
   .passi > b { flex: 0 0 14px; height: 1px; background: var(--line-strong); }
   .sx { align-self: flex-start; }
-  .danger { color: var(--danger); }
+  .scheda :global(.btn-quieto.danger), .dett :global(.btn-quieto.danger) { color: var(--danger); }
   .conclusa { display: flex; flex-direction: column; gap: 4px; padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line-soft); }
   .conclusa b { font-weight: 600; font-size: var(--text-md); }
   .conclusa .dopo { padding-left: 24px; font-size: var(--text-sm); }

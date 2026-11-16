@@ -4,6 +4,7 @@
   import { GIORNI_ESTESI } from '../lib/date';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
 
   /**
    * Esiti di fine stagione e passaggi di livello (ADR 0026, mockup A3). L'istruttore vede i suoi turni; chi ha il permesso
@@ -87,7 +88,7 @@
   const passa = (b: BambinoLivelli) =>
     esegui(() => api.passaDiLivello(b.iscrizioneId), `${b.nome} è in lista d'attesa in ${turno?.successivo}, davanti a chi aspetta: intanto resta nel suo turno.`);
   const annulla = (b: BambinoLivelli) =>
-    esegui(() => api.annullaPassaggio(b.passaggio!.id), `${b.nome} resta in ${turno?.corso}: tolto dalle liste d'attesa di ${turno?.successivo}.`);
+    esegui(() => api.annullaPassaggio(b.passaggio!.id), `${b.nome} resta in ${turno?.corso}: rimosso dalle liste d'attesa di ${turno?.successivo}.`);
 
   const iniziali = (b: BambinoLivelli) => `${b.nome.charAt(0)}${b.cognome.charAt(0)}`.toUpperCase();
   const colore = (c: string | null) => c ?? 'var(--line-strong)';
@@ -157,7 +158,7 @@
                     </span>
                   {:else if b.passaggio}
                     <span class="fatto">In attesa di un posto in {turno.successivo}{b.passaggio.posizione ? ` · ${b.passaggio.posizione}°` : ''}</span>
-                    <button type="button" class="btn btn-quieto btn-sm" disabled={lavoro} onclick={() => annulla(b)}>Annulla</button>
+                    <Conferma class="btn btn-quieto btn-sm" disabled={lavoro} domanda="Annulla?" onclick={() => annulla(b)}>Annulla</Conferma>
                   {:else}
                     <button type="button" class="btn btn-secondary btn-sm" disabled={lavoro} onclick={() => passa(b)}><Icona nome="su" />Passa adesso a {turno.successivo}</button>
                   {/if}

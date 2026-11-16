@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from './Icona.svelte';
+  import Conferma from './Conferma.svelte';
   import type { Occorrenza, SpazioPiano } from '../lib/api';
   import { giornoEsteso, ora } from '../lib/date';
   import { colore, etichettaSpazi, nomeCategoria, STATI } from '../lib/piano';
@@ -54,9 +55,11 @@
     <div class="azioni">
       {#if lezione}
         {#if modificata}
-          <button class="btn btn-secondary" onclick={azioni.ripristina}>
-            {o.stato === 'SALTATA' ? 'Si tiene regolarmente' : 'Annulla lo spostamento'}
-          </button>
+          {#if o.stato === 'SALTATA'}
+            <Conferma class="btn btn-secondary" tono="cloro" domanda="Si tiene?" onclick={azioni.ripristina}>Si tiene regolarmente</Conferma>
+          {:else}
+            <Conferma class="btn btn-secondary" domanda="Annulla?" onclick={azioni.ripristina}>Annulla lo spostamento</Conferma>
+          {/if}
         {:else if o.stato === 'REGOLARE'}
           <button class="btn btn-secondary" onclick={azioni.saltaOSposta}><Icona nome="oggi" />Salta o sposta questa data…</button>
         {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type PaginaRuoli, type Permesso } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -205,8 +206,8 @@
           <div class="persone">
             {#each ruolo.persone as p (p.assegnazioneId)}
               <div class="persona"><span class="av">{(p.nome[0] ?? '') + (p.cognome[0] ?? '')}</span><span class="t"><b>{p.nome} {p.cognome}</b><span>{dove(p.impiantoId)}</span></span>
-                <button type="button" class="x-btn" aria-label="Togli il ruolo a {p.nome} {p.cognome}" title="Togli il ruolo"
-                  onclick={() => confirm(`Togliere il ruolo «${ruolo.nome}» a ${p.nome} ${p.cognome}?`) && esegui(() => api.togliRuolo(p.assegnazioneId), `Ruolo tolto a ${p.nome} ${p.cognome}.`)}><Icona nome="chiudi" /></button></div>
+                <Conferma class="x-btn" etichetta="Rimuovi il ruolo a {p.nome} {p.cognome}" title="Rimuovi il ruolo" domanda="Rimuovi?"
+                  onclick={() => esegui(() => api.togliRuolo(p.assegnazioneId), `Ruolo rimosso a ${p.nome} ${p.cognome}.`)}><Icona nome="chiudi" /></Conferma></div>
             {/each}
             <form class="assegna" onsubmit={(e) => { e.preventDefault(); esegui(() => api.assegnaRuolo(ruolo.codice, assegna.accountId, assegna.impiantoId || null), 'Ruolo dato: vale da subito.').then((ok) => ok && (assegna.accountId = '')); }}>
               <select class="inp" bind:value={assegna.accountId} aria-label="Persona"><option value="" disabled>Dai il ruolo a qualcuno…</option>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from './Icona.svelte';
+  import Conferma from './Conferma.svelte';
   import { untrack } from 'svelte';
   import {
     api, ErroreApi, messaggioErrore,
@@ -213,7 +214,7 @@
           <span class="grow small">Ricarica di {euro(s.inSospeso.importo)} in sospeso dal {dataBreve(dataDi(s.inSospeso.creataIl))}: forse è già sul braccialetto ({s.inSospeso.creditiDopo} crediti), ma non è pagata.</span>
           {#if puoRicaricare}
             {#if lettore}<button type="button" class="mini-btn pieno" onclick={() => riprendi(s)}>Rileggi e registra…</button>{/if}
-            <button type="button" class="mini-btn rosso" disabled={lavoro} onclick={() => annulla(s.inSospeso!.operazione)}>Annulla</button>
+            <Conferma class="mini-btn rosso" domanda="Annulla?" etichetta="Annulla la ricarica in sospeso" disabled={lavoro} onclick={() => annulla(s.inSospeso!.operazione)}>Annulla</Conferma>
           {/if}
         </li>
       {/if}
@@ -271,7 +272,7 @@
       <label class="field"><span class="lbl">Come si paga</span>
         <select class="inp" bind:value={p.metodoId}>{#each metodi as m (m.id)}<option value={m.id}>{m.borsellino ? `Borsellino (credito: ${euro(euroDisponibili)})` : m.nome}</option>{/each}</select></label>
       <div class="row">
-        <button type="button" class="btn btn-secondary grow" disabled={lavoro} onclick={() => annulla(p.preparata.operazione)}>Annulla la ricarica</button>
+        <Conferma class="btn btn-secondary grow" domanda="Annulla?" disabled={lavoro} onclick={() => annulla(p.preparata.operazione)}>Annulla la ricarica</Conferma>
         {#if Object.keys(p.preparata.scrivi).length}
           <button type="button" class="btn btn-secondary grow" disabled={lavoro} onclick={() => fai(scriviEConferma)}>Riprova a scrivere</button>
         {/if}

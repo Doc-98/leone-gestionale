@@ -4,6 +4,7 @@
   import { ora } from '../lib/date';
   import { TIPI_EVENTO } from '../lib/piano';
   import SceltaSpazi from '../components/SceltaSpazi.svelte';
+  import Conferma from '../components/Conferma.svelte';
 
   let { evento, impiantoId, spazi, personale, data = '', inizio = '17:00', spazio = '', fatto, annullato }: {
     evento: Evento | null;
@@ -35,7 +36,6 @@
   let tuttoIlGiorno = $state(iniz.evento ? ora(iniz.evento.inizio) === '00:00' && ora(iniz.evento.fine) === '23:59' : false);
   let errore = $state('');
   let lavoro = $state(false);
-  let confermaAnnulla = $state(false);
 
   const chiusura = $derived(tipo === 'CHIUSURA');
   // titolo proposto finché non lo si scrive
@@ -66,7 +66,6 @@
 
   async function annulla() {
     if (!evento) return;
-    if (!confermaAnnulla) return (confermaAnnulla = true);
     lavoro = true;
     try {
       await api.annullaEvento(evento.id);
@@ -121,7 +120,7 @@
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
   <button class="btn btn-primary" disabled={lavoro}>{evento ? 'Salva' : 'Aggiungi al piano'}</button>
   {#if evento}
-    <button type="button" class="btn btn-danger" disabled={lavoro} onclick={annulla}>{confermaAnnulla ? "Tocca di nuovo per annullare l'evento" : "Annulla l'evento"}</button>
+    <Conferma class="btn btn-danger" disabled={lavoro} domanda="Annulla?" onclick={annulla}>Annulla l'evento</Conferma>
   {/if}
 </form>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import Azione from '../components/Azione.svelte';
   import Foglio from '../components/Foglio.svelte';
   import GrigliaPostazioni, { type Blocco, type Colonna } from '../components/GrigliaPostazioni.svelte';
@@ -154,7 +155,7 @@
 
   const togliRiga = () => esegui(async () => {
     if (!scelto || !riga?.id) return;
-    aggiornato(await api.togliRiga(scelto.id, riga.id), 'Turno tolto dalla settimana tipo.');
+    aggiornato(await api.togliRiga(scelto.id, riga.id), 'Turno eliminato dalla settimana tipo.');
     riga = null;
   });
 
@@ -212,7 +213,7 @@
         <b class="titolo-m">{scelto.nome}</b>
         <button class="mini-btn" type="button" onclick={() => ((rinomina = true), (bozza = scelto.nome))}>Rinomina</button>
         <button class="mini-btn" type="button" disabled={lavoro} onclick={duplica}>Duplica</button>
-        {#if modelli.length > 1}<button class="mini-btn rosso" type="button" disabled={lavoro} onclick={elimina}>Elimina</button>{/if}
+        {#if modelli.length > 1}<Conferma class="mini-btn rosso" disabled={lavoro} domanda="Elimina?" onclick={elimina}>Elimina</Conferma>{/if}
       {/if}
     </div>
   {/if}
@@ -321,7 +322,7 @@
   <span class="muted small">{testoRiservata(postazioneRiga)}Cambia la settimana tipo, non i turni già creati: vale dai prossimi mesi che generi.</span>
   <div class="azioni-r">
     <button class="btn btn-primary grow" type="button" disabled={lavoro} onclick={salvaRiga}>Salva</button>
-    {#if riga?.id}<button class="btn btn-danger" type="button" disabled={lavoro} onclick={togliRiga}>Togli</button>{/if}
+    {#if riga?.id}<Conferma class="btn btn-danger" disabled={lavoro} domanda="Elimina?" onclick={togliRiga}>Elimina</Conferma>{/if}
   </div>
 {/snippet}
 

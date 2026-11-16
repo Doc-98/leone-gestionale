@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import Foglio from '../components/Foglio.svelte';
   import { schermo } from '../lib/schermo.svelte';
   import { api, messaggioErrore, type Evento, type Stagione } from '../lib/api';
@@ -101,7 +102,7 @@
     lavoro = true;
     try {
       for (const id of v.eventi) await api.annullaEvento(id);
-      messaggio = `«${v.nome}» tolta dal calendario.`;
+      messaggio = `«${v.nome}» eliminata dal calendario.`;
     } catch (e) {
       errore = messaggioErrore(e);
     } finally {
@@ -204,7 +205,7 @@
           <span class="intesta"><h2 class="grow">Chiusure</h2><span class="muted small">{elenco.length === 1 ? '1 voce' : `${elenco.length} voci`}</span></span>
           {#each elenco as v (v.eventi[0])}
             <div class="ch"><i class={v.tipo}></i><span class="t"><b>{v.nome}</b><span>{quando(v)}</span></span>
-              {#if modifica}<button class="x-btn" type="button" aria-label={`Togli ${v.nome}`} disabled={lavoro} onclick={() => togli(v)}><Icona nome="chiudi" /></button>{/if}
+              {#if modifica}<Conferma class="x-btn" etichetta={`Elimina ${v.nome}`} disabled={lavoro} domanda="Elimina?" onclick={() => togli(v)}><Icona nome="chiudi" /></Conferma>{/if}
             </div>
           {:else}
             <p class="muted small nomargin">Nessuna chiusura segnata per questa stagione.</p>

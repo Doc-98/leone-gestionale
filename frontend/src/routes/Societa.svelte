@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Conferma from '../components/Conferma.svelte';
   import LineaStagione from '../components/impostazioni/LineaStagione.svelte';
   import { api, messaggioErrore, type DatiSocieta, type GruppoClienti, type MembroGruppo, type NuovaStagione, type Stagione } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
@@ -112,12 +113,12 @@
   }
   async function eliminaStagione() {
     const s = stagioni.find((x) => x.id === scelta);
-    if (!s || !confirm(`Eliminare la stagione ${s.nome}? I tesseramenti già registrati restano com'erano.`)) return;
+    if (!s) return;
     try {
       await api.eliminaStagione(s.id);
       scelta = null;
       await carica();
-      messaggio = `Stagione ${s.nome} eliminata.`;
+      messaggio = `Stagione ${s.nome} eliminata. I tesseramenti già registrati restano com'erano.`;
     } catch (e) {
       errore = messaggioErrore(e);
     }
@@ -231,7 +232,7 @@
       </div>
       {#if scelta !== 'nuova'}
         <div class="riga-imp"><span class="t"><span>Una stagione si elimina solo se non ha listino né tesseramenti legati.</span></span>
-          <span class="ctl"><button class="mini-btn rosso" type="button" onclick={eliminaStagione}><Icona nome="cestino" />Elimina la stagione</button></span></div>
+          <span class="ctl"><Conferma class="mini-btn rosso" domanda="Elimina?" onclick={eliminaStagione}><Icona nome="cestino" />Elimina la stagione</Conferma></span></div>
       {/if}
     {/if}
   </section>

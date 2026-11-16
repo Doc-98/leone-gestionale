@@ -231,7 +231,7 @@
               <input class="inp m importo" type="number" min="0.01" step="0.01" bind:value={r.importo} aria-label="Importo in euro" readonly={!flessibile}
                      title={flessibile ? '' : 'Per un acconto serve il permesso «Acconti e pagamenti misti»'} />
               {#if metodo(r.metodoId)?.daIncassare}<input class="inp" bind:value={r.riferimento} placeholder="Riferimento (es. CRO)" maxlength="120" aria-label="Riferimento" />{/if}
-              {#if modulo.righe.length > 1}<Azione icona="chiudi" etichetta="Togli questo metodo" onclick={() => modulo!.righe.splice(i, 1)} />{/if}
+              {#if modulo.righe.length > 1}<Azione icona="chiudi" etichetta="Rimuovi questo metodo" onclick={() => modulo!.righe.splice(i, 1)} />{/if}
             </div>
           {/each}
           {#if flessibile}<button type="button" class="btn btn-secondary btn-sm sx" title="Es. parte in contanti, parte con la carta" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: String(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>

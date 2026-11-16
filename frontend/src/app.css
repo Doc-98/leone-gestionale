@@ -235,10 +235,22 @@ label:has(> input[type='file']:focus-visible) { outline: 2px solid var(--cloro);
 .azione[aria-pressed='true'] { background: var(--cloro-soft); color: var(--cloro-ink); }
 .azione:disabled { opacity: 0.4; cursor: default; }
 /* Armata: la domanda a parole, nel colore dell'azione, con il bordo (lo stato non si affida al solo colore) */
-.azione.armata { width: auto; padding: 0 var(--space-12); border: 1px solid currentColor; background: var(--surface); color: var(--cloro);
+.azione.azione.armata { width: auto; padding: 0 var(--space-12); border: 1px solid currentColor; background: var(--surface); color: var(--danger);
   font-size: var(--text-sm); font-weight: 600; white-space: nowrap; }
-.azione.armata.danger { color: var(--danger); }
-.azione.armata:hover { background: var(--surface); }
+/* armato è rosso di norma (elimina, rimuovi, annulla…); cloro solo per le azioni che creano qualcosa («Nuova password?») */
+.azione.azione.armata.cloro { color: var(--cloro); }
+.azione.azione.armata:hover { background: var(--surface); }
+/* Conferma in due tocchi sui pulsanti con testo (components/Conferma.svelte): contenuto e domanda nella stessa cella,
+   così non è mai più stretto di prima; armato = la domanda a parole dentro un bordo pieno rosso (come .azione.armata.danger) */
+span.conf-w { display: inline-grid; gap: inherit; justify-content: inherit; align-items: center; min-width: 0; }
+span.conf-w > .conf-c { grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: inherit; gap: inherit; min-width: 0; }
+span.conf-w > .conf-nascosto { visibility: hidden; }
+button.conf.conf-armata span.conf-w { justify-items: stretch; }
+button.conf.conf-armata span.conf-w > .conf-c { justify-content: center; }
+button.conf.conf-armata.conf-armata, button.conf.conf-armata.conf-armata:hover { width: auto; border: 1px solid var(--danger); background: var(--surface); color: var(--danger);
+  font-weight: 700; white-space: nowrap; }
+button.conf.conf-armata.conf-armata.conf-cloro, button.conf.conf-armata.conf-armata.conf-cloro:hover { border-color: var(--cloro); color: var(--cloro); }
+button.x-btn.conf-armata { height: 32px; padding: 0 var(--space-8); border-radius: var(--radius-md); font-size: var(--text-sm); }
 .gruppo-azioni { display: inline-flex; align-items: center; gap: var(--space-4); flex-shrink: 0; }
 
 /* Pulsante piccolo: azioni secondarie dentro le card («Aggiungi un prezzo», «Mostra tutto»), sempre con un'icona */

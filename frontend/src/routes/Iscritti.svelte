@@ -136,7 +136,7 @@
   async function rinuncia(v: VoceAttesa) {
     try {
       await api.rinunciaAttesa(v.id);
-      messaggio = `${v.nome} ${v.cognome} tolto dalla lista d'attesa.`;
+      messaggio = `${v.nome} ${v.cognome} rimosso dalla lista d'attesa.`;
       await carica();
     } catch (e) {
       errore = messaggioErrore(e);
@@ -224,7 +224,7 @@
             </span>
             <span class="gruppo-azioni">
               <Azione icona="persona-piu" tono="cloro" etichetta={`Iscrivi ${v.nome} ${v.cognome}`} onclick={() => daAttesa(v)} />
-              <Azione icona="cestino" tono="danger" etichetta={`Togli ${v.nome} ${v.cognome} dalla lista d'attesa`} conferma="Togli?" onclick={() => rinuncia(v)} />
+              <Azione icona="cestino" tono="danger" etichetta={`Rimuovi ${v.nome} ${v.cognome} dalla lista d'attesa`} conferma="Rimuovi?" onclick={() => rinuncia(v)} />
             </span>
           </li>
         {/each}

@@ -157,7 +157,7 @@
       </span>
       <span class="azioni">
         {#if a.attivo}
-          <Azione icona="chiave" etichetta={`Reimposta la password di ${a.nome} ${a.cognome}`} conferma="Nuova password?" onclick={() => reimposta(a)} />
+          <Azione icona="chiave" etichetta={`Reimposta la password di ${a.nome} ${a.cognome}`} tono="cloro" conferma="Nuova password?" onclick={() => reimposta(a)} />
           {#if a.id !== sessione.utente?.accountId}
             <Azione icona="spegni" tono="danger" etichetta={`Disattiva l'account di ${a.nome} ${a.cognome}`} conferma="Disattiva?"
               onclick={() => esegui(() => api.disattivaAccount(a.id), `Account di ${a.nome} ${a.cognome} disattivato: è uscito da tutti i dispositivi.`)} />
