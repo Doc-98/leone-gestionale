@@ -11,7 +11,8 @@ import org.springframework.boot.json.JsonParserFactory;
 class CreditiBraccialettoTest extends ProvaApi {
 
     static final String PHON = "00000000-0000-0000-0000-000000000a01";
-    static final String CODICE = "7B7B7B01";
+    /** Solo di questo test: i test condividono il database, e un codice già usato altrove non si può riassegnare. */
+    static final String CODICE = "7D7D7D01";
     /** Il blocco 4 del formato di prova con quei crediti. */
     private static String blocco(int crediti) {
         var h = HexFormat.of().withUpperCase();
