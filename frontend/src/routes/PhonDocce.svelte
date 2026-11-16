@@ -216,6 +216,9 @@
         {#if regole.creditiSu === 'BRACCIALETTO'}
           <p class="muted small nota-m">Con i crediti sul braccialetto le macchine non chiamano il gestionale: chiave e ultimo contatto servono solo se un giorno si collegano.</p>
         {/if}
+        {#if puo && dispositivi.length}
+          <p class="muted small nota-m una-riga">Una chiave nuova spegne subito quella vecchia.</p>
+        {/if}
         {#if maiCollegate}
           <div class="avvisa"><Icona nome="avviso" />{maiCollegate === dispositivi.filter((d) => d.attivo).length ? 'Nessuna si è ancora collegata' : `${maiCollegate} non si sono ancora collegate`}: ognuna va configurata con la sua chiave.</div>
         {/if}
@@ -226,7 +229,7 @@
               <span class="ico-m"><Icona nome={d.tipo === 'SALDO' ? 'occhio' : 'macchine'} /></span>
               <span class="t"><b>{d.nome}</b><span>{d.tipo === 'SALDO' ? 'mostra il saldo' : d.servizio?.toLowerCase()} · {quando(d.ultimoContatto)}{d.utilizziOggi ? ` · oggi ${d.utilizziOggi}` : ''}{d.attivo ? '' : ' · spenta'}</span></span>
               {#if puo}
-                <Conferma class="mini-btn" tono="cloro" domanda="Nuova chiave?" onclick={() => rigenera(d)}>Chiave</Conferma>
+                <Conferma class="mini-btn" tono="cloro" domanda="Nuova chiave?" title="Una chiave nuova: quella vecchia smette subito di funzionare" onclick={() => rigenera(d)}>Chiave</Conferma>
                 <button type="button" class="x-btn" aria-label={d.attivo ? `Spegni «${d.nome}»` : `Riaccendi «${d.nome}»`} title={d.attivo ? 'Spegni' : 'Riaccendi'} onclick={() => accendi(d)}><Icona nome="spegni" /></button>
               {/if}
             </div>
@@ -259,6 +262,7 @@
   .dove-s[aria-checked='true'] { border-color: var(--cloro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cloro) 25%, transparent); }
   .pallino-r { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong); }
   .dove-s[aria-checked='true'] .pallino-r { border: 5px solid var(--cloro); }
+  .una-riga { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nota-m { margin: 0; padding: var(--space-10) var(--space-16) 0; }
   fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
   .largo-p { flex-basis: 380px !important; max-width: 440px !important; }

@@ -118,7 +118,7 @@
       await api.eliminaStagione(s.id);
       scelta = null;
       await carica();
-      messaggio = `Stagione ${s.nome} eliminata.`;
+      messaggio = `Stagione ${s.nome} eliminata. I tesseramenti già registrati restano com'erano.`;
     } catch (e) {
       errore = messaggioErrore(e);
     }
