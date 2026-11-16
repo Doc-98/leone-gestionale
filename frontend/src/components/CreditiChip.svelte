@@ -271,7 +271,7 @@
       {#if p.problema}<p class="msg err nomargin" role="alert">{p.problema}</p>{/if}
       <label class="field"><span class="lbl">Come si paga</span>
         <select class="inp" bind:value={p.metodoId}>{#each metodi as m (m.id)}<option value={m.id}>{m.borsellino ? `Borsellino (credito: ${euro(euroDisponibili)})` : m.nome}</option>{/each}</select></label>
-      <div class="row">
+      <div class="row azioni-passo">
         <Conferma class="btn btn-secondary grow" domanda="Annulla?" disabled={lavoro} onclick={() => annulla(p.preparata.operazione)}>Annulla la ricarica</Conferma>
         {#if Object.keys(p.preparata.scrivi).length}
           <button type="button" class="btn btn-secondary grow" disabled={lavoro} onclick={() => fai(scriviEConferma)}>Riprova a scrivere</button>
@@ -302,4 +302,7 @@
   .corto { width: 120px; }
   select.inp { appearance: auto; }
   .rosso { color: var(--danger); }
+  /* le etichette non vanno a capo: se non ci stanno affiancati, i pulsanti si impilano */
+  .azioni-passo { flex-wrap: wrap; }
+  .azioni-passo :global(.btn) { white-space: nowrap; flex: 1 1 auto; }
 </style>

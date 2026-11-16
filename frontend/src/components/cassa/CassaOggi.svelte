@@ -33,6 +33,8 @@
   let note = $state('');
   let tagli = $state(false);
   let esito = $state<EsitoConfronto | null>(null);
+  /** Cosa è appena successo, quando dalla pagina non si vedrebbe (un movimento annullato sparisce). */
+  let fatto = $state('');
   let mov = $state<{ tipo: TipoMovimentoCassa; importo: string; descrizione: string } | null>(null);
   let fatta = $state<SessioneCassa | null>(null);
   let riapri = $state<string | null>(null);
@@ -90,6 +92,7 @@
 
   async function fai<T>(azione: () => Promise<T>, poi?: (r: T) => void) {
     errore = '';
+    fatto = '';
     lavoro = true;
     try {
       const r = await azione();
@@ -167,6 +170,7 @@
   {/each}
 
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
+  {#if fatto}<p class="msg ok nomargin" role="status">{fatto}</p>{/if}
 
   {#if fatta}
     {@const e = esitoDifferenza(fatta.differenza ?? 0)}
@@ -226,9 +230,9 @@
         {#each movimenti as m (m.id)}
           <span class="mov"><span class="grow"><b>{nomeTipo(m.tipo).nome}</b>{m.descrizione !== nomeTipo(m.tipo).nome ? ` · ${m.descrizione}` : ''}
             <span class="muted small"> · {oraDi(m.registratoIl)}{m.registratoDa ? `, ${nome1(m.registratoDa)}` : ''}</span></span>
-            <span class="m">{nomeTipo(m.tipo).segno}{euro(m.importo)}</span>
+            <span class="m imp-mov">{nomeTipo(m.tipo).segno}{euro(m.importo)}</span>
             <Azione icona="annulla" etichetta={`Annulla ${nomeTipo(m.tipo).nome.toLowerCase()} di ${euro(m.importo)}`} conferma="Annulla?" disabled={lavoro}
-              onclick={() => fai(() => api.annullaMovimentoCassa(m.id))} /></span>
+              onclick={() => fai(() => api.annullaMovimentoCassa(m.id), () => (fatto = `${nomeTipo(m.tipo).nome} di ${euro(m.importo)}: annullato.`))} /></span>
         {/each}
         {#if s.nascosti}
           <span class="spiega-c">Conta alla cieca: i contanti attesi si vedono dopo il conteggio.</span>
@@ -414,6 +418,7 @@
   .voci li.fuori { background: var(--warn-bg); }
   .ora { color: var(--muted); min-width: 40px; }
   .tronca { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .imp-mov { white-space: nowrap; flex-shrink: 0; }
   .mov { display: flex; align-items: center; gap: var(--space-8); font-size: var(--text-md); padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
   .nuovo-mov { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12); border-radius: var(--radius-md); border: 1px solid var(--line); }
   .riga-f { display: flex; gap: var(--space-8); flex-wrap: wrap; }

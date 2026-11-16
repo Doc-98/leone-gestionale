@@ -212,7 +212,7 @@
     if (!o.eccezioneId) return;
     try {
       await api.togliEccezione(o.eccezioneId);
-      fatto(`${o.titolo}: torna al suo giorno e orario.`);
+      fatto(o.stato === 'SALTATA' ? `${o.titolo}: si tiene regolarmente.` : `${o.titolo}: torna al suo giorno e orario.`);
     } catch (e) {
       errore = messaggioErrore(e);
     }

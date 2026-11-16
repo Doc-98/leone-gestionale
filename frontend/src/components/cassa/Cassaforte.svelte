@@ -12,6 +12,7 @@
   let { cambiata }: { cambiata?: () => void } = $props();
   let cf = $state<Cassaforte | null>(null);
   let errore = $state('');
+  let fatto = $state('');
   let lavoro = $state(false);
   let banca = $state<{ data: string; distinta: string; note: string } | null>(null);
   const puoAnnullare = $derived(sessione.puo('PAGAMENTI_ANNULLA'));
@@ -26,14 +27,16 @@
   }
   carica();
 
-  async function fai(azione: () => Promise<unknown>) {
+  async function fai(azione: () => Promise<unknown>, detto = '') {
     errore = '';
+    fatto = '';
     lavoro = true;
     try {
       await azione();
       banca = null;
       await carica();
       cambiata?.();
+      fatto = detto;
     } catch (e) {
       errore = messaggioErrore(e);
     } finally {
@@ -45,6 +48,7 @@
 <section class="card pann" aria-label="Contanti in cassaforte">
   <span class="lbl">Contanti in cassaforte</span>
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
+  {#if fatto}<p class="msg ok nomargin" role="status">{fatto}</p>{/if}
   {#if cf}
     <span class="v">{euro(cf.totale)}</span>
     {#if cf.chiusure.length}
@@ -71,7 +75,7 @@
           <li class:annullato={v.annullato}><span>{dataBreve(v.data)}{v.distinta ? ` · distinta ${v.distinta}` : ''}{v.annullato ? ' · annullato' : ''}</span>
             <span class="dx"><span class="m">{euro(v.importo)}</span>
               {#if puoAnnullare && !v.annullato}<Azione icona="annulla" etichetta={`Annulla il versamento del ${dataBreve(v.data)}`} conferma="Annulla?" disabled={lavoro}
-                onclick={() => fai(() => api.annullaVersamento(v.id))} />{/if}</span></li>
+                onclick={() => fai(() => api.annullaVersamento(v.id), `Versamento del ${dataBreve(v.data)}: annullato.`)} />{/if}</span></li>
         {/each}
       </ul>
     {/if}
