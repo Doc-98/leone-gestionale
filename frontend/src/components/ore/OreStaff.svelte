@@ -105,7 +105,7 @@
         </button>
         {#if aperto === p.persona.id}
           <div class="dett">
-            <span class="voci">
+            <span class="voci-ore">
               {#each p.voci as v (v.mansione + v.euroOra)}
                 <span class="m small">{v.mansione}: {formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : `${euro(v.euroOra)} = ${euro(v.compenso)}`}</span>
               {/each}
@@ -129,9 +129,7 @@
   .gruppi { grid-template-columns: repeat(auto-fit, minmax(0, max-content)); align-self: flex-start; max-width: 100%; overflow-x: auto; }
   .gruppi button { white-space: nowrap; padding: 0 var(--space-14); }
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-10); }
-  .tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); min-width: 0; }
-  .tile .v { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
-  .tile .n { font-size: var(--text-xs); color: var(--muted); }
+  .tile .v { font-size: 26px; } /* un po' più piccola del .tile .v globale (28px) */
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
   .tile.hero-t { background: var(--hero); color: var(--on-ink); border-color: transparent; }
   .tile.hero-t .lbl, .tile.hero-t .n { color: var(--on-ink-muted); }
@@ -161,7 +159,7 @@
   .quota { height: 8px; border-radius: 4px; background: var(--surface-sunken); overflow: hidden; }
   .quota i { display: block; height: 100%; background: var(--cloro); }
   .dett { padding: 0 var(--space-16) var(--space-14) 56px; display: flex; flex-wrap: wrap; gap: var(--space-10) var(--space-20); align-items: flex-end; }
-  .voci { flex: 1 1 280px; display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+  .voci-ore { flex: 1 1 280px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; color: var(--muted); }
   .azioni { display: flex; gap: var(--space-8); }
   .azioni a { text-decoration: none; }
   .totale { padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line); background: var(--surface-sunken); font-weight: 700; font-size: var(--text-md); }

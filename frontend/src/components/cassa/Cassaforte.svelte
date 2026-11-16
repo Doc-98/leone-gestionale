@@ -84,7 +84,7 @@
 </section>
 
 <style>
-  .pann { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
+  .pann { gap: var(--space-10); } /* un po' più stretto del .pann globale (12px) */
   .v { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 800; line-height: 1; }
   .el { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); font-size: var(--text-sm); }
   .el li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-8); min-height: 28px; }

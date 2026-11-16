@@ -119,7 +119,7 @@
 {:else if vista === 'corsi'}
   <div class="gruppi">
     {#each gruppi as g (g.chiave)}
-      <div class="card gruppo {g.tipo} {g.turno ? colore(g.turno.tipo ?? 'ALTRO') : ''}">
+      <div class="card gruppo-passaggi {g.tipo} {g.turno ? colore(g.turno.tipo ?? 'ALTRO') : ''}">
         <div class="g-testa">
           {#if g.turno}<span class="liv" style:background={g.turno.colore ?? 'var(--c-line)'} aria-hidden="true"></span>{/if}
           <span class="g-titolo">{g.titolo}</span>
@@ -216,9 +216,9 @@
 
   /* per corso */
   .gruppi { display: flex; flex-direction: column; gap: var(--space-8); }
-  .gruppo { padding: 0; overflow: hidden; box-shadow: inset 4px 0 0 var(--c-line, var(--line-strong)); }
-  .gruppo.fermati { --c-bg: var(--ferma-bg); --c-fg: var(--ferma); --c-line: var(--ferma); }
-  .gruppo.senza, .gruppo.uscite { --c-bg: var(--surface-sunken); --c-fg: var(--muted); --c-line: var(--line-strong); }
+  .gruppo-passaggi { display: flex; flex-direction: column; gap: var(--space-6); padding: 0; overflow: hidden; box-shadow: inset 4px 0 0 var(--c-line, var(--line-strong)); }
+  .gruppo-passaggi.fermati { --c-bg: var(--ferma-bg); --c-fg: var(--ferma); --c-line: var(--ferma); }
+  .gruppo-passaggi.senza, .gruppo-passaggi.uscite { --c-bg: var(--surface-sunken); --c-fg: var(--muted); --c-line: var(--line-strong); }
   .g-testa { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-14) var(--space-8) 18px; background: var(--c-bg); color: var(--c-fg); }
   .g-titolo { flex: 1; min-width: 0; font-weight: 700; font-size: var(--text-sm); }
   .g-sotto { font-size: var(--text-xs); font-weight: 600; }

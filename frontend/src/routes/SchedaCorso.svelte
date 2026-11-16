@@ -646,7 +646,7 @@
   .fino .inp { height: 40px; width: 170px; font-size: var(--text-md); }
   .rapido-piede { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16) var(--space-16); background: var(--carta); border-top: 1px solid var(--line-soft); }
 
-  .hint { display: flex; align-items: flex-start; gap: var(--space-10); }
+  .hint { gap: var(--space-10); } /* più largo del .hint globale (8px) */
   .hint .link { display: inline; min-height: 0; height: auto; padding: 0; border: none; background: none; font: inherit; color: var(--cloro); text-decoration: underline; cursor: pointer; }
 
   .blocco { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-16) var(--space-20); }

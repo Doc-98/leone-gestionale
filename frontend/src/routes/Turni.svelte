@@ -186,5 +186,4 @@
   .link-ore { text-decoration: none; color: var(--ink); }
   .link-r { font-size: var(--text-sm); font-weight: 700; color: var(--cloro); text-decoration: none; white-space: nowrap; }
   .warn { color: var(--warn); }
-  .nomargin { margin: 0; }
 </style>

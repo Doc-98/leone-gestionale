@@ -116,7 +116,7 @@
       <div class="card colonna">
         <span class="c-testa"><span class="ico piccola" aria-hidden="true"><Icona nome={c.icona} /></span><span class="lbl">{c.nome}</span><span class="grow"></span><b class="c-n">{c.voci.length}</b></span>
         {#each c.voci as d (d.passaggioId)}
-          <button type="button" class="voce" class:scelto={d.passaggioId === scelto} onclick={() => onapri(d.passaggioId)}>
+          <button type="button" class="riga-da-sistemare" class:scelto={d.passaggioId === scelto} onclick={() => onapri(d.passaggioId)}>
             <span class="v-testa"><span class="nome">{nome(d)}</span><span class="m ora">{oraDi(d.istante)}</span></span>
             <span class="v-motivo">{motivoBreve(d.motivi)}</span>
           </button>
@@ -139,7 +139,7 @@
 {/if}
 
 <style>
-  .nome, .link-muto, .pillola, .voce { font: inherit; color: inherit; text-align: left; }
+  .nome, .link-muto, .pillola, .riga-da-sistemare { font: inherit; color: inherit; text-align: left; }
   .nome { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   button.nome { border: none; background: none; padding: 0; cursor: pointer; color: var(--ink); }
   button.nome:hover { text-decoration: underline; }
@@ -196,7 +196,7 @@
   .colonna { padding: var(--space-12); display: flex; flex-direction: column; gap: var(--space-8); }
   .c-testa { display: flex; align-items: center; gap: var(--space-8); }
   .c-n { color: var(--ferma); }
-  .voce { width: 100%; display: flex; flex-direction: column; gap: 3px; padding: var(--space-8) var(--space-10); border: none; border-radius: var(--radius-sm);
+  .riga-da-sistemare { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 56px; padding: var(--space-8) var(--space-10); border: none; border-radius: var(--radius-sm);
     background: var(--ferma-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ferma) 30%, transparent); cursor: pointer; }
   .v-testa { display: flex; align-items: baseline; gap: var(--space-8); }
   .v-testa .nome { flex: 1; font-size: var(--text-sm); }

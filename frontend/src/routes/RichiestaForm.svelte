@@ -149,5 +149,4 @@
   .collega .small { color: var(--warn); white-space: nowrap; }
   .collega .small.libero { color: var(--passa); }
   .collega .muted.small { color: var(--muted); }
-  .nomargin { margin: 0; }
 </style>

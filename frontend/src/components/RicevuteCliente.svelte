@@ -44,5 +44,4 @@
 <style>
   .ricevute-c { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-8); border-top: 1px solid var(--line); }
   .elenco > :global(.ric + .ric) { border-top: 1px solid var(--line-soft); }
-  .sx { align-self: flex-start; min-height: 32px; }
 </style>

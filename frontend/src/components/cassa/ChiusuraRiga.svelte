@@ -110,11 +110,6 @@
   .diff.piu .m { color: var(--warn); }
   .diff.meno .m { color: var(--ferma-fg); }
   .stato { justify-self: end; }
-  .pill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
-  .pill.warn { background: var(--warn-bg); color: var(--warn); }
-  .pill.cloro { background: var(--cloro-soft); color: var(--cloro-ink); }
-  .pill.ferma { background: var(--ferma-bg); color: var(--ferma-fg); }
-  .pill.passa { background: var(--passa-bg); color: var(--passa-fg); }
   .dett { display: flex; flex-direction: column; gap: var(--space-8); padding: 0 var(--space-16) var(--space-14); }
   .fatti { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-8); }
   .fatto { display: flex; flex-direction: column; gap: 2px; padding: var(--space-8) var(--space-10); border-radius: var(--radius-md); background: var(--carta); font-size: var(--text-sm); color: var(--muted); }

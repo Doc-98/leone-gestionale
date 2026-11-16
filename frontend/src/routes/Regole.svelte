@@ -74,7 +74,7 @@
             <span class="unita">{p.etichetta}</span>
             <input class="inp" type="number" min="0" max={p.max} bind:value={b.valori[p.nome]} disabled={!admin || b.vuoti[p.nome]} aria-label={p.etichetta} />
             <span class="unita">{p.unita}</span>
-            {#if p.facoltativo}<label class="vuoto"><input type="checkbox" bind:checked={b.vuoti[p.nome]} disabled={!admin} /> {p.seVuoto}</label>{/if}
+            {#if p.facoltativo}<label class="se-vuoto"><input type="checkbox" bind:checked={b.vuoti[p.nome]} disabled={!admin} /> {p.seVuoto}</label>{/if}
           </span>
         {/each}
       </span>
@@ -116,8 +116,10 @@
   .desc { font-size: var(--text-sm); color: var(--muted); }
   .par { display: flex; align-items: center; gap: var(--space-8); margin-top: var(--space-6); flex-wrap: wrap; }
   .par .inp { width: 70px; height: 36px; text-align: center; font-family: var(--font-mono); }
-  .vuoto { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
-  .vuoto input { width: 18px; height: 18px; }
+  .se-vuoto { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
+  .se-vuoto input { width: 18px; height: 18px; }
+  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
+  .salva-bar .vuoto { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
   .spenta .t b, .spenta .par { opacity: 0.5; }
   .oro { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--oro-bg); color: var(--oro-fg); font-size: 11px; font-weight: 700; }
   @media (max-width: 800px) {

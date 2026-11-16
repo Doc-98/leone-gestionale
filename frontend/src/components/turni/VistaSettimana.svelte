@@ -84,5 +84,4 @@
   .nota.cloro { color: var(--cloro-ink); }
   .nota.warn { color: var(--warn); }
   .liberi { padding: 2px var(--space-4); }
-  .nomargin { margin: 0; }
 </style>

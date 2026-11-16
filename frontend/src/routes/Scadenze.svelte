@@ -206,7 +206,7 @@
           {#each g.voci.slice(0, aperti[g.id] ?? PASSO) as v (chiave(v))}
             {@const q = quando(v)}
             {@const t = tipoBreve(v.tipo)}
-            <li class="voce" class:largo={schermo.larga} class:scelta={scelte[chiave(v)]}>
+            <li class="riga-scadenza" class:largo={schermo.larga} class:scelta={scelte[chiave(v)]}>
               <input type="checkbox" checked={!!scelte[chiave(v)]} onchange={() => scegli(v)} aria-label="Scegli {v.nome} {v.cognome}" />
               <span class="ico-t {t}" aria-hidden="true"><Icona nome={ICONE[t]} /></span>
               <span class="col">
@@ -321,10 +321,7 @@
   .conto { margin-left: var(--space-6); opacity: 0.65; }
   .cerca { width: 240px; }
 
-  .riep { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-10); }
-  .tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); }
-  .tile .v { font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.1; }
-  .tile .n { font-size: var(--text-xs); color: var(--muted); }
+  .riep { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* quattro riquadri sempre in fila (il globale va a capo da solo) */
   .tile.rosso { background: var(--ferma-bg); border-color: transparent; } .tile.rosso .v { color: var(--ferma); }
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
 
@@ -336,18 +333,18 @@
   .b-chiaro:disabled { opacity: 0.6; cursor: default; }
   .b-vuoto { border: 1px solid color-mix(in srgb, var(--on-ink) 35%, transparent); background: transparent; color: var(--on-ink); font-weight: 600; }
 
-  .gruppo { display: flex; flex-direction: column; gap: var(--space-8); }
+  .gruppo { gap: var(--space-8); } /* più largo del .gruppo globale (6px) */
   .g-testa { display: flex; align-items: center; gap: var(--space-10); min-height: 28px; }
   .g-testa h2 { margin: 0; }
   .lbl.scaduti { color: var(--ferma); }
   .lbl.oggi { color: var(--warn); }
   .link-btn { border: none; background: none; padding: 0; font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--cloro); cursor: pointer; }
   .elenco { list-style: none; margin: 0; padding: 0; overflow: hidden; }
-  .voce { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line-soft); }
-  .voce.largo { display: grid; grid-template-columns: 22px 32px minmax(0, 1.3fr) minmax(0, 1.2fr) 150px minmax(0, 1fr) 236px; gap: var(--space-14); }
-  .voce:first-child { border-top: none; }
-  .voce.scelta { background: var(--cloro-soft); }
-  .voce input { width: 18px; height: 18px; margin: 0; accent-color: var(--cloro); }
+  .riga-scadenza { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line-soft); }
+  .riga-scadenza.largo { display: grid; grid-template-columns: 22px 32px minmax(0, 1.3fr) minmax(0, 1.2fr) 150px minmax(0, 1fr) 236px; gap: var(--space-14); }
+  .riga-scadenza:first-child { border-top: none; }
+  .riga-scadenza.scelta { background: var(--cloro-soft); }
+  .riga-scadenza input { width: 18px; height: 18px; margin: 0; accent-color: var(--cloro); }
   .col { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
   .nome { font-weight: 700; color: var(--ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nome:hover { text-decoration: underline; }

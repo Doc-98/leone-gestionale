@@ -114,5 +114,4 @@
   .riga { display: flex; align-items: center; gap: var(--space-10); }
   .riga .tag { min-width: 56px; justify-content: center; }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding-top: var(--space-10); border-top: 1px solid var(--line); }
-  .sx { align-self: flex-start; }
 </style>

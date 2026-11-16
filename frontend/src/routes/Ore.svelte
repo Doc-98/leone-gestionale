@@ -83,6 +83,5 @@
   .vista { grid-template-columns: 1fr 1fr; }
   .vista button { padding: 0 var(--space-16); white-space: nowrap; }
   .mese { min-width: 280px; }
-  .nomargin { margin: 0; }
   @media (max-width: 600px) { .vista, .mese { width: 100%; } }
 </style>

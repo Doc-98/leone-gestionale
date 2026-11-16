@@ -243,7 +243,7 @@
       </div>
       {#if fuori}<p class="hint nomargin"><span>{fuori === 1 ? '1 pagamento in contanti è arrivato' : `${fuori} pagamenti in contanti sono arrivati`} a cassa chiusa: sono contati qui.</span></p>{/if}
       {#if vediContanti && s.contanti}
-        <ul class="voci">
+        <ul class="voci-cassa">
           {#each s.contanti as v (v.id + v.tipo)}
             <li class:fuori={v.aCassaChiusa}><span class="m ora">{oraDi(v.istante)}</span><span class="grow tronca">{v.chi ?? ''} <span class="muted">· {v.descrizione}{v.operatore ? ` · ${nome1(v.operatore)}` : ''}</span></span>
               <span class="m" class:rosso={v.tipo === 'USCITA'}>{v.tipo === 'USCITA' ? '−' : ''}{euro(v.importo)}</span></li>
@@ -377,7 +377,7 @@
 </section>
 
 <style>
-  .cassa { padding: var(--space-16) var(--space-18, 18px); display: flex; flex-direction: column; gap: var(--space-12); }
+  .cassa { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-12); }
   .testa { display: flex; align-items: center; gap: var(--space-10); }
   .testa h2 { margin: 0; font-size: var(--text-xl); }
   .tag.aperta { background: var(--passa-bg); color: var(--passa-fg); }
@@ -412,10 +412,10 @@
   .riga.piccola { font-size: var(--text-sm); }
   .imp { font-weight: 700; white-space: nowrap; }
   .rosso { color: var(--ferma); }
-  .link { background: none; border: none; padding: 0 var(--space-4); color: var(--link, var(--cloro)); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; text-decoration: underline; }
-  .voci { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: var(--text-sm); max-height: 260px; overflow-y: auto; }
-  .voci li { display: flex; gap: var(--space-8); align-items: center; padding: var(--space-6) 0; border-top: 1px solid var(--line-soft); }
-  .voci li.fuori { background: var(--warn-bg); }
+  .link { padding: 0 var(--space-4); font-size: var(--text-sm); text-decoration: underline; } /* più piccolo del .link globale, con la sottolineatura */
+  .voci-cassa { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: var(--text-sm); max-height: 260px; overflow-x: hidden; overflow-y: auto; }
+  .voci-cassa li { display: flex; gap: var(--space-8); align-items: center; padding: var(--space-6) 0; border-top: 1px solid var(--line-soft); }
+  .voci-cassa li.fuori { background: var(--warn-bg); }
   .ora { color: var(--muted); min-width: 40px; }
   .tronca { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .imp-mov { white-space: nowrap; flex-shrink: 0; }
@@ -425,7 +425,6 @@
   .riga-f .inp { height: 40px; }
   .corto { width: 110px; }
   .grow { flex: 1 1 auto; min-width: 0; }
-  .sx { align-self: flex-start; }
   .chiudi-c { display: flex; flex-direction: column; gap: var(--space-10); padding-top: var(--space-12); border-top: 1px solid var(--line); }
   .blocco-c { display: flex; flex-direction: column; gap: var(--space-8); padding-top: var(--space-12); border-top: 1px solid var(--line); }
   .pos { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: var(--space-8); align-items: center; font-size: var(--text-sm); }
@@ -457,8 +456,6 @@
   .ultima { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; padding-top: var(--space-10); border-top: 1px solid var(--line-soft); }
   .riapri { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12); border-radius: var(--radius-md); background: var(--ferma-bg); color: var(--ferma-fg); }
   .riapri .inp { height: 40px; }
-  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 700; background: var(--surface-sunken); color: var(--seg-fg); white-space: nowrap; }
-  .pill.passa { background: var(--passa-bg); color: var(--passa-fg); }
-  .pill.ferma { background: var(--ferma-bg); color: var(--ferma-fg); }
-  .pill.warn { background: var(--warn-bg); color: var(--warn); margin-left: var(--space-4); }
+  .pill { height: 22px; padding: 0 9px; } /* un po' più bassa della .pill globale (24px) */
+  .pill.warn { margin-left: var(--space-4); }
 </style>

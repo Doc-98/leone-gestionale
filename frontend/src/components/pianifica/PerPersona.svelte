@@ -118,8 +118,6 @@
   .avviso.t-ferma { background: var(--ferma-bg); color: var(--ferma-fg); }
   .avviso.t-passa { background: var(--passa-bg); color: var(--passa-fg); }
   .avviso .x-btn { color: inherit; }
-  .mini-btn { position: relative; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
-    font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
   .scorre { padding: 0; overflow-x: auto; }
   .gp { min-width: 940px; }
   .riga { display: grid; grid-template-columns: 190px repeat(7, minmax(0, 1fr)) 92px; }

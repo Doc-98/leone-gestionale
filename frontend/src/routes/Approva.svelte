@@ -414,8 +414,7 @@
   .vuoto-c { padding: var(--space-12); }
   .ore-b { width: 44px; height: 6px; border-radius: 3px; background: var(--surface-sunken); overflow: hidden; flex-shrink: 0; }
   .ore-b i { display: block; height: 100%; background: var(--cloro); }
-  .mini-btn { position: relative; height: 34px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
-    font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .mini-btn { height: 34px; } /* un po' più alto del .mini-btn globale (32px) */
   .mini-btn.tratteggio { align-self: flex-start; border-style: dashed; }
   .mini-btn.pieno-warn { background: var(--warn); border-color: var(--warn); color: var(--surface); }
   .avviso { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--warn-bg); color: var(--warn);

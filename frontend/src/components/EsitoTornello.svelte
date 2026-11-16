@@ -61,7 +61,7 @@
 
 <style>
   .esito {
-    display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-16) var(--space-18, 18px);
+    display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-16);
     border-radius: var(--radius-xl); border: 2px solid var(--b); background: var(--bg); color: var(--fg);
   }
   .verde { --b: var(--passa); --bg: var(--passa-bg); --fg: var(--passa-fg); }

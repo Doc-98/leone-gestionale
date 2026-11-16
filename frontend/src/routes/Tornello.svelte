@@ -279,7 +279,7 @@
   .viste { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }
   .vista-riga { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; }
   .vista-riga .lbl { min-width: 130px; }
-  .chips { display: flex; gap: var(--space-6); flex-wrap: wrap; }
+  .chips { gap: var(--space-6); } /* più stretto del .chips globale (8px) */
 
   .blocco { display: flex; flex-direction: column; gap: var(--space-8); }
   .blocco-testa { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-height: 36px; }

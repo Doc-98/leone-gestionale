@@ -287,7 +287,7 @@
           <h2>{raggruppa === 'giorno' ? 'Giorno per giorno' : 'Settimana per settimana'}</h2>
           <div class="legenda">{#each metodi as m (m.metodoId)}<span><i style:background={colore(m.metodo)}></i>{m.metodo}</span>{/each}</div>
           <span class="grow"></span>
-          <div class="seg due" role="group" aria-label="Raggruppa">
+          <div class="seg due-scelte" role="group" aria-label="Raggruppa">
             <button type="button" aria-pressed={raggruppa === 'giorno'} onclick={() => (raggruppa = 'giorno')}>Per giorno</button>
             <button type="button" aria-pressed={raggruppa === 'settimana'} onclick={() => (raggruppa = 'settimana')}>Per settimana</button>
           </div>
@@ -448,14 +448,14 @@
 <style>
   .pagina { display: flex; flex-direction: column; gap: var(--space-16); }
   .barra { display: flex; flex-wrap: wrap; gap: var(--space-10); align-items: center; }
-  .chips { display: flex; gap: var(--space-6); flex-wrap: wrap; }
+  .chips { gap: var(--space-6); } /* più stretto del .chips globale (8px) */
   .giorno-nav { display: flex; align-items: center; gap: var(--space-4); }
   .giorno-t { font-weight: 700; font-size: var(--text-lg); min-width: 180px; text-align: center; }
   .data { width: 160px; height: 40px; }
   .sr-testo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .seg.tre { grid-template-columns: repeat(3, auto); }
-  .seg.tre button, .seg.due button { padding: 0 var(--space-12); }
-  .seg.due { grid-template-columns: 1fr 1fr; }
+  .seg.tre button, .seg.due-scelte button { padding: 0 var(--space-12); }
+  .seg.due-scelte { grid-template-columns: 1fr 1fr; gap: var(--space-10); }
   .viste { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }
   .lbl { margin: 0; }
 
@@ -495,14 +495,12 @@
 
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-10); }
   .tiles.cinque { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); min-width: 0; }
-  .tile .v { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
-  .tile .n { font-size: var(--text-xs); color: var(--muted); }
+  .tile .v { font-size: 26px; } /* un po' più piccola del .tile .v globale (28px) */
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
   .tile.hero-t { background: var(--hero); color: var(--on-ink); border-color: transparent; }
   .tile.hero-t .lbl, .tile.hero-t .n { color: var(--on-ink-muted); }
 
-  .grafico { padding: var(--space-16) var(--space-18, 18px); display: flex; flex-direction: column; gap: var(--space-12); }
+  .grafico { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-12); }
   .g-testa { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; }
   .g-testa h2 { margin: 0; font-size: var(--text-lg); }
   .barre { display: flex; align-items: flex-end; height: 200px; border-bottom: 1px solid var(--line); }
@@ -533,7 +531,7 @@
   .chiusure-g { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
   .chiusure-g .lista-ch { margin: 0 calc(-1 * var(--space-16)); }
   .lista-ch { list-style: none; margin: 0; padding: 0; overflow: hidden; }
-  .colonne-ch { display: flex; flex-wrap: wrap; gap: var(--space-18, 18px); align-items: flex-start; }
+  .colonne-ch { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: flex-start; }
   .princ-ch { flex: 999 1 600px; min-width: 0; }
   .lato-ch { flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; gap: var(--space-14); }
   .filtri-ch { display: flex; gap: var(--space-8); flex-wrap: wrap; }

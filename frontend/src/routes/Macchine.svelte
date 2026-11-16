@@ -335,14 +335,14 @@
   .corpo { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: flex-start; }
   .princ { flex: 7 1 560px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-12); }
   .lato-m { flex: 4 1 300px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-16); }
-  .chi-c { display: flex; align-items: center; gap: var(--space-14); padding: var(--space-14) var(--space-18, 18px); flex-wrap: wrap; }
+  .chi-c { display: flex; align-items: center; gap: var(--space-14); padding: var(--space-14) var(--space-16); flex-wrap: wrap; }
   .chi-t { flex: 1; min-width: 200px; display: flex; flex-direction: column; line-height: 1.25; }
   .nome-g { font-family: var(--font-display); font-size: var(--text-3xl, 26px); font-weight: 800; color: var(--ink); text-decoration: none; }
   .nome-g:hover { text-decoration: underline; }
   .chi-c a.btn { text-decoration: none; display: inline-flex; align-items: center; }
   .avviso-r { display: flex; align-items: center; gap: var(--space-10); margin: 0; padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--warn-bg);
     color: var(--warn); font-weight: 600; font-size: var(--text-md); }
-  .vuoto { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-8); padding: var(--space-32, 32px) var(--space-20); }
+  .vuoto { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-8); padding: var(--space-20); }
   .vuoto > :global(.ic) { width: 36px; height: 36px; color: var(--cloro); }
   .vuoto b { font-size: var(--text-lg); }
   .vuoto .muted { max-width: 440px; }
