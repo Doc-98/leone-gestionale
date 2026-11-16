@@ -284,7 +284,7 @@
             {/if}
           {/if}
         {:else}
-          {#if !gruppo}<p class="muted small vuoto">Nessun gruppo.</p>{/if}
+          {#if !gruppo}<p class="muted small nessuno">Nessun gruppo.</p>{/if}
         {/each}
         {#if conPrecedenza.length > 1}
           <div class="ordine-p">
@@ -387,7 +387,9 @@
   .spento { opacity: 0.65; }
   .membri { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); padding: 0 var(--space-16) var(--space-12); }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); background: var(--carta); border-top: 1px solid var(--line-soft); }
-  .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
+  .nessuno { padding: var(--space-12) var(--space-16); margin: 0; }
+  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
+  .salva-bar .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
   .ricevuta { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
     font-size: var(--text-sm); box-shadow: 0 1px 2px rgba(16, 33, 43, 0.06); }
   .ricevuta .rs { font-family: var(--font-display); font-size: 17px; font-weight: 800; }

@@ -155,7 +155,7 @@
           </button>
         {/each}
       {:else}
-        <p class="muted small vuoto">Nessun ruolo con «{q.trim()}».</p>
+        <p class="muted small nessuno">Nessun ruolo con «{q.trim()}».</p>
       {/each}
       <div class="piede-l">
         {#if confronto}<button type="button" class="mini-btn grow" onclick={() => (confronto = false)}>Chiudi il confronto</button>
@@ -258,7 +258,7 @@
 {/if}
 
 <style>
-  .due-c { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--space-18, 18px); align-items: start; }
+  .due-c { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--space-20); align-items: start; }
   .lista { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
   .testa-l { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-12); border-bottom: 1px solid var(--line); }
   .cerca { position: relative; display: block; }
@@ -276,7 +276,9 @@
   .scelta :global(.ic) { width: 12px; height: 12px; visibility: hidden; }
   .scelta.on { background: var(--cloro); border-color: var(--cloro); }
   .scelta.on :global(.ic) { visibility: visible; }
-  .vuoto { margin: 0; padding: var(--space-10) var(--space-14); }
+  .nessuno { margin: 0; padding: var(--space-10) var(--space-14); }
+  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
+  .salva-bar .vuoto { margin: 0; padding: var(--space-10) var(--space-14); }
   .piede-l { padding: var(--space-10) var(--space-12); border-top: 1px solid var(--line); display: flex; gap: var(--space-8); }
   .piede-l .mini-btn { justify-content: center; }
   .destra { display: flex; flex-direction: column; gap: var(--space-14); min-width: 0; }
@@ -297,7 +299,6 @@
   .perm .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .perm .t b { font-size: var(--text-md); font-weight: 600; }
   .perm .t span { font-size: var(--text-xs); color: var(--muted); }
-  .switch:disabled { opacity: 0.55; cursor: default; }
   .persone { padding: var(--space-4) var(--space-16) var(--space-12); }
   .persona { display: flex; align-items: center; gap: var(--space-10); padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); font-size: var(--text-md); }
   .persona:first-child { border-top: none; }

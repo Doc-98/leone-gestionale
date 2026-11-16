@@ -180,7 +180,7 @@
         <div class="riga-imp"><span class="t"><b>Riconsegnando l'ultimo braccialetto</b><span>Si propone di rimborsare i crediti di phon e docce.</span></span>
           <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={regole.creditiRiconsegna} aria-label="Rimborso dei crediti alla riconsegna" onclick={() => (regole!.creditiRiconsegna = !regole!.creditiRiconsegna)}><span></span></button></span></div>
         <div class="riga-imp"><span class="t"><b>Se il braccialetto si smarrisce, i crediti</b><span>Il braccialetto nuovo si paga come una consegna.</span></span>
-          <span class="ctl"><span class="seg seg-s due" role="group" aria-label="Se si smarrisce">
+          <span class="ctl"><span class="seg seg-s due-scelte" role="group" aria-label="Se si smarrisce">
             {#each [['RESTANO', 'Restano alla persona'], ['PERSI', 'Si perdono']] as [v, t] (v)}<button type="button" aria-pressed={regole.creditiSmarrimento === v} onclick={() => (regole!.creditiSmarrimento = v as RegoleBorsellino['creditiSmarrimento'])}>{t}</button>{/each}
           </span></span></div>
       </section>
@@ -235,7 +235,7 @@
             </div>
           {/each}
         {:else}
-          <p class="muted small vuoto">Nessuna macchina.</p>
+          <p class="muted small nessuno">Nessuna macchina.</p>
         {/each}
         <span class="muted small piede">La chiave si mostra una volta sola: copiala nella macchina. Le istruzioni per il tecnico sono nel manuale.</span>
       </section>
@@ -280,7 +280,7 @@
     font-size: var(--text-md); }
   .conto-c b { font-family: var(--font-mono); }
   .seg-s { display: grid; grid-template-columns: repeat(3, auto); }
-  .seg-s.due { grid-template-columns: repeat(2, auto); }
+  .seg-s.due-scelte { grid-template-columns: repeat(2, auto); gap: var(--space-10); }
   .seg-s button { padding: 0 var(--space-12); white-space: nowrap; }
   .chiave { display: flex; flex-direction: column; gap: var(--space-6); margin: var(--space-12) var(--space-16) 0; padding: var(--space-12); border-radius: var(--radius-md);
     background: var(--cloro-soft); color: var(--cloro-ink); }
@@ -298,6 +298,8 @@
   .macc .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .macc .t b { font-size: var(--text-md); }
   .macc .t span { font-size: var(--text-xs); color: var(--muted); }
-  .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
+  .nessuno { padding: var(--space-12) var(--space-16); margin: 0; }
+  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
+  .salva-bar .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
   .piede { padding: var(--space-10) var(--space-16) var(--space-14); display: block; border-top: 1px solid var(--line-soft); }
 </style>

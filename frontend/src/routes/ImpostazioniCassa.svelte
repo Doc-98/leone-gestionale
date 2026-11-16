@@ -235,13 +235,11 @@
 
 <style>
   .pagina { display: flex; flex-direction: column; gap: var(--space-14); }
-  .colonne { display: flex; flex-wrap: wrap; gap: var(--space-18, 18px); align-items: flex-start; }
+  .colonne { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: flex-start; }
   .princ { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-14); }
   .lato { flex: 1 1 300px; max-width: 380px; position: sticky; top: var(--space-16); }
-  .ctl { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; justify-content: flex-end; }
   .ctl .inp { height: 40px; }
   .corto { width: 110px; text-align: right; }
-  .unita { font-size: var(--text-md); color: var(--muted); }
   .seg { min-width: 280px; }
   .cosa { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: var(--space-6); font-size: var(--text-sm); }
   .chips-m { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: flex-end; max-width: 360px; }
@@ -258,9 +256,9 @@
   .riga-c { display: flex; gap: var(--space-8); align-items: center; flex: 1 1 auto; }
   .riga-c .inp, .aggiungi .inp { height: 40px; }
   .grow { flex: 1 1 auto; min-width: 0; }
-  .gruppo-azioni { display: flex; align-items: center; gap: var(--space-6); }
+  .gruppo-azioni { display: flex; gap: var(--space-6); } /* più largo del .gruppo-azioni globale (4px, inline-flex) */
   .aggiungi { display: flex; gap: var(--space-8); flex-wrap: wrap; padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line-soft); }
-  .pann { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
+  .pann { gap: var(--space-10); } /* un po' più stretto del .pann globale (12px) */
   .conto { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-14); border-radius: var(--radius-md); background: var(--surface-sunken); font-size: var(--text-sm); }
   .conto .r { display: flex; justify-content: space-between; gap: var(--space-10); }
   .conto .tot { border-top: 1px solid var(--line); padding-top: var(--space-6); font-weight: 700; }

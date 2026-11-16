@@ -48,9 +48,9 @@
       <section class="card calcolo">
         <span class="lbl">Come si arriva al compenso</span>
         {#each riga.voci as v (v.mansione + v.euroOra)}
-          <span class="voce"><span class="grow">{v.mansione}</span><span class="m">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euro(v.euroOra)}</span></span>
+          <span class="voce-calcolo"><span class="grow">{v.mansione}</span><span class="m">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euro(v.euroOra)}</span></span>
         {/each}
-        <span class="voce tot"><span class="grow">Totale</span><span class="m">{euro(riga.compenso)}</span></span>
+        <span class="voce-calcolo tot"><span class="grow">Totale</span><span class="m">{euro(riga.compenso)}</span></span>
         <span class="muted small">La tariffa la decide il coordinatore. Se per un turno manca, qui compare un avviso.</span>
       </section>
     {/if}
@@ -64,7 +64,7 @@
         {#each settimane as s (s.da)}
           <span class="sett">
             <span class="m h">{formatOre(s.ore)} h</span>
-            <span class="bar">{#each s.aree as a (a.area)}<i class="ar-{a.area}" style:height="{(a.ore / massimo) * 100}%"></i>{/each}</span>
+            <span class="barra-sett">{#each s.aree as a (a.area)}<i class="ar-{a.area}" style:height="{(a.ore / massimo) * 100}%"></i>{/each}</span>
             <span class="muted small">{s.nome}</span>
           </span>
         {/each}
@@ -114,8 +114,8 @@
     color: var(--on-chiaro-su-hero); font-weight: 700; font-size: var(--text-md); text-decoration: none; }
   .pieno :global(.ic) { width: 18px; height: 18px; }
   .calcolo { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-8); }
-  .voce { display: flex; gap: var(--space-8); font-size: var(--text-md); }
-  .voce .m { white-space: nowrap; }
+  .voce-calcolo { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-12) var(--space-8) var(--space-14); border-top: 1px solid var(--line-soft); font-size: var(--text-md); }
+  .voce-calcolo .m { white-space: nowrap; }
   .tot { font-weight: 700; padding-top: var(--space-8); border-top: 1px solid var(--line-soft); }
   .settimane { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-14); }
   .testa { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
@@ -124,8 +124,8 @@
   .barre { display: flex; gap: var(--space-14); align-items: flex-end; }
   .sett { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-6); }
   .sett .h { font-size: var(--text-sm); font-weight: 600; white-space: nowrap; }
-  .bar { width: 100%; max-width: 56px; height: 140px; display: flex; flex-direction: column-reverse; border-radius: 8px; overflow: hidden; background: var(--surface-sunken); }
-  .bar i { display: block; width: 100%; background: var(--a); }
+  .barra-sett { width: 100%; max-width: 56px; height: 140px; display: flex; flex-direction: column-reverse; align-items: center; gap: var(--space-8); border-radius: 8px; overflow: hidden; background: var(--surface-sunken); }
+  .barra-sett i { display: block; width: 100%; background: var(--a); }
   .perarea { display: flex; flex-direction: column; gap: var(--space-6); padding-top: var(--space-10); border-top: 1px solid var(--line-soft); font-size: var(--text-md); }
   .perarea span { display: flex; gap: var(--space-8); }
   .turni { padding: 0; overflow: hidden; }

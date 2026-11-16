@@ -22,7 +22,7 @@
           <span class="meta chiaro"><i class="barra"></i><i class="riga"></i><i class="riga corta"></i><i class="pillola"></i></span>
           <span class="meta scuro"><i class="barra"></i><i class="riga"></i><i class="riga corta"></i><i class="pillola"></i></span>
         </span>
-        <span class="testo"><span class="pallino" aria-hidden="true"></span><b>{s.nome}</b></span>
+        <span class="testo"><span class="cerchio-scelta" aria-hidden="true"></span><b>{s.nome}</b></span>
         <span class="muted small">{s.spiega}</span>
       </button>
     {/each}
@@ -47,8 +47,8 @@
   .riga.corta { width: 70%; }
   .pillola { display: block; width: 38%; height: 12px; border-radius: 999px; background: var(--p); margin-top: auto; }
   .testo { display: flex; align-items: center; gap: var(--space-8); }
-  .pallino { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong); flex-shrink: 0; }
-  .scelta[aria-checked='true'] .pallino { border: 5px solid var(--cloro); }
+  .cerchio-scelta { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong); flex-shrink: 0; }
+  .scelta[aria-checked='true'] .cerchio-scelta { border: 5px solid var(--cloro); }
   .ora { padding: 0 var(--space-16) var(--space-16); }
   @media (max-width: 700px) {
     .scelte { grid-template-columns: 1fr; }

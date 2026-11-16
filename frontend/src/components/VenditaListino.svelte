@@ -138,12 +138,12 @@
 
   {#if proposta}
     <div class="conto" aria-live="polite">
-      <div class="voce"><span>Listino{proposta.gruppoId ? ` · ${nomeGruppo(proposta.gruppoId)}` : ''}</span><span>{euro(proposta.listino)}</span></div>
-      {#if proposta.prezzoBase != null}<div class="voce muted small"><span>Prezzo per tutti</span><span>{euro(proposta.prezzoBase)}</span></div>{/if}
+      <div class="voce-conto"><span>Listino{proposta.gruppoId ? ` · ${nomeGruppo(proposta.gruppoId)}` : ''}</span><span>{euro(proposta.listino)}</span></div>
+      {#if proposta.prezzoBase != null}<div class="voce-conto muted small"><span>Prezzo per tutti</span><span>{euro(proposta.prezzoBase)}</span></div>{/if}
       {#if proposta.riduzionePercentuale}
-        <div class="voce"><span>Iscrizione a stagione iniziata (−{proposta.riduzionePercentuale}%)</span><span>−{euro(proposta.riduzione)}</span></div>
+        <div class="voce-conto"><span>Iscrizione a stagione iniziata (−{proposta.riduzionePercentuale}%)</span><span>−{euro(proposta.riduzione)}</span></div>
       {/if}
-      <div class="voce totale"><span>Proposto</span><strong>{euro(proposta.proposto)}</strong></div>
+      <div class="voce-conto totale"><span>Proposto</span><strong>{euro(proposta.proposto)}</strong></div>
       {#if proposta.rate.length && offerta?.tipo !== 'ALTRO'}
         <div class="rate small">
           {#each proposta.rate as r (r.numero)}<span>{r.numero === 1 ? 'All\'iscrizione' : r.scadenza ? `Entro il ${dataBreve(r.scadenza)}` : `Rata ${r.numero}`}: {euro(r.importo)}</span>{/each}
@@ -173,8 +173,7 @@
   .vendita { display: flex; flex-direction: column; gap: var(--space-10); }
   select.inp { appearance: auto; }
   .conto { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--surface-sunken); }
-  .voce { display: flex; justify-content: space-between; gap: var(--space-10); }
+  .voce-conto { display: flex; justify-content: space-between; align-items: center; gap: var(--space-10); padding: var(--space-8) var(--space-12) var(--space-8) var(--space-14); border-top: 1px solid var(--line-soft); color: var(--ink); }
   .totale { padding-top: var(--space-6); margin-top: var(--space-2, 2px); border-top: 1px solid var(--line); font-size: var(--text-lg); }
   .rate { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-14); color: var(--muted); }
-  .sx { align-self: flex-start; min-height: 32px; }
 </style>

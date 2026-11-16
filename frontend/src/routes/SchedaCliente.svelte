@@ -609,7 +609,7 @@
           <dt>Gruppi</dt>
           <dd class="gruppi">
             {#each cliente.gruppi as g (g.appartenenzaId)}
-              <span class="tag t-soft gruppo" class:da-verificare={!g.verificata}>{g.nome}
+              <span class="tag t-soft tag-gruppo" class:da-verificare={!g.verificata}>{g.nome}
                 {#if !g.verificata}
                   <button class="verifica" title="La famiglia l'ha dichiarato: verificato, dà i vantaggi del gruppo"
                           onclick={() => esegui(() => api.verificaAppartenenza(g.appartenenzaId), `«${g.nome}» verificato.`)}>Verifica</button>
@@ -1114,7 +1114,6 @@
   .dati dt { color: var(--muted); font-size: var(--text-sm); align-self: center; }
   .dati dd { margin: 0; overflow-wrap: anywhere; }
   .a-capo-t { white-space: pre-line; }
-  .sx { align-self: flex-start; }
   .tess { display: flex; flex-direction: column; gap: var(--space-4); }
   .riga-info { display: block; margin-top: 2px; }
   .chip-ric { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8) var(--space-10); border-radius: var(--radius-sm); border: 1px dashed var(--line-dashed); }
@@ -1124,12 +1123,12 @@
   .termina { display: flex; flex-direction: column; gap: var(--space-8); margin-top: var(--space-6); padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--surface-sunken); }
   .recesso { display: flex; align-items: center; gap: var(--space-6); color: var(--cloro-ink); font-weight: 600; }
   .gruppi { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
-  .tag.gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
-  .tag.gruppo :global(.togli) { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
+  .tag.tag-gruppo { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-4); padding-right: var(--space-4); }
+  .tag.tag-gruppo :global(.togli) { display: inline-flex; align-items: center; justify-content: center; width: auto; height: 20px; min-height: 0; border: none; background: none;
     color: inherit; cursor: pointer; font: inherit; padding: 0 4px; min-width: 20px; border-radius: var(--radius-pill); }
-  .tag.gruppo :global(.togli:hover) { background: var(--surface-sunken); }
-  .tag.gruppo :global(.togli .ic) { width: 14px; height: 14px; stroke-width: 2.2; }
-  .tag.gruppo :global(button.togli.conf-armata) { height: 22px; padding: 0 var(--space-6); font-size: var(--text-xs); border-radius: var(--radius-pill); }
+  .tag.tag-gruppo :global(.togli:hover) { background: var(--surface-sunken); }
+  .tag.tag-gruppo :global(.togli .ic) { width: 14px; height: 14px; stroke-width: 2.2; }
+  .tag.tag-gruppo :global(button.togli.conf-armata) { height: 22px; padding: 0 var(--space-6); font-size: var(--text-xs); border-radius: var(--radius-pill); }
   .scegli-gruppo { width: auto; min-height: 30px; height: 30px; padding: 0 var(--space-8); appearance: auto; font-size: var(--text-sm); }
   .tre { display: grid; grid-template-columns: 110px minmax(0, 1fr) 80px; gap: var(--space-10); }
   @media (max-width: 560px) { .due.stretto { grid-template-columns: 1fr; } }
@@ -1139,7 +1138,7 @@
   .sotto { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-10); border-top: 1px solid var(--line); }
   .punto { width: 10px; height: 10px; border-radius: 50%; background: var(--ferma); flex-shrink: 0; }
   .punto.v { background: var(--passa); }
-  .gruppo.da-verificare { background: var(--warn-bg); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn-line); }
-  .gruppo .verifica { border: none; border-radius: 999px; padding: 2px 8px; margin-left: 4px; background: var(--fill); color: var(--on-fill);
+  .tag-gruppo.da-verificare { background: var(--warn-bg); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn-line); }
+  .tag-gruppo .verifica { border: none; border-radius: 999px; padding: 2px 8px; margin-left: 4px; background: var(--fill); color: var(--on-fill);
     font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 </style>

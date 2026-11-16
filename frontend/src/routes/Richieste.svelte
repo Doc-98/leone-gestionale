@@ -118,7 +118,7 @@
     <span class="riga"><b class="m">{giornoCorto(r.turno.data)} · {ora(r.turno.inizio)}–{ora(r.turno.fine)}</b><span class="grow"></span><span class="m muted small">{Number(r.turno.ore).toLocaleString('it-IT')} h</span></span>
     <span class="riga small"><span class="segno-area"></span>{r.turno.postazione}</span>
     <span class="muted small">Lo chiede {r.richiedente.nome}{r.messaggio ? ` · «${r.messaggio}»` : ''}</span>
-    <span class="riga"><span class="grow ok small">Sei libero in quell'orario</span>
+    <span class="riga"><span class="grow libero small">Sei libero in quell'orario</span>
       <button class="btn btn-accent btn-sm" disabled={lavoro === r.id} onclick={() => azione(r.id, () => api.accetta(r.id), 'Grazie! Ora decide il coordinatore.')}>Lo copro io</button></span>
   </article>
 {/snippet}
@@ -210,7 +210,7 @@
       {#each righe as r (r.id)}
         {@const occ = scheda === 'coprire' && !!mioInTurno(r)}
         {@const e = esito(r, io)}
-        <div class="voce" class:spento={occ}>
+        <div class="richiesta" class:spento={occ}>
           <button type="button" class="riga-r" aria-expanded={aperto === r.id} onclick={() => (aperto = aperto === r.id ? null : r.id)}>
             <span class="ico" class:warn-i={scheda === 'perte' || (scheda === 'mie' && e.tono === 'warn')} class:cloro-i={scheda === 'coprire' && !occ}><Icona nome={scheda === 'coprire' ? 'piu' : ICONA[r.tipo]} /></span>
             <span class="grow testo">
@@ -267,7 +267,7 @@
   .citazione { font-size: var(--text-sm); font-style: italic; }
   .bottoni { display: flex; gap: var(--space-8); }
   .bottoni .btn { flex: 1; }
-  .ok { color: var(--passa); font-weight: 700; }
+  .libero, .msg.ok { color: var(--passa); font-weight: 700; } /* .msg.ok: come prima, il messaggio verde prendeva questi due valori dalla vecchia regola .ok */
   .occupato { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-12); border-radius: var(--radius-md); border: 1px dashed var(--line);
     font-size: var(--text-sm); color: var(--muted); }
   .occupato .segno-area { opacity: 0.6; }
@@ -280,7 +280,6 @@
   .passi .ora i { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
   .passi .no i { background: var(--ferma); }
   .passi > b { flex: 0 0 14px; height: 1px; background: var(--line-strong); }
-  .sx { align-self: flex-start; }
   .scheda :global(.btn-quieto.danger), .dett :global(.btn-quieto.danger) { color: var(--danger); }
   .conclusa { display: flex; flex-direction: column; gap: 4px; padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line-soft); }
   .conclusa b { font-weight: 600; font-size: var(--text-md); }
@@ -288,8 +287,8 @@
   .altre { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-10) var(--space-4); border: none; background: none; font: inherit; color: var(--muted); font-size: var(--text-md); cursor: pointer; }
   .spiega { padding: 0 2px; }
   .elenco { padding: 0; overflow: hidden; }
-  .voce + .voce { border-top: 1px solid var(--line-soft); }
-  .voce.spento .riga-r { opacity: 0.6; }
+  .richiesta { display: flex; align-items: center; gap: var(--space-12); min-height: 56px; padding: var(--space-8) var(--space-12) var(--space-8) var(--space-14); border-top: 1px solid var(--line-soft); }
+  .richiesta.spento .riga-r { opacity: 0.6; }
   .riga-r { width: 100%; display: flex; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-14); border: none; background: none; font: inherit; color: var(--ink);
     text-align: left; cursor: pointer; }
   .ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: var(--surface-sunken); color: var(--seg-fg); }
@@ -301,5 +300,4 @@
   .dett { padding: 0 var(--space-14) var(--space-14) 62px; display: flex; flex-direction: column; gap: var(--space-10); }
   .vuoto { padding: var(--space-14); margin: 0; }
   .nuova { min-height: 48px; text-decoration: none; }
-  .nomargin { margin: 0; }
 </style>

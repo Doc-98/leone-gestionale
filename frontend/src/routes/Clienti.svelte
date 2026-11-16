@@ -293,7 +293,7 @@
 
 <style>
   .clienti { display: flex; flex-direction: column; gap: var(--space-16); }
-  .clienti.largo { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; gap: var(--space-24, 24px); }
+  .clienti.largo { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; gap: var(--space-20); }
   .ricerca { display: flex; flex-direction: column; gap: var(--space-12); }
   .largo .ricerca { position: sticky; top: 28px; }
   .ricerca kbd { margin-left: var(--space-6); }
@@ -307,10 +307,10 @@
   .nome { font-weight: 600; }
   .nuovo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14); text-align: left; }
   .nuovo h3 { margin: 0; font-size: var(--text-lg); }
-  .due { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); }
+  .due { grid-template-columns: 1fr 1fr; gap: var(--space-8); } /* colonne e gap diversi dal .due globale (minmax(0, 1fr), 10px) */
   .scheda { display: flex; flex-direction: column; gap: var(--space-10); min-width: 0; }
 
-  .home { display: flex; flex-direction: column; gap: var(--space-24, 24px); }
+  .home { display: flex; flex-direction: column; gap: var(--space-20); }
   /* il pulsante sale sulla riga del titolo della pagina, senza coprirlo */
   .testa { display: flex; align-items: center; min-height: 48px; }
   /* da 1024 px (schermo.larga) la testata dell'app è libera a destra: il pulsante sale lì. Sotto, resta nel contenuto. */

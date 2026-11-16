@@ -97,7 +97,7 @@
 {#if avviso || inMano}
   <div class="avviso t-{avviso?.tono ?? 'cloro'}" role="status">
     <span>{avviso?.testo ?? `Ora tocca la postazione per ${nome1(inMano!.persona.nome)}.`}</span>
-    {#if avviso?.conferma}<button class="mini-btn" type="button" onclick={() => (avviso = null)}>Lascia stare</button><button class="mini-btn pieno" type="button" onclick={avviso.conferma}>Assegna comunque</button>
+    {#if avviso?.conferma}<button class="mini-btn" type="button" onclick={() => (avviso = null)}>Lascia stare</button><button class="mini-btn pieno-warn" type="button" onclick={avviso.conferma}>Assegna comunque</button>
     {:else if inMano && !avviso}<button class="mini-btn" type="button" onclick={() => (inMano = null)}>Annulla</button>{/if}
     <button type="button" class="x-btn" aria-label="Chiudi il messaggio" onclick={() => ((avviso = null), (inMano = null))}><Icona nome="chiudi" /></button>
   </div>
@@ -194,9 +194,7 @@
   .avviso.t-warn { background: var(--warn-bg); color: var(--warn); }
   .avviso.t-ok { background: var(--passa-bg); color: var(--passa-fg); }
   .avviso .x-btn { color: inherit; }
-  .mini-btn { position: relative; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
-    font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
-  .mini-btn.pieno { background: var(--warn); border-color: var(--warn); color: var(--surface); }
+  .mini-btn.pieno-warn { background: var(--warn); border-color: var(--warn); color: var(--surface); }
   /* la pianta: un riquadro per area, che si dispongono da soli per stare nello schermo */
   .pianta { padding: var(--space-14); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-14); align-content: start; }
   .area { position: relative; padding: var(--space-12); border-radius: var(--radius-md); background: var(--a-bg); border: 2px solid var(--a); display: flex; flex-direction: column; gap: var(--space-10); }

@@ -180,7 +180,7 @@
     {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
     {#if avviso}
       <div class="avviso-p" role="alert"><Icona nome="avviso" /><span>{avviso.testo}</span>
-        <button class="mini-btn" type="button" onclick={() => (avviso = null)}>Lascia stare</button><button class="mini-btn pieno" type="button" onclick={avviso.conferma}>Assegna comunque</button></div>
+        <button class="mini-btn" type="button" onclick={() => (avviso = null)}>Lascia stare</button><button class="mini-btn pieno-warn" type="button" onclick={avviso.conferma}>Assegna comunque</button></div>
     {/if}
 
     {#if vista === 'postazione'}
@@ -204,7 +204,7 @@
               {#each scoperti as t (t.id)}
                 <div class="voce-s ar-{areaDi(t.postazione)}"><i class="quadro"></i>
                   <span class="t"><b class="m">{giornoCorto(t.data)} · {ora(t.inizio)}–{ora(t.fine)}</b><span>{dove(t)}</span></span>
-                  <button type="button" class="mini-btn pieno-scuro" onclick={() => (aperto = { id: t.id })}>Assegna</button></div>
+                  <button type="button" class="mini-btn pieno" onclick={() => (aperto = { id: t.id })}>Assegna</button></div>
               {/each}
               {#each richieste as r (r.id)}
                 <div class="voce-s"><i class="pallino-w"></i>
@@ -308,10 +308,7 @@
   .avviso-p { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; padding: var(--space-6) var(--space-6) var(--space-6) var(--space-14);
     border-radius: var(--radius-md); background: var(--warn-bg); color: var(--warn); font-weight: 600; }
   .avviso-p :global(.ic) { width: 18px; height: 18px; }
-  .mini-btn { position: relative; display: inline-flex; align-items: center; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line);
-    background: var(--surface); font: inherit; font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; text-decoration: none; }
-  .mini-btn.pieno { background: var(--warn); border-color: var(--warn); color: var(--surface); }
-  .mini-btn.pieno-scuro { background: var(--fill); border-color: var(--fill); color: var(--on-fill); }
+  .mini-btn.pieno-warn { background: var(--warn); border-color: var(--warn); color: var(--surface); }
   .intesta { display: flex; align-items: baseline; gap: var(--space-8); }
   .voce-s { display: flex; align-items: center; gap: var(--space-10); padding: var(--space-10) 0; border-top: 1px solid var(--line-soft); font-size: var(--text-md); }
   .pann > .voce-s:nth-child(2) { border-top: none; }

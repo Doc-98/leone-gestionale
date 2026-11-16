@@ -176,7 +176,7 @@
 <style>
   .blocco { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }
   h3 { margin: 0; font-size: var(--text-xl); }
-  .gruppo { display: flex; flex-direction: column; gap: var(--space-4); }
+  .gruppo { gap: var(--space-4); } /* più stretto del .gruppo globale (6px) */
   .righe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .righe > li { padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
   .righe > li:first-child { border-top: none; }

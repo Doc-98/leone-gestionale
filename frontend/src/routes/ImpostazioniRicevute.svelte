@@ -205,7 +205,7 @@
 
 <style>
   .pagina { display: flex; flex-direction: column; gap: var(--space-14); }
-  .colonne { display: flex; flex-wrap: wrap; gap: var(--space-18, 18px); align-items: flex-start; }
+  .colonne { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: flex-start; }
   .princ { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-14); }
   .lato { flex: 1 1 300px; max-width: 380px; position: sticky; top: var(--space-16); }
   .spiega-s { padding: var(--space-12) var(--space-16) 0; }
@@ -222,26 +222,24 @@
   .serie-b .t span { font-size: var(--text-sm); color: var(--muted); }
   .num { font-size: var(--text-md); }
   .dettaglio { border-top: 1px solid var(--line); }
-  .ctl { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
   .ctl.colonna { flex-direction: column; align-items: flex-end; }
   .ctl .inp { height: 40px; }
   .ctl .largo { width: 240px; max-width: 100%; }
   .ctl .corto { width: 96px; }
-  .chips { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: flex-end; }
+  .chips { gap: var(--space-6); justify-content: flex-end; } /* più stretto del .chips globale (8px) */
   .chip-f { position: relative; min-height: 32px; padding: 0 var(--space-10); border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--surface); font-size: var(--text-xs);
     color: var(--seg-fg); cursor: pointer; }
   .chip-f::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   .chip-f[aria-pressed='true'] { background: var(--fill); border-color: var(--fill); color: var(--on-fill); }
   .seg { min-width: 260px; }
   .seg.tre { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .unita { font-size: var(--text-md); color: var(--muted); }
   .esempio { font-size: var(--text-base); font-weight: 500; padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--carta); }
   .manca { color: var(--warn); font-weight: 600; }
   .colonna-imp { flex-direction: column; align-items: stretch; }
   /* in colonna la spiegazione non deve allungarsi (fuori colonna ha una base di 240px) */
   .colonna-imp > .t { flex: none; }
   .dicitura { width: 100%; box-sizing: border-box; min-height: 90px; font: inherit; font-size: var(--text-md); line-height: 1.45; padding: var(--space-10) var(--space-12); resize: vertical; }
-  .pann { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
+  .pann { gap: var(--space-10); } /* un po' più stretto del .pann globale (12px) */
   /* la ricevuta in piccolo: carta bianca anche nel tema scuro, come sarà stampata */
   .mini-r { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-16); border-radius: var(--radius-md); background: #fff; color: #1d2a30; border: 1px solid var(--line);
     box-shadow: 0 2px 10px rgba(16, 33, 43, 0.08); font-size: var(--text-xs); }

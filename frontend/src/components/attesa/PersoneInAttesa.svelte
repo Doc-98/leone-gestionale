@@ -156,7 +156,7 @@
               <div class="menu-azioni" role="menu" aria-label={`Azioni per ${nome(p)}`}>
                 {#each p.turni as t (t.voce.id)}
                   {@const s = statoVoce(t.voce, pagina.oggi)}
-                  {#if p.turni.length > 1}<span class="gruppo lbl">{t.turno.corso} {quandoTurnoBreve(t.turno)}</span>{/if}
+                  {#if p.turni.length > 1}<span class="gruppo-corso lbl">{t.turno.corso} {quandoTurnoBreve(t.turno)}</span>{/if}
                   {#if t.tocca && s !== 'saltata'}
                     <button role="menuitem" onclick={() => apriAvviso(p, t.voce, t.turno)}><Icona nome="campana" />{s === 'nuovo' ? 'Avvisa del posto…' : 'Avvisa di nuovo…'}</button>
                   {/if}
@@ -189,7 +189,7 @@
 
 <style>
   .barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-10); }
-  .chips { display: flex; flex-wrap: wrap; gap: var(--space-6); }
+  .chips { gap: var(--space-6); } /* più stretto del .chips globale (8px) */
   .chip .n { margin-left: var(--space-6); opacity: 0.6; }
   .sel { display: flex; align-items: center; gap: var(--space-8); font-size: var(--text-md); }
   .conferma { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-10); }
@@ -233,7 +233,7 @@
   .menu-azioni :global(button:hover) { background: var(--carta); }
   .menu-azioni :global(button .ic) { width: 18px; height: 18px; color: var(--muted); }
   .menu-azioni :global(button.danger), .menu-azioni :global(button.danger .ic) { color: var(--danger); }
-  .menu-azioni .gruppo { padding: var(--space-8) var(--space-10) var(--space-2); }
+  .menu-azioni .gruppo-corso { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8) var(--space-10) var(--space-2); }
 
   .piede { display: flex; align-items: center; padding: var(--space-10) var(--space-16); }
   .vuoto { margin: var(--space-16); padding: var(--space-14); border: 1px dashed var(--line-dashed); border-radius: var(--radius-md); }

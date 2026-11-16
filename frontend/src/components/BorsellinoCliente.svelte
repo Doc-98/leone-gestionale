@@ -264,5 +264,4 @@
   .imp { min-width: 72px; font-weight: 700; color: var(--muted); }
   .imp.piu { color: var(--cloro-ink); }
   .rosso { color: var(--danger); }
-  .sx { align-self: flex-start; min-height: 32px; }
 </style>

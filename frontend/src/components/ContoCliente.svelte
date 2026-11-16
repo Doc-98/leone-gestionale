@@ -325,7 +325,7 @@
 
 {#snippet voce(a: Addebito, familiare: boolean)}
   {@const st = STATI_ADDEBITO[a.stato]}
-  <li class="voce" class:spento={a.stato === 'ANNULLATO'}>
+  <li class="voce-addebito" class:spento={a.stato === 'ANNULLATO'}>
     {#if aperto(a) && puoPagare}
       <input type="checkbox" checked={scelti.includes(a.id)} onchange={(e) => scegli(a, e.currentTarget.checked)} aria-label="Paga {a.descrizione}" />
     {/if}
@@ -362,8 +362,8 @@
   .righe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .righe > li { padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
   .righe > li:first-child { border-top: none; }
-  .voce { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
-  .voce input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--cloro-ink, currentColor); }
+  .voce-addebito { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
+  .voce-addebito input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--cloro-ink, currentColor); }
   .spento { opacity: 0.6; }
   .fam, .storico { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-8); border-top: 1px solid var(--line); }
   .azioni { display: flex; gap: var(--space-10); flex-wrap: wrap; }
@@ -379,7 +379,6 @@
   .pag-testa { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
   .motivo { display: flex; gap: var(--space-6); align-items: center; flex-wrap: wrap; width: 100%; margin-top: var(--space-4); }
   .motivo .inp { flex: 1; min-width: 220px; }
-  .sx { align-self: flex-start; min-height: 32px; }
   .chiusi summary { cursor: pointer; color: var(--muted); padding: var(--space-6) 0; }
   .link { min-height: 32px; }
   .spunta { display: flex; align-items: center; gap: var(--space-6); }

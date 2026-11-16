@@ -311,7 +311,7 @@
   .piu-m { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; border: 1.5px dashed var(--line-dashed); background: var(--surface);
     color: var(--muted); padding: 0; display: grid; place-items: center; cursor: pointer; }
   .piu-m :global(.ic) { width: 12px; height: 12px; }
-  .ed-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-18, 18px); }
+  .ed-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-20); }
   .ed-s { display: flex; flex-direction: column; gap: var(--space-12); min-width: 0; }
   .frase { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
   .corto { width: 72px; height: 40px; text-align: center; }

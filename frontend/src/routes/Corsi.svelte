@@ -284,7 +284,6 @@
   .larga-c { gap: var(--space-14); }
   .testa { display: flex; align-items: center; gap: var(--space-16); flex-wrap: wrap; }
   .compatto { height: 40px; font-size: var(--text-md); padding: 0 var(--space-14); }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   .strumenti { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); }
   .cerca { position: relative; flex: 0 1 340px; min-width: 220px; }
@@ -345,7 +344,7 @@
   .mini-r { display: flex; align-items: center; gap: var(--space-8); min-width: 150px; }
   .mini-r .barra-r { background: var(--line-soft); }
   .mini-r .m { font-size: var(--text-xs); white-space: nowrap; }
-  .chev { width: 24px; color: var(--chevron); }
+  .chev { width: 24px; } /* più larga del .chev globale (18px) */
   .chev :global(.ic) { width: 18px; height: 18px; }
 
   @media (max-width: 1023px) {
