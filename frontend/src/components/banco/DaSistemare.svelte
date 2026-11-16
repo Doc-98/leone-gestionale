@@ -196,7 +196,7 @@
   .colonna { padding: var(--space-12); display: flex; flex-direction: column; gap: var(--space-8); }
   .c-testa { display: flex; align-items: center; gap: var(--space-8); }
   .c-n { color: var(--ferma); }
-  .riga-da-sistemare { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 56px; padding: var(--space-8) var(--space-10); border: none; border-radius: var(--radius-sm);
+  .riga-da-sistemare { width: 100%; display: flex; flex-direction: column; gap: 3px; min-height: 56px; padding: var(--space-8) var(--space-10); border: none; border-radius: var(--radius-sm);
     background: var(--ferma-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ferma) 30%, transparent); cursor: pointer; }
   .v-testa { display: flex; align-items: baseline; gap: var(--space-8); }
   .v-testa .nome { flex: 1; font-size: var(--text-sm); }

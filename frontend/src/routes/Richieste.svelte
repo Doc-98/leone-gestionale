@@ -287,9 +287,10 @@
   .altre { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-10) var(--space-4); border: none; background: none; font: inherit; color: var(--muted); font-size: var(--text-md); cursor: pointer; }
   .spiega { padding: 0 2px; }
   .elenco { padding: 0; overflow: hidden; }
-  .richiesta { display: flex; align-items: center; gap: var(--space-12); min-height: 56px; padding: var(--space-8) var(--space-12) var(--space-8) var(--space-14); border-top: 1px solid var(--line-soft); }
+  /* la riga è il pulsante .riga-r (con i suoi margini); il dettaglio si apre sotto */
+  .richiesta + .richiesta { border-top: 1px solid var(--line-soft); }
   .richiesta.spento .riga-r { opacity: 0.6; }
-  .riga-r { width: 100%; display: flex; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-14); border: none; background: none; font: inherit; color: var(--ink);
+  .riga-r { width: 100%; min-height: 56px; display: flex; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-14); border: none; background: none; font: inherit; color: var(--ink);
     text-align: left; cursor: pointer; }
   .ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: var(--surface-sunken); color: var(--seg-fg); }
   .ico.warn-i { background: var(--warn-bg); color: var(--warn); }

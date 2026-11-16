@@ -124,7 +124,7 @@
   .barre { display: flex; gap: var(--space-14); align-items: flex-end; }
   .sett { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-6); }
   .sett .h { font-size: var(--text-sm); font-weight: 600; white-space: nowrap; }
-  .barra-sett { width: 100%; max-width: 56px; height: 140px; display: flex; flex-direction: column-reverse; align-items: center; gap: var(--space-8); border-radius: 8px; overflow: hidden; background: var(--surface-sunken); }
+  .barra-sett { width: 100%; max-width: 56px; height: 140px; display: flex; flex-direction: column-reverse; border-radius: 8px; overflow: hidden; background: var(--surface-sunken); }
   .barra-sett i { display: block; width: 100%; background: var(--a); }
   .perarea { display: flex; flex-direction: column; gap: var(--space-6); padding-top: var(--space-10); border-top: 1px solid var(--line-soft); font-size: var(--text-md); }
   .perarea span { display: flex; gap: var(--space-8); }
