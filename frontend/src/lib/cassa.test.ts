@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PagamentoRegistrato, VoceScadenza } from './api';
 import type { PaginaCassa, StatoCassa } from './api';
-import { andamento, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, numeroDa, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
-import { euro } from './listino';
+import { andamento, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
+import { euro, numeroDa } from './numeri';
 
 const voce = (p: Partial<VoceScadenza>): VoceScadenza => ({
   tipo: 'CERTIFICATO', personaId: 'p', nome: 'A', cognome: 'B', eta: 30, descrizione: 'd', corso: null, stagione: null, scadenza: null, giorni: null,

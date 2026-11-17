@@ -78,8 +78,8 @@
       <div class="scelta">
         <span class="t"><b>Più figli nello stesso pagamento</b><span>Una ricevuta per famiglia, o una per figlio: per le detrazioni spesso serve una per ciascuno.</span></span>
         <span class="seg" role="group" aria-label="Quante ricevute">
-          <button type="button" aria-pressed={modo === 'FAMIGLIA'} onclick={() => (modo = 'FAMIGLIA')}>Una per famiglia</button>
-          <button type="button" aria-pressed={modo === 'PERSONA'} onclick={() => (modo = 'PERSONA')}>Una per figlio</button>
+          <button type="button" aria-pressed={modo === 'FAMIGLIA'} onclick={() => (modo = 'FAMIGLIA')}>Per famiglia</button>
+          <button type="button" aria-pressed={modo === 'PERSONA'} onclick={() => (modo = 'PERSONA')}>Per figlio</button>
         </span>
       </div>
     {/if}

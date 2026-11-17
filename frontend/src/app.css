@@ -183,7 +183,7 @@ a { color: var(--cloro); }
 
 .btn {
   height: 48px; padding: 0 var(--space-20); border-radius: var(--radius-lg); border: none;
-  font-size: var(--text-base); font-weight: 600; cursor: pointer;
+  font-size: var(--text-base); font-weight: 600; cursor: pointer; white-space: nowrap; /* un testo che non ci sta si accorcia, non va a capo */
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8);
 }
 .btn-primary { background: var(--fill); color: var(--on-fill); }
@@ -292,7 +292,7 @@ button.x-btn.conf-armata { height: 32px; padding: 0 var(--space-8); border-radiu
 .switch:disabled[aria-checked='true'] span { background: var(--cloro); }
 label:has(.switch:disabled) { color: var(--muted); cursor: default; }
 .seg { display: grid; gap: var(--space-4); padding: var(--space-4); background: var(--surface-sunken); border-radius: var(--radius-lg); }
-.seg button { position: relative; min-height: 40px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--seg-fg); font-size: var(--text-sm); font-weight: 600; cursor: pointer; padding: 0 var(--space-6); }
+.seg button { position: relative; min-height: 40px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--seg-fg); font-size: var(--text-sm); font-weight: 600; cursor: pointer; padding: 0 var(--space-6); white-space: nowrap; }
 .seg button[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-seg); }
 .field { display: flex; flex-direction: column; gap: var(--space-6); }
 
@@ -314,7 +314,11 @@ label:has(.switch:disabled) { color: var(--muted); cursor: default; }
 
 /* Piccole utilità di impaginazione */
 .row { display: flex; gap: var(--space-8); }
+/* due azioni di pari peso con un testo lungo: se non stanno in riga vanno una sotto l'altra, mai il testo a capo */
+.row.a-capo { flex-wrap: wrap; }
+.row.a-capo > .btn { flex: 1 1 auto; }
 .grow { flex: 1; }
+.nowrap { white-space: nowrap; } /* orari e importi: mai spezzati a capo */
 .nomargin { margin: 0; }
 
 /* Un'azione che non ha ancora niente da fare (Salva senza modifiche, Conferma senza scelte):
@@ -382,8 +386,10 @@ label:has(.switch:disabled) { color: var(--muted); cursor: default; }
 .pann h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-xl); font-weight: 800; line-height: 1.2; }
 /* riquadri di riepilogo, nel colore di ciò che contano */
 .riep { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-10); }
-.tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); min-width: 0; }
-.tile .v { font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12) var(--space-14); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); min-width: 0; container-type: inline-size; }
+/* la cifra si rimpicciolisce con la larghezza del riquadro (da 17 a 28px) invece di finire nei puntini; etichetta e nota non vanno a capo */
+.tile .v { font-family: var(--font-display); font-size: clamp(var(--text-xl), 15cqi, var(--text-3xl)); font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .lbl, .tile .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .n { font-size: var(--text-xs); color: var(--muted); }
 .tile.t-ferma { background: var(--ferma-bg); border-color: color-mix(in srgb, var(--ferma) 35%, transparent); }
 .tile.t-ferma :is(.lbl, .v, .n) { color: var(--ferma-fg); }
@@ -426,6 +432,7 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
   box-shadow: 0 8px 28px rgba(16, 33, 43, 0.25); font-size: var(--text-md); }
 .salva-bar button { height: 38px; padding: 0 var(--space-16); border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); font-weight: 700; cursor: pointer; }
 .salva-bar .chiaro { border: none; background: var(--chiaro-su-hero); color: var(--on-chiaro-su-hero); }
+.salva-bar button:disabled { opacity: 0.5; cursor: default; }
 .salva-bar .vuoto { border: 1px solid color-mix(in srgb, var(--on-ink) 35%, transparent); background: transparent; color: var(--on-ink); font-weight: 600; }
 /* Sotto i 1024 px c'è la barra di navigazione in basso (60 px, fissa): la barra di salvataggio le sta sopra */
 @media (max-width: 1023.98px) { .salva-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 60px + var(--space-12)); } }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type ImpostazioniRicevute, type PaginaRicevute, type SerieRicevute, type TipoSerie } from '../lib/api';
-  import { euro } from '../lib/listino';
+  import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { anteprimaNumero, FORMATI_PRONTI, RIPARTE } from '../lib/ricevute';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -9,7 +9,7 @@
    * Impostazioni delle ricevute (ADR 0018, parte 10): le serie con la loro numerazione, cosa c'è scritto e come si
    * consegnano. Le modifiche si salvano tutte insieme dalla barra in basso, come nelle altre impostazioni.
    */
-  type Bozza = { imp: ImpostazioniRicevute; serie: SerieRicevute[] };
+  type Bozza = { imp: Omit<ImpostazioniRicevute, 'bolloSoglia' | 'bolloImporto'> & { bolloSoglia: string; bolloImporto: string }; serie: SerieRicevute[] };
   let pagina = $state<PaginaRicevute | null>(null);
   let bozza = $state<Bozza | null>(null);
   let originale = $state('');
@@ -22,7 +22,7 @@
   async function carica() {
     try {
       pagina = await api.impostazioniRicevute();
-      bozza = { imp: { ...pagina.impostazioni }, serie: pagina.serie.map((s) => ({ ...s })) };
+      bozza = { imp: { ...pagina.impostazioni, bolloSoglia: perCampo(pagina.impostazioni.bolloSoglia), bolloImporto: perCampo(pagina.impostazioni.bolloImporto) }, serie: pagina.serie.map((s) => ({ ...s })) };
       originale = JSON.stringify(bozza);
     } catch (e) {
       errore = messaggioErrore(e);
@@ -30,6 +30,13 @@
   }
   carica();
 
+  const erroreBollo = $derived.by(() => {
+    if (!bozza) return '';
+    const { bollo, bolloSoglia, bolloImporto } = bozza.imp;
+    if (importoNonValido(bolloSoglia) || importoNonValido(bolloImporto) || (bollo && (numeroDa(bolloSoglia) == null || numeroDa(bolloImporto) == null)))
+      return 'Scrivi la soglia e l\'importo della marca in euro, es. 77,47 e 2';
+    return '';
+  });
   const sporco = $derived(!!bozza && JSON.stringify(bozza) !== originale);
   const serie = $derived(bozza?.serie[scelta]);
   const anno = new Date().getFullYear();
@@ -52,7 +59,7 @@
             prossimoNumero: s.prossimoNumero ? Number(s.prossimoNumero) : null });
       }
       if (JSON.stringify(prima.imp) !== JSON.stringify(bozza.imp))
-        await api.modificaImpostazioniRicevute({ ...bozza.imp, bolloSoglia: Number(bozza.imp.bolloSoglia), bolloImporto: Number(bozza.imp.bolloImporto) });
+        await api.modificaImpostazioniRicevute({ ...bozza.imp, bolloSoglia: numeroDa(bozza.imp.bolloSoglia) ?? 0, bolloImporto: numeroDa(bozza.imp.bolloImporto) ?? 0 });
       await carica();
       messaggio = 'Salvato: vale dalla prossima ricevuta.';
     } catch (e) {
@@ -86,13 +93,13 @@
       <div class="princ">
         <section class="card sez" id="imp-serie" aria-label="Serie e numerazione">
           <div class="sez-t"><h2 class="grow">Serie e numerazione</h2>
-            {#if puo && !nuova}<button type="button" class="mini-btn" onclick={() => (nuova = { nome: '', tipo: 'RICEVUTA' })}><Icona nome="piu" />Nuova serie</button>{/if}</div>
+            {#if puo && !nuova}<button type="button" class="mini-btn" onclick={() => (nuova = { nome: '', tipo: 'RICEVUTA' })}><Icona nome="piu" />Nuova serie…</button>{/if}</div>
           <p class="muted small nomargin spiega-s">Ogni serie ha la sua numerazione. Un numero usato non torna mai libero, nemmeno se la ricevuta si annulla.</p>
           {#if nuova}
             <form class="nuova" onsubmit={(e) => { e.preventDefault(); creaSerie(); }}>
               <input class="inp" bind:value={nuova.nome} placeholder="Nome (es. Ricevute del campo estivo)" maxlength="60" aria-label="Nome della serie" />
               <select class="inp" bind:value={nuova.tipo} aria-label="Tipo"><option value="RICEVUTA">Ricevute</option><option value="FATTURA">Fatture</option></select>
-              <button class="btn btn-primary" disabled={!nuova.nome.trim()}>Aggiungi</button>
+              <button class="btn btn-primary" disabled={!nuova.nome.trim()}>Aggiungi la serie</button>
               <button type="button" class="btn btn-secondary" onclick={() => (nuova = null)}>Annulla</button>
             </form>
           {/if}
@@ -137,7 +144,7 @@
           <div class="sez-t"><h2 class="grow">Cosa c'è scritto</h2><span class="spiega">l'intestazione viene dai dati della società</span></div>
           <div class="riga-imp"><span class="t"><b>Intestazione</b>
             <span>Ragione sociale, partita IVA o codice fiscale, indirizzo.{#if pagina.mancaIntestazione.length}{' '}<strong class="manca">Manca: {pagina.mancaIntestazione.join(', ')}.</strong>{/if}</span></span>
-            <span class="ctl"><a class="mini-btn" href="#/societa">Dati della società →</a></span></div>
+            <span class="ctl"><a class="mini-btn" href="#/societa">Dati, stagioni e gruppi →</a></span></div>
           {@render scelte('Intestata a', 'Per un minore paga quasi sempre un genitore: la ricevuta è sua, con il nome del figlio. Intestate a chi frequenta, sono una per persona.',
             seg(bozza.imp.intestata, [{ id: 'PAGANTE', nome: 'A chi paga' }, { id: 'BENEFICIARIO', nome: 'A chi frequenta' }], (v) => (bozza!.imp.intestata = v)))}
           <div class="riga-imp"><span class="t"><b>Codici fiscali</b><span>Di chi paga e di chi frequenta: servono per le detrazioni e per i rimborsi welfare.</span></span>
@@ -145,8 +152,9 @@
               onclick={() => (bozza!.imp.codiciFiscali = !bozza!.imp.codiciFiscali)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Marca da bollo</b><span>Sopra la soglia la ricevuta ha il riquadro per la marca.</span></span>
             <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.imp.bollo} aria-label="Marca da bollo" disabled={!puo} onclick={() => (bozza!.imp.bollo = !bozza!.imp.bollo)}><span></span></button>
-              <span class="unita">sopra</span><input class="inp m corto" type="number" min="0" step="0.01" bind:value={bozza.imp.bolloSoglia} disabled={!puo || !bozza.imp.bollo} aria-label="Soglia della marca da bollo in euro" />
-              <span class="unita">€, da</span><input class="inp m corto" type="number" min="0" step="0.01" bind:value={bozza.imp.bolloImporto} disabled={!puo || !bozza.imp.bollo} aria-label="Importo della marca da bollo in euro" /><span class="unita">€</span></span></div>
+              <span class="unita">sopra</span><input class="inp m corto" type="text" inputmode="decimal" bind:value={bozza.imp.bolloSoglia} aria-invalid={!!erroreBollo} disabled={!puo || !bozza.imp.bollo} aria-label="Soglia della marca da bollo in euro" />
+              <span class="unita">€, da</span><input class="inp m corto" type="text" inputmode="decimal" bind:value={bozza.imp.bolloImporto} aria-invalid={!!erroreBollo} disabled={!puo || !bozza.imp.bollo} aria-label="Importo della marca da bollo in euro" /><span class="unita">€</span></span>
+            {#if erroreBollo}<span class="msg err" role="alert">{erroreBollo}</span>{/if}</div>
           <div class="riga-imp colonna-imp"><span class="t"><b>Dicitura in fondo</b><span>Il testo per le detrazioni o per l'ente. Con {'{beneficiario}'} e {'{nascita}'} si inseriscono nome e data di nascita di chi frequenta.</span></span>
             <textarea class="inp dicitura" rows="3" maxlength="1000" value={bozza.imp.dicitura ?? ''} disabled={!puo} aria-label="Dicitura in fondo alla ricevuta"
               oninput={(e) => (bozza!.imp.dicitura = e.currentTarget.value || null)}></textarea></div>
@@ -161,7 +169,7 @@
           <div class="riga-imp"><span class="t"><b>Manda per email a chi paga</b><span>Appena fatta, in allegato, all'indirizzo nella scheda. Senza email si stampa.</span></span>
             <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.imp.email} aria-label="Manda per email" disabled={!puo} onclick={() => (bozza!.imp.email = !bozza!.imp.email)}><span></span></button></span></div>
           {@render scelte('Un genitore paga per più figli', 'Una ricevuta con una riga per figlio, o una per figlio (comodo per le detrazioni di ciascuno).',
-            seg(bozza.imp.famiglia, [{ id: 'CHIEDI', nome: 'Chiedi ogni volta' }, { id: 'FAMIGLIA', nome: 'Una per famiglia' }, { id: 'PERSONA', nome: 'Una per figlio' }], (v) => (bozza!.imp.famiglia = v)))}
+            seg(bozza.imp.famiglia, [{ id: 'CHIEDI', nome: 'Chiedi' }, { id: 'FAMIGLIA', nome: 'Per famiglia' }, { id: 'PERSONA', nome: 'Per figlio' }], (v) => (bozza!.imp.famiglia = v)))}
         </section>
       </div>
 
@@ -174,9 +182,9 @@
             <span class="n"><span>{serie?.tipo === 'FATTURA' ? 'Fattura' : 'Ricevuta'} n.</span><b class="m">{serie ? anteprima(serie) : ''}</b></span>
             <span class="riga"><span>Ricevuto da</span><b>{bozza.imp.intestata === 'PAGANTE' ? 'il genitore che paga' : 'chi frequenta'}</b></span>
             {#if bozza.imp.codiciFiscali}<span class="riga"><span>C.F.</span><span>sì</span></span>{/if}
-            <span class="riga"><span>Corso di nuoto · 1ª rata</span><span>{euro(320)}</span></span>
-            <span class="tot"><span>Totale</span><span>{euro(320)}</span></span>
-            {#if bozza.imp.bollo && 320 > Number(bozza.imp.bolloSoglia)}<span class="bollo">marca da bollo {euro(Number(bozza.imp.bolloImporto))}</span>{/if}
+            <span class="riga"><span>Corso di nuoto · 1ª rata</span><span>{euroColonna(320)}</span></span>
+            <span class="tot"><span>Totale</span><span>{euroColonna(320)}</span></span>
+            {#if bozza.imp.bollo && 320 > (numeroDa(bozza.imp.bolloSoglia) ?? 0)}<span class="bollo">marca da bollo {euro(numeroDa(bozza.imp.bolloImporto) ?? 0)}</span>{/if}
             {#if bozza.imp.dicitura}<span class="dic">{bozza.imp.dicitura}</span>{/if}
             {#if bozza.imp.firma}<span class="firma">Per la società</span>{/if}
           </div>
@@ -188,7 +196,7 @@
       <div class="salva-bar" role="status">
         <span>Ci sono modifiche non salvate</span>
         <button type="button" class="vuoto" onclick={() => (bozza = JSON.parse(originale))}>Annulla</button>
-        <button type="button" class="chiaro" onclick={salva}>Salva</button>
+        <button type="button" class="chiaro" disabled={!!erroreBollo} onclick={salva}>Salva</button>
       </div>
     {/if}
   {:else if !errore}

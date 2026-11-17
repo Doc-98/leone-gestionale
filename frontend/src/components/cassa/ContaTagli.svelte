@@ -1,12 +1,12 @@
 <script lang="ts">
   import { sommaTagli, TAGLI } from '../../lib/cassa';
-  import { euro } from '../../lib/listino';
+  import { euroColonna } from '../../lib/numeri';
 
   /** Contare il cassetto per tagli: quanti pezzi di ogni banconota e moneta; il totale va al campo «Contati». */
   let { totale, pezzi = $bindable({}) }: { totale: (t: number) => void; pezzi?: Record<string, number | null> } = $props();
   const somma = $derived(sommaTagli(pezzi));
   $effect(() => totale(somma));
-  const nome = (v: number) => (v >= 1 ? `${v} €` : `${Math.round(v * 100)} cent`);
+  const nome = (v: number) => (v >= 1 ? `${v}\u00a0€` : `${Math.round(v * 100)} cent`);
 </script>
 
 <div class="tagli" role="group" aria-label="Conta per tagli">
@@ -17,7 +17,7 @@
       <input class="inp m" type="number" min="0" step="1" inputmode="numeric" bind:value={pezzi[String(v)]} placeholder="0" aria-label={`Pezzi da ${nome(v)}`} />
     </label>
   {/each}
-  <span class="tot"><span>Totale contato</span><b class="m">{euro(somma)}</b></span>
+  <span class="tot"><span>Totale contato</span><b class="m">{euroColonna(somma)}</b></span>
 </div>
 
 <style>

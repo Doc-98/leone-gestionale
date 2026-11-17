@@ -71,9 +71,9 @@
           <div class="chiedi">
             <span class="lbl">Chiedi</span>
             <div class="tre">
-              <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(scelto, 'SOSTITUZIONE')}>Sostituzione</button>
-              <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(scelto, 'SCAMBIO')}>Scambio</button>
-              <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(scelto, 'CAMBIO_ORARIO')}>Orario</button>
+              <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(scelto, 'SOSTITUZIONE')}>Sostituzione…</button>
+              <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(scelto, 'SCAMBIO')}>Scambio…</button>
+              <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(scelto, 'CAMBIO_ORARIO')}>Cambio orario…</button>
             </div>
           </div>
         {/if}

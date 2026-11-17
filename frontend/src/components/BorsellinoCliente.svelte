@@ -5,7 +5,8 @@
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type MetodoPagamento, type SchedaBorsellino, type StatoCreditiBraccialetto, type Utilizzo } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
+  import { crediti as nCrediti } from '../lib/plurali';
   import { ESITI_MACCHINA } from '../lib/macchine';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -72,19 +73,21 @@
     | { tipo: 'correggi'; saldo: 'EURO' | 'CREDITI'; quantita: string; motivo: string };
   let azione = $state<Azione | null>(null);
 
-  const crediti = (imp: string) => (dati && Number(imp) > 0 ? Math.floor(Math.round(Number(imp) * 100) / Math.round(dati.regole.valoreCredito * 100)) : 0);
-  const multiplo = (imp: string) => !!dati && Math.round(Number(imp) * 100) % Math.round(dati.regole.valoreCredito * 100) === 0;
+  /** L'importo scritto nel campo (con la virgola o col punto), 0 se è vuoto o non si capisce. */
+  const importoN = (s: string) => numeroDa(s) ?? 0;
+  const crediti = (imp: string) => (dati && importoN(imp) > 0 ? Math.floor(Math.round(importoN(imp) * 100) / Math.round(dati.regole.valoreCredito * 100)) : 0);
+  const multiplo = (imp: string) => !!dati && Math.round(importoN(imp) * 100) % Math.round(dati.regole.valoreCredito * 100) === 0;
 
   async function conferma() {
     const a = azione!;
     let ok = false;
     if (a.tipo === 'ricarica')
-      ok = await esegui(() => api.ricarica(id, { paganteId: a.paganteId, importo: Number(a.importo), metodi: [{ metodoId: a.metodoId, importo: Number(a.importo) }] }),
-        `Ricarica di ${euro(Number(a.importo))}: ${crediti(a.importo)} crediti.`);
+      ok = await esegui(() => api.ricarica(id, { paganteId: a.paganteId, importo: importoN(a.importo), metodi: [{ metodoId: a.metodoId, importo: importoN(a.importo) }] }),
+        `Ricarica di ${euro(importoN(a.importo))}: ${nCrediti(crediti(a.importo))}.`);
     else if (a.tipo === 'trasferisci')
-      ok = await esegui(() => api.trasferisci(id, a.a, Number(a.importo)), `${euro(Number(a.importo))} trasferiti a ${dati!.trasferibileA.find((f) => f.personaId === a.a)?.nome}.`);
+      ok = await esegui(() => api.trasferisci(id, a.a, importoN(a.importo)), `${euro(importoN(a.importo))} trasferiti a ${dati!.trasferibileA.find((f) => f.personaId === a.a)?.nome}.`);
     else if (a.tipo === 'restituisci')
-      ok = await esegui(() => api.restituisci(id, Number(a.importo), a.metodoId || null), `${euro(Number(a.importo))} restituiti.`);
+      ok = await esegui(() => api.restituisci(id, importoN(a.importo), a.metodoId || null), `${euro(importoN(a.importo))} restituiti.`);
     else ok = await esegui(() => api.correggi(id, a.saldo, Number(a.quantita), a.motivo.trim()), 'Saldo corretto.');
     if (ok) azione = null;
   }
@@ -116,7 +119,7 @@
       <div class="totali">
         <span class="tot"><span class="lbl">Credito</span><strong class="m">{euro(s.euro)}</strong>
           {#if s.prossimaScadenza && s.inScadenza > 0}<span class="small muted">{euro(s.inScadenza)} scadono il {dataBreve(s.prossimaScadenza)}</span>{/if}</span>
-        <span class="tot"><span class="lbl">Phon e docce{sulBraccialetto ? ' · ultimo visto' : ''}</span><strong class="m">{s.crediti} crediti</strong><span class="small muted">= {euro(s.valoreCrediti)}</span></span>
+        <span class="tot"><span class="lbl">Phon e docce{sulBraccialetto ? ' · ultimo visto' : ''}</span><strong class="m">{nCrediti(s.crediti)}</strong><span class="small muted">= {euro(s.valoreCrediti)}</span></span>
       </div>
     {/if}
   </div>
@@ -134,7 +137,7 @@
           {/if}
         {/if}
         {#if puoRimborsare && r.restituibile && dati.saldo.euro > 0}
-          <button class="btn btn-secondary" onclick={() => (azione = { tipo: 'restituisci', importo: String(dati!.saldo.euro), metodoId: perRestituire[0]?.id ?? '' })}>Restituisci in denaro…</button>
+          <button class="btn btn-secondary" onclick={() => (azione = { tipo: 'restituisci', importo: perCampo(dati!.saldo.euro), metodoId: perRestituire[0]?.id ?? '' })}>Restituisci in denaro…</button>
         {/if}
         {#if puoRimborsare}<AzioneIcona icona="matita" etichetta="Correggi un saldo" onclick={() => (azione = { tipo: 'correggi', saldo: 'CREDITI', quantita: '', motivo: '' })} />{/if}
       </div>
@@ -146,13 +149,13 @@
             <div class="riga">
               <div class="chips">
                 {#each [...new Set([Math.max(r.ricaricaMinima, 5), 10, 20])] as v (v)}
-                  <button type="button" class="chip" aria-pressed={Number(azione.importo) === v} onclick={() => azione!.tipo === 'ricarica' && (azione!.importo = String(v))}>{euro(v)}</button>
+                  <button type="button" class="chip" aria-pressed={importoN(azione.importo) === v} onclick={() => azione!.tipo === 'ricarica' && (azione!.importo = perCampo(v))}>{euro(v)}</button>
                 {/each}
               </div>
-              <input class="inp m importo" type="number" min={r.ricaricaMinima} step={r.valoreCredito} bind:value={azione.importo} aria-label="Importo della ricarica" />
-              <span class="small">= <strong>{crediti(azione.importo)} crediti</strong></span>
+              <input class="inp m importo" inputmode="decimal" bind:value={azione.importo} aria-label="Importo della ricarica" />
+              <span class="small">= <strong>{nCrediti(crediti(azione.importo))}</strong></span>
             </div>
-            {#if Number(azione.importo) > 0 && !multiplo(azione.importo)}<span class="small rosso">Deve essere un multiplo di {euro(r.valoreCredito)}.</span>{/if}
+            {#if importoN(azione.importo) > 0 && !multiplo(azione.importo)}<span class="small rosso">Deve essere un multiplo di {euro(r.valoreCredito)}.</span>{/if}
           </div>
           <div class="due">
             <label class="field"><span class="lbl">Come si paga</span>
@@ -171,13 +174,13 @@
               <select class="inp" bind:value={azione.a}>{#each dati.trasferibileA as f (f.personaId)}<option value={f.personaId}>{f.nome}{f.relazione ? ` (${f.relazione.toLowerCase()})` : ''}</option>{/each}</select>
             </label>
             <label class="field"><span class="lbl">Quanto (disponibili {euro(dati.saldo.euro)})</span>
-              <input class="inp m" type="number" min="0.01" max={dati.saldo.euro} step="0.01" bind:value={azione.importo} /></label>
+              <input class="inp m" inputmode="decimal" bind:value={azione.importo} /></label>
           </div>
           <p class="muted small nomargin">Le scadenze passano con il credito.</p>
         {:else if azione.tipo === 'restituisci'}
           <div class="due">
             <label class="field"><span class="lbl">Quanto (disponibili {euro(dati.saldo.euro)})</span>
-              <input class="inp m" type="number" min="0.01" max={dati.saldo.euro} step="0.01" bind:value={azione.importo} /></label>
+              <input class="inp m" inputmode="decimal" bind:value={azione.importo} /></label>
             <label class="field"><span class="lbl">Con</span>
               <select class="inp" bind:value={azione.metodoId}>{#each perRestituire as m (m.id)}<option value={m.id}>{m.nome}</option>{/each}</select>
             </label>
@@ -194,10 +197,10 @@
           </div>
         {/if}
         <div class="row">
-          <button type="button" class="btn btn-secondary grow" onclick={() => (azione = null)}>Annulla</button>
-          <button class="btn btn-primary grow" disabled={azione.tipo === 'ricarica' ? !(Number(azione.importo) >= r.ricaricaMinima && Number(azione.importo) > 0 && multiplo(azione.importo) && azione.metodoId)
-            : azione.tipo === 'correggi' ? !(Number(azione.quantita) !== 0 && azione.motivo.trim()) : !(Number(azione.importo) > 0 && Number(azione.importo) <= dati.saldo.euro)}>
-            {azione.tipo === 'ricarica' ? `Ricarica ${euro(Number(azione.importo) || 0)}` : azione.tipo === 'trasferisci' ? 'Trasferisci' : azione.tipo === 'restituisci' ? 'Restituisci' : 'Correggi'}
+          <button type="button" class="btn btn-secondary" onclick={() => (azione = null)}>Annulla</button>
+          <button class="btn btn-primary grow" disabled={azione.tipo === 'ricarica' ? !(importoN(azione.importo) >= r.ricaricaMinima && importoN(azione.importo) > 0 && multiplo(azione.importo) && azione.metodoId)
+            : azione.tipo === 'correggi' ? !(Number(azione.quantita) !== 0 && azione.motivo.trim()) : !(importoN(azione.importo) > 0 && importoN(azione.importo) <= dati.saldo.euro)}>
+            {azione.tipo === 'ricarica' ? `Ricarica ${euro(importoN(azione.importo))}` : azione.tipo === 'trasferisci' ? `Trasferisci ${euro(importoN(azione.importo))}` : azione.tipo === 'restituisci' ? `Restituisci ${euro(importoN(azione.importo))}` : 'Correggi il saldo'}
           </button>
         </div>
       </form>
@@ -214,7 +217,7 @@
         <ul class="righe">
           {#each movimenti as m (m.id)}
             <li>
-              <span class="m imp" class:piu={m.quantita > 0}>{segno(m.quantita)}{m.saldo === 'EURO' ? euro(Math.abs(m.quantita)) : `${Math.abs(m.quantita)} cr.`}</span>
+              <span class="m imp" class:piu={m.quantita > 0}>{segno(m.quantita)}{m.saldo === 'EURO' ? euroColonna(Math.abs(m.quantita)) : nCrediti(Math.abs(m.quantita))}</span>
               <span class="grow small">{m.descrizione}{m.scadenza ? ` · fino al ${dataBreve(m.scadenza)}` : ''}<span class="muted"> · {dataBreve(dataDi(m.creatoIl))}{m.creatoDa ? ` · ${m.creatoDa}` : ''}</span></span>
             </li>
           {:else}
@@ -230,7 +233,7 @@
           {#each utilizzi as u (u.id)}
             <li>
               <span class="small grow">{u.servizio ?? u.dispositivo}{u.postazione ? ` ${u.postazione}` : ''} <span class="muted">· {dataBreve(dataDi(u.istante))} {oraDi(u.istante)}{u.simulato ? ' · simulato' : ''}</span></span>
-              <span class="tag {u.esito === 'OK' || u.esito === 'GRATIS' ? 't-soft' : 't-warn'}">{ESITI_MACCHINA[u.esito] ?? u.esito}{u.crediti ? ` · ${u.crediti} cr.` : ''}</span>
+              <span class="tag {u.esito === 'OK' || u.esito === 'GRATIS' ? 't-soft' : 't-warn'}">{ESITI_MACCHINA[u.esito] ?? u.esito}{u.crediti ? ` · ${nCrediti(u.crediti)}` : ''}</span>
             </li>
           {:else}
             <li class="muted small">Nessun utilizzo.</li>

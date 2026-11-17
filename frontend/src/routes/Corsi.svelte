@@ -3,7 +3,9 @@
   import Foglio from '../components/Foglio.svelte';
   import { onMount } from 'svelte';
   import { api, messaggioErrore, type Corso, type FasciaOraria, type PersonaBreve, type SpazioPiano, type TipoCorso } from '../lib/api';
-  import { iso } from '../lib/date';
+  import { GIORNI_BREVI, GIORNI_ESTESI, iso } from '../lib/date';
+  import { quanti } from '../lib/plurali';
+  import { numero } from '../lib/numeri';
   import { colore, eta, TIPI_CORSO } from '../lib/piano';
   import { doveBreve, riempimento, turniAttivi, turniPerGiorno } from '../lib/corsi';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
@@ -39,8 +41,7 @@
 
   const oggi = iso(new Date());
   const ORDINE_CATEGORIE: TipoCorso[] = ['SCUOLA_NUOTO', 'ACQUATICITA', 'MASTER', 'AGONISMO', 'ACQUAGYM', 'CURRICOLARE', 'NUOTO_LIBERO', 'ALTRO'];
-  const GIORNI = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-  const GIORNI_LUNGHI = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
+  const iniziale = (i: number) => GIORNI_BREVI[i + 1][0].toUpperCase();
 
   // ── Corso aperto dall'indirizzo ──
   const daIndirizzo = () => location.hash.split('/')[2] ?? null;
@@ -140,8 +141,8 @@
   const impiantoNuovo = $derived(gestiti[0] ?? '');
   const vistaEffettiva = $derived<Vista>(schermo.larga ? vista : 'categorie');
 
-  const quantiCorsi = (n: number) => (n === 1 ? '1 corso' : `${n} corsi`);
-  const settimanaTesto = (g: number[]) => g.map((n, i) => (n ? `${GIORNI_LUNGHI[i]} ${n}` : null)).filter(Boolean).join(', ') || 'nessun turno';
+  const quantiCorsi = (n: number) => quanti(n, 'corso', 'corsi');
+  const settimanaTesto = (g: number[]) => g.map((n, i) => (n ? `${GIORNI_ESTESI[i + 1]} ${n}` : null)).filter(Boolean).join(', ') || 'nessun turno';
 </script>
 
 {#if apertoId}
@@ -154,7 +155,7 @@
 {:else}
 <section class="page larga-c">
   <div class="testa">
-    <p class="muted nomargin grow">{caricamento ? 'Caricamento…' : `${totale.corsi} corsi attivi · ${totale.turni} turni · ${totale.iscritti.toLocaleString('it-IT')} iscrizioni`}</p>
+    <p class="muted nomargin grow">{caricamento ? 'Caricamento…' : `${quanti(totale.corsi, 'corso attivo', 'corsi attivi')} · ${quanti(totale.turni, 'turno', 'turni')} · ${quanti(totale.iscritti, 'iscrizione', 'iscrizioni').replace(/^\d+/, numero(totale.iscritti))}`}</p>
     {#if impiantoNuovo}
       <button class="btn btn-primary compatto" onclick={() => ((nuovo = true), (messaggio = ''))}><Icona nome="piu" />Nuovo corso…</button>
     {/if}
@@ -218,12 +219,12 @@
               </span>
               <span class="sub">{r.dettaglio || TIPI_CORSO[r.corso.tipo]}{#if r.istruttori}<br />{r.istruttori}{/if}</span>
               <span class="sett7" aria-label="Turni: {settimanaTesto(r.giorni)}">
-                {#each r.giorni as n, i (i)}<span class="g" class:no={!n}><span class="d">{GIORNI[i]}</span><span class="n">{n || '–'}</span></span>{/each}
+                {#each r.giorni as n, i (i)}<span class="g" class:no={!n}><span class="d">{iniziale(i)}</span><span class="n">{n || '–'}</span></span>{/each}
               </span>
               {#if r.posti != null}
-                <span class="riemp"><span class="barra-r"><span class:quasi={(r.percentuale ?? 0) >= 95} style="width: {Math.min(100, r.percentuale ?? 0)}%"></span></span><span class="m">{r.iscritti}/{r.posti}</span> iscritti</span>
+                <span class="riemp"><span class="barra-r"><span class:quasi={(r.percentuale ?? 0) >= 95} style="width: {Math.min(100, r.percentuale ?? 0)}%"></span></span><span class="m">{r.iscritti}/{r.posti}</span> {r.iscritti === 1 ? 'iscritto' : 'iscritti'}</span>
               {:else if r.turni}
-                <span class="riemp">Senza limite di posti{r.iscritti ? ` · ${r.iscritti} iscritti` : ''}</span>
+                <span class="riemp">Senza limite di posti{r.iscritti ? ` · ${quanti(r.iscritti, 'iscritto', 'iscritti')}` : ''}</span>
               {/if}
               <span class="piede-c"><span><span class="m">{r.turni}</span> {r.turni === 1 ? 'turno' : 'turni'}</span><span>{r.dove}</span></span>
             </button>
@@ -239,7 +240,7 @@
         <thead>
           <tr>
             <th>Corso</th><th>Istruttori</th>
-            <th><span class="testa-g">{#each GIORNI as d, i (i)}<span>{d}</span>{/each}</span></th>
+            <th><span class="testa-g">{#each [0, 1, 2, 3, 4, 5, 6] as i (i)}<span>{iniziale(i)}</span>{/each}</span></th>
             <th class="num">Turni</th><th>Iscritti</th><th>In attesa</th><th><span class="sr">Apri</span></th>
           </tr>
         </thead>
@@ -253,7 +254,7 @@
                   <div class="sub-r">{[r.dettaglio, r.dove].filter(Boolean).join(' · ')}</div>
                 </td>
                 <td>{r.istruttori || '—'}</td>
-                <td><span class="sett7r" aria-label="Turni: {settimanaTesto(r.giorni)}">{#each r.giorni as n, i (i)}<span class:no={!n} title="{GIORNI_LUNGHI[i]}: {n ? `${n} ${n === 1 ? 'turno' : 'turni'}` : 'nessun turno'}">{n || '–'}</span>{/each}</span></td>
+                <td><span class="sett7r" aria-label="Turni: {settimanaTesto(r.giorni)}">{#each r.giorni as n, i (i)}<span class:no={!n} title="{GIORNI_ESTESI[i + 1]}: {n ? quanti(n, 'turno', 'turni') : 'nessun turno'}">{n || '–'}</span>{/each}</span></td>
                 <td class="m num">{r.turni}</td>
                 <td>
                   {#if r.posti != null}

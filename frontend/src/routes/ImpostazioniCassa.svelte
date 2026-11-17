@@ -2,8 +2,8 @@
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Cassa, type ChiusuraModo, type FondoModo, type ImpostazioniCassa, type MetodoPagamento, type PaginaCassa } from '../lib/api';
-  import { CONTROLLI, numeroDa, spiegaFondo } from '../lib/cassa';
-  import { euro } from '../lib/listino';
+  import { CONTROLLI, spiegaFondo } from '../lib/cassa';
+  import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -25,7 +25,7 @@
     try {
       [pagina, metodi] = await Promise.all([api.cassa(), api.metodiPagamento()]);
       const i = pagina.impostazioni;
-      bozza = { ...i, importoFondo: String(i.importoFondo).replace('.', ','), tolleranza: String(i.tolleranza).replace('.', ','), oreAvviso: String(i.oreAvviso) };
+      bozza = { ...i, importoFondo: perCampo(i.importoFondo), tolleranza: perCampo(i.tolleranza), oreAvviso: String(i.oreAvviso) };
       originale = JSON.stringify(bozza);
     } catch (e) {
       errore = messaggioErrore(e);
@@ -37,7 +37,7 @@
   const fondoN = $derived(bozza ? numeroDa(bozza.importoFondo) : null);
   const tolleranzaN = $derived(bozza ? numeroDa(bozza.tolleranza) : null);
   const oreN = $derived(bozza && /^\d{1,2}$/.test(bozza.oreAvviso.trim()) ? Number(bozza.oreAvviso) : null);
-  const valida = $derived(fondoN != null && tolleranzaN != null && tolleranzaN >= 0 && oreN != null && oreN <= 72);
+  const valida = $derived(fondoN != null && fondoN >= 0 && tolleranzaN != null && tolleranzaN >= 0 && oreN != null && oreN <= 72);
   const pagabili = $derived(metodi.filter((m) => m.attivo && !m.contanti && !m.daIncassare && !m.borsellino));
   const aperte = $derived(pagina?.stati.filter((s) => s.aperta).map((s) => s.cassa.nome) ?? []);
   const nelCassetto = $derived(metodi.filter((m) => m.contanti && m.attivo).map((m) => m.nome));
@@ -76,7 +76,7 @@
 
   type Scelte = { valore: string; opzioni: { id: string; nome: string }[]; scegli: (v: string) => void };
   const seg = <T extends string>(valore: T, opzioni: { id: T; nome: string }[], scegli: (v: T) => void): Scelte => ({ valore, opzioni, scegli: (v) => scegli(v as T) });
-  const FONDI: { id: FondoModo; nome: string }[] = [{ id: 'RIPORTATO', nome: 'Riportato' }, { id: 'FISSO', nome: 'Fisso' }, { id: 'CONTATO', nome: 'Contato ogni volta' }];
+  const FONDI: { id: FondoModo; nome: string }[] = [{ id: 'RIPORTATO', nome: 'Riportato' }, { id: 'FISSO', nome: 'Fisso' }, { id: 'CONTATO', nome: 'Contato' }];
   const CHIUSURE: { id: ChiusuraModo; nome: string }[] = [{ id: 'TURNO', nome: 'A fine turno' }, { id: 'GIORNATA', nome: 'A fine giornata' }];
 </script>
 
@@ -124,11 +124,11 @@
             </ul>
             {#if puo}
               {#if nuova === null}
-                <div class="aggiungi"><button type="button" class="mini-btn" onclick={() => (nuova = '')}><Icona nome="piu" />Aggiungi una cassa</button></div>
+                <div class="aggiungi"><button type="button" class="mini-btn" onclick={() => (nuova = '')}><Icona nome="piu" />Nuova cassa…</button></div>
               {:else}
                 <form class="aggiungi" onsubmit={(e) => { e.preventDefault(); aggiungi(); }}>
                   <input class="inp grow" bind:value={nuova} maxlength="40" placeholder="Nome (es. Segreteria piscina)" aria-label="Nome della nuova cassa" />
-                  <button class="btn btn-primary" disabled={!nuova.trim()}>Aggiungi</button>
+                  <button class="btn btn-primary" disabled={!nuova.trim()}>Aggiungi la cassa</button>
                   <button type="button" class="btn btn-secondary" onclick={() => (nuova = null)}>Annulla</button>
                 </form>
               {/if}
@@ -141,7 +141,8 @@
           {@render scelte('Da dove si parte', spiegaFondo({ fondo: bozza.fondo, importoFondo: fondoN ?? 0 }, euro), seg(bozza.fondo, FONDI, (v) => (bozza!.fondo = v)))}
           <div class="riga-imp"><span class="t"><b>{bozza.fondo === 'FISSO' ? 'Il fondo' : 'Il fondo di solito'}</b>
             <span>{bozza.fondo === 'FISSO' ? 'Alla chiusura resta nel cassetto, il resto si versa.' : 'Il primo giorno, e quello proposto da lasciare alla chiusura.'}</span></span>
-            <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.importoFondo} disabled={!puo} aria-label="Importo del fondo" /><span class="unita">€</span></span></div>
+            <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.importoFondo} disabled={!puo} aria-label="Importo del fondo" aria-invalid={fondoN == null || fondoN < 0} /><span class="unita">€</span></span>
+            {#if fondoN == null || fondoN < 0}<span class="msg err" role="alert">Scrivi il fondo in euro, es. 100 o 100,50</span>{/if}</div>
         </section>
 
         <section class="card sez" id="imp-chiusura" aria-label="La chiusura">
@@ -162,7 +163,8 @@
             <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.cieca} aria-label="Conta alla cieca" disabled={!puo} onclick={() => (bozza!.cieca = !bozza!.cieca)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Differenza tollerata</b>
             <span>Fino a questa cifra, in più o in meno, si chiude e basta. Oltre: si propone di ricontare, la nota diventa obbligatoria e la chiusura può andare controllata. 0 = ogni differenza.</span></span>
-            <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.tolleranza} disabled={!puo} aria-label="Differenza tollerata" /><span class="unita">€</span></span></div>
+            <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.tolleranza} disabled={!puo} aria-label="Differenza tollerata" aria-invalid={tolleranzaN == null || tolleranzaN < 0} /><span class="unita">€</span></span>
+            {#if tolleranzaN == null || tolleranzaN < 0}<span class="msg err" role="alert">Scrivi la differenza in euro, es. 2 o 0,50 (0 = ogni differenza)</span>{/if}</div>
           {@render scelte('Quali chiusure controlla un responsabile', 'Chi può annullare i pagamenti le segna come controllate (non chi le ha chiuse); sul riepilogo stampato compare chi e quando.',
             seg(bozza.controllo, CONTROLLI, (v) => (bozza!.controllo = v)))}
           <div class="riga-imp"><span class="t"><b>Riscontro con il POS</b>
@@ -194,13 +196,13 @@
         <section class="card pann">
           <span class="lbl">Come si fanno i conti</span>
           <div class="conto" aria-label="Esempio di chiusura">
-            <span class="r"><span>Fondo cassa</span><span class="m">{euro(fondoN ?? 0)}</span></span>
-            <span class="r"><span>+ contanti incassati</span><span class="m">{euro(420)}</span></span>
-            <span class="r"><span>− contanti restituiti</span><span class="m">{euro(20)}</span></span>
-            <span class="r"><span>− versamenti e spese</span><span class="m">{euro(200)}</span></span>
-            <span class="r tot"><span>Attesi</span><span class="m">{euro((fondoN ?? 0) + 200)}</span></span>
-            <span class="r"><span>Contati</span><span class="m">{euro((fondoN ?? 0) + 198)}</span></span>
-            <span class="r meno"><span>Differenza</span><span class="m">−{euro(2)}</span></span>
+            <span class="r"><span>Fondo cassa</span><span class="m">{euroColonna(fondoN ?? 0)}</span></span>
+            <span class="r"><span>+ contanti incassati</span><span class="m">{euroColonna(420)}</span></span>
+            <span class="r"><span>− contanti restituiti</span><span class="m">{euroColonna(20)}</span></span>
+            <span class="r"><span>− versamenti e spese</span><span class="m">{euroColonna(200)}</span></span>
+            <span class="r tot"><span>Attesi</span><span class="m">{euroColonna((fondoN ?? 0) + 200)}</span></span>
+            <span class="r"><span>Contati</span><span class="m">{euroColonna((fondoN ?? 0) + 198)}</span></span>
+            <span class="r meno"><span>Differenza</span><span class="m">−{euroColonna(2)}</span></span>
           </div>
           <ul class="cosa">
             <li>{bozza.cieca ? 'Si conta alla cieca: gli attesi compaiono dopo il conteggio, e resta il primo conteggio se si riconta.' : 'Gli attesi si vedono mentre si conta.'}</li>

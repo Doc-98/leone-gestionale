@@ -1,7 +1,9 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import { api, messaggioErrore, type Impianto, type Mansione, type PersonaBreve, type PostazioneGestione, type Postazione, type Spazio, type Tariffa } from '../lib/api';
-  import { dataLunga, euro, iso } from '../lib/date';
+  import { dataBreve, dataLunga, iso } from '../lib/date';
+  import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { formatH, gruppi, nomeNuovaPostazione, type Gruppo } from '../lib/gestione';
 
   /**
@@ -64,7 +66,7 @@
   function apriTariffa(m: Mansione) {
     messaggio = '';
     const t = tariffaDi(m);
-    pannello = { cosa: 'tariffa', mansione: m, euro: t ? String(t.euroOra).replace('.', ',') : '', dal: oggi.slice(0, 8) + '01', persona: '', correggi: null, al: '' };
+    pannello = { cosa: 'tariffa', mansione: m, euro: t ? perCampo(t.euroOra) : '', dal: oggi.slice(0, 8) + '01', persona: '', correggi: null, al: '' };
   }
   function apriMansione(m: Mansione | null) {
     messaggio = '';
@@ -112,7 +114,8 @@
     return esegui(async () => { mansioni = await api.ordinaPostazioni(tutte.map((x) => x.id)); }, 'Ordine cambiato.', false);
   }
 
-  const numero = (s: string) => Number(s.replace(',', '.'));
+  const numero = (s: string) => numeroDa(s) ?? NaN;
+  const tariffaNonValida = (s: string) => numeroDa(s) == null || importoNonValido(s);
   function salvaTariffa() {
     const t = pannello as Extract<Pannello, { cosa: 'tariffa' }>;
     if (t.correggi) {
@@ -136,7 +139,7 @@
   const storia = (m: Mansione) => tariffe.filter((t) => t.mansioneId === m.id).sort((a, b) => b.dal.localeCompare(a.dal));
 </script>
 
-<div class="barra"><span class="grow"></span><button class="btn btn-primary" onclick={() => apriMansione(null)}><Icona nome="piu" />Nuova mansione</button></div>
+<div class="barra"><span class="grow"></span><button class="btn btn-primary" onclick={() => apriMansione(null)}><Icona nome="piu" />Nuova mansione…</button></div>
 {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
 {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
 
@@ -155,9 +158,9 @@
             {/if}</span>
           <button type="button" class="tariffa-b" class:manca={!t} aria-pressed={pannello?.cosa === 'tariffa' && pannello.mansione.id === m.id} onclick={() => apriTariffa(m)}>
             <span class="r1"><span>tariffa</span><b>{t ? `${euro(t.euroOra)}/h` : 'manca'}</b></span>
-            <span>{ecc.length ? (ecc.length === 1 ? '1 eccezione' : `${ecc.length} eccezioni`) : t ? `dal ${dataLunga(t.dal)}` : 'tocca per impostarla'}</span>
+            <span>{ecc.length ? (ecc.length === 1 ? '1 eccezione' : `${ecc.length} eccezioni`) : t ? `dal ${dataBreve(t.dal)}` : 'tocca per impostarla'}</span>
           </button>
-          <button type="button" class="mini-btn" onclick={() => apriMansione(m)}>Modifica</button>
+          <Azione icona="matita" etichetta={`Modifica la mansione «${m.nome}»`} onclick={() => apriMansione(m)} />
         </div>
         <div class="aree-m">
           {#each gruppiDi(m) as g (g.chiave)}
@@ -170,11 +173,11 @@
                     <b>{r.etichetta}</b><span>{p.attiva ? (nomeSpazio(p.spazioId) || (p.soloSesso ? (p.soloSesso === 'F' ? 'solo donne' : 'solo uomini') : 'tutti')) + (p.oreSettimanali ? ` · ${formatH(p.oreSettimanali)}/sett.` : '') : 'spenta'}</span>
                   </button>
                 {/each}
-                <button type="button" class="posto nuovo" onclick={() => apriPostazione(m, null, g)}><Icona nome="piu" />Postazione</button>
+                <button type="button" class="posto nuovo" onclick={() => apriPostazione(m, null, g)}><Icona nome="piu" />Nuova postazione</button>
               </div>
             </div>
           {/each}
-          <button type="button" class="mini-btn tratt sx" onclick={() => apriPostazione(m, null)}><Icona nome="piu" />{m.postazioni.length ? 'Nuova area' : 'Prima postazione'}</button>
+          <button type="button" class="mini-btn tratt sx" onclick={() => apriPostazione(m, null)}><Icona nome="piu" />{m.postazioni.length ? 'Nuova area…' : 'Aggiungi una postazione'}</button>
         </div>
       </section>
     {:else}
@@ -207,12 +210,12 @@
             <span class="muted small">{p.attiva ? 'Si può assegnare ed entra nei mesi generati.' : 'Non si può assegnare e non entra nei mesi generati.'}</span></span>
             <button type="button" class="switch" role="switch" aria-checked={p.attiva} aria-label="Postazione attiva" onclick={() => (p.attiva = !p.attiva)}><span></span></button></label>
           <span class="sposta"><span class="muted small grow">Ordine in pianificazione</span>
-            <button type="button" class="mini-btn" onclick={() => sposta(-1)}><Icona nome="su" />Prima</button><button type="button" class="mini-btn" onclick={() => sposta(1)}><Icona nome="giu" />Dopo</button></span>
+            <Azione icona="su" etichetta="Sposta prima" onclick={() => sposta(-1)} /><Azione icona="giu" etichetta="Sposta dopo" onclick={() => sposta(1)} /></span>
         {/if}
         <!-- Salva compare solo se c'è qualcosa da salvare: una postazione nuova, o una modifica -->
         <div class="row fine">
           {#if !p.id}<button type="button" class="btn btn-secondary" onclick={chiudi}>Annulla</button>{/if}
-          {#if !p.id || firma(p) !== p.originale}<button class="btn btn-primary grow" disabled={lavoro || !p.nome.trim() || !oreValide(p.ore)}>{p.id ? 'Salva' : 'Aggiungi la postazione'}</button>{/if}
+          {#if !p.id || firma(p) !== p.originale}<button class="btn btn-primary grow" disabled={lavoro || !p.nome.trim() || !oreValide(p.ore)}>{p.id ? 'Salva la postazione' : 'Aggiungi la postazione'}</button>{/if}
         </div>
       </form>
     {:else if pannello?.cosa === 'tariffa'}
@@ -240,16 +243,17 @@
           <span class="lbl">Nel tempo</span>
           <ul class="storia">
             {#each storia(t.mansione) as s (s.id)}
-              <li><span class="q">{euro(s.euroOra)}</span><span class="p">{s.persona ? `${s.persona.nome} (eccezione)` : 'tutti'}</span>
-                <span class="pill {valida(s) ? 'passa' : ''}">{valida(s) ? `dal ${dataLunga(s.dal)}` : s.dal > oggi ? `dal ${dataLunga(s.dal)}` : `fino al ${s.al ? dataLunga(s.al) : '—'}`}</span>
-                <button type="button" class="x-btn" aria-label="Correggi" title="Correggi" onclick={() => { t.correggi = s; t.euro = String(s.euroOra).replace('.', ','); t.al = s.al ?? ''; }}><Icona nome="matita" /></button></li>
+              <li><span class="q">{euroColonna(s.euroOra)}</span><span class="p">{s.persona ? `${s.persona.nome} (eccezione)` : 'tutti'}</span>
+                <span class="pill {valida(s) ? 'passa' : ''}">{valida(s) ? `dal ${dataBreve(s.dal)}` : s.dal > oggi ? `dal ${dataBreve(s.dal)}` : `fino al ${s.al ? dataBreve(s.al) : '—'}`}</span>
+                <button type="button" class="x-btn" aria-label="Correggi la tariffa" title="Correggi la tariffa" onclick={() => { t.correggi = s; t.euro = perCampo(s.euroOra); t.al = s.al ?? ''; }}><Icona nome="matita" /></button></li>
             {/each}
           </ul>
         {/if}
         {#if !t.correggi && t.persona === '' && personale.length}
-          <button type="button" class="mini-btn tratt sx" onclick={() => { t.persona = personale[0].id; t.euro = ''; }}><Icona nome="piu" />Eccezione per una persona</button>
+          <button type="button" class="mini-btn tratt sx" onclick={() => { t.persona = personale[0].id; t.euro = ''; }}><Icona nome="piu" />Aggiungi un'eccezione</button>
         {/if}
-        <button class="btn btn-primary" disabled={lavoro || !t.euro.trim()}>{t.correggi ? 'Salva la correzione' : 'Salva la tariffa'}</button>
+        {#if t.euro.trim() && tariffaNonValida(t.euro)}<p class="msg err" role="alert">Scrivi la tariffa in euro, es. 9 o 9,50</p>{/if}
+        <button class="btn btn-primary" disabled={lavoro || !t.euro.trim() || tariffaNonValida(t.euro)}>{t.correggi ? 'Salva la correzione' : 'Salva la tariffa'}</button>
       </form>
     {:else if pannello?.cosa === 'mansione'}
       {@const m = pannello}
@@ -269,7 +273,7 @@
             {/each}
           </div>
         </div>
-        <button class="btn btn-primary" disabled={lavoro || !m.nome.trim()}>{m.mansione ? 'Salva' : 'Crea la mansione'}</button>
+        <button class="btn btn-primary" disabled={lavoro || !m.nome.trim()}>{m.mansione ? 'Salva la mansione' : 'Crea la mansione'}</button>
       </form>
     {:else}
       <section class="card pann"><h2>Come funziona</h2>

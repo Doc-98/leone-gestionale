@@ -7,7 +7,8 @@
   import LezioneForm from './LezioneForm.svelte';
   import { tick } from 'svelte';
   import { api, messaggioErrore, type Corso, type FasciaOraria, type Lezione, type PersonaBreve, type SpazioPiano } from '../lib/api';
-  import { aggiungiGiorni, dataBreve, dataLunga, GIORNI_BREVI, GIORNI_ESTESI, iso, MESI, ora } from '../lib/date';
+  import { aggiungiGiorni, dataBreve, dataLunga, GIORNI_BREVI, GIORNI_ESTESI, giornoTitolo, iso, ora, turnoSettimanale } from '../lib/date';
+  import { quanti } from '../lib/plurali';
   import { colore, eta, TIPI_CORSO } from '../lib/piano';
   import {
     assettoIn, cadeIl, corsieDelCorso, corsieInAssetto, dateDi, doveBreve, nomiBrevi, numeroDi, ordinale, piuFrequente, prossimaData, riempimento, righeOrario,
@@ -194,7 +195,7 @@
     const g = GIORNI_ESTESI[rapido.giorno];
     const d = primaData;
     switch (ripeti) {
-      case 'una': return `${g[0].toUpperCase()}${g.slice(1)} ${Number(d.slice(8, 10))} ${MESI[Number(d.slice(5, 7)) - 1]}`;
+      case 'una': return giornoTitolo(d);
       case 'settimana': return `Ogni ${g}`;
       case 'mese': return `Il ${ordinale(settimanaDelMese(d))} ${g} del mese`;
       default: return `Ogni ${[...giorni].sort().map((x) => GIORNI_ESTESI[x]).join(' e ') || '…'}`;
@@ -204,7 +205,7 @@
     if (!rapido) return '';
     if (ripeti === 'una') return `Una lezione, ${dataLunga(primaData)}.`;
     if (!date.length) return 'Nessuna lezione in questo periodo.';
-    return `${date.length} lezioni, dal ${dataBreve(date[0])} al ${dataBreve(date[date.length - 1])}${finoAl ? '' : ' (senza una fine: qui conto un anno)'}.`;
+    return `${quanti(date.length, 'lezione', 'lezioni')}, dal ${dataBreve(date[0])} al ${dataBreve(date[date.length - 1])}${finoAl ? '' : ' (senza una fine: qui conto un anno)'}.`;
   });
 
   function chiudiRapido(e: MouseEvent) {
@@ -283,9 +284,9 @@
         <span class="val">{r.iscritti}{#if r.posti != null} <span class="m su">/ {r.posti}</span>{/if}</span>
         <span class="kpi-nota">{r.percentuale != null ? `${r.percentuale}% dei posti` : 'senza limite di posti'}</span></div>
       <div class="kpi"><span class="lbl">Posti liberi</span><span class="val">{r.posti != null ? r.liberi : '—'}</span>
-        <span class="kpi-nota">{r.posti != null ? `in ${r.turniLiberi} turni su ${attivi.length}` : ''}</span></div>
+        <span class="kpi-nota">{r.posti != null ? `in ${quanti(r.turniLiberi, 'turno', 'turni')} su ${attivi.length}` : ''}</span></div>
       <div class="kpi" class:warn={r.inAttesa > 0}><span class="lbl">In lista d'attesa</span><span class="val">{r.inAttesa}</span>
-        <span class="kpi-nota">{r.inAttesa ? `per ${conAttesa.length === 1 ? '1 turno' : `${conAttesa.length} turni`}` : 'nessuno'}</span></div>
+        <span class="kpi-nota">{r.inAttesa ? `per ${quanti(conAttesa.length, 'turno', 'turni')}` : 'nessuno'}</span></div>
     </div>
   </section>
 
@@ -364,7 +365,7 @@
           <div class="hint">
             <Icona nome="info" />
             <span>{r.inAttesa === 1 ? 'Una persona aspetta' : `${r.inAttesa} persone aspettano`} un posto. Ci sono posti liberi
-              {#each conPostiLiberi.slice(0, 4) as l, i (l.id)}{i ? ', ' : ''}<button class="link" onclick={() => (foglio = { tipo: 'turno', id: l.id })}>{GIORNI_BREVI[l.giornoSettimana]} {ora(l.inizio)} ({(l.posti ?? 0) - l.iscritti})</button>{/each}{conPostiLiberi.length > 4 ? '…' : '.'}</span>
+              {#each conPostiLiberi.slice(0, 4) as l, i (l.id)}{i ? ', ' : ''}<button class="link" onclick={() => (foglio = { tipo: 'turno', id: l.id })}>{turnoSettimanale(l.giornoSettimana, l.inizio)} ({(l.posti ?? 0) - l.iscritti})</button>{/each}{conPostiLiberi.length > 4 ? '…' : '.'}</span>
           </div>
         {/if}
       </section>
@@ -403,11 +404,11 @@
 {#snippet turno(l: Lezione, conOrario: boolean)}
   {@const p = pieno(l)}
   {@const nota = notaTurno(l)}
-  <button class="turno" class:pieno={p} aria-label="{nomeTurno(l)}: {l.iscritti} iscritti{l.posti != null ? ` su ${l.posti}` : ''}{l.inAttesa ? `, ${l.inAttesa} in attesa` : ''}"
+  <button class="turno" class:pieno={p} aria-label="{nomeTurno(l)}: {quanti(l.iscritti, 'iscritto', 'iscritti')}{l.posti != null ? ` su ${l.posti}` : ''}{l.inAttesa ? `, ${l.inAttesa} in attesa` : ''}"
           onclick={() => ((foglio = { tipo: 'turno', id: l.id }), (messaggio = ''), (avvisi = []))}>
     {#if conOrario}<span class="ora m">{orario(l)}</span>{/if}
     <span class="r1">
-      <span class="posti-g"><span class="posti m" class:pieno={p}>{l.iscritti}{l.posti != null ? `/${l.posti}` : ''}</span>{#if l.inAttesa}<span class="att">+{l.inAttesa}</span>{/if}</span>
+      <span class="posti-g"><span class="posti m" class:pieno={p}>{l.iscritti}{l.posti != null ? `/${l.posti}` : ''}</span>{#if l.inAttesa}<span class="att"><Icona nome="attesa" />{l.inAttesa}</span>{/if}</span>
       <span class="dove">{doveBreve(l.spazi, spazi)}</span>
     </span>
     {#if l.posti != null && l.posti <= 16}
@@ -506,7 +507,7 @@
   </Foglio>
 {:else if turnoAperto}
   {@const l = turnoAperto}
-  <Foglio titolo="{GIORNI_ESTESI[l.giornoSettimana][0].toUpperCase()}{GIORNI_ESTESI[l.giornoSettimana].slice(1)} {orario(l)}" chiudi={() => (foglio = null)}>
+  <Foglio titolo={turnoSettimanale(l.giornoSettimana, l.inizio, l.fine, true).replace(/^./, (c) => c.toUpperCase())} chiudi={() => (foglio = null)}>
     <div class="foglio-turno">
       <p class="muted nomargin">{[corso.nome, doveBreve(l.spazi, spazi), nomiBrevi(istruttoriDi(l)), notaTurno(l)].filter(Boolean).join(' · ')}</p>
       <div class="kpis piccoli">
@@ -586,7 +587,8 @@
   .posti-g { display: inline-flex; align-items: baseline; gap: var(--space-6); min-width: 0; }
   .posti { font-size: var(--text-md); color: var(--ink); }
   .posti.pieno, .att { color: var(--warn); }
-  .att { font-size: var(--text-2xs); font-weight: 700; }
+  .att { font-size: var(--text-2xs); font-weight: 700; display: inline-flex; align-items: center; gap: var(--space-2); }
+  .att :global(.ic) { width: 12px; height: 12px; }
   .dove { font-size: var(--text-2xs); color: var(--ink); white-space: nowrap; }
   .ist { font-size: var(--text-2xs); line-height: 1.3; }
   .ist.nota { font-style: italic; }

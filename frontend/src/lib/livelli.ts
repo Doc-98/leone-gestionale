@@ -1,10 +1,9 @@
 import type { BambinoLivelli, TurnoLivelli } from './api';
-import { GIORNI_BREVI } from './date';
+import { turnoSettimanale } from './date';
 
-/** «Mar 17:00» */
+/** «mar 17:00» */
 export function quandoBreve(t: Pick<TurnoLivelli, 'giornoSettimana' | 'inizio'>): string {
-  const g = GIORNI_BREVI[t.giornoSettimana] ?? '';
-  return `${g.charAt(0).toUpperCase()}${g.slice(1)} ${t.inizio.slice(0, 5)}`;
+  return turnoSettimanale(t.giornoSettimana, t.inizio);
 }
 
 /** Quanti esiti mancano in un turno, la percentuale fatta e la scritta per la scheda del turno. */
@@ -12,7 +11,7 @@ export function statoTurno(t: Pick<TurnoLivelli, 'iscritti' | 'passano' | 'conti
   const fatti = t.passano + t.continuano;
   const completo = t.iscritti > 0 && fatti >= t.iscritti;
   const perc = t.iscritti ? Math.round((fatti / t.iscritti) * 100) : 0;
-  const testo = t.iscritti === 0 ? 'nessun iscritto' : completo ? '✓ completo' : fatti ? `${fatti}/${t.iscritti} esiti` : 'da fare';
+  const testo = t.iscritti === 0 ? 'nessun iscritto' : completo ? 'completo' : fatti ? `${fatti}/${t.iscritti} esiti` : 'da fare';
   return { fatti, completo, perc, testo };
 }
 

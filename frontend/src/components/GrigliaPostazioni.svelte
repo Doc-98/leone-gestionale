@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icona from './Icona.svelte';
   import type { PersonaBreve, Postazione } from '../lib/api';
   import { formatH, gruppi, nomeCorto, type Gruppo } from '../lib/gestione';
   import { oreTra } from '../lib/date';
@@ -97,7 +98,7 @@
                 </button>
               {/each}
               {#if !qui.length}
-                <button type="button" class="piu-c" aria-label={`Nuovo turno: ${r.postazione.nome}, ${c.giorno} ${c.numero ?? ''}`} onclick={() => nuovo(r.postazione.id, c.chiave)}>+</button>
+                <button type="button" class="piu-c" aria-label={`Nuovo turno: ${r.postazione.nome}, ${c.giorno} ${c.numero ?? ''}`} onclick={() => nuovo(r.postazione.id, c.chiave)}><Icona nome="piu" /></button>
               {/if}
             </div>
           {/each}
@@ -105,7 +106,7 @@
       {/each}
       {#if nuovaPostazione}
         <div class="riga-gr nuova" role="row">
-          <button type="button" class="nuova-post" onclick={() => nuovaPostazione(g)}><b>+</b>Aggiungi una postazione a {g.nome[0].toLowerCase() + g.nome.slice(1)}</button>
+          <button type="button" class="nuova-post" onclick={() => nuovaPostazione(g)}><b><Icona nome="piu" /></b>Aggiungi una postazione a {g.nome[0].toLowerCase() + g.nome.slice(1)}</button>
         </div>
       {/if}
     {:else}
@@ -116,7 +117,7 @@
 
 <style>
   .scorre { padding: 0; overflow-x: auto; }
-  .gr { min-width: calc(124px + var(--n) * 86px); }
+  .gr { min-width: calc(124px + var(--n) * 96px); }
   .riga-gr { display: grid; grid-template-columns: 124px repeat(var(--n), minmax(0, 1fr)); }
   .th { padding: var(--space-10) var(--space-8); display: flex; flex-direction: column; align-items: center; line-height: 1.15; border-bottom: 1px solid var(--line); }
   .th.primo { align-items: flex-start; justify-content: flex-end; padding-left: var(--space-12); }
@@ -147,13 +148,15 @@
   .blk.vuoto.scelto { box-shadow: inset 0 0 0 3px var(--ferma); }
   .blk.spento { opacity: 0.28; }
   .notifica { position: absolute; top: -4px; right: -4px; width: 11px; height: 11px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--surface); }
-  .piu-c { flex: 1; min-height: 20px; border: 1px dashed transparent; border-radius: 8px; background: none; color: transparent; font: inherit; font-size: 18px; cursor: pointer; }
+  .piu-c :global(.ic) { width: 16px; height: 16px; }
+  .piu-c { flex: 1; min-height: 20px; border: 1px dashed transparent; border-radius: 8px; background: none; color: transparent; font: inherit; cursor: pointer; display: grid; place-items: center; }
   .cella:hover .piu-c, .piu-c:focus-visible { border-color: var(--line-dashed); color: var(--muted); }
   .riga-gr.nuova { display: block; }
   .nuova-post { display: inline-flex; align-items: center; gap: var(--space-6); margin: var(--space-6) var(--space-12) var(--space-10); padding: 5px 12px 5px 8px;
     border: 1px dashed color-mix(in srgb, var(--cloro) 55%, transparent); border-radius: var(--radius-pill); background: var(--surface); font: inherit; font-size: var(--text-sm);
     font-weight: 600; color: var(--cloro); cursor: pointer; white-space: nowrap; }
   .nuova-post:hover { background: var(--cloro-soft); border-style: solid; }
-  .nuova-post b { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--cloro-soft); font-size: 14px; line-height: 1; }
+  .nuova-post b { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--cloro-soft); }
+  .nuova-post b :global(.ic) { width: 14px; height: 14px; }
   .nessuna { padding: var(--space-16); margin: 0; }
 </style>

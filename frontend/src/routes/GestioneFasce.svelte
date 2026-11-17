@@ -3,6 +3,7 @@
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type FasciaOraria, type SpazioPiano } from '../lib/api';
   import { GIORNI_BREVI, GIORNI_ESTESI, iso, ora } from '../lib/date';
+  import { quanti } from '../lib/plurali';
 
   /**
    * Le fasce di un giorno della settimana, vasca per vasca: orari liberi, assetto delle corsie, nuove fasce anche in
@@ -46,13 +47,13 @@
       const f = fasce.find((x) => x.id === inModifica!.id)!;
       const r = await api.modificaFascia(f.id, { inizio: inModifica!.inizio, fine: inModifica!.fine, validaDal: f.validaDal, validaAl: f.validaAl });
       inModifica = null;
-      return `Fascia spostata alle ${ora(r.fascia.inizio)}${r.turniAggiornati ? `: ${r.turniAggiornati} turni l'hanno seguita` : ''}.`;
+      return `Fascia spostata alle ${ora(r.fascia.inizio)}${r.turniAggiornati ? `: ${r.turniAggiornati === 1 ? '1 turno l\'ha seguita' : `${r.turniAggiornati} turni l'hanno seguita`}` : ''}.`;
     });
 
   const assetto = (f: FasciaOraria, a: number) =>
     esegui(async () => {
       const r = await api.cambiaAssetto(f.id, a);
-      return `${ora(f.inizio)}–${ora(f.fine)} ora a ${a} corsie${r.turniAggiornati ? ` (${r.turniAggiornati} corsi riportati sulle corsie con lo stesso numero)` : ''}.`;
+      return `${ora(f.inizio)}–${ora(f.fine)} ora a ${a} corsie${r.turniAggiornati ? ` (${quanti(r.turniAggiornati, 'corso riportato', 'corsi riportati')} sulle corsie con lo stesso numero)` : ''}.`;
     });
 
   function elimina(f: FasciaOraria) {
@@ -68,7 +69,7 @@
         vascaId: nuova.vascaId, giorni: nuova.giorni, inizio: nuova.inizio, fine: nuova.fine,
         assetto: assettiNuova.length ? nuova.assetto || assettiNuova[0] : null, validaDal: oggi, validaAl: null,
       });
-      return `Fascia ${nuova.inizio}–${nuova.fine} aggiunta in ${r.length === 1 ? '1 giorno' : `${r.length} giorni`}.`;
+      return `Fascia ${nuova.inizio}–${nuova.fine} aggiunta in ${quanti(r.length, 'giorno', 'giorni')}.`;
     });
 
   function alternaGiorno(g: number) {

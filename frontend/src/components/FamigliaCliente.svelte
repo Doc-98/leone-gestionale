@@ -2,6 +2,7 @@
   import Icona from './Icona.svelte';
   import Azione from './Azione.svelte';
   import { api, type Familiare, type PersonaScheda, type Relazione, type SchedaCliente } from '../lib/api';
+  import { eta as etaAnni } from '../lib/attesa';
   import { dataBreve } from '../lib/date';
 
   /**
@@ -70,7 +71,7 @@
     if (!d) return '';
     const n = new Date(), b = new Date(d);
     const a = n.getFullYear() - b.getFullYear() - (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate()) ? 1 : 0);
-    return `${a} anni`;
+    return etaAnni(a);
   };
 </script>
 
@@ -141,8 +142,8 @@
       <label class="int"><button type="button" class="switch" role="switch" aria-checked={nuovo.delegatoRitiro} aria-label="Può venire a prenderlo"
         onclick={() => (nuovo!.delegatoRitiro = !nuovo!.delegatoRitiro)}><span></span></button><span class="small">Può venire a prenderlo all'uscita</span></label>
       <div class="row">
-        <button type="button" class="btn btn-secondary grow" onclick={() => (nuovo = null)}>Annulla</button>
-        <button class="btn btn-primary grow" disabled={!pronto}>Aggiungi</button>
+        <button type="button" class="btn btn-secondary" onclick={() => (nuovo = null)}>Annulla</button>
+        <button class="btn btn-primary grow" disabled={!pronto}>Aggiungi il tutore</button>
       </div>
     </form>
   {:else}

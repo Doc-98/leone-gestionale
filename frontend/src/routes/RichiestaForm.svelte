@@ -83,7 +83,7 @@
     </div>
   {:else}
     <div class="seg tre" role="group" aria-label="Tipo di richiesta">
-      {#each TIPI as k (k.id)}<button type="button" aria-pressed={tipo === k.id} onclick={() => (tipo = k.id)}>{k.id === 'CAMBIO_ORARIO' ? 'Orario' : k.nome}</button>{/each}
+      {#each TIPI as k (k.id)}<button type="button" aria-pressed={tipo === k.id} onclick={() => (tipo = k.id)}>{k.nome}</button>{/each}
     </div>
 
     {#if tipo === 'SOSTITUZIONE'}
@@ -122,7 +122,7 @@
 
     {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
     <button class="btn btn-primary" disabled={lavoro || (tipo === 'SCAMBIO' && !turnoCollegaId)}>
-      {lavoro ? 'Invio…' : tipo === 'SOSTITUZIONE' ? (collegaId ? `Chiedi a ${nomeCollega}` : 'Chiedi a tutti') : 'Invia richiesta'}</button>
+      {lavoro ? 'Mando…' : tipo === 'SOSTITUZIONE' ? (collegaId ? `Chiedi a ${nomeCollega}` : 'Chiedi a tutti') : tipo === 'SCAMBIO' ? 'Proponi lo scambio' : 'Chiedi il cambio orario'}</button>
     {#if tipo === 'SOSTITUZIONE'}<p class="muted small nomargin">Se un collega accetta, la richiesta passa al coordinatore, che conferma chi ti sostituisce.</p>{/if}
   {/if}
 </form>

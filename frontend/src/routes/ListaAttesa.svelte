@@ -90,7 +90,7 @@
   <p class="msg err" role="alert">{errore}</p>
   {#if soprannumero}
     {@const s = soprannumero}
-    <button class="btn btn-secondary sx" onclick={() => iscrivi(s.voce, s.turno, true)}>Iscrivi comunque in soprannumero</button>
+    <button class="btn btn-secondary sx" onclick={() => iscrivi(s.voce, s.turno, true)}>Iscrivi in soprannumero</button>
   {/if}
 {/if}
 

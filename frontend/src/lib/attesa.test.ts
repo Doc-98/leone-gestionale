@@ -30,17 +30,17 @@ describe('stato di una voce', () => {
 
   it('la nota dice come e quando è stato avvisato', () => {
     expect(notaVoce(voce('A', { avvisataIl: '2026-10-27T10:00:00Z', rispostaEntro: '2026-10-30' }), OGGI).testo)
-      .toBe('Avviso per email ieri, risposta entro venerdì 30/10');
+      .toBe('Avviso per email ieri, risposta entro ven 30/10');
     const scaduta = notaVoce(voce('A', { avvisataIl: '2026-10-22T10:00:00Z', avvisoAVoce: true, rispostaEntro: '2026-10-25' }), OGGI);
     expect(scaduta.tono).toBe('warn');
-    expect(scaduta.testo).toContain('a voce giovedì 22/10');
+    expect(scaduta.testo).toContain('a voce gio 22/10');
     expect(notaVoce(voce('A', { contatti: [] }), OGGI).testo).toContain('va chiamato');
   });
 
   it('date vicine a parole', () => {
     expect(quandoBreve(OGGI, OGGI)).toBe('oggi');
     expect(quandoBreve('2026-10-29', OGGI)).toBe('domani');
-    expect(quandoBreve('2026-11-02', OGGI)).toBe('lunedì 02/11');
+    expect(quandoBreve('2026-11-02', OGGI)).toBe('lun 2/11');
   });
 });
 
@@ -59,7 +59,7 @@ describe('posti da assegnare', () => {
     expect(posti[0].tocca?.nome).toBe('Leonardo');
     expect(posti[0].poi.map((v) => v.nome)).toEqual(['Emma']);
     expect(posti[0].saltati.map((v) => v.nome)).toEqual(['Giorgia']);
-    expect(postoLibero(dal, OGGI).testo).toBe('Un posto dal 02/11');
+    expect(postoLibero(dal, OGGI).testo).toBe('Un posto dal lun 2/11');
     expect(postoLibero(turno('X', [], { liberi: 2, liberoDal: OGGI }), OGGI).testo).toBe('2 posti liberi');
   });
 
@@ -79,7 +79,7 @@ describe('posti da assegnare', () => {
     const t = testoAvviso(dal.attesa[0], dal, p);
     expect(t.oggetto).toBe('Un posto per Chiara nel corso Delfino');
     expect(t.testo).toContain('lunedì 17:00 dal 02/11/2026');
-    expect(t.testo).toContain('entro sabato 31/10');
+    expect(t.testo).toContain('entro sab 31/10');
     expect(t.testo).toContain('Leone XIII Sport');
   });
 });

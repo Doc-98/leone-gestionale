@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type PaginaRuoli, type Permesso } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
@@ -159,7 +160,7 @@
       {/each}
       <div class="piede-l">
         {#if confronto}<button type="button" class="mini-btn grow" onclick={() => (confronto = false)}>Chiudi il confronto</button>
-        {:else}<button type="button" class="mini-btn grow" onclick={apriConfronto}>Confronta ruoli</button>{/if}
+        {:else}<button type="button" class="mini-btn grow" onclick={apriConfronto}>Confronta i ruoli</button>{/if}
       </div>
     </div>
 
@@ -169,12 +170,12 @@
           <div class="sez-t">
             {#if rinomina && ruolo.modificabile}
               <span class="nomina"><input class="inp" bind:value={bozza.nome} aria-label="Nome del ruolo" /><input class="inp" bind:value={bozza.descrizione} placeholder="Descrizione (facoltativa)" aria-label="Descrizione" /></span>
-              <button type="button" class="mini-btn" onclick={() => (rinomina = false)}>Fatto</button>
+              <button type="button" class="mini-btn" onclick={() => (rinomina = false)}>Usa il nome</button>
             {:else}
               <span class="titolo"><h2>{bozza.nome}</h2>{#if bozza.descrizione}<span class="spiega">{bozza.descrizione}</span>{/if}</span>
-              {#if ruolo.modificabile}<button type="button" class="mini-btn" onclick={() => (rinomina = true)}>Rinomina</button>{/if}
-              <button type="button" class="mini-btn" onclick={duplica}>Duplica</button>
-              {#if !ruolo.diSistema}<button type="button" class="mini-btn rosso" onclick={() => (elimina = { sostituto: '' })}>Elimina</button>{/if}
+              {#if ruolo.modificabile}<Azione icona="matita" etichetta={`Rinomina il ruolo «${ruolo.nome}»`} onclick={() => (rinomina = true)} />{/if}
+              <Azione icona="copia" etichetta={`Duplica il ruolo «${ruolo.nome}»`} onclick={duplica} />
+              {#if !ruolo.diSistema}<Azione icona="cestino" tono="danger" etichetta={`Elimina il ruolo «${ruolo.nome}»`} onclick={() => (elimina = { sostituto: '' })} />{/if}
             {/if}
           </div>
           {#if elimina}

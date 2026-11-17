@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Turno } from '../../lib/api';
   import { formatOre, giornoEsteso } from '../../lib/date';
+  import { quanti } from '../../lib/plurali';
   import { areaDi, attivo, caselleMese, conMe, nomiCon, NOMI_AREA, orario, type Area } from '../../lib/turni';
 
   /**
@@ -34,7 +35,7 @@
         {@const suoi = delGiorno(g)}
         <button type="button" class="cella ar-{suoi[0] ? areaDi(suoi[0].postazione) : 'x'}" class:oggi={g === oggi} class:scelto={g === giorno}
           class:passato={g < oggi} class:vuoto={!suoi.length} aria-pressed={g === giorno} onclick={() => (scelto = g)}
-          aria-label={`${giornoEsteso(g)}${suoi.length ? `, ${suoi.length} turni` : ', libero'}`}>
+          aria-label={`${giornoEsteso(g)}${suoi.length ? `, ${quanti(suoi.length, 'turno', 'turni')}` : ', libero'}`}>
           <span class="n">{Number(g.slice(8))}</span><span class="b"></span>
           <span class="h">{suoi.length ? `${formatOre(suoi.reduce((s, t) => s + Number(t.ore), 0))} h` : ''}</span>
         </button>
@@ -60,9 +61,9 @@
       {#if n}<span class="nota">{n}</span>{/if}
       {#if t.data >= oggi}
         <div class="azioni">
-          <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(t, 'SOSTITUZIONE')}>Sostituzione</button>
-          <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(t, 'SCAMBIO')}>Scambio</button>
-          <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(t, 'CAMBIO_ORARIO')}>Orario</button>
+          <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(t, 'SOSTITUZIONE')}>Sostituzione…</button>
+          <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(t, 'SCAMBIO')}>Scambio…</button>
+          <button class="btn btn-secondary btn-sm" onclick={() => onchiedi(t, 'CAMBIO_ORARIO')}>Cambio orario…</button>
         </div>
       {/if}
     </div>

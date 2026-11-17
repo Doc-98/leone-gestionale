@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
   import Foglio from '../components/Foglio.svelte';
   import Settimana from '../components/Settimana.svelte';
@@ -7,13 +8,14 @@
   import PerPersona from '../components/pianifica/PerPersona.svelte';
   import Pianta from '../components/pianifica/Pianta.svelte';
   import { api, eAvviso, messaggioErrore, type PersonaStaff, type Postazione, type Richiesta, type Turno } from '../lib/api';
-  import { aggiungiGiorni, daIso, GIORNI_BREVI, giornoEsteso, iso, lunedi, MESI, ora } from '../lib/date';
+  import { aggiungiGiorni, dataAgenda, giornoEsteso, giornoTitolo, iso, lunedi, ora, titoloSettimana } from '../lib/date';
   import { formatH, gruppi, gruppoDi, nomeNuovaPostazione, orePerPersona, scoperto, type Gruppo } from '../lib/gestione';
-  import { cosaDaFare, giornoCorto } from '../lib/richieste';
+  import { quanti } from '../lib/plurali';
+  import { cosaDaFare } from '../lib/richieste';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
   import { sessione } from '../lib/sessione.svelte';
   import { schermo } from '../lib/schermo.svelte';
-  import { areaDi } from '../lib/turni';
+  import { areaDi, giornoBreve } from '../lib/turni';
 
   type Vista = 'postazione' | 'persona' | 'pianta';
   const VISTE: { id: Vista; nome: string }[] = [{ id: 'postazione', nome: 'Per postazione' }, { id: 'persona', nome: 'Per persona' }, { id: 'pianta', nome: 'Pianta' }];
@@ -77,12 +79,8 @@
   const richiestaDi = (id: string) => richieste.find((r) => r.turno.id === id || r.turnoCollega?.id === id);
   const daDecidere = $derived(richieste.filter((r) => r.stato === 'IN_ATTESA_APPROVAZIONE').length);
   const daCoprire = $derived(richieste.filter((r) => r.stato === 'IN_ATTESA_COLLEGA' && r.tipo === 'SOSTITUZIONE').length);
-  const titoloSettimana = $derived.by(() => {
-    const a = daIso(giorni[0]), b = daIso(giorni[6]);
-    return a.getMonth() === b.getMonth() ? `${a.getDate()} – ${b.getDate()} ${MESI[b.getMonth()]}` : `${a.getDate()} ${MESI[a.getMonth()].slice(0, 3)} – ${b.getDate()} ${MESI[b.getMonth()].slice(0, 3)}`;
-  });
 
-  const colonne = $derived<Colonna[]>(giorni.map((g) => ({ chiave: g, giorno: GIORNI_BREVI[((daIso(g).getDay() + 6) % 7) + 1], numero: daIso(g).getDate(), oggi: g === oggi })));
+  const colonne = $derived<Colonna[]>(giorni.map((g) => ({ chiave: g, giorno: giornoBreve(g).l, numero: giornoBreve(g).n, oggi: g === oggi })));
   const blocchi = $derived<Blocco[]>(attivi.map((t) => {
     const r = richiestaDi(t.id);
     return { id: t.id, postazioneId: t.postazioneId, colonna: t.data, inizio: t.inizio, fine: t.fine, persona: t.persona, notifica: r ? cosaDaFare(r).toLowerCase() : undefined };
@@ -156,10 +154,10 @@
       <span class="grow"></span>
       <span class="sett-nav">
         <button class="tondo" type="button" aria-label="Settimana precedente" onclick={() => ((settimana = aggiungiGiorni(settimana, -7)), (aperto = null))}><Icona nome="sx" /></button>
-        <b>{titoloSettimana}</b>
+        <b>{titoloSettimana(settimana)}</b>
         <button class="tondo" type="button" aria-label="Settimana successiva" onclick={() => ((settimana = aggiungiGiorni(settimana, 7)), (aperto = null))}><Icona nome="dx" /></button>
       </span>
-      {#if settimana !== lunedi(oggi)}<button class="btn btn-quieto oggi" type="button" onclick={() => (settimana = lunedi(oggi))}>Oggi</button>{/if}
+      {#if settimana !== lunedi(oggi)}<Azione cornice icona="oggi" etichetta="Torna a questa settimana" onclick={() => (settimana = lunedi(oggi))} />{/if}
       <a class="btn btn-secondary genera" href="#/modelli">Genera un mese…</a>
     </div>
 
@@ -169,7 +167,7 @@
       <div class="tile"><span class="lbl">Persone</span><span class="v">{caricamento ? '…' : perPersona.size}</span><span class="n">{anagrafica ? `in turno su ${personale.length} dello staff` : 'in turno'}</span></div>
       <button type="button" class="tile" class:t-ferma={scoperti.length} class:t-passa={!scoperti.length && !caricamento} disabled={caricamento || !scoperti.length}
         onclick={() => scoperti[0] && (cambiaVista('postazione'), (aperto = { id: scoperti[0].id }))}>
-        <span class="lbl">Scoperti</span><span class="v">{caricamento ? '…' : scoperti.length}</span><span class="n">{caricamento ? '' : scoperti.length ? 'turni senza nessuno · tocca per assegnare' : 'tutti i turni hanno qualcuno'}</span></button>
+        <span class="lbl">Scoperti</span><span class="v">{caricamento ? '…' : scoperti.length}</span><span class="n">{caricamento ? '' : scoperti.length ? 'da assegnare' : 'tutti i turni hanno qualcuno'}</span></button>
       {#if sessione.puo('APPROVAZIONI')}
         <a class="tile" class:t-warn={richieste.length} href="#/approva"><span class="lbl">Richieste in attesa</span><span class="v">{richiesteCaricate ? richieste.length : '…'}</span>
           <span class="n">{!richiesteCaricate ? '' : richieste.length ? [daDecidere ? `${daDecidere} da decidere` : '', daCoprire ? `${daCoprire} da coprire` : ''].filter(Boolean).join(' · ') + ' →' : 'niente da decidere'}</span></a>
@@ -203,13 +201,13 @@
               <h2>Da sistemare</h2>
               {#each scoperti as t (t.id)}
                 <div class="voce-s ar-{areaDi(t.postazione)}"><i class="quadro"></i>
-                  <span class="t"><b class="m">{giornoCorto(t.data)} · {ora(t.inizio)}–{ora(t.fine)}</b><span>{dove(t)}</span></span>
-                  <button type="button" class="mini-btn pieno" onclick={() => (aperto = { id: t.id })}>Assegna</button></div>
+                  <span class="t"><b class="m nowrap">{dataAgenda(t.data)} · {ora(t.inizio)}–{ora(t.fine)}</b><span>{dove(t)}</span></span>
+                  <button type="button" class="mini-btn pieno" aria-label={`Assegna il turno di ${dataAgenda(t.data)}, ${dove(t)}`} onclick={() => (aperto = { id: t.id })}>Assegna</button></div>
               {/each}
               {#each richieste as r (r.id)}
                 <div class="voce-s"><i class="pallino-w"></i>
-                  <span class="t"><b>{cosaDaFare(r)}</b><span>{giornoCorto(r.turno.data)} · {r.richiedente.nome}{r.tipo === 'CAMBIO_ORARIO' ? `, ${ora(r.turno.inizio)}–${ora(r.turno.fine)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}` : ''}</span></span>
-                  <a class="mini-btn" href={`#/approva/${r.id}`}>Apri</a></div>
+                  <span class="t"><b>{cosaDaFare(r)}</b><span>{dataAgenda(r.turno.data)} · {r.richiedente.nome}{#if r.tipo === 'CAMBIO_ORARIO'}, <span class="nowrap">{ora(r.turno.inizio)}–{ora(r.turno.fine)} → {ora(r.nuovoInizio!)}–{ora(r.nuovoFine!)}</span>{/if}</span></span>
+                  <a class="mini-btn" href={`#/approva/${r.id}`} aria-label={`Apri la richiesta: ${cosaDaFare(r)}, ${dataAgenda(r.turno.data)}`}>Apri</a></div>
               {/each}
               {#each sottoOre as x (x.p.id)}
                 <div class="voce-s ar-{areaDi(x.p.nome)}"><i class="quadro"></i>
@@ -237,7 +235,7 @@
       <Pianta {giorni} turni={attivi} {personale} {postazioni} {assegna} />
     {/if}
   {:else}
-    <Settimana bind:lunediSettimana={settimana} sotto={caricamento ? '…' : `${attivi.length} turni · ${formatH(oreTot)}${scoperti.length ? ` · ${scoperto(scoperti.length)}` : ''}`} />
+    <Settimana bind:lunediSettimana={settimana} sotto={caricamento ? '…' : `${quanti(attivi.length, 'turno', 'turni')}${schermo.telefono ? '' : ` · ${formatH(oreTot)}`}${scoperti.length ? ` · ${scoperto(scoperti.length)}` : ''}`} />
     {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
     {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
     <div class="card giorni-tel" role="group" aria-label="Giorno">
@@ -246,14 +244,14 @@
         {@const r = attivi.some((t) => t.data === g && richiestaDi(t.id))}
         <button type="button" class="gg" aria-pressed={giornoTel === g} onclick={() => (giornoTel = g)}
           aria-label={`${giornoEsteso(g)}${s ? `, ${scoperto(s)}` : ''}${r ? ', richieste aperte' : ''}`}>
-          <span class="l">{GIORNI_BREVI[((daIso(g).getDay() + 6) % 7) + 1]}</span><span class="n">{daIso(g).getDate()}</span>
+          <span class="l">{giornoBreve(g).l}</span><span class="n">{giornoBreve(g).n}</span>
           {#if s || r}<span class="w" class:rosso={!!s}></span>{/if}
         </button>
       {/each}
     </div>
     <div class="testa-giorno">
-      <span class="tg"><b>{giornoEsteso(giornoTel).replace(/^./, (c) => c.toUpperCase())}</b>
-        <span class="muted small">{caricamento ? '…' : `${attivi.filter((t) => t.data === giornoTel).length} turni`}{!caricamento && attivi.some((t) => t.data === giornoTel && !t.persona) ? ` · ${scoperto(attivi.filter((t) => t.data === giornoTel && !t.persona).length)}` : ''}</span></span>
+      <span class="tg"><b>{giornoTitolo(giornoTel)}</b>
+        <span class="muted small">{caricamento ? '…' : quanti(attivi.filter((t) => t.data === giornoTel).length, 'turno', 'turni')}{!caricamento && attivi.some((t) => t.data === giornoTel && !t.persona) ? ` · ${scoperto(attivi.filter((t) => t.data === giornoTel && !t.persona).length)}` : ''}</span></span>
       <div class="seg due-s" role="group" aria-label="Quali turni">
         <button type="button" aria-pressed={!soloScoperti} onclick={() => (soloScoperti = false)}>Tutti</button>
         <button type="button" aria-pressed={soloScoperti} onclick={() => (soloScoperti = true)}>Scoperti</button>
@@ -275,7 +273,7 @@
     {:else}
       <p class="muted vuoto-tel">{caricamento ? '' : soloScoperti ? 'Nessun turno scoperto in questo giorno.' : 'Nessun turno in questo giorno.'}</p>
     {/each}
-    <button type="button" class="btn btn-secondary" disabled={!postazioni.length} onclick={() => (aperto = { nuovo: { postazioneId: postazioni[0].id, data: giornoTel } })}>+ Aggiungi un turno</button>
+    <button type="button" class="btn btn-secondary" disabled={!postazioni.length} onclick={() => (aperto = { nuovo: { postazioneId: postazioni[0].id, data: giornoTel } })}><Icona nome="piu" />Nuovo turno…</button>
     <div class="card voci altre">
       <a class="voce" href="#/modelli"><span class="voce-txt"><span class="voce-nome">Settimana tipo e genera un mese</span></span><Icona nome="dx" class="chev" /></a>
       <a class="voce" href="#/postazioni"><span class="voce-txt"><span class="voce-nome">Mansioni e postazioni</span></span><Icona nome="dx" class="chev" /></a>

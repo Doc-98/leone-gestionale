@@ -26,7 +26,7 @@
     <span class="con">{nomiCon(colleghi, 6)}</span>
   {/if}
   <span class="bottoni">
-    <button type="button" class="pieno" onclick={onchiedi}>Chiedi un cambio</button>
+    <button type="button" class="pieno" onclick={onchiedi}>Chiedi un cambio…</button>
     <button type="button" class="vuoto" aria-pressed={conChi} onclick={() => (conChi = !conChi)}>Chi c'è con me</button>
   </span>
 </section>

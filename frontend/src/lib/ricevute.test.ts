@@ -22,9 +22,9 @@ describe('ricevute', () => {
   });
 
   it('per chi e quanto', () => {
-    expect(perChi({ beneficiari: [persona('Sofia')], righe: [riga(520)], totale: 520 })).toBe('Sofia Bianchi · 520 €');
-    expect(perChi({ beneficiari: [persona('Sofia'), persona('Luca')], righe: [riga(500), riga(540)], totale: 1040 })).toBe('Sofia e Luca Bianchi · 2 righe · 1040 €');
-    expect(perChi({ beneficiari: [persona('Sofia'), persona('Pietro', 'Sala')], righe: [riga(1)], totale: 1 })).toBe('Sofia Bianchi, Pietro Sala · 1 €');
+    expect(perChi({ beneficiari: [persona('Sofia')], righe: [riga(520)], totale: 520 })).toBe('Sofia Bianchi · 520\u00a0€');
+    expect(perChi({ beneficiari: [persona('Sofia'), persona('Luca')], righe: [riga(500), riga(540)], totale: 1040 })).toBe('Sofia e Luca Bianchi · 2 righe · 1.040\u00a0€');
+    expect(perChi({ beneficiari: [persona('Sofia'), persona('Pietro', 'Sala')], righe: [riga(1)], totale: 1 })).toBe('Sofia Bianchi, Pietro Sala · 1\u00a0€');
   });
 
   it('lo stato: annullata (e rifatta), inviata, stampata o da consegnare', () => {

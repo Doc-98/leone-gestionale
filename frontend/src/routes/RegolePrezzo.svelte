@@ -3,7 +3,9 @@
   import { api, messaggioErrore, type Offerta, type PaginaListino, type RegolaPrezzo, type Stagione, type TipoRegolaPrezzo } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
   import { dataIndice, giorniStagione, indiceGiorno, mesiStagione, posizione, rateDel, recessoDel, riduzioneDel, testoRate, type Scaglione } from '../lib/impostazioni';
-  import { etichettaVolte, euro } from '../lib/listino';
+  import { etichettaVolte } from '../lib/listino';
+  import { euro } from '../lib/numeri';
+  import { quanti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -196,7 +198,7 @@
     const stop = Math.max(min + 3, 9);
     const date = bozza.sospensione.settimaneRestituite === 'OLTRE_SOGLIA' ? stop - min : stop;
     const dove = { BORSELLINO: ' nel borsellino', ALLUNGA: ': l\'abbonamento si allunga di altrettanto', A_SCELTA: ', nel borsellino o allungando l\'abbonamento' }[bozza.sospensione.restituzione] ?? '';
-    return `Abbonamento da ${euro(opzione.listino)}, circa ${euro(allaSettimana)} a settimana. Stop di ${stop} settimane con il certificato in tempo: ${date} × ${euro(allaSettimana)} ≈ ${euro(Math.round(((opzione.listino * date * 7) / Math.max(7, n)) * 100) / 100)}${dove}.`;
+    return `Abbonamento da ${euro(opzione.listino)}, circa ${euro(allaSettimana)} a settimana. Stop di ${quanti(stop, 'settimana', 'settimane')} con il certificato in tempo: ${date} × ${euro(allaSettimana)} ≈ ${euro(Math.round(((opzione.listino * date * 7) / Math.max(7, n)) * 100) / 100)}${dove}.`;
   });
 </script>
 

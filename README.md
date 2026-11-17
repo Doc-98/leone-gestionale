@@ -271,7 +271,7 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
   «Cambiare l'importo proposto» e un motivo. «Termina oggi» mostra il rimborso secondo la regola di recesso.
 - **Addebiti e pagamenti** (ADR 0018, parte 5): nella scheda, «Pagamenti» mostra cosa c'è da pagare e entro quando
-  (quota, rate, altri importi), i familiari con qualcosa da pagare e lo storico. «Registra pagamento…»: chi paga (anche
+  (quota, rate, altri importi), i familiari con qualcosa da pagare e lo storico. «Registra un pagamento…»: chi paga (anche
   il genitore, per più figli insieme), uno o più metodi (parte contanti, parte carta), anche un acconto. Il bonifico
   resta «da incassare» finché non si segna arrivato. Pagina «Incassi» con i totali per metodo, l'esportazione CSV e i
   bonifici da incassare; «Impostazioni → Metodi di pagamento». Annullare pagamenti e addebiti richiede il permesso

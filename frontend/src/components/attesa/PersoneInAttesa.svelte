@@ -4,6 +4,7 @@
   import Conferma from '../Conferma.svelte';
   import AvvisoPosto from './AvvisoPosto.svelte';
   import { api, messaggioErrore, type PaginaAttesa, type TurnoPosti, type VoceAttesa } from '../../lib/api';
+  import { quanti as nQuanti } from '../../lib/plurali';
   import {
     azionePersona, FILTRI_PERSONE, nelFiltro, ordinaPersone, personeInAttesa, postiDaAssegnare, principale, quandoTurnoBreve, statoPersona, statoVoce,
     testoConferma, type AzioniAttesa, type FiltroPersone, type OrdinePersone, type PersonaInAttesa,
@@ -44,7 +45,6 @@
   });
 
   const nome = (p: { nome: string; cognome: string }) => `${p.nome} ${p.cognome}`;
-  const freccia = (o: OrdinePersone) => (ordine === o ? (o === 'attesa' ? ' ↓' : ' ↑') : '');
   function scegli(id: string) {
     const s = new Set(scelti);
     if (s.has(id)) s.delete(id); else s.add(id);
@@ -120,9 +120,9 @@
 <div class="card tabella">
   <div class="griglia testa">
     <span></span>
-    <button type="button" class="ord lbl" aria-pressed={ordine === 'nome'} onclick={() => (ordine = 'nome')}>Persona{freccia('nome')}</button>
-    <button type="button" class="ord lbl" aria-pressed={ordine === 'corso'} onclick={() => (ordine = 'corso')}>Aspetta · per corso{freccia('corso')}</button>
-    <button type="button" class="ord lbl" aria-pressed={ordine === 'attesa'} onclick={() => (ordine = 'attesa')}>Da quanto{freccia('attesa')}</button>
+    <button type="button" class="ord lbl" aria-pressed={ordine === 'nome'} onclick={() => (ordine = 'nome')}>Persona{#if ordine === 'nome'}<Icona nome="su" /><span class="sr">, in ordine</span>{/if}</button>
+    <button type="button" class="ord lbl" aria-pressed={ordine === 'corso'} onclick={() => (ordine = 'corso')}>Aspetta · per corso{#if ordine === 'corso'}<Icona nome="su" /><span class="sr">, in ordine</span>{/if}</button>
+    <button type="button" class="ord lbl" aria-pressed={ordine === 'attesa'} onclick={() => (ordine = 'attesa')}>Da quanto{#if ordine === 'attesa'}<Icona nome="giu" /><span class="sr">, dal più lungo</span>{/if}</button>
     <span></span>
   </div>
   {#each visibili.slice(0, quanti) as p, i (p.personaId)}
@@ -145,7 +145,7 @@
           {/each}
         </span>
         <span class="quanto">
-          <span class:lunga={p.giorni > 45}>{p.giorni === 1 ? '1 giorno' : `${p.giorni} giorni`}</span>
+          <span class:lunga={p.giorni > 45}>{nQuanti(p.giorni, 'giorno', 'giorni')}</span>
           <span class="stato {st.tono}">{st.testo}</span>
         </span>
         <span class="azioni">
@@ -160,7 +160,7 @@
                   {#if t.tocca && s !== 'saltata'}
                     <button role="menuitem" onclick={() => apriAvviso(p, t.voce, t.turno)}><Icona nome="campana" />{s === 'nuovo' ? 'Avvisa del posto…' : 'Avvisa di nuovo…'}</button>
                   {/if}
-                  <button role="menuitem" onclick={() => { menu = null; azioni.iscrivi(t.voce, t.turno); }}><Icona nome="persona-piu" />Iscrivi{t.tocca ? '' : ' (in soprannumero se pieno)'}</button>
+                  <button role="menuitem" onclick={() => { menu = null; azioni.iscrivi(t.voce, t.turno); }}><Icona nome="persona-piu" />Iscrivi al turno</button>
                   <button role="menuitem" onclick={() => { menu = null; azioni.esegui(() => api.confermataAttesa(t.voce.id), `${nome(p)} aspetta ancora: segnato.`); }}><Icona nome="check" />Aspetta ancora</button>
                   <Conferma role="menuitem" class="danger" domanda="Rimuovi?" onclick={() => { menu = null; azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} rimosso dalla lista di ${t.turno.corso}.`); }}><Icona nome="cestino" />Rimuovi dalla lista</Conferma>
                 {/each}
@@ -199,7 +199,7 @@
   .tabella { padding: 0; overflow: visible; }
   .griglia { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1.3fr) 170px 220px; gap: var(--space-20); align-items: center; padding: var(--space-14) var(--space-16); }
   .testa { padding-top: var(--space-12); padding-bottom: var(--space-12); border-bottom: 1px solid var(--line); }
-  .ord { border: none; background: none; padding: 0; font-family: inherit; cursor: pointer; text-align: left; color: var(--muted); }
+  .ord { display: inline-flex; align-items: center; gap: var(--space-4); border: none; background: none; padding: 0; font-family: inherit; cursor: pointer; text-align: left; color: var(--muted); }
   .ord[aria-pressed='true'] { color: var(--ink); }
   .riga { background: var(--surface); }
   .riga + .riga { border-top: 1px solid var(--line); }

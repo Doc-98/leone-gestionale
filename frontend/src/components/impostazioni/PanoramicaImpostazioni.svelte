@@ -2,8 +2,7 @@
   import Icona from '../Icona.svelte';
   import { api } from '../../lib/api';
   import { iso } from '../../lib/date';
-  import { euro } from '../../lib/listino';
-  import { euro as euroCent } from '../../lib/date';
+  import { euro } from '../../lib/numeri';
   import { sessione } from '../../lib/sessione.svelte';
   import { tema } from '../../lib/tema.svelte';
   import type { NomeIcona } from '../../lib/icone';
@@ -122,7 +121,7 @@
         const valida = (t: { dal: string; al: string | null }) => t.dal <= oggi && (!t.al || t.al >= oggi);
         for (const m of mansioni.slice(0, 2)) {
           const t = tariffe?.find((x) => x.mansioneId === m.id && !x.persona && valida(x));
-          aggiungi('Staff', { k: `Tariffa ${m.nome.toLowerCase()}`, v: t ? `${euroCent(t.euroOra)}/h` : 'manca' });
+          aggiungi('Staff', { k: `Tariffa ${m.nome.toLowerCase()}`, v: t ? `${euro(t.euroOra)}/h` : 'manca' });
         }
         const senza = mansioni.filter((m) => !tariffe?.some((x) => x.mansioneId === m.id && !x.persona && valida(x)));
         if (tariffe && senza.length) {

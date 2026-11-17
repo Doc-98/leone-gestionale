@@ -1,7 +1,8 @@
 <script lang="ts">
   import Azione from './Azione.svelte';
   import { api, ErroreApi, messaggioErrore, type Corso, type SchedaCliente, type TurnoFrequentato, type TurnoPosti } from '../lib/api';
-  import { dataBreve, GIORNI_BREVI, iso, ora } from '../lib/date';
+  import { dataBreve, iso, turnoSettimanale } from '../lib/date';
+  import { quanti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -20,7 +21,7 @@
   let errore = $state('');
   let pieno = $state<{ turno: TurnoPosti; riprova: () => Promise<void> } | null>(null);
 
-  const quando = (t: { giornoSettimana: number; inizio: string; fine: string }) => `${GIORNI_BREVI[t.giornoSettimana]} ${ora(t.inizio)}–${ora(t.fine)}`;
+  const quando = (t: { giornoSettimana: number; inizio: string; fine: string }) => turnoSettimanale(t.giornoSettimana, t.inizio, t.fine);
 
   async function apri(cambio: TurnoFrequentato | null) {
     errore = '';
@@ -78,10 +79,10 @@
   }
 
   function togli(attesaId: string) {
-    esegui(() => api.rinunciaAttesa(attesaId), 'Tolto dalla lista d\'attesa.');
+    esegui(() => api.rinunciaAttesa(attesaId), 'Rimosso dalla lista d\'attesa.');
   }
 
-  const posti = (t: TurnoPosti) => (t.posti == null ? `${t.occupati} iscritti` : `${t.occupati}/${t.posti}`);
+  const posti = (t: TurnoPosti) => (t.posti == null ? quanti(t.occupati, 'iscritto', 'iscritti') : `${t.occupati}/${t.posti}`);
   const libero = (t: TurnoPosti) => t.liberi == null || t.liberi > 0;
   const giaQui = (t: TurnoPosti) => cliente.turni.some((x) => x.lezioneId === t.lezioneId) || cliente.attesa.some((a) => a.lezioneId === t.lezioneId);
 </script>
@@ -137,9 +138,9 @@
           <p class="msg err" role="alert">{errore}</p>
           {#if pieno}
             {@const p = pieno}
-            <div class="row">
-              <button class="btn btn-primary grow" onclick={() => attendi(p.turno)}>Metti in lista d'attesa</button>
-              <button class="btn btn-secondary grow" onclick={p.riprova}>{scelta.cambio ? 'Cambia' : 'Iscrivi'} in soprannumero</button>
+            <div class="row a-capo">
+              <button class="btn btn-primary" onclick={() => attendi(p.turno)}>Metti in lista d'attesa</button>
+              <button class="btn btn-secondary" onclick={p.riprova}>{scelta.cambio ? 'Sposta' : 'Iscrivi'} in soprannumero</button>
             </div>
           {/if}
         {/if}
@@ -153,7 +154,7 @@
                   {#if !libero(t) && t.liberoDal}<span class="muted"> · si libera dal {dataBreve(t.liberoDal)}</span>{/if}</span>
                 {#if qui}<span class="muted small">già qui</span>
                 {:else if libero(t)}<button class="btn btn-secondary piccolo" onclick={() => scegli(t)}>{scelta.cambio ? 'Passa qui' : 'Iscrivi'}</button>
-                {:else}<button class="btn btn-secondary piccolo" onclick={() => attendi(t)}>Lista d'attesa</button>{/if}
+                {:else}<button class="btn btn-secondary piccolo" onclick={() => attendi(t)}>Metti in attesa</button>{/if}
               </li>
             {:else}
               <li class="muted small">Questo corso non ha turni.</li>

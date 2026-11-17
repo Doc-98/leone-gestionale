@@ -2,10 +2,10 @@
   import Icona from '../components/Icona.svelte';
   import Foglio from '../components/Foglio.svelte';
   import { api, eAvviso, messaggioErrore, TIPI_RICHIESTA, type Candidato, type Postazione, type Richiesta, type Turno } from '../lib/api';
-  import { aggiungiGiorni, daIso, giornoEsteso, iso, lunedi, ora } from '../lib/date';
+  import { aggiungiGiorni, dataAgenda, giornoEsteso, giornoTitolo, iso, lunedi, ora } from '../lib/date';
   import { formatH, gruppoDi, orePerPersona } from '../lib/gestione';
-  import { asse, buchi, giornoCorto, gruppoRichiesta, quandoInviata, type GruppoRichieste } from '../lib/richieste';
-  import { areaDi, traQuanto } from '../lib/turni';
+  import { asse, buchi, gruppoRichiesta, quandoInviata, type GruppoRichieste } from '../lib/richieste';
+  import { areaDi, giornoBreve, traQuanto } from '../lib/turni';
   import { sessione } from '../lib/sessione.svelte';
   import { schermo } from '../lib/schermo.svelte';
 
@@ -13,7 +13,7 @@
    * Le richieste per il coordinatore (ADR 0022, 0023). Sostituzioni e cambi d'orario non si respingono: chi li chiede
    * ha avvisato che non ci sarà. Una sostituzione si propone a un collega (accettando è già approvata), si conferma
    * chi l'ha presa o si lascia scoperta; un cambio orario si approva creando un turno per l'orario lasciato libero
-   * («Risolvi») o lasciandolo scoperto. Nemmeno gli scambi si respingono: i due colleghi li hanno concordati, si confermano.
+   * («Approva e crea il turno») o senza turno («Approva senza turno»). Nemmeno gli scambi si respingono: i due colleghi li hanno concordati, si confermano.
    */
   let { cambiate }: { cambiate?: (n: number) => void } = $props();
   const oggi = iso(new Date());
@@ -96,20 +96,20 @@
       case 'CAMBIO_ORARIO':
         return ora(r.nuovoInizio!) !== ora(r.turno.inizio) ? `${r.richiedente.nome} inizierà alle ${ora(r.nuovoInizio!)}` : `${r.richiedente.nome} finirà alle ${ora(r.nuovoFine!)}`;
       case 'SCAMBIO':
-        return `${r.richiedente.nome} ↔ ${r.collega?.nome ?? '?'}`;
+        return `${r.richiedente.nome} scambia con ${r.collega?.nome ?? '?'}`;
     }
   }
   function breve(r: Richiesta): string {
-    if (r.tipo === 'SCAMBIO') return `${nome1(r.richiedente.nome)} ↔ ${nome1(r.collega?.nome ?? '?')}`;
+    if (r.tipo === 'SCAMBIO') return `${nome1(r.richiedente.nome)} e ${nome1(r.collega?.nome ?? '?')}`;
     if (r.tipo === 'SOSTITUZIONE' && r.collega) return `${r.richiedente.nome} → ${r.collega.nome}`;
     return r.richiedente.nome;
   }
   function sotto(r: Richiesta): string {
     const t = r.turno;
-    if (r.tipo === 'CAMBIO_ORARIO') return `${giornoCorto(t.data)} · ${ora(t.inizio)}–${ora(t.fine)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}`;
-    if (r.tipo === 'SCAMBIO' && r.turnoCollega) return `${giornoCorto(t.data)} ↔ ${giornoCorto(r.turnoCollega.data)}`;
-    if (r.propostaDa && r.collega) return `${giornoCorto(t.data)} · proposta da ${r.propostaDa.id === sessione.utente?.personaId ? 'te' : r.propostaDa.nome}`;
-    return `${giornoCorto(t.data)} · ${ora(t.inizio)}–${ora(t.fine)} · ${doveBreve(t)}`;
+    if (r.tipo === 'CAMBIO_ORARIO') return `${dataAgenda(t.data)} · ${ora(t.inizio)}–${ora(t.fine)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}`;
+    if (r.tipo === 'SCAMBIO' && r.turnoCollega) return `${dataAgenda(t.data)} per ${dataAgenda(r.turnoCollega.data)}`;
+    if (r.propostaDa && r.collega) return `${dataAgenda(t.data)} · proposta da ${r.propostaDa.id === sessione.utente?.personaId ? 'te' : r.propostaDa.nome}`;
+    return `${dataAgenda(t.data)} · ${ora(t.inizio)}–${ora(t.fine)} · ${doveBreve(t)}`;
   }
   function inviata(r: Richiesta): string {
     if (r.stato === 'IN_ATTESA_APPROVAZIONE' && r.collega && r.tipo !== 'CAMBIO_ORARIO') return `${nome1(r.collega.nome)} ha accettato`;
@@ -141,8 +141,7 @@
       return { nome: p ? gruppoDi(x).etichetta : x.nome, seg };
     }).filter((x) => x.seg.length || righe.length <= 4);
     const tutti = segmenti.flatMap((x) => x.seg.map((s) => [s.da, s.a] as [string, string]));
-    const giorno = giornoEsteso(t.data).split(' ').slice(0, 2).join(' ');
-    return { titolo: `${g}, ${giorno}${r.tipo !== 'SOSTITUZIONE' ? ' · se approvi' : ''}`, righe: segmenti, asse: asse(tutti.length ? tutti : [[ora(t.inizio), ora(t.fine)]]), area: areaDi(t.postazione) };
+    return { titolo: `${g}, ${giornoEsteso(t.data)}${r.tipo !== 'SOSTITUZIONE' ? ' · se approvi' : ''}`, righe: segmenti, asse: asse(tutti.length ? tutti : [[ora(t.inizio), ora(t.fine)]]), area: areaDi(t.postazione) };
   }
 
   function effetto(r: Richiesta): string {
@@ -152,11 +151,11 @@
       const testo = b.map(([a, c]) => `dalle ${a} alle ${c}`).join(' e ');
       const p = postDi(r.turno);
       const post = p && /^postazione/i.test(gruppoDi(p).etichetta) ? gruppoDi(p).etichetta.toLowerCase() : 'postazione';
-      return `${testo[0].toUpperCase()}${testo.slice(1)} la ${post} resta senza nessuno. «Risolvi» crea un turno da assegnare per quell'orario; «Lascia scoperto» accetta il buco.`;
+      return `${testo[0].toUpperCase()}${testo.slice(1)} la ${post} resta senza nessuno. «Approva e crea il turno» crea un turno da assegnare per quell'orario; «Approva senza turno» accetta il buco.`;
     }
     if (r.tipo === 'SCAMBIO' && r.turnoCollega) {
       const c = r.turnoCollega;
-      return `${nome1(r.collega?.nome ?? '?')} fa il turno di ${nome1(r.richiedente.nome)} ${giornoEsteso(r.turno.data).split(' ').slice(0, 2).join(' ')}; ${nome1(r.richiedente.nome)} fa quello di ${nome1(r.collega?.nome ?? '?')} ${giornoEsteso(c.data).split(' ').slice(0, 2).join(' ')} (${doveBreve(c)}, ${ora(c.inizio)}–${ora(c.fine)}).`;
+      return `${nome1(r.collega?.nome ?? '?')} fa il turno di ${nome1(r.richiedente.nome)} ${giornoEsteso(r.turno.data)}; ${nome1(r.richiedente.nome)} fa quello di ${nome1(r.collega?.nome ?? '?')} ${giornoEsteso(c.data)} (${doveBreve(c)}, ${ora(c.inizio)}–${ora(c.fine)}).`;
     }
     return '';
   }
@@ -198,7 +197,7 @@
   }
 
   const scoperto = (r: Richiesta) => esegui(() => api.senzaSostituto(r.id, nota || undefined), 'Il turno resta da assegnare: lo trovi scoperto in Pianificazione.');
-  const notaPredefinita = $derived(`Va bene - ${sessione.utente?.nome ?? ''}`);
+  const notaPredefinita = $derived(`Va bene · ${sessione.utente?.nome ?? ''}`);
 
   /** Le due azioni della richiesta: [testo, cosa fa, serve scegliere un collega?] */
   function azioni(r: Richiesta): { t: string; f: () => void; collega?: boolean; primaria?: boolean }[] {
@@ -213,9 +212,9 @@
     if (r.tipo === 'CAMBIO_ORARIO') {
       const b = buchi(r.turno.inizio, r.turno.fine, r.nuovoInizio!, r.nuovoFine!);
       const chi = nome1(r.richiedente.nome);
-      if (!b.length) return [{ t: 'Approva', f: () => esegui(() => api.approva(r.id, nota || undefined), 'Approvato: l’orario è aggiornato.') }];
-      return [{ t: 'Risolvi', f: () => esegui(() => api.approva(r.id, nota || undefined, true), `Approvato: ${chi} ha il nuovo orario e ${b.map(([a, c]) => `${a}–${c}`).join(', ')} è un turno da assegnare in Pianificazione.`) },
-        { t: 'Lascia scoperto', f: () => esegui(() => api.approva(r.id, nota || undefined), `Approvato: ${chi} ha il nuovo orario e ${b.map(([a, c]) => `dalle ${a} alle ${c}`).join(', ')} la postazione resta scoperta.`) }];
+      if (!b.length) return [{ t: 'Approva il cambio', f: () => esegui(() => api.approva(r.id, nota || undefined), 'Approvato: l’orario è aggiornato.') }];
+      return [{ t: 'Approva e crea il turno', f: () => esegui(() => api.approva(r.id, nota || undefined, true), `Approvato: ${chi} ha il nuovo orario e ${b.map(([a, c]) => `${a}–${c}`).join(', ')} è un turno da assegnare in Pianificazione.`) },
+        { t: 'Approva senza turno', f: () => esegui(() => api.approva(r.id, nota || undefined), `Approvato: ${chi} ha il nuovo orario e ${b.map(([a, c]) => `dalle ${a} alle ${c}`).join(', ')} la postazione resta scoperta.`) }];
     }
     if (r.stato === 'IN_ATTESA_APPROVAZIONE')
       return [{ t: 'Conferma lo scambio', f: () => esegui(() => api.approva(r.id, nota || undefined), 'Scambio confermato: i turni sono aggiornati.') }];
@@ -264,7 +263,7 @@
   <header class="testa-d">
     <span class="riga">{@render tipo(r)}<span class="grow"></span><span class="muted small">{inviata(r)}</span></span>
     <h2>{titolo(r)}</h2>
-    <span class="m sotto-d">{giornoEsteso(r.turno.data).replace(/^./, (c) => c.toUpperCase())} · {ora(r.turno.inizio)}–{ora(r.turno.fine)} · {dove(r.turno)}</span>
+    <span class="m sotto-d">{giornoTitolo(r.turno.data)} · {ora(r.turno.inizio)}–{ora(r.turno.fine)} · {dove(r.turno)}</span>
   </header>
   {#if r.messaggio}<span class="muted citazione">«{r.messaggio}»</span>{/if}
   <div class="tl-box ar-{l.area}">
@@ -321,11 +320,11 @@
       <article class="card ri">
         <span class="testa">{@render tipo(r)}<span class="grow"></span><span class="quando-b">{traQuanto(r.turno, oggi, 0)}</span></span>
         <b class="titolo-r">{titolo(r)}</b>
-        <span class="mini-t ar-{areaDi(r.turno.postazione)}"><span class="di">{giornoCorto(r.turno.data).split(' ')[0]} {daIso(r.turno.data).getDate()}</span>
+        <span class="mini-t ar-{areaDi(r.turno.postazione)}"><span class="di">{giornoBreve(r.turno.data).l} {giornoBreve(r.turno.data).n}</span>
           {#if r.tipo === 'CAMBIO_ORARIO'}<b><s class="prima">{ora(r.turno.inizio)}</s> {ora(r.nuovoInizio!)}–{ora(r.nuovoFine!)}</b>{:else}<b>{ora(r.turno.inizio)}–{ora(r.turno.fine)}</b>{/if}
           <span class="dove-t">{doveBreve(r.turno)}</span></span>
         {#if r.tipo === 'SCAMBIO' && r.turnoCollega}
-          <span class="mini-t ar-{areaDi(r.turnoCollega.postazione)}"><span class="di">{giornoCorto(r.turnoCollega.data).split(' ')[0]} {daIso(r.turnoCollega.data).getDate()}</span><b>{ora(r.turnoCollega.inizio)}–{ora(r.turnoCollega.fine)}</b><span class="dove-t">{doveBreve(r.turnoCollega)}</span></span>
+          <span class="mini-t ar-{areaDi(r.turnoCollega.postazione)}"><span class="di">{giornoBreve(r.turnoCollega.data).l} {giornoBreve(r.turnoCollega.data).n}</span><b>{ora(r.turnoCollega.inizio)}–{ora(r.turnoCollega.fine)}</b><span class="dove-t">{doveBreve(r.turnoCollega)}</span></span>
         {/if}
         {#if r.messaggio}<span class="muted citazione">«{r.messaggio}»</span>{/if}
         {#if effetto(r)}<span class="effetto"><Icona nome="avviso" />{effetto(r)}</span>{/if}
@@ -345,7 +344,7 @@
         <div class="card lista-a">
           {#each richieste.filter((r) => gruppoRichiesta(r) === 'Aspettano il collega') as r (r.id)}
             <button type="button" class="voce-a" onclick={() => (scegli(r.id), (foglio = true))}>
-              <span class="t"><b>{giornoCorto(r.turno.data)} · {r.tipo === 'SCAMBIO' ? `scambio ${breve(r)}` : `${r.collega?.nome} per ${r.richiedente.nome}`}</b>
+              <span class="t"><b>{dataAgenda(r.turno.data)} · {r.tipo === 'SCAMBIO' ? `scambio ${breve(r)}` : `${r.collega?.nome} per ${r.richiedente.nome}`}</b>
                 <span>{r.propostaDa ? 'proposta da te · se accetta è già confermata' : `${nome1(r.collega?.nome ?? '?')} non ha ancora risposto`}</span></span>
               <Icona nome="dx" class="chev" />
             </button>
@@ -357,7 +356,7 @@
 </section>
 
 {#if foglio && scelta && !schermo.larga}
-  <Foglio titolo={`${TIPI_RICHIESTA[scelta.tipo]} · ${giornoCorto(scelta.turno.data)}`} chiudi={() => (foglio = false)}>
+  <Foglio titolo={`${TIPI_RICHIESTA[scelta.tipo]} · ${dataAgenda(scelta.turno.data)}`} chiudi={() => (foglio = false)}>
     <div class="nel-foglio">{@render dettaglio(scelta)}</div>
   </Foglio>
 {/if}
@@ -434,8 +433,8 @@
   .mini-t .di { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 52px; flex-shrink: 0; }
   .mini-t .prima { color: var(--muted); text-decoration-thickness: 1.5px; }
   .dove-t { overflow: hidden; text-overflow: ellipsis; }
-  .due-b { display: flex; gap: var(--space-8); }
-  .due-b .btn { flex: 1; height: 44px; }
+  .due-b { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+  .due-b .btn { flex: 1 1 auto; height: 44px; }
   .aspettano { display: flex; flex-direction: column; gap: var(--space-6); }
   .lista-a { padding: 0; overflow: hidden; }
   .voce-a { display: flex; align-items: center; gap: var(--space-10); width: 100%; padding: var(--space-10) var(--space-14); border: none; border-top: 1px solid var(--line-soft); background: var(--surface);

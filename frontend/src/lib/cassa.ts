@@ -170,15 +170,6 @@ export const oggiIso = () => iso(new Date());
 
 // ── Chiusura di cassa (ADR 0018, parte 11) ──────────────────────────────
 
-/** Un importo scritto a mano («1.234,50», «12.5», «€ 20»): il numero, o null se è vuoto o non si capisce. */
-export function numeroDa(s: string): number | null {
-  const t = s.replace(/\s|€/g, '');
-  if (!t) return null;
-  // con la virgola, i punti sono le migliaia; senza, il punto è il decimale
-  const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
-  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
-}
-
 /** I tagli di banconote e monete, per contare il cassetto. */
 export const TAGLI = [500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
 
@@ -255,7 +246,7 @@ export function perPersona(chiusure: Pick<SessioneCassa, 'chiusaDa' | 'differenz
 
 export const CONTROLLI: { id: ControlloModo; nome: string }[] = [
   { id: 'NESSUNA', nome: 'Nessuna' },
-  { id: 'OLTRE', nome: 'Oltre la tolleranza' },
+  { id: 'OLTRE', nome: 'Oltre la soglia' },
   { id: 'TUTTE', nome: 'Tutte' },
 ];
 

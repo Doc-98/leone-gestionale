@@ -8,6 +8,7 @@
     alCompleto, descriviEvento, eta, giorniDiAttesa, notaVoce, postiDaAssegnare, quandoTurno, riepilogo, statoVoce, testoPoi, type AzioniAttesa,
   } from '../../lib/attesa';
   import { colore } from '../../lib/piano';
+  import { daGiorni, quanti } from '../../lib/plurali';
 
   /**
    * Vista «Posti da assegnare» (variante A del mockup): i quattro numeri, i turni dove c'è un posto con chi tocca e cosa
@@ -47,10 +48,10 @@
 
 <div class="tiles">
   <div class="tile hero-t"><span class="lbl">Posti da assegnare</span><span class="v">{kpi.posti}</span><span class="n">{kpi.turniConPosto === 1 ? 'in 1 turno' : `in ${kpi.turniConPosto} turni`}</span></div>
-  <div class="tile"><span class="lbl">In attesa</span><span class="v">{kpi.persone}</span><span class="n">{kpi.persone === 1 ? 'persona' : 'persone'}{kpi.turniPieni ? `, ${kpi.turniPieni} ${kpi.turniPieni === 1 ? 'turno' : 'turni'} al completo` : ''}</span></div>
-  <div class="tile" class:arancio={kpi.scaduti > 0}><span class="lbl">Avvisi senza risposta</span><span class="v">{kpi.avvisi}</span>
-    <span class="n">{kpi.scaduti ? `${kpi.scaduti} oltre i ${pagina.giorniRisposta} giorni` : `entro i ${pagina.giorniRisposta} giorni per rispondere`}</span></div>
-  <div class="tile"><span class="lbl">Attesa media</span><span class="v">{kpi.attesaMedia === 1 ? '1 giorno' : `${kpi.attesaMedia} giorni`}</span><span class="n">la più lunga: {kpi.attesaMassima} giorni</span></div>
+  <div class="tile"><span class="lbl">In attesa</span><span class="v">{kpi.persone}</span><span class="n">{kpi.turniPieni ? `in ${quanti(kpi.turniPieni, 'turno', 'turni')}` : kpi.persone === 1 ? 'persona' : 'persone'}</span></div>
+  <div class="tile" class:arancio={kpi.scaduti > 0}><span class="lbl">Senza risposta</span><span class="v">{kpi.avvisi}</span>
+    <span class="n">{kpi.scaduti ? `${kpi.scaduti} scaduti` : `entro ${quanti(pagina.giorniRisposta, 'giorno', 'giorni')}`}</span></div>
+  <div class="tile"><span class="lbl">Attesa media</span><span class="v">{quanti(kpi.attesaMedia, 'giorno', 'giorni')}</span><span class="n">la più lunga: {quanti(kpi.attesaMassima, 'giorno', 'giorni')}</span></div>
 </div>
 
 <div class="corpo">
@@ -77,17 +78,17 @@
               </span>
               <span class="bottoni">
                 {#if s === 'nuovo'}
-                  <button class="btn btn-quieto btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
-                  <button class="btn btn-primary btn-sm" aria-pressed={avviso?.voce.id === v.id} onclick={() => (avviso = { voce: v, turno: t })}>Avvisa</button>
+                  <button class="btn btn-quieto btn-sm" aria-label={`Iscrivi ${nome(v)}`} onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
+                  <button class="btn btn-primary btn-sm" aria-pressed={avviso?.voce.id === v.id} onclick={() => (avviso = { voce: v, turno: t })}>Avvisa del posto…</button>
                 {:else if s === 'avvisata'}
                   <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} ha rinunciato: rimosso dalla lista.`)}>Ha rinunciato</Conferma>
-                  <button class="btn btn-primary btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
+                  <button class="btn btn-primary btn-sm" aria-label={`Iscrivi ${nome(v)}`} onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                 {:else if p.poi.length}
-                  <button class="btn btn-quieto btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
+                  <button class="btn btn-quieto btn-sm" aria-label={`Iscrivi ${nome(v)}`} onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                   <button class="btn btn-primary btn-sm" onclick={() => proponi(v, t, p.poi[0])}>Proponi a {p.poi[0].nome}</button>
                 {:else}
                   <Conferma class="btn btn-quieto btn-sm" domanda="Ha rinunciato?" onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} rimosso dalla lista.`)}>Ha rinunciato</Conferma>
-                  <button class="btn btn-primary btn-sm" onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
+                  <button class="btn btn-primary btn-sm" aria-label={`Iscrivi ${nome(v)}`} onclick={() => azioni.iscrivi(v, t)}>Iscrivi</button>
                 {/if}
               </span>
             </div>
@@ -118,7 +119,7 @@
                 <ol class="lista">
                   {#each t.attesa as v (v.id)}
                     <li>
-                      <span class="grow">{#if schede}<a class="nome" href={`#/clienti/${v.personaId}`}>{nome(v)}</a>{:else}<b>{nome(v)}</b>{/if}<span class="muted">{v.eta != null ? `, ${eta(v.eta)}` : ''} · da {giorniDiAttesa(v, pagina.oggi)} giorni{v.note ? ` · ${v.note}` : ''}</span></span>
+                      <span class="grow">{#if schede}<a class="nome" href={`#/clienti/${v.personaId}`}>{nome(v)}</a>{:else}<b>{nome(v)}</b>{/if}<span class="muted">{v.eta != null ? `, ${eta(v.eta)}` : ''} · {daGiorni(giorniDiAttesa(v, pagina.oggi))}{v.note ? ` · ${v.note}` : ''}</span></span>
                       <Azione icona="cestino" tono="danger" etichetta={`Rimuovi ${nome(v)} dalla lista d'attesa`} conferma="Rimuovi?"
                         onclick={() => azioni.esegui(() => api.rinunciaAttesa(v.id), `${nome(v)} rimosso dalla lista d'attesa.`)} />
                     </li>
@@ -149,7 +150,7 @@
         <span class="muted small">Ancora niente.</span>
       {/each}
       {#if pagina.storico.length > 4}
-        <button type="button" class="link-btn" onclick={() => (tuttoStorico = !tuttoStorico)}>{tuttoStorico ? 'Mostra meno' : 'Tutto lo storico →'}</button>
+        <button type="button" class="btn btn-quieto btn-sm" aria-expanded={tuttoStorico} onclick={() => (tuttoStorico = !tuttoStorico)}><Icona nome={tuttoStorico ? 'su' : 'giu'} />{tuttoStorico ? 'Solo gli ultimi' : 'Mostra tutto'}</button>
       {/if}
     </section>
   </aside>
@@ -196,8 +197,6 @@
   .storico { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-4) 2px; }
   .storico h2 { margin: 0; }
   .evento { font-size: var(--text-sm); line-height: 1.35; }
-  .link-btn { align-self: flex-start; border: none; background: none; padding: 0; font: inherit; font-size: var(--text-sm); font-weight: 700; color: var(--cloro); cursor: pointer; }
-  .link-btn:hover { text-decoration: underline; }
   .vuoto { padding: var(--space-14); border: 1px dashed var(--line-dashed); border-radius: var(--radius-md); margin: 0; }
 
   @media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lato { position: static; } }

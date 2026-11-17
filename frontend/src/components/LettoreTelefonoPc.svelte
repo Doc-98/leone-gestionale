@@ -75,7 +75,7 @@
         {:else}
           <span class="azioni-l">
             {#if collegato}<button type="button" class="mini-btn" aria-pressed={mostraQr} onclick={() => (mostraQr = !mostraQr)}>{mostraQr ? 'Nascondi il QR' : 'Mostra il QR'}</button>{/if}
-            <button type="button" class="mini-btn rosso" onclick={() => l.scollega()}>Scollega</button>
+            <button type="button" class="mini-btn rosso" onclick={() => l.scollega()}>Scollega il telefono</button>
           </span>
         {/if}
       </div>

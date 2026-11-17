@@ -3,7 +3,8 @@
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type Corso, type Offerta, type PropostaPrezzo, type SchedaCliente, type Stagione } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
-  import { etichettaVolte, euro } from '../lib/listino';
+  import { etichettaVolte } from '../lib/listino';
+  import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -75,7 +76,7 @@
     if (!o || !d) return;
     api.propostaPrezzo(id, o, v, d).then((p) => {
       proposta = p;
-      importo = String(p.proposto);
+      importo = perCampo(p.proposto);
       al = p.al ?? '';
       motivo = '';
       errore = '';
@@ -85,14 +86,15 @@
     });
   });
 
-  const cambiato = $derived(proposta != null && importo !== '' && Number(importo) !== Number(proposta.proposto));
+  const importoErrato = $derived(importoNonValido(importo));
+  const cambiato = $derived(proposta != null && importo !== '' && !importoErrato && numeroDa(importo) !== Number(proposta.proposto));
   const nomeCorso = (c: string) => corsi.find((x) => x.id === c)?.nome ?? 'corso';
   const nomeGruppo = (g: string | null) => cliente.gruppi.find((x) => x.gruppoId === g)?.nome ?? 'gruppo';
 
   async function vendi() {
     const o = offerta!;
     if (o.tipo === 'ALTRO') {
-      const imp = cambiato ? Number(importo) : proposta!.proposto;
+      const imp = cambiato ? (numeroDa(importo) ?? 0) : proposta!.proposto;
       const ok = await esegui(() => api.nuovoAddebito({ personaId: id, descrizione: o.nome, importo: imp, scadenza: dal, offertaId: o.id,
         note: cambiato ? `Proposto ${euro(proposta!.proposto)} · ${motivo.trim()}` : null }), `${o.nome}: ${euro(imp)} da pagare.`);
       if (ok) chiudi();
@@ -100,8 +102,8 @@
     }
     const ok = await esegui(() => api.nuovoAbbonamento(id, {
       offertaId: o.id, volteASettimana: o.tipo === 'CORSO' ? volte : null, corsoId: o.tipo === 'CORSO' ? corsoId || null : null,
-      dal, al: al || null, importo: cambiato ? Number(importo) : null, motivoImporto: cambiato ? motivo : null,
-    }), `${o.nome} registrato: ${euro(cambiato ? Number(importo) : proposta!.proposto)}.`);
+      dal, al: al || null, importo: cambiato ? (numeroDa(importo) ?? 0) : null, motivoImporto: cambiato ? motivo : null,
+    }), `${o.nome} registrato: ${euro(cambiato ? (numeroDa(importo) ?? 0) : proposta!.proposto)}.`);
     if (ok) chiudi();
   }
 </script>
@@ -138,12 +140,12 @@
 
   {#if proposta}
     <div class="conto" aria-live="polite">
-      <div class="voce-conto"><span>Listino{proposta.gruppoId ? ` · ${nomeGruppo(proposta.gruppoId)}` : ''}</span><span>{euro(proposta.listino)}</span></div>
-      {#if proposta.prezzoBase != null}<div class="voce-conto muted small"><span>Prezzo per tutti</span><span>{euro(proposta.prezzoBase)}</span></div>{/if}
+      <div class="voce-conto"><span>Listino{proposta.gruppoId ? ` · ${nomeGruppo(proposta.gruppoId)}` : ''}</span><span>{euroColonna(proposta.listino)}</span></div>
+      {#if proposta.prezzoBase != null}<div class="voce-conto muted small"><span>Prezzo per tutti</span><span>{euroColonna(proposta.prezzoBase)}</span></div>{/if}
       {#if proposta.riduzionePercentuale}
-        <div class="voce-conto"><span>Iscrizione a stagione iniziata (−{proposta.riduzionePercentuale}%)</span><span>−{euro(proposta.riduzione)}</span></div>
+        <div class="voce-conto"><span>Iscrizione a stagione iniziata (−{proposta.riduzionePercentuale}%)</span><span>−{euroColonna(proposta.riduzione)}</span></div>
       {/if}
-      <div class="voce-conto totale"><span>Proposto</span><strong>{euro(proposta.proposto)}</strong></div>
+      <div class="voce-conto totale"><span>Proposto</span><strong>{euroColonna(proposta.proposto)}</strong></div>
       {#if proposta.rate.length && offerta?.tipo !== 'ALTRO'}
         <div class="rate small">
           {#each proposta.rate as r (r.numero)}<span>{r.numero === 1 ? 'All\'iscrizione' : r.scadenza ? `Entro il ${dataBreve(r.scadenza)}` : `Rata ${r.numero}`}: {euro(r.importo)}</span>{/each}
@@ -152,8 +154,9 @@
     </div>
     <div class="due">
       <label class="field"><span class="lbl">Importo (€)</span>
-        <input class="inp m" type="number" min="0" step="0.01" bind:value={importo} disabled={!puoCambiare}
+        <input class="inp m" inputmode="decimal" bind:value={importo} disabled={!puoCambiare} aria-invalid={importoErrato}
                title={puoCambiare ? '' : 'Per cambiarlo serve il permesso «Cambiare l\'importo proposto»'} /></label>
+      {#if importoErrato}<span class="msg err" role="alert">Scrivi l'importo in euro, es. 35 o 35,50</span>{/if}
       {#if offerta?.tipo !== 'ALTRO'}<label class="field"><span class="lbl">Fino al</span><input class="inp" type="date" bind:value={al} min={dal} /></label>{/if}
     </div>
     {#if cambiato}
@@ -163,8 +166,8 @@
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
 
   <div class="row">
-    <button type="button" class="btn btn-secondary grow" onclick={chiudi}>Annulla</button>
-    <button class="btn btn-primary grow" disabled={!proposta || (offerta?.tipo === 'CORSO' && !corsoId) || (cambiato && !motivo.trim())}>Registra</button>
+    <button type="button" class="btn btn-secondary" onclick={chiudi}>Annulla</button>
+    <button class="btn btn-primary grow" disabled={!proposta || importoErrato || (offerta?.tipo === 'CORSO' && !corsoId) || (cambiato && !motivo.trim())}>{offerta?.tipo === 'CORSO' ? 'Registra l\'abbonamento' : offerta?.tipo === 'CARNET' ? 'Registra il carnet' : 'Registra l\'importo'}</button>
   </div>
   <button type="button" class="btn btn-quieto btn-sm sx" onclick={aMano}><Icona nome="matita" />Registra a mano, senza listino</button>
 </form>

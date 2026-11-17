@@ -6,7 +6,8 @@
   import Iscritti from './Iscritti.svelte';
   import GestioneFasce from './GestioneFasce.svelte';
   import LezioneForm from './LezioneForm.svelte';
-  import { aggiungiGiorni, daIso, GIORNI_ESTESI, giornoEsteso, iso, lunedi, MESI, ora } from '../lib/date';
+  import { aggiungiGiorni, GIORNI_ESTESI, giornoEsteso, giornoTitolo, iso, lunedi, ora, titoloSettimana } from '../lib/date';
+  import { quanti } from '../lib/plurali';
   import {
     colonneDelGiorno, colore, disponi, etichettaSpazi, finestraOraria, inAttivita, inFascia, intervalliColonne, minuti, nomeCategoria,
     orarioFascia, pianta, raggruppaFasce, STATI, fasceDefiniteIl, definitePerVasca, type Banda, type Fascia, type Intestazione,
@@ -135,7 +136,7 @@
   async function cambiaAssetto(f: FasciaOraria, assetto: number) {
     try {
       const r = await api.cambiaAssetto(f.id, assetto);
-      fatto(`Fascia ${ora(f.inizio)}–${ora(f.fine)} a ${assetto} corsie${r.turniAggiornati ? `: ${r.turniAggiornati} corsi riportati sulle corsie con lo stesso numero` : ''}.`);
+      fatto(`Fascia ${ora(f.inizio)}–${ora(f.fine)} a ${assetto} corsie${r.turniAggiornati ? `: ${quanti(r.turniAggiornati, 'corso riportato', 'corsi riportati')} sulle corsie con lo stesso numero` : ''}.`);
     } catch (e) {
       errore = messaggioErrore(e);
     }
@@ -182,10 +183,8 @@
   const sovrapposte = $derived(new Set((vista === 'giorno' ? delGiorno : occorrenze).filter((o) => o.conflitti.length).map((o) => o.chiave)).size);
 
   const titolo = $derived.by(() => {
-    if (vista === 'giorno') return giornoEsteso(giorno);
-    const x = daIso(giorni[0]);
-    const y = daIso(giorni[6]);
-    return x.getMonth() === y.getMonth() ? `${x.getDate()}–${y.getDate()} ${MESI[x.getMonth()]}` : `${x.getDate()} ${MESI[x.getMonth()]} – ${y.getDate()} ${MESI[y.getMonth()]}`;
+    if (vista === 'giorno') return giornoTitolo(giorno);
+    return titoloSettimana(giorni[0]);
   });
 
   function sposta(verso: number) {
@@ -358,7 +357,7 @@
           <section class="card fascia-scelta">
             <div class="testa-fascia">
               <h2 class="d">{orarioFascia(f)}</h2>
-              <span class="muted small">{nellaFascia.length} attività{iscrittiFascia ? ` · ${iscrittiFascia} iscritti` : ''}{istruttoriFascia ? ` · ${istruttoriFascia} ${istruttoriFascia === 1 ? 'istruttore' : 'istruttori'} in vasca` : ''}</span>
+              <span class="muted small">{nellaFascia.length} attività{iscrittiFascia ? ` · ${quanti(iscrittiFascia, 'iscritto', 'iscritti')}` : ''}{istruttoriFascia ? ` · ${istruttoriFascia} ${istruttoriFascia === 1 ? 'istruttore' : 'istruttori'} in vasca` : ''}</span>
               <span class="grow"></span>
               {#if sovrapposteFascia}<span class="tag t-warn"><Icona nome="avviso" />{sovrapposteFascia} attività si sovrappongono</span>{/if}
             </div>
@@ -443,7 +442,7 @@
                                 {@const pieno = o.posti != null && o.iscritti != null && o.iscritti >= o.posti}
                                 <button class="slot {colore(o.categoria)}" class:spento={!inAttivita(o)} class:conflitto={o.conflitti.length > 0}
                                         style="grid-row: {(v.corsie.length ? p.da : p.colonna) + 1} / span {v.corsie.length ? p.quante : 1}; grid-column: {v.corsie.length && p.colonne > 1 ? `${p.colonna + 1} / span 1` : '1 / -1'}"
-                                        title="{o.titolo} · {doveBreve(o) || v.nome}{o.iscritti != null ? ` · ${o.iscritti}${o.posti != null ? '/' + o.posti : ''} iscritti` : ''}{o.conflitti.length ? ' · si sovrappone' : ''}"
+                                        title="{o.titolo} · {doveBreve(o) || v.nome}{o.iscritti != null ? ` · ${o.posti != null ? `${o.iscritti}/${o.posti} iscritti` : quanti(o.iscritti, 'iscritto', 'iscritti')}` : ''}{o.conflitti.length ? ' · si sovrappone' : ''}"
                                         onclick={() => ((pannello = { tipo: 'dettaglio', o }), (messaggio = ''))}>
                                   <span class="n">{v.corsie.length ? (p.quante > 1 ? `${v.corsie[p.da].numero}–${v.corsie[p.da + p.quante - 1].numero}` : v.corsie[p.da].numero) : 'VP'}</span>
                                   <span class="nome-c">{o.titolo}</span>
@@ -516,7 +515,7 @@
 {:else if pannello?.tipo === 'fascia'}
   {@const p = pannello}
   {@const delG = occorrenze.filter((o) => o.data === p.data)}
-  <Foglio titolo="{giornoEsteso(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
+  <Foglio titolo="{giornoTitolo(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
     <PiantaVasche {spazi} occorrenze={inFascia(p.fascia, delG, fasceSettimana.fasciaDi)} fascia={p.fascia} compatta
       definite={definitePerVasca(fasceDefiniteIl(piano?.fasce ?? [], p.data), p.fascia)}
       iscritti={apriIscritti} vedeIscritti={vediIscritti}
@@ -533,10 +532,10 @@
   </Foglio>
 {:else if pannello?.tipo === 'inCorsia' && piano}
   {@const p = pannello}
-  <Foglio titolo="{giornoEsteso(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
+  <Foglio titolo="{giornoTitolo(p.data)} · {orarioFascia(p.fascia)}" chiudi={() => (pannello = null)}>
     <div class="seg" style="grid-template-columns: 1fr 1fr" role="group" aria-label="Cosa aggiungere">
-      <button aria-pressed={p.cosa === 'turno'} onclick={() => (pannello = { ...p, cosa: 'turno' })}>Turno di un corso</button>
-      <button aria-pressed={p.cosa === 'evento'} onclick={() => (pannello = { ...p, cosa: 'evento' })}>Evento</button>
+      <button aria-pressed={p.cosa === 'turno'} onclick={() => (pannello = { ...p, cosa: 'turno' })}>Turno di un corso…</button>
+      <button aria-pressed={p.cosa === 'evento'} onclick={() => (pannello = { ...p, cosa: 'evento' })}>Evento…</button>
     </div>
     {#if p.cosa === 'turno'}
       {#key corsi.length}

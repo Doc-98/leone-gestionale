@@ -7,8 +7,9 @@
   import DaIncassareLista from '../components/cassa/DaIncassare.svelte';
   import { api, messaggioErrore, type AvvisiCassa, type DaIncassare, type Incassi, type SessioneCassa } from '../lib/api';
   import { andamento, coloreMetodo, conSegno, contanti, perPersona, registro, statoChiusura, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
-  import { aggiungiGiorni, dataBreve, daIso, GIORNI, iso, lunedi, MESI, oraDi } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { aggiungiGiorni, dataBreve, giornoEsteso, giornoTitolo, iso, lunedi, oraDi } from '../lib/date';
+  import { euro, euroColonna, euroPerFile } from '../lib/numeri';
+  import { quanti as nQuanti } from '../lib/plurali';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
 
   /**
@@ -70,7 +71,7 @@
   /** CSV delle chiusure per l'amministrazione: una per riga. */
   function esportaChiusure() {
     const q = (v: string | number | null) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const n = (v: number | null) => (v ?? 0).toFixed(2).replace('.', ',');
+    const n = (v: number | null) => euroPerFile(v ?? 0);
     const righe = [['Chiusa il', 'Cassa', 'Chiusa da', 'Fondo', 'Contanti incassati', 'Restituiti', 'Versamenti e spese', 'Attesi', 'Primo conteggio', 'Contati', 'Differenza', 'Lasciato', 'In cassaforte', 'Stato', 'Controllata da', 'Note'].map(q).join(';')];
     for (const s of chiusure)
       righe.push([`${s.chiusaIl!.slice(0, 10)} ${oraDi(s.chiusaIl!)}`, s.cassa, s.chiusaDa, n(s.fondo), n(s.conti.entrati), n(s.conti.usciti), n(s.conti.versamenti + s.conti.spese),
@@ -110,7 +111,7 @@
     const q = (v: string | number | null) => `"${String(v ?? '').replaceAll('"', '""')}"`;
     const righe = [['Data', 'Importo', 'Chi paga', 'Metodi', 'Per', 'Note', 'Annullato'].map(q).join(';')];
     for (const p of d.pagamenti)
-      righe.push([p.data, p.importo.toFixed(2).replace('.', ','), p.pagante, p.metodi.map((m) => `${m.metodo} ${m.importo.toFixed(2).replace('.', ',')}${m.daIncassare && !m.incassatoIl ? ' (da incassare)' : ''}`).join(' + '),
+      righe.push([p.data, euroPerFile(p.importo), p.pagante, p.metodi.map((m) => `${m.metodo} ${euroPerFile(m.importo)}${m.daIncassare && !m.incassatoIl ? ' (da incassare)' : ''}`).join(' + '),
         p.voci.map((v) => `${v.persona} · ${v.descrizione}`).join(' + '), p.note, p.annullatoIl ? (p.motivoAnnullamento ?? 'sì') : ''].map(q).join(';'));
     const url = URL.createObjectURL(new Blob(['﻿' + righe.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     const link = Object.assign(document.createElement('a'), { href: url, download: `incassi-${d.da}${d.a !== d.da ? '-' + d.a : ''}.csv` });
@@ -126,8 +127,8 @@
   const restituiti = $derived(dati?.uscite.reduce((t, u) => t + Math.round(u.importo * 100), 0) ?? 0);
   const daIncassareTot = $derived(aperti.reduce((t, x) => t + Math.round(x.importo * 100), 0) / 100);
   const per = (p: Incassi['pagamenti'][number]) => p.voci.map((v) => `${v.persona && v.persona !== p.pagante ? v.persona + ' · ' : ''}${v.descrizione}`).join(' · ');
-  const nomeGiorno = (d: string) => { const x = daIso(d); return `${GIORNI[x.getDay()]} ${x.getDate()} ${MESI[x.getMonth()]}`; };
-  const periodo = $derived(da === a ? nomeGiorno(da) : `dal ${dataBreve(da)} al ${dataBreve(a)}`);
+  const periodo = $derived(da === a ? giornoTitolo(da) : `dal ${dataBreve(da)} al ${dataBreve(a)}`);
+  const periodoFrase = $derived(da === a ? giornoEsteso(da) : `dal ${dataBreve(da)} al ${dataBreve(a)}`);
 
   // ── cassa del giorno ──
   let filtroMetodo = $state('');
@@ -156,7 +157,7 @@
     {#if vista === 'cassa'}
       <div class="giorno-nav">
         <Azione icona="sx" etichetta="Giorno prima" onclick={() => sposta(-1)} />
-        <span class="giorno-t">{nomeGiorno(da)}</span>
+        <span class="giorno-t">{giornoTitolo(da)}</span>
         <Azione icona="dx" etichetta="Giorno dopo" disabled={da >= oggi} onclick={() => sposta(1)} />
       </div>
       <button type="button" class="chip" aria-pressed={da === oggi} onclick={() => (da = a = oggi)}>Oggi</button>
@@ -179,8 +180,8 @@
       </div>
     {/if}
     {#if vista === 'chiusure'}
-      {#if chiusure.length}<button class="btn btn-secondary" onclick={esportaChiusure}><Icona nome="scarica" />Esporta (CSV)</button>{/if}
-    {:else if dati?.pagamenti.length}<button class="btn btn-secondary" onclick={esporta}><Icona nome="scarica" />Esporta (CSV)</button>{/if}
+      {#if chiusure.length}<button class="btn btn-secondary" onclick={esportaChiusure}><Icona nome="scarica" />Scarica le chiusure (.csv)</button>{/if}
+    {:else if dati?.pagamenti.length}<button class="btn btn-secondary" onclick={esporta}><Icona nome="scarica" />Scarica i pagamenti (.csv)</button>{/if}
     <Azione icona="impostazioni" etichetta="Scegli come mostrare gli incassi" premuto={scegliVista} onclick={() => (scegliVista = !scegliVista)} />
   </div>
 
@@ -203,8 +204,8 @@
       <div class="sx">
         <div class="hero">
           <div class="hero-testa">
-            <span class="col"><span class="lbl chiaro">Incassato {da === oggi ? 'oggi' : nomeGiorno(da)}</span><span class="grande">{euro(dati.totale)}</span></span>
-            <span class="chiaro small">{validi.length === 1 ? '1 pagamento' : `${validi.length} pagamenti`}{restituiti ? ` · ${euro(restituiti / 100)} restituiti` : ''}</span>
+            <span class="col"><span class="lbl chiaro">Incassato {da === oggi ? 'oggi' : giornoEsteso(da)}</span><span class="grande">{euro(dati.totale)}</span></span>
+            <span class="chiaro small">{nQuanti(validi.length, 'pagamento', 'pagamenti')}{restituiti ? ` · ${euro(restituiti / 100)} restituiti` : ''}</span>
           </div>
           {#if dati.totale > 0}
             <div class="barra-metodi" role="img" aria-label={metodi.map((m) => `${m.metodo} ${euro(m.importo)}`).join(', ')}>
@@ -231,7 +232,7 @@
             {#each pagamentiFiltrati as p (p.id)}
               <li class:annullato={p.annullatoIl}>
                 <span class="m ora">{oraDi(p.registratoIl)}</span>
-                <span class="m imp">{euro(p.importo)}</span>
+                <span class="m imp">{euroColonna(p.importo)}</span>
                 <span class="col"><strong class="tronca">{p.pagante}</strong><span class="muted small tronca">{per(p)}{p.note ? ` · ${p.note}` : ''}</span></span>
                 <span class="tags">
                   {#each p.metodi as m (m.id)}<span class="tag-m" class:da={m.daIncassare && !m.incassatoIl}><i style:background={colore(m.metodo)}></i>{m.metodo}{p.metodi.length > 1 ? ` ${euro(m.importo)}` : ''}</span>{/each}
@@ -248,7 +249,7 @@
             <h2 class="lbl">Soldi restituiti</h2>
             <ul class="card pagamenti">
               {#each dati.uscite as u (u.id)}
-                <li><span class="m ora">{oraDi(u.registratoIl)}</span><span class="m imp rosso">−{euro(u.importo)}</span>
+                <li><span class="m ora">{oraDi(u.registratoIl)}</span><span class="m imp rosso">−{euroColonna(u.importo)}</span>
                   <span class="col"><strong>{u.persona}</strong><span class="muted small">{u.descrizione}</span></span>
                   <span class="tags"><span class="tag-m"><i style:background={colore(u.metodo)}></i>{u.metodo}</span></span></li>
               {/each}
@@ -261,7 +262,7 @@
           <CassaOggi versione={versioneCassa} cambiata={carica} />
         {:else}
           <section class="card chiusure-g" aria-label="Le chiusure di cassa del giorno">
-            <h2 class="lbl">Chiusure di cassa · {nomeGiorno(da)}</h2>
+            <h2 class="lbl">Chiusure di cassa · {giornoEsteso(da)}</h2>
             {#if chiusure.length}
               <ul class="lista-ch">{#each chiusure as s (s.id)}<ChiusuraRiga chiusura={s} conCassa={piuCasse} />{/each}</ul>
             {:else}
@@ -275,9 +276,9 @@
   {:else if vista === 'periodo'}
     <div class="tiles cinque">
       <div class="tile hero-t"><span class="lbl">{periodo}</span><span class="v">{euro(dati.totale)}</span><span class="n">{restituiti ? `${euro(restituiti / 100)} restituiti` : 'incassati'}</span></div>
-      <div class="tile"><span class="lbl">Pagamenti</span><span class="v">{validi.length}</span><span class="n">{clienti === 1 ? 'di 1 cliente' : `di ${clienti} clienti diversi`}</span></div>
+      <div class="tile"><span class="lbl">Pagamenti</span><span class="v">{validi.length}</span><span class="n">{clienti === 1 ? 'di 1 cliente' : `di ${clienti} clienti`}</span></div>
       <div class="tile"><span class="lbl">In media</span><span class="v">{validi.length ? euro(dati.totale / validi.length) : '–'}</span><span class="n">a pagamento</span></div>
-      <div class="tile" class:arancio={aperti.length > 0}><span class="lbl">Da incassare</span><span class="v">{euro(daIncassareTot)}</span><span class="n">{aperti.length === 1 ? '1 in attesa' : `${aperti.length} in attesa`}</span></div>
+      <div class="tile" class:arancio={aperti.length > 0}><span class="lbl">Da incassare</span><span class="v">{euro(daIncassareTot)}</span><span class="n">{aperti.length} in attesa</span></div>
       <div class="tile"><span class="lbl">Restituiti</span><span class="v">{euro(restituiti / 100)}</span><span class="n">cauzioni e crediti</span></div>
     </div>
 
@@ -292,7 +293,7 @@
             <button type="button" aria-pressed={raggruppa === 'settimana'} onclick={() => (raggruppa = 'settimana')}>Per settimana</button>
           </div>
         </div>
-        <div class="barre" style:gap={colonne.length > 40 ? '2px' : '6px'} role="img" aria-label="Incassi {periodo}, {raggruppa === 'giorno' ? 'per giorno' : 'per settimana'}">
+        <div class="barre" style:gap={colonne.length > 40 ? '2px' : '6px'} role="img" aria-label="Incassi {periodoFrase}, {raggruppa === 'giorno' ? 'per giorno' : 'per settimana'}">
           {#each colonne as c (c.da)}
             <span class="colonna" class:oggi={c.a === oggi} style:height="{(c.totale / massimo) * 100}%" title="{c.da === c.a ? dataBreve(c.da) : `${dataBreve(c.da)} – ${dataBreve(c.a)}`}: {euro(c.totale)}">
               {#each c.pezzi as x, i (i)}{#if x > 0}<span style:height="{(x / c.totale) * 100}%" style:background={coloreMetodo(i)}></span>{/if}{/each}
@@ -313,11 +314,11 @@
               <tbody>
                 {#each dati.pagamenti.slice(0, quanti) as p (p.id)}
                   <tr class:annullato={p.annullatoIl}>
-                    <td class="m muted">{dataBreve(p.data)} {oraDi(p.registratoIl)}</td>
+                    <td class="m muted">{dataBreve(p.data)} · {oraDi(p.registratoIl)}</td>
                     <td><strong>{p.pagante}</strong></td>
                     <td class="muted">{per(p)}</td>
                     <td>{#each p.metodi as m (m.id)}<span class="tag-m" class:da={m.daIncassare && !m.incassatoIl}><i style:background={colore(m.metodo)}></i>{m.metodo}</span> {/each}</td>
-                    <td class="m imp dx-t">{euro(p.importo)}</td>
+                    <td class="m imp dx-t">{euroColonna(p.importo)}</td>
                   </tr>
                 {:else}
                   <tr><td colspan="5" class="muted">Nessun pagamento in questo periodo.</td></tr>
@@ -335,7 +336,7 @@
             <div class="m-riga">
               <span class="m-nome"><i style:background={colore(m.metodo)}></i>{m.metodo}</span>
               <span class="traccia"><span style:width="{dati.totale ? (m.importo / dati.totale) * 100 : 0}%" style:background={colore(m.metodo)}></span></span>
-              <span class="m imp">{euro(m.importo)}</span>
+              <span class="m imp">{euroColonna(m.importo)}</span>
             </div>
           {:else}
             <span class="muted small">Nessun incasso.</span>
@@ -352,11 +353,11 @@
       {:else}
         <div class="tile" class:arancio={nonTornano > 0}><span class="lbl">Non tornano</span><span class="v">{nonTornano}</span><span class="n">{nonTornano ? 'con una differenza' : 'tutte tornano'}</span></div>
       {/if}
-      <div class="tile"><span class="lbl">Differenze</span><span class="v">{conSegno(differenze, euro)}</span><span class="n">in più e in meno, sommate</span></div>
+      <div class="tile"><span class="lbl">Differenze</span><span class="v">{conSegno(differenze, euro)}</span><span class="n">più e meno sommati</span></div>
       {#if avvisi?.inCassaforte != null}
         <div class="tile"><span class="lbl">In cassaforte</span><span class="v">{euro(avvisi.inCassaforte)}</span><span class="n">da portare in banca</span></div>
       {:else}
-        <div class="tile"><span class="lbl">Versato</span><span class="v">{euro(versato)}</span><span class="n">tolto dal cassetto alle chiusure</span></div>
+        <div class="tile"><span class="lbl">Versato</span><span class="v">{euro(versato)}</span><span class="n">alle chiusure</span></div>
       {/if}
     </div>
     <div class="colonne-ch">
@@ -397,10 +398,10 @@
     </div>
   {:else}
     <div class="tiles">
-      <div class="tile"><span class="lbl">Entrate</span><span class="v">{euro(dati.totale)}</span><span class="n">{validi.length === 1 ? '1 pagamento' : `${validi.length} pagamenti`}</span></div>
+      <div class="tile"><span class="lbl">Entrate</span><span class="v">{euro(dati.totale)}</span><span class="n">{nQuanti(validi.length, 'pagamento', 'pagamenti')}</span></div>
       <div class="tile"><span class="lbl">Uscite</span><span class="v">{restituiti ? '−' : ''}{euro(restituiti / 100)}</span><span class="n">{dati.uscite.length === 1 ? '1 restituzione' : `${dati.uscite.length} restituzioni`}</span></div>
-      <div class="tile hero-t"><span class="lbl">Contanti {da === a ? 'del giorno' : 'del periodo'}</span><span class="v">{euro(cassa.entrati - cassa.usciti)}</span><span class="n">entrati meno restituiti, senza il fondo</span></div>
-      <div class="tile" class:arancio={aperti.length > 0}><span class="lbl">Da incassare</span><span class="v">{euro(daIncassareTot)}</span><span class="n">{aperti.length === 1 ? '1 in attesa' : `${aperti.length} in attesa`}</span></div>
+      <div class="tile hero-t"><span class="lbl">Contanti</span><span class="v">{euro(cassa.entrati - cassa.usciti)}</span><span class="n">senza il fondo cassa</span></div>
+      <div class="tile" class:arancio={aperti.length > 0}><span class="lbl">Da incassare</span><span class="v">{euro(daIncassareTot)}</span><span class="n">{aperti.length} in attesa</span></div>
     </div>
     <div class="colonne">
       <div class="sx">
@@ -413,12 +414,12 @@
               <tbody>
                 {#each righeRegistro.slice(0, quantiRegistro) as r (r.id)}
                   <tr class:annullato={r.annullato}>
-                    <td class="m muted">{da === a ? '' : dataBreve(r.istante.slice(0, 10)) + ' '}{oraDi(r.istante)}</td>
+                    <td class="m muted">{da === a ? '' : dataBreve(r.istante.slice(0, 10)) + ' · '}{oraDi(r.istante)}</td>
                     <td class="cosa-c"><span class="col"><strong>{r.chi}</strong><span class="muted small">{r.per}{r.annullato && r.motivo ? ` · annullato: ${r.motivo}` : r.annullato ? ' · annullato' : ''}</span></span></td>
                     <td><span class="tag-m"><i style:background={colore(r.metodo.split(' + ')[0])}></i>{r.metodo}</span></td>
-                    <td class="m imp dx-t verde">{r.entrata != null ? euro(r.entrata) : ''}</td>
-                    <td class="m imp dx-t rosso">{r.uscita != null ? `−${euro(r.uscita)}` : ''}</td>
-                    <td class="m dx-t muted">{r.contanti != null ? euro(r.contanti) : ''}</td>
+                    <td class="m imp dx-t verde">{r.entrata != null ? euroColonna(r.entrata) : ''}</td>
+                    <td class="m imp dx-t rosso">{r.uscita != null ? `−${euroColonna(r.uscita)}` : ''}</td>
+                    <td class="m dx-t muted">{r.contanti != null ? euroColonna(r.contanti) : ''}</td>
                   </tr>
                 {:else}
                   <tr><td colspan="6" class="muted">Nessun movimento in questo periodo.</td></tr>
@@ -435,9 +436,9 @@
         <section class="card metodi">
           <h2 class="lbl">Per metodo</h2>
           {#each metodi as m (m.metodoId)}
-            <span class="riga-m"><span class="m-nome"><i style:background={colore(m.metodo)}></i>{m.metodo}</span><span class="m imp">{euro(m.importo)}</span></span>
+            <span class="riga-m"><span class="m-nome"><i style:background={colore(m.metodo)}></i>{m.metodo}</span><span class="m imp">{euroColonna(m.importo)}</span></span>
           {/each}
-          <span class="riga-m tot"><span>Totale</span><span class="m imp">{euro(dati.totale)}</span></span>
+          <span class="riga-m tot"><span>Totale</span><span class="m imp">{euroColonna(dati.totale)}</span></span>
           <button class="btn btn-primary" onclick={() => { da = a = oggi; cambiaVista('cassa'); }}>Vai alla cassa di oggi</button>
         </section>
       </aside>
@@ -495,7 +496,6 @@
 
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-10); }
   .tiles.cinque { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .tile .v { font-size: 26px; } /* un po' più piccola del .tile .v globale (28px) */
   .tile.arancio { background: var(--warn-bg); border-color: transparent; } .tile.arancio .v { color: var(--warn); }
   .tile.hero-t { background: var(--hero); color: var(--on-ink); border-color: transparent; }
   .tile.hero-t .lbl, .tile.hero-t .n { color: var(--on-ink-muted); }

@@ -88,8 +88,8 @@
         </div>
       {/if}
       <div class="row">
-        <button type="button" class="btn btn-secondary grow" onclick={() => (nuovo = null)}>Annulla</button>
-        <button class="btn btn-primary grow" disabled={!nuovo.datoIl || (nuovo.tipo === 'MARKETING' && !nuovo.email && !nuovo.sms && !nuovo.cartaceo)}>Registra</button>
+        <button type="button" class="btn btn-secondary" onclick={() => (nuovo = null)}>Annulla</button>
+        <button class="btn btn-primary grow" disabled={!nuovo.datoIl || (nuovo.tipo === 'MARKETING' && !nuovo.email && !nuovo.sms && !nuovo.cartaceo)}>Registra il consenso</button>
       </div>
     </form>
   {/if}

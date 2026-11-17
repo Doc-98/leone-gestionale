@@ -3,6 +3,7 @@
   import { api } from './lib/api';
   import { sessione } from './lib/sessione.svelte';
   import { schermo } from './lib/schermo.svelte';
+  import { quanti } from './lib/plurali';
   import {
     cambiaServer, cercaAggiornamento, infoProgramma, installaAggiornamento, type AggiornamentoProgramma, type InfoProgramma,
   } from './lib/dispositivi';
@@ -71,10 +72,10 @@
   // Icone a tratto, 24×24
   const SEZIONI: Sezione[] = [
     { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', larga: true, icona: 'turni' },
-    { id: 'richieste', nome: 'Le mie richieste', breve: 'Le mie', titolo: 'Le mie richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
+    { id: 'richieste', nome: 'Le mie richieste', breve: 'Richieste', titolo: 'Le mie richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
     { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: 'ore' },
-    { id: 'livelli', nome: 'I miei corsi', breve: 'Corsi', titolo: 'Esiti e passaggi di livello', gruppo: 'Il mio lavoro', permessi: ['LIVELLI'],
-      anche: () => insegnaConLivelli, larga: true, icona: 'corsi' },
+    { id: 'livelli', nome: 'I miei corsi', breve: 'Corsi', titolo: 'I miei corsi', gruppo: 'Il mio lavoro', permessi: ['LIVELLI'],
+      anche: () => insegnaConLivelli === true, larga: true, icona: 'corsi' },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: 'piano' },
     { id: 'attesa', nome: 'Liste d\'attesa', breve: 'Attesa', titolo: 'Liste d\'attesa', gruppo: 'Piscina', permessi: ['ISCRIZIONI'], larga: true, icona: 'attesa' },
     { id: 'corsi', nome: 'Corsi', titolo: 'Corsi', gruppo: 'Piscina', permessi: ['PIANO_MODIFICA'], larga: true, icona: 'corsi' },
@@ -90,7 +91,7 @@
     { id: 'societa', nome: 'Dati, stagioni e gruppi', titolo: 'Dati, stagioni e gruppi', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
       spiega: 'Chi è la società (compare su ricevute ed email), le sue stagioni con la quota associativa e i gruppi di clienti' },
     { id: 'calendario', nome: 'Calendario della stagione', titolo: 'Calendario della stagione', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PIANO_MODIFICA'], larga: true, icona: 'calendario',
-      spiega: 'Giorni di chiusura e a orario ridotto: niente turni né lezioni in quei giorni' },
+      spiega: 'Giorni di chiusura e a orario ridotto: niente turni dello staff né lezioni in quei giorni' },
     { id: 'listino', nome: 'Listino', titolo: 'Listino', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'listino',
       spiega: 'Le offerte di ogni stagione con i loro prezzi' },
     { id: 'prezzi', nome: 'Regole di prezzo', titolo: 'Regole di prezzo', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'prezzi',
@@ -105,9 +106,9 @@
       spiega: 'Cosa controlla il tornello a ogni passaggio' },
     { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['CLIENTI'], larga: true, icona: 'promemoria',
       spiega: 'Le email che partono da sole prima (o dopo) una scadenza, e gli avvisi della lista d\'attesa' },
-    { id: 'servizi', nome: 'Phon e docce', titolo: 'Phon e docce', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'macchine',
+    { id: 'servizi', nome: 'Macchine e crediti', titolo: 'Macchine e crediti', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'macchine',
       spiega: 'Crediti e servizi, il borsellino, il braccialetto e le macchine' },
-    { id: 'postazioni', nome: 'Mansioni, postazioni e tariffe', titolo: 'Mansioni, postazioni e tariffe', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'postazioni',
+    { id: 'postazioni', nome: 'Mansioni e tariffe', titolo: 'Mansioni e tariffe', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'postazioni',
       spiega: 'Ogni mansione è un ruolo pagato, con la sua tariffa; le postazioni sono le righe della pianificazione, divise per area' },
     { id: 'account', nome: 'Account e ruoli', titolo: 'Account e ruoli', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT', 'RUOLI'], larga: true, icona: 'ruoli',
       spiega: 'Chi accede al gestionale e cosa può fare' },
@@ -180,12 +181,17 @@
   });
 
   /** Chi tiene turni di corsi con un livello successivo vede «I miei corsi» anche senza il permesso «Livelli». */
-  let insegnaConLivelli = $state(false);
+  /** `null` finché non si sa: la voce non compare prima, così non cambia nome sotto gli occhi. */
+  let insegnaConLivelli = $state<boolean | null>(null);
   $effect(() => {
     if (!sessione.utente) return;
     api.livelli().then((p) => (insegnaConLivelli = p.turni.some((t) => t.mio))).catch(() => (insegnaConLivelli = false));
   });
-  const visibili = $derived(SEZIONI.filter((s) => !s.permessi || sessione.puo(...s.permessi) || (s.anche?.() ?? false)));
+  /** Voce e titolo di «Livelli» sono uguali: «I miei corsi» per chi insegna, «Livelli dei corsi» per chi ha solo il permesso. */
+  const nomeLivelli = $derived(insegnaConLivelli ? 'I miei corsi' : 'Livelli dei corsi');
+  const visibili = $derived(
+    SEZIONI.filter((s) => (s.id !== 'livelli' || insegnaConLivelli !== null) && (!s.permessi || sessione.puo(...s.permessi) || (s.anche?.() ?? false))).map((s) => (s.id === 'livelli' ? { ...s, nome: nomeLivelli, titolo: nomeLivelli } : s)),
+  );
   // le sezioni di lavoro (nella barra) e le impostazioni (sotto un'unica voce)
   const lavoro = $derived(visibili.filter((s) => s.gruppo !== 'Impostazioni'));
   const impostazioni = $derived(visibili.filter((s) => s.gruppo === 'Impostazioni'));
@@ -310,8 +316,8 @@
 {/snippet}
 
 {#snippet badge(s: Sezione)}
-  {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label="{daApprovare} richieste da gestire">{daApprovare}</span>{/if}
-  {#if s.id === 'incassi' && avvisiCassa}<span class="badge warn" aria-label="{avvisiCassa} avvisi della cassa">{avvisiCassa}</span>{/if}
+  {#if s.id === 'approva' && daApprovare}<span class="badge" aria-label={quanti(daApprovare, 'richiesta da gestire', 'richieste da gestire')}>{daApprovare}</span>{/if}
+  {#if s.id === 'incassi' && avvisiCassa}<span class="badge warn" aria-label={quanti(avvisiCassa, 'avviso della cassa', 'avvisi della cassa')}>{avvisiCassa}</span>{/if}
 {/snippet}
 
 {#if paginaLettore}
@@ -530,6 +536,7 @@
     display: flex; align-items: center; gap: var(--space-10); min-height: 38px; padding: 0 var(--space-10);
     border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; font-size: var(--text-md); font-weight: 500;
   }
+  .voce-nav .grow { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* rete: i nomi corti stanno, un nome lungo non va a capo */
   .voce-nav :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
   .voce-nav:hover { background: var(--carta); }
   .voce-nav.on { background: var(--cloro-soft); color: var(--cloro-ink); font-weight: 600; }
@@ -583,7 +590,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--surface); border-top: 1px solid var(--line);
   }
-  nav.basso a { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px; font-size: var(--text-xs); font-weight: 600; color: var(--muted); text-decoration: none; text-align: center; }
+  nav.basso a { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px; font-size: var(--text-xs); font-weight: 600; color: var(--muted); text-decoration: none; text-align: center; white-space: nowrap; }
   nav.basso a.on, nav.basso button.on { color: var(--cloro); box-shadow: inset 0 3px 0 var(--cloro); }
   nav.basso button { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 0 4px;
     border: none; background: none; font: inherit; font-size: var(--text-xs); font-weight: 600; color: var(--muted); cursor: pointer; }

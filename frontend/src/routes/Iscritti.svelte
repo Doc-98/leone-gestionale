@@ -4,6 +4,8 @@
   import { untrack } from 'svelte';
   import { api, ErroreApi, messaggioErrore, type ElencoIscritti, type PersonaScheda, type VoceAttesa } from '../lib/api';
   import { dataBreve, dataDi } from '../lib/date';
+  import { eta } from '../lib/attesa';
+  import { quanti } from '../lib/plurali';
   import { giornoEsteso, iso, ora } from '../lib/date';
 
   /**
@@ -154,7 +156,6 @@
     }
   }
 
-  const eta = (n: number | null) => (n == null ? '' : n === 1 ? '1 anno' : `${n} anni`);
 </script>
 
 {#if elenco}
@@ -162,7 +163,7 @@
   <div class="testa">
     <div>
       <div class="cap">{giornoEsteso(elenco.data)} · <span class="m">{ora(elenco.inizio)}–{ora(elenco.fine)}</span></div>
-      <div class="muted small">{elenco.iscritti.length}{elenco.posti != null ? ` su ${elenco.posti} posti` : ' iscritti'}{pieno ? ' · al completo' : ''}</div>
+      <div class="muted small">{elenco.posti != null ? `${elenco.iscritti.length} su ${elenco.posti} posti` : quanti(elenco.iscritti.length, 'iscritto', 'iscritti')}{pieno ? ' · al completo' : ''}</div>
     </div>
     {#if elenco.puoSegnarePresenze}<span class="tag t-soft">{presenti} presenti</span>{/if}
   </div>
@@ -173,9 +174,9 @@
   {#if errore}
     <p class="msg err" role="alert">{errore}</p>
     {#if completo}
-      <div class="row">
+      <div class="row a-capo">
         {#if completo.attesa}<button class="btn btn-primary grow" onclick={completo.attesa}>Metti in lista d'attesa</button>{/if}
-        <button class="btn btn-secondary grow" onclick={completo.soprannumero}>Iscrivi comunque in soprannumero</button>
+        <button class="btn btn-secondary grow" onclick={completo.soprannumero}>Iscrivi in soprannumero</button>
       </div>
     {/if}
   {/if}
@@ -185,7 +186,7 @@
       <li>
         <span class="chi">
           <span class="nome">{i.cognome} {i.nome}</span>
-          <span class="muted small">{eta(i.eta)}{i.al ? ` · fino al ${i.al}` : ''}{i.dal > elenco.data ? ` · dal ${i.dal}` : ''}</span>
+          <span class="muted small">{eta(i.eta)}{i.al ? ` · fino al ${dataBreve(i.al)}` : ''}{i.dal > elenco.data ? ` · dal ${dataBreve(i.dal)}` : ''}</span>
         </span>
         {#if elenco.puoSegnarePresenze}
           <span class="seg pa" role="group" aria-label="Presenza di {i.nome}">
@@ -203,8 +204,8 @@
   </ul>
 
   {#if elenco.puoSegnarePresenze && elenco.iscritti.length}
-    <div class="row">
-      <button class="btn btn-secondary grow" onclick={tuttiPresenti}><Icona nome="check" />Tutti presenti</button>
+    <div class="row a-capo">
+      <button class="btn btn-secondary grow" onclick={tuttiPresenti}><Icona nome="check" />Segna tutti presenti</button>
       <button class="btn btn-primary grow" disabled={salvando || !modificate} onclick={salvaPresenze}>
         {salvando ? 'Salvo…' : modificate ? `Salva presenze (${modificate})` : elenco.iscritti.some((i) => i.presente != null) ? 'Presenze salvate' : 'Salva presenze'}
       </button>
@@ -243,7 +244,7 @@
         </label>
         {#each trovate as p (p.id)}
           <button class="trovata" onclick={() => iscrivi({ personaId: p.id })}>
-            <span>{p.cognome} {p.nome}</span><span class="muted small">{p.dataNascita ?? ''}</span>
+            <span>{p.cognome} {p.nome}</span><span class="muted small">{p.dataNascita ? dataBreve(p.dataNascita) : ''}</span>
           </button>
         {/each}
         <div class="lbl sep">Oppure una persona nuova</div>
@@ -253,7 +254,7 @@
         </div>
         <label class="field"><span class="lbl">Data di nascita</span><input class="inp" type="date" bind:value={nuova.dataNascita} max={oggi} /></label>
         <button class="btn btn-primary" disabled={!nuova.nome.trim() || !nuova.cognome.trim()}
-                onclick={() => iscrivi({ nuovaPersona: { nome: nuova.nome, cognome: nuova.cognome, dataNascita: nuova.dataNascita || null } })}>Iscrivi</button>
+                onclick={() => iscrivi({ nuovaPersona: { nome: nuova.nome, cognome: nuova.cognome, dataNascita: nuova.dataNascita || null } })}>Iscrivi al turno</button>
         {#if pieno}
           <button class="btn btn-secondary" disabled={!nuova.nome.trim() || !nuova.cognome.trim()}
                   onclick={() => inAttesa({ nuovaPersona: { nome: nuova.nome, cognome: nuova.cognome, dataNascita: nuova.dataNascita || null } })}>Metti in lista d'attesa</button>

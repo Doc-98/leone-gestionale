@@ -69,3 +69,11 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
 - L'indice della ricerca va tenuto aggiornato quando si aggiunge un'impostazione (la voce e, se serve, il riquadro).
 - Una regola di sospensione accesa vale per ogni sospensione degli abbonamenti del listino, anche quelle che non sono
   per malattia: chi sospende vede prima cosa si restituirà.
+
+## Nota di aggiornamento (17/11/2026)
+
+Nomi cambiati, senza altre modifiche alla decisione: la pagina «Phon e docce» delle impostazioni si chiama ora
+**«Macchine e crediti»** (la pagina operativa dei lettori resta «Phon e docce»); la pagina «Mansioni, postazioni e
+tariffe» si chiama ora **«Mansioni e tariffe»**; i percorsi della ricerca usano i nomi
+delle aree e delle pagine («Prezzi e pagamenti › Listino», «Clienti e accessi › Regole del tornello»,
+«Clienti e accessi › Promemoria email», «La società › Dati, stagioni e gruppi»).

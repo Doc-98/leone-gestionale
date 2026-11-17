@@ -2,7 +2,7 @@
   import Icona from '../Icona.svelte';
   import type { DaIncassare } from '../../lib/api';
   import { dataBreve } from '../../lib/date';
-  import { euro } from '../../lib/listino';
+  import { euroColonna } from '../../lib/numeri';
 
   /**
    * I pagamenti con un metodo «da incassare» (bonifici) non ancora arrivati: si segnano quando arrivano sul conto.
@@ -17,12 +17,12 @@
 
 <section class="blocco">
   <div class="testa"><h2 class="lbl">Da incassare{aperti.length ? ` · ${aperti.length}` : ''}</h2><span class="grow"></span>
-    {#if aperti.length}<span class="m tot">{euro(totale)}</span>{/if}</div>
+    {#if aperti.length}<span class="m tot">{euroColonna(totale)}</span>{/if}</div>
   <ul class="lista">
     {#each aperti.slice(0, quanti) as x (x.id)}
       {@const g = giorni(x.data)}
       <li class="card" class:vecchio={g >= 7} class:medio={g >= 3 && g < 7}>
-        <span class="riga"><strong class="grow">{x.pagante}</strong><span class="m imp">{euro(x.importo)}</span></span>
+        <span class="riga"><strong class="grow">{x.pagante}</strong><span class="m imp">{euroColonna(x.importo)}</span></span>
         <span class="muted small">{x.metodo} del {dataBreve(x.data)}{x.riferimento ? ` · ${x.riferimento}` : ''}{x.per.length ? ` · ${x.per.join(' · ')}` : ''}</span>
         <span class="riga">
           <span class="quando">{g <= 0 ? 'registrato oggi' : g === 1 ? 'in attesa da ieri' : `in attesa da ${g} giorni`}</span><span class="grow"></span>

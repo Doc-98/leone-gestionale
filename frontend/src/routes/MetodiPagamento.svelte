@@ -127,7 +127,7 @@
     <form class="card nuovo" onsubmit={(e) => { e.preventDefault(); esegui(() => api.creaMetodoPagamento({ nome: nuovo.nome.trim(), daIncassare: nuovo.daIncassare }), `Metodo «${nuovo.nome.trim()}» aggiunto.`).then((ok) => ok && (nuovo = { nome: '', daIncassare: false })); }}>
       <input class="inp" bind:value={nuovo.nome} placeholder="Nuovo metodo (es. buono welfare)" maxlength="60" aria-label="Nuovo metodo" />
       <label class="small spunta"><input type="checkbox" bind:checked={nuovo.daIncassare} /> Da incassare a mano</label>
-      <button class="btn btn-primary" disabled={!nuovo.nome.trim()}><Icona nome="piu" />Aggiungi</button>
+      <button class="btn btn-primary" disabled={!nuovo.nome.trim()}><Icona nome="piu" />Aggiungi il metodo</button>
     </form>
   {/if}
 </div>
