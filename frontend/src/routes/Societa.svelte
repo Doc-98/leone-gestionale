@@ -1,11 +1,13 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import Conferma from '../components/Conferma.svelte';
   import LineaStagione from '../components/impostazioni/LineaStagione.svelte';
   import { api, messaggioErrore, type DatiSocieta, type GruppoClienti, type MembroGruppo, type NuovaStagione, type Stagione } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
   import { chiudiNovita, dataIndice, novitaChiusa } from '../lib/impostazioni';
-  import { euro } from '../lib/listino';
+  import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
+  import { quanti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -49,12 +51,13 @@
 
   function scegli(s: Stagione | null) {
     scelta = s?.id ?? null;
-    bozza = s ? { nome: s.nome, dal: s.dal, al: s.al, quota: s.quota == null ? '' : String(s.quota), quotaRimborsabile: s.quotaRimborsabile } : null;
+    bozza = s ? { nome: s.nome, dal: s.dal, al: s.al, quota: s.quota == null ? '' : perCampo(s.quota), quotaRimborsabile: s.quotaRimborsabile } : null;
     bozzaOriginale = JSON.stringify(bozza);
   }
 
   const datiCambiati = $derived(!!dati && JSON.stringify(dati) !== originale);
   const stagioneCambiata = $derived(!!bozza && JSON.stringify(bozza) !== bozzaOriginale);
+  const quotaNonValida = $derived(!!bozza && importoNonValido(bozza.quota));
   const modifiche = $derived(Number(datiCambiati) + Number(stagioneCambiata));
 
   async function salva() {
@@ -63,7 +66,7 @@
     try {
       if (datiCambiati) await api.modificaSocieta({ ...dati!, giorniAnticipo: Number(dati!.giorniAnticipo), giorniRispostaAttesa: Number(dati!.giorniRispostaAttesa) });
       if (stagioneCambiata && bozza) {
-        const corpo: NuovaStagione = { nome: bozza.nome, dal: bozza.dal, al: bozza.al, quota: bozza.quota === '' ? null : Number(bozza.quota), quotaRimborsabile: bozza.quotaRimborsabile };
+        const corpo: NuovaStagione = { nome: bozza.nome, dal: bozza.dal, al: bozza.al, quota: numeroDa(bozza.quota), quotaRimborsabile: bozza.quotaRimborsabile };
         if (scelta === 'nuova') {
           const s = await api.creaStagione(corpo);
           scelta = s.id;
@@ -104,7 +107,7 @@
   const nomeNuova = $derived(ultima ? nomeSuccessivo(ultima.nome) : '');
   function nuovaStagione() {
     scelta = 'nuova';
-    if (ultima) bozza = { nome: nomeNuova, dal: piuUnGiorno(ultima.al), al: piuUnAnno(ultima.al), quota: ultima.quota == null ? '' : String(ultima.quota), quotaRimborsabile: ultima.quotaRimborsabile };
+    if (ultima) bozza = { nome: nomeNuova, dal: piuUnGiorno(ultima.al), al: piuUnAnno(ultima.al), quota: ultima.quota == null ? '' : perCampo(ultima.quota), quotaRimborsabile: ultima.quotaRimborsabile };
     else {
       const a = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
       bozza = { nome: `${a}/${String((a + 1) % 100).padStart(2, '0')}`, dal: `${a}-09-01`, al: `${a + 1}-08-31`, quota: '', quotaRimborsabile: false };
@@ -205,11 +208,11 @@
           <ul>
             <li><span class="k">Quota associativa</span><b>{s.quota == null ? 'da decidere' : euro(s.quota)}</b></li>
             <li><span class="k">Tesseramento da</span><span>{tesseramentoDa(s)}</span></li>
-            {#if s.id in offerte}<li><span class="k">Listino</span><span class:manca={!offerte[s.id]}>{offerte[s.id] ? `${offerte[s.id]} offerte` : 'da preparare'}</span></li>{/if}
+            {#if s.id in offerte}<li><span class="k">Listino</span><span class:manca={!offerte[s.id]}>{offerte[s.id] ? quanti(offerte[s.id], 'offerta', 'offerte') : 'da preparare'}</span></li>{/if}
           </ul>
         </button>
       {/each}
-      <button type="button" class="stag nuova" aria-pressed={scelta === 'nuova'} onclick={nuovaStagione}><Icona nome="piu" />{nomeNuova ? `Aggiungi la ${nomeNuova}` : 'Aggiungi una stagione'}</button>
+      <button type="button" class="stag nuova" aria-pressed={scelta === 'nuova'} onclick={nuovaStagione}><Icona nome="piu" />{nomeNuova ? `Nuova stagione ${nomeNuova}` : 'Nuova stagione'}</button>
     </div>
     {#if inCorso}<div class="linea"><LineaStagione dal={inCorso.dal} al={inCorso.al} /></div>{/if}
     {#if bozza}
@@ -222,9 +225,10 @@
       </div>
       <div class="riga-imp">
         <span class="t"><b>Quota associativa</b><span>Il tesseramento annuale; senza, il tornello lo segnala (se il controllo è acceso).</span></span>
-        <span class="ctl"><input class="inp num" type="number" min="0" step="0.01" bind:value={bozza.quota} placeholder="—" aria-label="Quota associativa" /><span class="unita">€</span>
+        <span class="ctl"><input class="inp num" type="text" inputmode="decimal" bind:value={bozza.quota} placeholder="—" aria-label="Quota associativa" aria-invalid={quotaNonValida} /><span class="unita">€</span>
           <label class="riga-switch corto"><span>rimborsabile</span><button type="button" class="switch" role="switch" aria-checked={bozza.quotaRimborsabile} aria-label="Quota rimborsabile"
             onclick={() => (bozza!.quotaRimborsabile = !bozza!.quotaRimborsabile)}><span></span></button></label></span>
+        {#if quotaNonValida}<span class="msg err" role="alert">Scrivi la quota in euro, es. 35 o 35,50</span>{/if}
       </div>
       <div class="riga-imp">
         <span class="t"><b>Proponi il tesseramento della stagione nuova</b><span>Al banco e nella scheda compare «da rinnovare» da questo giorno. Vale per tutte le stagioni.</span></span>
@@ -257,7 +261,7 @@
 
       <section class="card sez" id="imp-gruppi" aria-label="Gruppi di clienti">
         <div class="sez-t"><h2>Gruppi di clienti</h2><span class="spiega grow">Etichette per prezzi diversi e precedenza nei rinnovi; si danno dalla scheda del cliente.</span>
-          <button type="button" class="mini-btn" onclick={() => (gruppo = nuovoGruppo())}><Icona nome="piu" />Nuovo gruppo</button></div>
+          <button type="button" class="mini-btn" onclick={() => (gruppo = nuovoGruppo())}><Icona nome="piu" />Nuovo gruppo…</button></div>
         {#if gruppo && !gruppo.id}{@render moduloGruppo()}{/if}
         {#each gruppi as g (g.id)}
           {#if gruppo?.id === g.id}
@@ -268,14 +272,14 @@
                 {#if g.precedenza != null || g.giorniPerPagare != null || g.dichiarabile}
                   <span class="vantaggi">
                     {#if g.precedenza != null}<span class="tag t-soft">{g.precedenza}ª precedenza</span>{/if}
-                    {#if g.giorniPerPagare != null}<span class="tag t-soft">{g.giorniPerPagare} giorni per pagare</span>{/if}
+                    {#if g.giorniPerPagare != null}<span class="tag t-soft">{quanti(g.giorniPerPagare, 'giorno', 'giorni')} per pagare</span>{/if}
                     {#if g.dichiarabile}<span class="tag t-soft">dichiarabile</span>{/if}
                     {#if g.daVerificare}<span class="tag t-warn">{g.daVerificare === 1 ? '1 da verificare' : `${g.daVerificare} da verificare`}</span>{/if}
                   </span>
                 {/if}
               </span>
               <button class="mini-btn" type="button" aria-expanded={aperto === g.id} onclick={() => apriMembri(g)}><Icona nome="persone" />{g.persone === 1 ? '1 persona' : `${g.persone} persone`}</button>
-              <button class="mini-btn" type="button" onclick={() => (gruppo = bozzaDi(g))}>Modifica</button>
+              <Azione icona="matita" etichetta={`Modifica il gruppo «${g.nome}»`} onclick={() => (gruppo = bozzaDi(g))} />
             </div>
             {#if aperto === g.id}
               <div class="membri small">
@@ -309,7 +313,7 @@
           {#if dati.partitaIva || dati.codiceFiscale}<span>{dati.partitaIva ? `P. IVA ${dati.partitaIva}` : `C.F. ${dati.codiceFiscale}`}</span>{:else}<span class="mancante">P. IVA da completare</span>{/if}
           {#if dati.indirizzo}<span>{dati.indirizzo}</span>{:else}<span class="mancante">Indirizzo da completare</span>{/if}
           <span>{[luogo, dati.email, dati.telefono].filter(Boolean).join(' · ')}</span>
-          <span class="riga-r"><span>Ricevuta n. 128 · {dataBreve(oggi)}</span><b class="m">520,00 €</b></span>
+          <span class="riga-r"><span>Ricevuta n. 128 · {dataBreve(oggi)}</span><b class="m">{euroColonna(520)}</b></span>
         </div>
         <span class="muted small">Per le ricevute servono partita IVA (o codice fiscale) e indirizzo.</span>
       </section>
@@ -320,7 +324,7 @@
     <div class="salva-bar" role="status">
       <span>{modifiche === 1 ? '1 modifica da salvare' : `${modifiche} modifiche da salvare`}</span>
       <button type="button" class="vuoto" onclick={annulla}>Annulla</button>
-      <button type="button" class="chiaro" onclick={salva}>Salva</button>
+      <button type="button" class="chiaro" disabled={quotaNonValida} onclick={salva}>Salva</button>
     </div>
   {/if}
 {:else if !errore}
@@ -344,7 +348,7 @@
     {#if g.id}<label class="riga-switch"><span>Attivo<br /><span class="muted small">Un gruppo non attivo resta sulle persone che ci sono, ma non se ne aggiungono altre.</span></span>
       <button type="button" class="switch" role="switch" aria-checked={g.attivo} aria-label="Gruppo attivo" onclick={() => (g.attivo = !g.attivo)}><span></span></button></label>{/if}
     <div class="row">
-      <button type="button" class="btn btn-secondary grow" onclick={() => (gruppo = null)}>Annulla</button>
+      <button type="button" class="btn btn-secondary" onclick={() => (gruppo = null)}>Annulla</button>
       <button class="btn btn-primary grow" disabled={!g.nome.trim() || (g.dichiarabile && !g.frase.trim())}>{g.id ? 'Salva il gruppo' : 'Crea il gruppo'}</button>
     </div>
   </form>

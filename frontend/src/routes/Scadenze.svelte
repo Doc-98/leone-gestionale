@@ -6,7 +6,8 @@
     nelFiltro, perGiornoScadenze, promemoriaPossibile, quando, RIMEDI, settimane, tipoBreve, urgenza, URGENZE,
     type FiltroTipo, type TipoBreve, type VistaScadenze,
   } from '../lib/cassa';
-  import { aggiungiGiorni, dataBreve, dataDi, daIso, GIORNI, MESI } from '../lib/date';
+  import { eta } from '../lib/attesa';
+  import { aggiungiGiorni, dataBreve, dataDi, daIso, giornoEsteso, giornoTitolo, MESI } from '../lib/date';
   import type { NomeIcona } from '../lib/icone';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
   import { schermo } from '../lib/schermo.svelte';
@@ -32,7 +33,6 @@
   /** quante righe per gruppo: i gruppi lunghi si aprono a richiesta */
   let aperti = $state<Record<string, number>>({});
   const PASSO = 25;
-  const eta = (n: number | null) => (n == null ? '' : n === 1 ? '1 anno' : `${n} anni`);
 
   // il calendario mostra cinque settimane: chiede le scadenze fino alla fine dell'ultima
   const giorniRichiesti = $derived(vista === 'calendario' ? 36 : entro);
@@ -135,7 +135,6 @@
   const giornoScelto = $derived(giorno || oggi);
   const vociGiorno = $derived(perGiorno.get(giornoScelto) ?? []);
   const scadute = $derived(filtrate.filter((v) => urgenza(v) === 'scaduti'));
-  const nomeGiorno = (d: string) => { const x = daIso(d); return `${GIORNI[x.getDay()]} ${x.getDate()} ${MESI[x.getMonth()]}`; };
   const numero = (d: string) => { const x = daIso(d); return x.getDate() === 1 ? `1 ${MESI[x.getMonth()].slice(0, 3)}` : String(x.getDate()); };
 </script>
 
@@ -151,8 +150,8 @@
       </div>
     {/if}
     <span class="grow"></span>
-    <button class="btn btn-secondary" onclick={scarica} disabled={!filtrate.length}><Icona nome="scarica" />Scarica elenco</button>
-    <a class="btn btn-secondary" href="#/promemoria"><Icona nome="promemoria" />Promemoria email…</a>
+    <button class="btn btn-secondary" onclick={scarica} disabled={!filtrate.length}><Icona nome="scarica" />Scarica l'elenco (.csv)</button>
+    <a class="btn btn-secondary" href="#/promemoria"><Icona nome="promemoria" />Promemoria email →</a>
   </div>
 
   {#if dati && !dati.postaConfigurata}
@@ -163,9 +162,9 @@
 
   {#if vista === 'elenco'}
     <div class="riep">
-      <div class="tile rosso"><span class="lbl">Scaduti o mancanti</span><span class="v">{dati ? conta('scaduti') : segnaposto}</span><span class="n">da sistemare subito</span></div>
-      <div class="tile arancio"><span class="lbl">Scadono oggi</span><span class="v">{dati ? conta('oggi') : segnaposto}</span><span class="n">da domani rossi al tornello</span></div>
-      <div class="tile"><span class="lbl">Entro una settimana</span><span class="v">{dati ? conta('settimana') : segnaposto}</span><span class="n">fino a {oggi ? dataBreve(aggiungiGiorni(oggi, 7)) : '…'}</span></div>
+      <div class="tile rosso"><span class="lbl">Scaduti</span><span class="v">{dati ? conta('scaduti') : segnaposto}</span><span class="n">o mancanti</span></div>
+      <div class="tile arancio"><span class="lbl">Scadono oggi</span><span class="v">{dati ? conta('oggi') : segnaposto}</span><span class="n">poi rossi al tornello</span></div>
+      <div class="tile"><span class="lbl">Entro 7 giorni</span><span class="v">{dati ? conta('settimana') : segnaposto}</span><span class="n">fino a {oggi ? dataBreve(aggiungiGiorni(oggi, 7)) : '…'}</span></div>
       <div class="tile"><span class="lbl">Più avanti</span><span class="v">{dati ? conta('avanti') : segnaposto}</span><span class="n">entro {entro} giorni</span></div>
     </div>
   {/if}
@@ -189,7 +188,7 @@
         <span class="bulk-n">{daInviare.length} con l'email{selezionate.length > daInviare.length ? ' · le altre vanno chiamate' : ''}</span>
         <span class="grow"></span>
         <button type="button" class="b-chiaro" disabled={!daInviare.length || inviando === 'tutte'} onclick={inviaScelte}>
-          <Icona nome="promemoria" />{inviando === 'tutte' ? 'Invio…' : `Invia ${daInviare.length} promemoria`}</button>
+          <Icona nome="promemoria" />{inviando === 'tutte' ? 'Mando…' : `Manda ${daInviare.length} promemoria`}</button>
         <button type="button" class="b-vuoto" onclick={() => (scelte = {})}>Deseleziona</button>
       </div>
     {/if}
@@ -224,7 +223,7 @@
               </span>
               <span class="azioni">
                 <a class="link-r" href={`#/clienti/${v.personaId}`}>{RIMEDI[t]} →</a>
-                <Azione icona="promemoria" etichetta={promemoriaPossibile(v) ? `Invia un promemoria a ${v.nome} ${v.cognome}` : v.email ? 'Per il certificato mai consegnato non c’è un promemoria' : "Aggiungi l'email nella scheda"}
+                <Azione icona="promemoria" etichetta={promemoriaPossibile(v) ? `Manda un promemoria a ${v.nome} ${v.cognome}` : v.email ? 'Per il certificato mai consegnato non c’è un promemoria' : "Aggiungi l'email nella scheda"}
                         disabled={!promemoriaPossibile(v) || inviando === chiave(v)} onclick={() => invia(v)} />
               </span>
             </li>
@@ -268,11 +267,11 @@
             {#each s as d, i (d)}
               {@const voci = perGiorno.get(d) ?? []}
               <button type="button" class="giorno" class:passato={d < oggi} class:oggi={d === oggi} aria-pressed={d === giornoScelto}
-                      aria-label="{nomeGiorno(d)}: {voci.length === 1 ? '1 scadenza' : `${voci.length} scadenze`}" onclick={() => (giorno = d)}>
+                      aria-label="{giornoEsteso(d)}: {voci.length === 1 ? '1 scadenza' : `${voci.length} scadenze`}" onclick={() => (giorno = d)}>
                 <span class="g-testa"><span class="m num" class:festivo={i >= 5}>{numero(d)}</span>{#if d === oggi}<span class="oggi-t">oggi</span>{/if}
                   <span class="grow"></span>{#if voci.length}<span class="m conto">{voci.length}</span>{/if}</span>
                 {#each voci.slice(0, 3) as v (chiave(v))}<span class="nome-g {tipoBreve(v.tipo)}"><i></i>{v.nome} {v.cognome}</span>{/each}
-                {#if voci.length > 3}<span class="altri">+ altre {voci.length - 3}</span>{/if}
+                {#if voci.length > 3}<span class="altri">e altre {voci.length - 3}</span>{/if}
               </button>
             {/each}
           </div>
@@ -280,13 +279,13 @@
 
         <div class="card dettaglio">
           <div class="d-testa">
-            <h2>{giornoScelto ? nomeGiorno(giornoScelto) : ''}</h2>
+            <h2>{giornoScelto ? giornoTitolo(giornoScelto) : ''}</h2>
             <span class="muted small">{vociGiorno.length === 1 ? '1 scadenza' : `${vociGiorno.length} scadenze`}</span>
             <span class="grow"></span>
             {#if vociGiorno.filter(promemoriaPossibile).length > 1}
               <button class="btn btn-secondary btn-sm" disabled={inviando === 'tutte'}
                       onclick={() => { const s: Record<string, boolean> = {}; vociGiorno.forEach((v) => (s[chiave(v)] = true)); scelte = s; inviaScelte(); }}>
-                <Icona nome="promemoria" />Promemoria a tutti</button>
+                <Icona nome="promemoria" />Manda un promemoria a tutti</button>
             {/if}
           </div>
           {#each vociGiorno as v (chiave(v))}
@@ -297,7 +296,7 @@
               <span class="cosa">{v.descrizione}</span>
               <span class="azioni">
                 <a class="link-r" href={`#/clienti/${v.personaId}`}>{RIMEDI[t]} →</a>
-                <Azione icona="promemoria" etichetta={promemoriaPossibile(v) ? `Invia un promemoria a ${v.nome} ${v.cognome}` : "Aggiungi l'email nella scheda"}
+                <Azione icona="promemoria" etichetta={promemoriaPossibile(v) ? `Manda un promemoria a ${v.nome} ${v.cognome}` : "Aggiungi l'email nella scheda"}
                         disabled={!promemoriaPossibile(v) || inviando === chiave(v)} onclick={() => invia(v)} />
               </span>
             </div>
@@ -338,7 +337,7 @@
   .g-testa h2 { margin: 0; }
   .lbl.scaduti { color: var(--ferma); }
   .lbl.oggi { color: var(--warn); }
-  .link-btn { border: none; background: none; padding: 0; font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--cloro); cursor: pointer; }
+  .link-btn { white-space: nowrap; border: none; background: none; padding: 0; font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--cloro); cursor: pointer; }
   .elenco { list-style: none; margin: 0; padding: 0; overflow: hidden; }
   .riga-scadenza { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line-soft); }
   .riga-scadenza.largo { display: grid; grid-template-columns: 22px 32px minmax(0, 1.3fr) minmax(0, 1.2fr) 150px minmax(0, 1fr) 236px; gap: var(--space-14); }

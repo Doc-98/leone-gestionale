@@ -1,7 +1,9 @@
 <script lang="ts">
   import Icona from '../Icona.svelte';
   import { api, type Riepilogo, type Turno } from '../../lib/api';
-  import { euro, formatOre, MESI } from '../../lib/date';
+  import { dataAgenda, formatOre } from '../../lib/date';
+  import { euro, euroColonna } from '../../lib/numeri';
+  import { quanti } from '../../lib/plurali';
   import { areaDi, attivo, NOMI_AREA, orario, orePerArea, settimaneDelMese, type Area } from '../../lib/turni';
 
   /**
@@ -20,10 +22,6 @@
   const aree = $derived(orePerArea(validi));
   const differenza = $derived(riga && prima ? riga.ore - (prima.righe[0]?.ore ?? 0) : null);
   let tuttiTurni = $state(false);
-  const breve = (d: string) => {
-    const x = new Date(`${d}T12:00:00`);
-    return `${['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'][x.getDay()]} ${x.getDate()} ${MESI[x.getMonth()].slice(0, 3)}`;
-  };
   const nomeArea = (a: Area) => (a === 'a' ? 'Atrio' : a === 'x' ? 'Altro' : `Spogliatoio ${NOMI_AREA[a].toLowerCase()}`);
 </script>
 
@@ -35,11 +33,11 @@
         <span class="col dx"><span class="lbl">Compenso</span><b class="m soldi">{euro(riga?.compenso ?? 0)}</b></span>
       </span>
       <span class="nota">
-        {riga ? `${riga.turni} turni` : 'Nessun turno nel mese'}{differenza != null && prima?.righe.length ? ` · ${differenza >= 0 ? '+' : ''}${formatOre(differenza)} h rispetto al mese prima` : ''}{riga?.tariffaMancante ? ' · per qualche turno manca la tariffa' : ''}
+        {riga ? quanti(riga.turni, 'turno', 'turni') : 'Nessun turno nel mese'}{differenza != null && prima?.righe.length ? ` · ${differenza >= 0 ? '+' : ''}${formatOre(differenza)} h rispetto al mese prima` : ''}{riga?.tariffaMancante ? ' · per qualche turno manca la tariffa' : ''}
       </span>
       {#if riga}
         <span class="bottoni">
-          <a class="pieno" href={api.urlFoglioOreMio(mese)} download><Icona nome="scarica" />Foglio ore (.xlsx)</a>
+          <a class="pieno" href={api.urlFoglioOreMio(mese)} download><Icona nome="scarica" />Scarica il foglio ore (.xlsx)</a>
         </span>
       {/if}
     </section>
@@ -48,9 +46,9 @@
       <section class="card calcolo">
         <span class="lbl">Come si arriva al compenso</span>
         {#each riga.voci as v (v.mansione + v.euroOra)}
-          <span class="voce-calcolo"><span class="grow">{v.mansione}</span><span class="m">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euro(v.euroOra)}</span></span>
+          <span class="voce-calcolo"><span class="grow">{v.mansione}</span><span class="m">{formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : euroColonna(v.euroOra)}</span></span>
         {/each}
-        <span class="voce-calcolo tot"><span class="grow">Totale</span><span class="m">{euro(riga.compenso)}</span></span>
+        <span class="voce-calcolo tot"><span class="grow">Totale</span><span class="m">{euroColonna(riga.compenso)}</span></span>
         <span class="muted small">La tariffa la decide il coordinatore. Se per un turno manca, qui compare un avviso.</span>
       </section>
     {/if}
@@ -81,7 +79,7 @@
         <div class="riga-t intest lbl"><span>Giorno</span><span>Orario</span><span>Dove</span><span class="ore">Ore</span></div>
         {#each tuttiTurni ? validi : validi.slice(0, 10) as t, i (t.id)}
           <div class="riga-t ar-{areaDi(t.postazione)}" class:pari={i % 2 === 1}>
-            <span>{breve(t.data)}</span><span class="m">{orario(t)}</span>
+            <span>{dataAgenda(t.data)}</span><span class="m">{orario(t)}</span>
             <span class="dove"><span class="segno-area"></span><span class="nome">{t.postazione}</span></span>
             <span class="m ore">{formatOre(Number(t.ore))} h</span>
           </div>
@@ -89,7 +87,7 @@
         {#if validi.length > 10}
           <button type="button" class="altri" onclick={() => (tuttiTurni = !tuttiTurni)}>{tuttiTurni ? 'Mostra meno' : `Mostra tutti i ${validi.length} turni`}</button>
         {/if}
-        <div class="riga-t totale"><span>Totale</span><span></span><span>{validi.length} turni</span><span class="m ore">{formatOre(validi.reduce((x, t) => x + Number(t.ore), 0))} h</span></div>
+        <div class="riga-t totale"><span>Totale</span><span></span><span>{quanti(validi.length, 'turno', 'turni')}</span><span class="m ore">{formatOre(validi.reduce((x, t) => x + Number(t.ore), 0))} h</span></div>
       </section>
     {/if}
   </div>

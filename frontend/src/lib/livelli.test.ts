@@ -12,14 +12,14 @@ const bimbo = (nome: string, esito: BambinoLivelli['esito'] = null): BambinoLive
 
 describe('livelli', () => {
   it('scrive giorno e ora brevi', () => {
-    expect(quandoBreve(turno('a'))).toBe('Mar 17:00');
-    expect(quandoBreve(turno('a', { giornoSettimana: 7, inizio: '09:30:00' }))).toBe('Dom 09:30');
+    expect(quandoBreve(turno('a'))).toBe('mar 17:00');
+    expect(quandoBreve(turno('a', { giornoSettimana: 7, inizio: '09:30:00' }))).toBe('dom 09:30');
   });
 
   it('dice a che punto è un turno', () => {
     expect(statoTurno(turno('a'))).toMatchObject({ fatti: 0, completo: false, perc: 0, testo: 'da fare' });
     expect(statoTurno(turno('a', { passano: 3, continuano: 1 }))).toMatchObject({ fatti: 4, perc: 50, testo: '4/8 esiti' });
-    expect(statoTurno(turno('a', { passano: 6, continuano: 2 }))).toMatchObject({ completo: true, perc: 100, testo: '✓ completo' });
+    expect(statoTurno(turno('a', { passano: 6, continuano: 2 }))).toMatchObject({ completo: true, perc: 100, testo: 'completo' });
     expect(statoTurno(turno('a', { iscritti: 0 })).testo).toBe('nessun iscritto');
   });
 

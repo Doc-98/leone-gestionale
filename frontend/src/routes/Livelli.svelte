@@ -1,5 +1,7 @@
 <script lang="ts">
   import { api, messaggioErrore, type DettaglioLivelli, type EsitoLivello, type PaginaLivelli, type BambinoLivelli } from '../lib/api';
+  import { eta } from '../lib/attesa';
+  import { quanti } from '../lib/plurali';
   import { conteggi, corsiDi, prossimoDaCompletare, quandoBreve, statoTurno, tuttiPassano } from '../lib/livelli';
   import { GIORNI_ESTESI } from '../lib/date';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
@@ -116,8 +118,8 @@
         {@const s = statoTurno(t)}
         <button type="button" role="tab" class="mio" aria-selected={t.lezioneId === aperto} style="--c: {colore(t.colore)}" onclick={() => apri(t.lezioneId)}>
           <span class="r1"><i></i><b>{t.corso}</b></span>
-          <span class="r2">{quandoBreve(t)} · {t.iscritti} {t.iscritti === 1 ? 'iscritto' : 'iscritti'}</span>
-          <span class="r3"><span class="mini-barra"><em style="width: {s.perc}%"></em></span><span class={s.completo ? 'st-ok' : 'st-da'}>{s.testo}</span></span>
+          <span class="r2">{quandoBreve(t)} · {quanti(t.iscritti, 'iscritto', 'iscritti')}</span>
+          <span class="r3"><span class="mini-barra"><em style="width: {s.perc}%"></em></span><span class={s.completo ? 'st-ok' : 'st-da'}>{#if s.completo}<Icona nome="check" />{/if}{s.testo}</span></span>
         </button>
       {/each}
     </div>
@@ -140,7 +142,7 @@
             <i style="background: {colore(turno.coloreSuccessivo)}"></i><b>{turno.successivo}</b>
             <span class="grow"></span>
             {#if vista === 'fine' && conti.mancano > 0}
-              <button type="button" class="btn btn-secondary btn-sm" disabled={lavoro} onclick={tutti}>Tutti passano</button>
+              <button type="button" class="btn btn-secondary btn-sm" disabled={lavoro} onclick={tutti}>Fai passare tutti</button>
             {/if}
           </div>
           {#if !dettaglio.bambini.length}
@@ -150,7 +152,7 @@
               {#each dettaglio.bambini as b (b.iscrizioneId)}
                 <li class:manca={vista === 'fine' && !b.esito}>
                   <span class="av" aria-hidden="true">{iniziali(b)}</span>
-                  <span class="chi"><b>{b.nome} {b.cognome}</b><small>{b.eta != null ? `${b.eta} anni` : ''}</small></span>
+                  <span class="chi"><b>{b.nome} {b.cognome}</b><small>{eta(b.eta)}</small></span>
                   {#if vista === 'fine'}
                     <span class="seg esito" role="group" aria-label="Esito di {b.nome} {b.cognome}">
                       <button type="button" class="passa" aria-pressed={b.esito === 'PASSA'} disabled={lavoro} onclick={() => esito(b, 'PASSA')}><span class="lungo">Passa a {turno.successivo}</span><span class="breve">Passa</span></button>
@@ -158,7 +160,7 @@
                     </span>
                   {:else if b.passaggio}
                     <span class="fatto">In attesa di un posto in {turno.successivo}{b.passaggio.posizione ? ` · ${b.passaggio.posizione}°` : ''}</span>
-                    <Conferma class="btn btn-quieto btn-sm" disabled={lavoro} domanda="Annulla?" onclick={() => annulla(b)}>Annulla</Conferma>
+                    <Conferma class="btn btn-quieto btn-sm" disabled={lavoro} domanda="Annulla?" onclick={() => annulla(b)}>Annulla l'esito</Conferma>
                   {:else}
                     <button type="button" class="btn btn-secondary btn-sm" disabled={lavoro} onclick={() => passa(b)}><Icona nome="su" />Passa adesso a {turno.successivo}</button>
                   {/if}
@@ -226,7 +228,7 @@
   .mini-barra { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
   .mini-barra em { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
   .st-ok, .st-da { font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
-  .st-ok { color: var(--passa); }
+  .st-ok { color: var(--passa); display: inline-flex; align-items: center; gap: var(--space-4); }
   .st-da { color: var(--warn); }
 
   .cols { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }

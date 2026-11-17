@@ -2,8 +2,8 @@
   import Icona from '../Icona.svelte';
   import { api, messaggioErrore, type SessioneCassa } from '../../lib/api';
   import { conSegno, esitoDifferenza, MOVIMENTI, statoChiusura } from '../../lib/cassa';
-  import { dataBreve, dataDi, oraDi } from '../../lib/date';
-  import { euro } from '../../lib/listino';
+  import { dataBreve, dataDi, dataOra, dataOraFrase, oraDi } from '../../lib/date';
+  import { euro, euroColonna } from '../../lib/numeri';
   import { sessione } from '../../lib/sessione.svelte';
 
   /**
@@ -21,7 +21,7 @@
   const e = $derived(esitoDifferenza(s.differenza ?? 0));
   const st = $derived(statoChiusura(s));
   const puoControllare = $derived(sessione.puo('PAGAMENTI_ANNULLA') && !s.controllataIl);
-  const quando = (i: string) => `${dataBreve(dataDi(i))} ${oraDi(i)}`;
+  const quando = dataOra;
   const nomeTipo = (t: string) => MOVIMENTI.find((m) => m.id === t)?.nome ?? t;
 
   async function apri() {
@@ -52,16 +52,16 @@
 <li class="ch" class:aperta>
   <button type="button" class="riga" aria-expanded={aperta} onclick={apri}>
     <span class="quando"><b class="m">{quando(s.chiusaIl!)}</b><span class="muted small">{conCassa ? `${s.cassa} · ` : ''}{s.chiusaDa ?? ''}</span></span>
-    <span class="num"><span class="lbl">Attesi</span><span class="m">{euro(s.attesi ?? 0)}</span></span>
-    <span class="num"><span class="lbl">Contati</span><span class="m">{euro(s.contati ?? 0)}</span></span>
-    <span class="num diff {e.tono}"><span class="lbl">Differenza</span><span class="m">{conSegno(s.differenza ?? 0, euro)}</span></span>
+    <span class="num"><span class="lbl">Attesi</span><span class="m">{euroColonna(s.attesi ?? 0)}</span></span>
+    <span class="num"><span class="lbl">Contati</span><span class="m">{euroColonna(s.contati ?? 0)}</span></span>
+    <span class="num diff {e.tono}"><span class="lbl">Differenza</span><span class="m">{conSegno(s.differenza ?? 0, euroColonna)}</span></span>
     <span class="stato"><span class="pill {st.tono}">{st.testo}</span></span>
     <Icona nome={aperta ? 'su' : 'giu'} />
   </button>
   {#if aperta}
     <div class="dett">
       {#if errore}<p class="msg err nomargin">{errore}</p>{/if}
-      <span class="small muted">Dal {quando(s.dal)}{s.esplicita && s.apertaDa ? ` · aperta da ${s.apertaDa} alle ${oraDi(s.apertaIl!)}` : ''}</span>
+      <span class="small muted">Dal {dataBreve(dataDi(s.dal))} alle {oraDi(s.dal)}{s.esplicita && s.apertaDa ? ` · aperta da ${s.apertaDa} alle ${oraDi(s.apertaIl!)}` : ''}</span>
       <div class="fatti">
         <span class="fatto">Fondo · lasciato<b class="m">{euro(s.fondo)} · {euro(s.lasciato ?? 0)}</b></span>
         <span class="fatto">Versato{s.perCassaforte != null && s.perCassaforte !== s.versato ? ' (con quelli del turno)' : ''}<b class="m">{euro(s.perCassaforte ?? s.versato ?? 0)}{s.inBanca ? ' · in banca' : ''}</b></span>
@@ -80,7 +80,7 @@
       {/if}
       {#if s.note}<span class="note small" class:avv={st.tono === 'warn' || st.tono === 'ferma'}>{s.note}</span>{/if}
       {#if s.controllataIl}
-        <span class="ok-c small"><Icona nome="check" />Controllata da {s.controllataDa ?? '—'} il {quando(s.controllataIl)}{s.notaControllo ? `: ${s.notaControllo}` : ''}</span>
+        <span class="ok-c small"><Icona nome="check" />Controllata da {s.controllataDa ?? '—'} {dataOraFrase(s.controllataIl)}{s.notaControllo ? `: ${s.notaControllo}` : ''}</span>
       {/if}
       {#if puoControllare}
         <form class="controlla" onsubmit={(ev) => { ev.preventDefault(); controlla(); }}>
@@ -90,7 +90,7 @@
       {/if}
       <span class="bottoni">
         <a class="btn btn-secondary btn-sm" href={api.urlPdfChiusura(s.id!)} target="_blank" rel="noopener"><Icona nome="stampa" />Stampa il riepilogo</a>
-        <a class="btn btn-secondary btn-sm" href={api.urlPdfChiusura(s.id!, true)} download><Icona nome="scarica" />PDF</a>
+        <a class="btn btn-secondary btn-sm" href={api.urlPdfChiusura(s.id!, true)} download><Icona nome="scarica" />Scarica il PDF</a>
       </span>
     </div>
   {/if}

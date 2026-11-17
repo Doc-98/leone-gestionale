@@ -1,8 +1,8 @@
 <script lang="ts">
   import Azione from '../Azione.svelte';
   import { api, messaggioErrore, type Cassaforte } from '../../lib/api';
-  import { dataBreve, dataDi, iso, oraDi } from '../../lib/date';
-  import { euro } from '../../lib/listino';
+  import { dataBreve, dataOra, iso } from '../../lib/date';
+  import { euro, euroColonna } from '../../lib/numeri';
   import { sessione } from '../../lib/sessione.svelte';
 
   /**
@@ -53,13 +53,13 @@
     <span class="v">{euro(cf.totale)}</span>
     {#if cf.chiusure.length}
       <ul class="el">
-        {#each cf.chiusure as s (s.id)}<li><span>{piuCasse ? `${s.cassa} · ` : ''}{dataBreve(dataDi(s.chiusaIl!))} {oraDi(s.chiusaIl!)}</span><span class="m">{euro(s.perCassaforte ?? 0)}</span></li>{/each}
+        {#each cf.chiusure as s (s.id)}<li><span>{piuCasse ? `${s.cassa} · ` : ''}{dataOra(s.chiusaIl!)}</span><span class="m">{euroColonna(s.perCassaforte ?? 0)}</span></li>{/each}
       </ul>
       {#if banca}
         <form class="banca" onsubmit={(e) => { e.preventDefault(); fai(() => api.versaInBanca({ data: banca!.data, distinta: banca!.distinta.trim() || undefined, note: banca!.note.trim() || undefined })); }}>
           <label class="campo"><span class="small">Giorno del versamento</span><input class="inp" type="date" bind:value={banca.data} max={iso(new Date())} required /></label>
           <label class="campo"><span class="small">Numero della distinta (facoltativo)</span><input class="inp" bind:value={banca.distinta} maxlength="60" /></label>
-          <span class="bottoni"><button class="btn btn-primary btn-sm" disabled={lavoro || !banca.data}>Versati {euro(cf.totale)}</button>
+          <span class="bottoni"><button class="btn btn-primary btn-sm" disabled={lavoro || !banca.data}>Segna versati {euro(cf.totale)}</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick={() => (banca = null)}>Annulla</button></span>
         </form>
       {:else}
@@ -73,7 +73,7 @@
       <ul class="el">
         {#each cf.versamenti as v (v.id)}
           <li class:annullato={v.annullato}><span>{dataBreve(v.data)}{v.distinta ? ` · distinta ${v.distinta}` : ''}{v.annullato ? ' · annullato' : ''}</span>
-            <span class="dx"><span class="m">{euro(v.importo)}</span>
+            <span class="dx"><span class="m">{euroColonna(v.importo)}</span>
               {#if puoAnnullare && !v.annullato}<Azione icona="annulla" etichetta={`Annulla il versamento del ${dataBreve(v.data)}`} conferma="Annulla?" disabled={lavoro}
                 onclick={() => fai(() => api.annullaVersamento(v.id), `Versamento del ${dataBreve(v.data)}: annullato.`)} />{/if}</span></li>
         {/each}

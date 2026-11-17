@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Turno } from './api';
-import { areaDi, caselleMese, conMe, fasce, occupato, orePerArea, prossimo, richiestaSul, settimaneDelMese, titoloSettimana, traQuanto } from './turni';
+import { areaDi, caselleMese, conMe, fasce, occupato, orePerArea, prossimo, richiestaSul, settimaneDelMese, traQuanto } from './turni';
 import type { Richiesta } from './api';
 
 let n = 0;
@@ -25,7 +25,7 @@ describe('turni', () => {
     expect(traQuanto(lista[1], oggi, 8 * 60 + 50)).toBe('oggi · tra 40 minuti');
     expect(traQuanto(lista[1], oggi, 10 * 60)).toBe('in corso');
     expect(prossimo(lista, oggi, 14 * 60)?.data).toBe('2026-11-02');
-    expect(traQuanto(lista[2], oggi, 0)).toBe('lunedì 2/11');
+    expect(traQuanto(lista[2], oggi, 0)).toBe('lun 2/11');
     expect(traQuanto(t('2026-11-01', '09:00', '10:00'), oggi, 0)).toBe('domani');
   });
 
@@ -38,10 +38,7 @@ describe('turni', () => {
     expect(occupato('m', mio, [marco])).toBeNull();
   });
 
-  it('titolo della settimana, caselle del mese, fasce', () => {
-    expect(titoloSettimana('2026-10-26')).toBe('26 ottobre – 1 novembre');
-    expect(titoloSettimana('2026-11-02')).toBe('2 – 8 novembre');
-    expect(titoloSettimana('2026-10-26', true)).toBe('26 ott – 1 nov');
+  it('caselle del mese, fasce', () => {
     const ottobre = caselleMese('2026-10');
     expect(ottobre.length % 7).toBe(0);
     expect(ottobre.slice(0, 4)).toEqual([null, null, null, '2026-10-01']);

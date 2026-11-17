@@ -6,7 +6,7 @@
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type Addebito, type Conto, type MetodoPagamento, type PagamentiFamiglia } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
   import { STATI_ADDEBITO, aperto, inOrdineDiScadenza, ripartisci, somma } from '../lib/pagamenti';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -95,7 +95,7 @@
     if (!scelti.length) scelti = propri.filter((a) => !soloScaduti || a.stato === 'SCADUTO').map((a) => a.id);
     const tutore = conto!.paganti.find((p) => p.personaId !== id);
     // l'importo parte da quanto c'è da pagare per ciò che è già spuntato (anche se l'hai spuntato prima di aprire)
-    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi.find((m) => !m.borsellino)?.id ?? '', importo: residuoScelto ? String(residuoScelto) : '', riferimento: '' }],
+    modulo = { paganteId: tutore?.personaId ?? id, data: oggi, righe: [{ metodoId: attivi.find((m) => !m.borsellino)?.id ?? '', importo: residuoScelto ? perCampo(residuoScelto) : '', riferimento: '' }],
       note: '', separati: false };
   }
 
@@ -103,7 +103,7 @@
   $effect(() => {
     const r = residuoScelto;
     untrack(() => {
-      if (modulo && modulo.righe.length === 1) modulo.righe[0].importo = r ? String(r) : '';
+      if (modulo && modulo.righe.length === 1) modulo.righe[0].importo = r ? perCampo(r) : '';
     });
   });
 
@@ -114,7 +114,7 @@
   const metodo = (mid: string) => metodi.find((m) => m.id === mid);
   const persone = $derived(new Set(daPagare.map((a) => a.personaId)).size);
   const modValido = $derived(!!modulo && daPagare.length > 0 && totale > 0 && totale <= residuoScelto && (flessibile || totale === residuoScelto)
-    && modulo.righe.every((r) => r.metodoId && Number(r.importo) > 0));
+    && modulo.righe.every((r) => r.metodoId && (numeroDa(r.importo) ?? 0) > 0));
 
   async function registra() {
     const m = modulo!;
@@ -122,7 +122,7 @@
     let ids: string[] = [];
     const ok = await esegui(async () => ids = (await api.registraPagamento({
       paganteId: m.paganteId, data: m.data, importo: totale, addebiti: daPagare.map((a) => a.id),
-      metodi: m.righe.map((r) => ({ metodoId: r.metodoId, importo: Number(r.importo), riferimento: r.riferimento.trim() || null })),
+      metodi: m.righe.map((r) => ({ metodoId: r.metodoId, importo: numeroDa(r.importo) ?? 0, riferimento: r.riferimento.trim() || null })),
       note: m.note.trim() || null, separati: m.separati,
     })).ids, persone > 1 && (famiglia === 'PER_PERSONA' || (famiglia === 'A_SCELTA' && m.separati))
       ? `Pagamento di ${euro(totale)} registrato: uno per ogni persona.` : `Pagamento di ${euro(totale)} registrato.`);
@@ -138,7 +138,7 @@
   let addebito = $state<{ descrizione: string; importo: string; scadenza: string; note: string } | null>(null);
   async function salvaAddebito() {
     const a = addebito!;
-    if (await esegui(() => api.nuovoAddebito({ personaId: id, descrizione: a.descrizione.trim(), importo: Number(a.importo), scadenza: a.scadenza || null,
+    if (await esegui(() => api.nuovoAddebito({ personaId: id, descrizione: a.descrizione.trim(), importo: numeroDa(a.importo) ?? 0, scadenza: a.scadenza || null,
       note: a.note.trim() || null }), `Addebito «${a.descrizione.trim()}» registrato.`)) addebito = null;
   }
 
@@ -200,7 +200,7 @@
     {#if puoPagare && !modulo && !addebito}
       <div class="azioni">
         <button class="btn btn-primary" disabled={!propri.length && !scelti.length} onclick={() => apriPagamento()}>
-          {scelti.length ? `Registra pagamento (${scelti.length})…` : 'Registra pagamento…'}
+          {scelti.length ? `Registra un pagamento (${scelti.length})…` : 'Registra un pagamento…'}
         </button>
         <button class="btn btn-secondary" onclick={() => (addebito = { descrizione: '', importo: '', scadenza: oggi, note: '' })}>Aggiungi un addebito…</button>
       </div>
@@ -228,13 +228,13 @@
                   <option value={m.id} disabled={m.borsellino && disp <= 0}>{m.borsellino ? `Borsellino (credito: ${euro(disp)})` : m.nome}</option>
                 {/each}
               </select>
-              <input class="inp m importo" type="number" min="0.01" step="0.01" bind:value={r.importo} aria-label="Importo in euro" readonly={!flessibile}
+              <input class="inp m importo" inputmode="decimal" bind:value={r.importo} aria-label="Importo in euro" readonly={!flessibile}
                      title={flessibile ? '' : 'Per un acconto serve il permesso «Acconti e pagamenti misti»'} />
               {#if metodo(r.metodoId)?.daIncassare}<input class="inp" bind:value={r.riferimento} placeholder="Riferimento (es. CRO)" maxlength="120" aria-label="Riferimento" />{/if}
               {#if modulo.righe.length > 1}<Azione icona="chiudi" etichetta="Rimuovi questo metodo" onclick={() => modulo!.righe.splice(i, 1)} />{/if}
             </div>
           {/each}
-          {#if flessibile}<button type="button" class="btn btn-secondary btn-sm sx" title="Es. parte in contanti, parte con la carta" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: String(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>
+          {#if flessibile}<button type="button" class="btn btn-secondary btn-sm sx" title="Es. parte in contanti, parte con la carta" onclick={() => modulo!.righe.push({ metodoId: attivi.find((m) => !modulo!.righe.some((x) => x.metodoId === m.id))?.id ?? attivi[0]?.id ?? '', importo: perCampo(Math.max(0, somma([residuoScelto, -totale]))), riferimento: '' })}>
             <Icona nome="piu" />Aggiungi un altro metodo
           </button>{/if}
         </div>
@@ -255,8 +255,8 @@
         {/if}
         <input class="inp" bind:value={modulo.note} placeholder="Note (facoltative)" maxlength="300" aria-label="Note" />
         <div class="row">
-          <button type="button" class="btn btn-secondary grow" onclick={() => { modulo = null; scelti = []; }}>Annulla</button>
-          <button class="btn btn-primary grow" disabled={!modValido}>Registra {totale > 0 ? euro(totale) : ''}</button>
+          <button type="button" class="btn btn-secondary" onclick={() => { modulo = null; scelti = []; }}>Annulla</button>
+          <button class="btn btn-primary grow" disabled={!modValido}>{totale > 0 ? `Registra ${euro(totale)}` : 'Registra il pagamento'}</button>
         </div>
       </form>
     {/if}
@@ -266,14 +266,14 @@
       <form class="modulo" onsubmit={(e) => { e.preventDefault(); salvaAddebito(); }}>
         <label class="field"><span class="lbl">Cosa</span><input class="inp" bind:value={addebito.descrizione} placeholder="Es. cuffia, ingresso extra" maxlength="200" /></label>
         <div class="due">
-          <label class="field"><span class="lbl">Importo (€)</span><input class="inp m" type="number" min="0.01" step="0.01" bind:value={addebito.importo} /></label>
+          <label class="field"><span class="lbl">Importo (€)</span><input class="inp m" inputmode="decimal" bind:value={addebito.importo} /></label>
           <label class="field"><span class="lbl">Da pagare entro</span><input class="inp" type="date" bind:value={addebito.scadenza} /></label>
         </div>
         <input class="inp" bind:value={addebito.note} placeholder="Note (facoltative)" maxlength="300" aria-label="Note" />
         <p class="muted small nomargin">Le offerte del listino (es. quota agonistica) si addebitano da «Nuovo abbonamento o carnet…».</p>
         <div class="row">
-          <button type="button" class="btn btn-secondary grow" onclick={() => (addebito = null)}>Annulla</button>
-          <button class="btn btn-primary grow" disabled={!addebito.descrizione.trim() || !(Number(addebito.importo) > 0)}>Aggiungi</button>
+          <button type="button" class="btn btn-secondary" onclick={() => (addebito = null)}>Annulla</button>
+          <button class="btn btn-primary grow" disabled={!addebito.descrizione.trim() || !((numeroDa(addebito.importo) ?? 0) > 0)}>Aggiungi l'addebito</button>
         </div>
       </form>
     {/if}
@@ -286,7 +286,7 @@
           {#each pagamentiVisti as p (p.id)}
             <li class="pag" class:spento={p.annullatoIl}>
               <div class="pag-testa">
-                <strong class="m">{euro(p.importo)}</strong>
+                <strong class="m">{euroColonna(p.importo)}</strong>
                 <span class="small">{dataBreve(p.data)} · {p.pagante}{p.paganteId === id ? '' : ' per la famiglia'}</span>
                 {#each p.metodi as m (m.id)}
                   <span class="tag {m.daIncassare && !m.incassatoIl ? 't-warn' : 't-altro'}">{m.metodo} {p.metodi.length > 1 ? euro(m.importo) : ''}{m.daIncassare ? (m.incassatoIl ? ' · incassato' : ' · da incassare') : ''}</span>
@@ -333,7 +333,7 @@
       {#if familiare}<strong>{a.persona}</strong> · {/if}{a.descrizione}
       <span class="small muted"> · {a.stato === 'CREDITO' ? 'dal' : 'entro il'} {dataBreve(a.scadenza)}{a.pagato > 0 && a.residuo > 0 ? ` · pagati ${euro(a.pagato)} su ${euro(a.importo)}` : ''}{a.note ? ` · ${a.note}` : ''}{a.motivoAnnullamento ? ` · ${a.motivoAnnullamento}` : ''}</span>
     </span>
-    <span class="m">{euro(a.stato === 'CREDITO' ? -a.importo : aperto(a) ? a.residuo : a.importo)}</span>
+    <span class="m">{euroColonna(a.stato === 'CREDITO' ? -a.importo : aperto(a) ? a.residuo : a.importo)}</span>
     <span class="tag {st.classe}">{st.nome}</span>
     {#if aperto(a) && a.pagato === 0 && puoAnnullare && annulla?.id !== a.id}
       <Azione icona="annulla" etichetta={`Annulla l'addebito «${a.descrizione}»`} onclick={() => (annulla = { tipo: 'addebito', id: a.id, motivo: '' })} />

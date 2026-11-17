@@ -8,7 +8,8 @@
   } from '../lib/api';
   import { lettoreChip, lettoreSimulato } from '../lib/chip.svelte';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { euro, numeroDa, perCampo } from '../lib/numeri';
+  import { crediti as nCrediti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -54,8 +55,10 @@
     | { tipo: 'scrittura'; b: SaldoChip; preparata: RicaricaPreparata; importo: number; metodoId: string; paganteId: string; problema: string };
   let passo = $state<Passo | null>(null);
   const metodoPredefinito = () => metodi.find((m) => !m.borsellino)?.id ?? '';
-  const comprati = (imp: string) => (Number(imp) > 0 ? Math.floor(Math.round(Number(imp) * 100) / Math.round(regole.valoreCredito * 100)) : 0);
-  const multiplo = (imp: string) => Math.round(Number(imp) * 100) % Math.round(regole.valoreCredito * 100) === 0;
+  /** L'importo scritto nel campo (con la virgola o col punto), 0 se è vuoto o non si capisce. */
+  const importoN = (s: string) => numeroDa(s) ?? 0;
+  const comprati = (imp: string) => (importoN(imp) > 0 ? Math.floor(Math.round(importoN(imp) * 100) / Math.round(regole.valoreCredito * 100)) : 0);
+  const multiplo = (imp: string) => Math.round(importoN(imp) * 100) % Math.round(regole.valoreCredito * 100) === 0;
 
   /** Gli errori del lettore sono Error semplici, quelli del server ErroreApi. */
   const testo = (e: unknown) => (e instanceof ErroreApi || !(e instanceof Error) ? messaggioErrore(e) : e.message);
@@ -76,8 +79,8 @@
   const leggiMemoria = async (): Promise<MemoriaChip> => lettore!.leggi(stato.accesso!);
 
   function dopoLettura(b: SaldoChip, e: EsitoLetturaChip) {
-    if (e.inSospeso) return `Sul braccialetto ${e.crediti} crediti. C'è una ricarica in sospeso: registrala o annullala.`;
-    return `Sul braccialetto ${b.codice}: ${e.crediti} crediti${e.consumati ? ` (${e.consumati} consumati alle macchine dall'ultima volta)` : ''}.`;
+    if (e.inSospeso) return `Sul braccialetto ${nCrediti(e.crediti)}. C'è una ricarica in sospeso: registrala o annullala.`;
+    return `Sul braccialetto ${b.codice}: ${nCrediti(e.crediti)}${e.consumati ? ` (${e.consumati} consumati alle macchine dall'ultima volta)` : ''}.`;
   }
 
   /** Legge dal lettore e aggiorna l'ultimo saldo visto (e i consumi nel registro). */
@@ -102,7 +105,7 @@
     messaggio = '';
     errore = '';
     if (lettore?.tipo === 'simulato') lettoreSimulato.appoggia(b.codice);
-    passo = { tipo: 'ricarica', b, letto: null, importo: String(Math.max(regole.ricaricaMinima, 5)), metodoId: metodoPredefinito(), paganteId: id };
+    passo = { tipo: 'ricarica', b, letto: null, importo: perCampo(Math.max(regole.ricaricaMinima, 5)), metodoId: metodoPredefinito(), paganteId: id };
   }
 
   const leggiPerRicarica = () => fai(async () => {
@@ -116,8 +119,8 @@
   const ricarica = () => fai(async () => {
     const p = passo as Extract<Passo, { tipo: 'ricarica' }>;
     const memoria = await leggiMemoria();
-    const preparata = await api.preparaRicaricaChip(p.b.braccialettoId, memoria, Number(p.importo));
-    passo = { tipo: 'scrittura', b: p.b, preparata, importo: Number(p.importo), metodoId: p.metodoId, paganteId: p.paganteId, problema: '' };
+    const preparata = await api.preparaRicaricaChip(p.b.braccialettoId, memoria, importoN(p.importo));
+    passo = { tipo: 'scrittura', b: p.b, preparata, importo: importoN(p.importo), metodoId: p.metodoId, paganteId: p.paganteId, problema: '' };
     await scriviEConferma();
   });
 
@@ -145,7 +148,7 @@
     passo = null;
     await carica();
     cambiato();
-    messaggio = `Ricarica di ${euro(p.importo)} scritta sul braccialetto: ${p.preparata.creditiDopo} crediti (+${p.preparata.comprati}).`;
+    messaggio = `Ricarica di ${euro(p.importo)} scritta sul braccialetto: ${nCrediti(p.preparata.creditiDopo)} (+${p.preparata.comprati}).`;
   }
 
   /** Una ricarica rimasta in sospeso (ad esempio dopo aver ricaricato la pagina): si riprende da qui. */
@@ -199,11 +202,11 @@
       <li>
         <span class="m cod">{s.codice}</span>
         <span class="grow small">{#if s.crediti == null}<span class="muted">mai letto</span>
-          {:else}<strong>{s.crediti} crediti</strong> <span class="muted">· {fonte(s)} il {dataBreve(dataDi(s.aggiornatoIl!))} alle {oraDi(s.aggiornatoIl!)}</span>{/if}</span>
+          {:else}<strong>{nCrediti(s.crediti)}</strong> <span class="muted">· {fonte(s)} il {dataBreve(dataDi(s.aggiornatoIl!))} alle {oraDi(s.aggiornatoIl!)}</span>{/if}</span>
         {#if !passo && s.attivo}
           <span class="gruppo-pulsanti">
-            {#if lettore}<button type="button" class="mini-btn" disabled={lavoro} onclick={() => leggi(s)}><Icona nome="nfc" />Leggi</button>{/if}
-            <button type="button" class="mini-btn" onclick={() => (passo = { tipo: 'display', b: s, crediti: '' })}>Dal display…</button>
+            {#if lettore}<button type="button" class="mini-btn" disabled={lavoro} onclick={() => leggi(s)}><Icona nome="nfc" />Leggi i crediti</button>{/if}
+            <button type="button" class="mini-btn" onclick={() => (passo = { tipo: 'display', b: s, crediti: '' })}>Inserisci dal display…</button>
             {#if puoRicaricare}<button type="button" class="mini-btn pieno" disabled={!lettore || !!s.inSospeso} title={lettore ? '' : scelta.perche} onclick={() => apriRicarica(s)}>Ricarica…</button>{/if}
           </span>
         {/if}
@@ -211,10 +214,10 @@
       {#if s.inSospeso && passo?.b.braccialettoId !== s.braccialettoId}
         <li class="sospesa" role="alert">
           <Icona nome="avviso" />
-          <span class="grow small">Ricarica di {euro(s.inSospeso.importo)} in sospeso dal {dataBreve(dataDi(s.inSospeso.creataIl))}: forse è già sul braccialetto ({s.inSospeso.creditiDopo} crediti), ma non è pagata.</span>
+          <span class="grow small">Ricarica di {euro(s.inSospeso.importo)} in sospeso dal {dataBreve(dataDi(s.inSospeso.creataIl))}: forse è già sul braccialetto ({nCrediti(s.inSospeso.creditiDopo)}), ma non è pagata.</span>
           {#if puoRicaricare}
             {#if lettore}<button type="button" class="mini-btn pieno" onclick={() => riprendi(s)}>Rileggi e registra…</button>{/if}
-            <Conferma class="mini-btn rosso" domanda="Annulla?" etichetta="Annulla la ricarica in sospeso" disabled={lavoro} onclick={() => annulla(s.inSospeso!.operazione)}>Annulla</Conferma>
+            <Conferma class="mini-btn rosso" domanda="Annulla?" etichetta="Annulla la ricarica in sospeso" disabled={lavoro} onclick={() => annulla(s.inSospeso!.operazione)}>Annulla la ricarica</Conferma>
           {/if}
         </li>
       {/if}
@@ -229,28 +232,28 @@
       <label class="field"><span class="lbl">Crediti che mostra la macchina per {p.b.codice}</span>
         <input class="inp m corto" type="number" min="0" step="1" bind:value={p.crediti} required /></label>
       <span class="muted small">Avvicinando il braccialetto, la centralina dei phon e i lettori delle docce mostrano i crediti rimasti.</span>
-      <div class="row"><button type="button" class="btn btn-secondary grow" onclick={() => (passo = null)}>Annulla</button>
+      <div class="row"><button type="button" class="btn btn-secondary" onclick={() => (passo = null)}>Annulla</button>
         <button class="btn btn-primary grow" disabled={lavoro || p.crediti === '' || Number(p.crediti) < 0}>Salva il saldo</button></div>
     </form>
   {:else if passo?.tipo === 'ricarica'}
     {@const p = passo}
     <form class="modulo" onsubmit={(e) => { e.preventDefault(); ricarica(); }}>
       <div class="passo"><span class="num">1</span><span class="grow">
-        {#if p.letto}Sul braccialetto <strong>{p.b.codice}</strong> ci sono <strong>{p.letto.crediti} crediti</strong>{p.letto.consumati ? ` (${p.letto.consumati} consumati alle macchine)` : ''}.
+        {#if p.letto}Sul braccialetto <strong>{p.b.codice}</strong> ci sono <strong>{nCrediti(p.letto.crediti)}</strong>{p.letto.consumati ? ` (${p.letto.consumati} consumati alle macchine)` : ''}.
         {:else}Appoggia il braccialetto <strong>{p.b.codice}</strong> sul lettore e leggilo.{/if}</span>
-        <button type="button" class="mini-btn" disabled={lavoro} onclick={leggiPerRicarica}><Icona nome="nfc" />{p.letto ? 'Rileggi' : 'Leggi'}</button></div>
+        <button type="button" class="mini-btn" disabled={lavoro} onclick={leggiPerRicarica}><Icona nome="nfc" />{p.letto ? 'Rileggi i crediti' : 'Leggi i crediti'}</button></div>
       <div class="field">
         <span class="lbl">Quanto (un credito = {euro(regole.valoreCredito)}, minimo {euro(regole.ricaricaMinima)})</span>
         <div class="riga">
           <div class="chips">
             {#each [...new Set([Math.max(regole.ricaricaMinima, 5), 10, 20])] as v (v)}
-              <button type="button" class="chip" aria-pressed={Number(p.importo) === v} onclick={() => (p.importo = String(v))}>{euro(v)}</button>
+              <button type="button" class="chip" aria-pressed={importoN(p.importo) === v} onclick={() => (p.importo = perCampo(v))}>{euro(v)}</button>
             {/each}
           </div>
-          <input class="inp m importo" type="number" min={regole.ricaricaMinima} step={regole.valoreCredito} bind:value={p.importo} aria-label="Importo della ricarica" />
-          <span class="small">= <strong>{comprati(p.importo)} crediti</strong>{p.letto ? `, sul braccialetto ${p.letto.crediti + comprati(p.importo)}` : ''}</span>
+          <input class="inp m importo" inputmode="decimal" bind:value={p.importo} aria-label="Importo della ricarica" />
+          <span class="small">= <strong>{nCrediti(comprati(p.importo))}</strong>{p.letto ? `, sul braccialetto ${p.letto.crediti + comprati(p.importo)}` : ''}</span>
         </div>
-        {#if Number(p.importo) > 0 && !multiplo(p.importo)}<span class="small rosso">Deve essere un multiplo di {euro(regole.valoreCredito)}.</span>{/if}
+        {#if importoN(p.importo) > 0 && !multiplo(p.importo)}<span class="small rosso">Deve essere un multiplo di {euro(regole.valoreCredito)}.</span>{/if}
       </div>
       <div class="due">
         <label class="field"><span class="lbl">Come si paga</span>
@@ -260,14 +263,14 @@
             {#each pagantiPossibili as f (f.personaId)}<option value={f.personaId}>{f.nome}{f.relazione ? ` (${f.relazione.toLowerCase()})` : ''}</option>{/each}</select></label>
       </div>
       <span class="muted small">Il pagamento si registra solo dopo aver scritto e riletto il braccialetto: tienilo sul lettore fino alla fine.</span>
-      <div class="row"><button type="button" class="btn btn-secondary grow" onclick={() => (passo = null)}>Annulla</button>
-        <button class="btn btn-primary grow" disabled={lavoro || !p.letto || !(Number(p.importo) >= regole.ricaricaMinima && multiplo(p.importo) && p.metodoId)}>
-          {lavoro ? 'Scrivo…' : `Ricarica ${euro(Number(p.importo) || 0)} e scrivi`}</button></div>
+      <div class="row"><button type="button" class="btn btn-secondary" onclick={() => (passo = null)}>Annulla</button>
+        <button class="btn btn-primary grow" disabled={lavoro || !p.letto || !(importoN(p.importo) >= regole.ricaricaMinima && multiplo(p.importo) && p.metodoId)}>
+          {lavoro ? 'Scrivo…' : `Ricarica ${euro(importoN(p.importo))} e scrivi`}</button></div>
     </form>
   {:else if passo?.tipo === 'scrittura'}
     {@const p = passo}
     <div class="modulo">
-      <div class="passo"><span class="num">2</span><span class="grow">Ricarica di <strong>{euro(p.importo)}</strong> sul braccialetto <strong>{p.b.codice}</strong>: da {p.preparata.creditiPrima} a {p.preparata.creditiDopo} crediti.</span></div>
+      <div class="passo"><span class="num">2</span><span class="grow">Ricarica di <strong>{euro(p.importo)}</strong> sul braccialetto <strong>{p.b.codice}</strong>: da {p.preparata.creditiPrima} a {nCrediti(p.preparata.creditiDopo)}.</span></div>
       {#if p.problema}<p class="msg err nomargin" role="alert">{p.problema}</p>{/if}
       <label class="field"><span class="lbl">Come si paga</span>
         <select class="inp" bind:value={p.metodoId}>{#each metodi as m (m.id)}<option value={m.id}>{m.borsellino ? `Borsellino (credito: ${euro(euroDisponibili)})` : m.nome}</option>{/each}</select></label>

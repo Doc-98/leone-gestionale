@@ -1,4 +1,5 @@
-import { daIso, GIORNI_BREVI, iso } from './date';
+import { iso } from './date';
+import { giornoBreve } from './turni';
 
 /** Una colonna della griglia: un giorno del calendario («2026-10-19») o della settimana tipo («1» = lunedì). */
 export interface Colonna {
@@ -10,7 +11,7 @@ export interface Colonna {
 
 export function colonneGiorni(giorni: string[], oggi = iso(new Date())): Colonna[] {
   return giorni.map((g) => {
-    const d = daIso(g);
-    return { chiave: g, etichetta: GIORNI_BREVI[((d.getDay() + 6) % 7) + 1], numero: d.getDate(), oggi: g === oggi };
+    const { l, n } = giornoBreve(g);
+    return { chiave: g, etichetta: l, numero: n, oggi: g === oggi };
   });
 }

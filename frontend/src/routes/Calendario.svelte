@@ -4,9 +4,9 @@
   import Foglio from '../components/Foglio.svelte';
   import { schermo } from '../lib/schermo.svelte';
   import { api, messaggioErrore, type Evento, type Stagione } from '../lib/api';
-  import { iso } from '../lib/date';
+  import { iso, dataBreve, dataLunga } from '../lib/date';
   import {
-    breve, conteggi, eventiDaCreare, festivita, mesi, prossima, quando, statoDel, unAnnoDopo, voci as raggruppa, type TipoChiusura, type Voce,
+    conteggi, eventiDaCreare, festivita, mesi, prossima, quando, statoDel, unAnnoDopo, voci as raggruppa, type TipoChiusura, type Voce,
   } from '../lib/calendario';
 
   const oggi = iso(new Date());
@@ -155,16 +155,16 @@
 
   {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
-  {#if caricate && !stagioni.length}<p class="muted">Non c'è ancora nessuna stagione: aggiungila in <a href="#/societa">Società e stagioni</a>.</p>{/if}
+  {#if caricate && !stagioni.length}<p class="muted">Non c'è ancora nessuna stagione: aggiungila in <a href="#/societa">Dati, stagioni e gruppi</a>.</p>{/if}
 
   {#if stagione}
     <div class="riep">
-      <div class="tile t-ferma"><span class="lbl">Giorni di chiusura</span><span class="v">{conti.chiusi}</span><span class="n">struttura chiusa tutto il giorno</span></div>
-      <div class="tile t-warn"><span class="lbl">Giorni a orario ridotto</span><span class="v">{conti.ridotti}</span><span class="n">apre più tardi o chiude prima</span></div>
+      <div class="tile t-ferma"><span class="lbl">Giorni di chiusura</span><span class="v">{conti.chiusi}</span><span class="n">chiusa tutto il giorno</span></div>
+      <div class="tile t-warn"><span class="lbl">Orario ridotto</span><span class="v">{conti.ridotti}</span><span class="n">apre dopo o chiude prima</span></div>
       <div class="tile t-passa"><span class="lbl">Giorni di apertura</span><span class="v">{conti.aperti}</span><span class="n">per la stagione {brevissimo(stagione.nome)}</span></div>
       <div class="tile"><span class="lbl">Prossima chiusura</span>
         <span class="v piccolo">{p ? p.voce.nome : 'Nessuna'}</span>
-        <span class="n">{p ? `${quando(p.voce)} · ${p.traGiorni === 0 ? (p.voce.dal === oggi ? 'oggi' : 'in corso') : p.traGiorni === 1 ? 'domani' : `tra ${p.traGiorni} giorni`}` : 'fino a fine stagione'}</span></div>
+        <span class="n">{p ? `${dataBreve(p.voce.dal)} · ${p.traGiorni === 0 ? (p.voce.dal === oggi ? 'oggi' : 'in corso') : p.traGiorni === 1 ? 'domani' : `tra ${p.traGiorni} giorni`}` : 'fino a fine stagione'}</span></div>
     </div>
 
     <div class="colonne-p">
@@ -222,7 +222,7 @@
 </section>
 
 {#snippet nuova()}
-            <h2>{periodo ? `Dal ${breve(lo!)} al ${breve(hi!)}` : breve(lo!)}</h2>
+            <h2>{periodo ? `Dal ${dataLunga(lo!)} al ${dataLunga(hi!)}` : dataLunga(lo!)}</h2>
             <div class="seg due-s" role="group" aria-label="Tipo">
               <button type="button" aria-pressed={tipo === 'chiuso'} onclick={() => (tipo = 'chiuso')}>Tutto il giorno</button>
               <button type="button" aria-pressed={tipo === 'ridotto'} onclick={() => (tipo = 'ridotto')}>Orario ridotto</button>

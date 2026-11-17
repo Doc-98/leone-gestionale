@@ -35,6 +35,8 @@ export const ICONE = {
   occhio: p('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z') + '<circle cx="12" cy="12" r="3"/>',
   'occhio-no': p('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z') + '<circle cx="12" cy="12" r="3"/>' + p('M4 4l16 16'),
   altro: '<circle cx="5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="19" cy="12" r="1.1"/>',
+  // sei punti in due colonne: la maniglia per trascinare
+  trascina: '<circle cx="9" cy="6" r="1.1"/><circle cx="15" cy="6" r="1.1"/><circle cx="9" cy="12" r="1.1"/><circle cx="15" cy="12" r="1.1"/><circle cx="9" cy="18" r="1.1"/><circle cx="15" cy="18" r="1.1"/>',
   cerca: '<circle cx="11" cy="11" r="6.5"/>' + p('m16 16 4.5 4.5'),
   campana: p('M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4'),
   testo: p('M4 6h16M4 10h16M4 14h10M4 18h7'),

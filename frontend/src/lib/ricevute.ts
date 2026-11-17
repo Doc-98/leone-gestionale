@@ -1,6 +1,6 @@
 import type { ImpostazioniRicevute, Ricevuta, RiparteSerie } from './api';
 import { dataBreve, dataDi } from './date';
-import { euro } from './listino';
+import { euro } from './numeri';
 
 /** Ricevute (ADR 0018, parte 10): i testi e le scelte condivise dal pannello dopo il pagamento, dalla scheda e dalle impostazioni. */
 

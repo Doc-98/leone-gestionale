@@ -8,6 +8,7 @@
     type Dispositivo, type EsitoMacchinaSimulata, type PersonaScheda, type RispostaMacchina, type SchedaCliente, type Servizio, type StatoCreditiBraccialetto, type Utilizzo,
   } from '../lib/api';
   import { lettoreChip, lettoreSimulato } from '../lib/chip.svelte';
+  import { quanti as nQuanti } from '../lib/plurali';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { daRicaricare, ESITI_MACCHINA, statoMacchina } from '../lib/macchine';
   import { lettoreTelefono } from '../lib/lettore.svelte';
@@ -297,12 +298,12 @@
           <form class="riga" onsubmit={(e) => { e.preventDefault(); prova(dispositivo?.tipo === 'SALDO' ? 'SALDO' : 'USA'); }}>
             <input class="inp m grow" bind:value={codiceSim} placeholder="Codice del braccialetto" aria-label="Codice del braccialetto da provare" autocomplete="off" />
             {#if dispositivo?.tipo === 'SERVIZIO'}<input class="inp m post" bind:value={postazione} placeholder="N°" aria-label="Numero del phon o della doccia" maxlength="20" />{/if}
-            <button class="btn btn-primary" disabled={!sceltoSim || normalizzaCodice(codiceSim).length < 4 || attesa}>{dispositivo?.tipo === 'SALDO' ? 'Saldo' : 'Appoggia'}</button>
+            <button class="btn btn-primary" disabled={!sceltoSim || normalizzaCodice(codiceSim).length < 4 || attesa}>{dispositivo?.tipo === 'SALDO' ? 'Leggi il saldo' : 'Appoggia'}</button>
           </form>
           <div class="display" class:via={risposta?.via} class:no={risposta && !risposta.via && risposta.esito !== 'SALDO'} aria-live="polite">
             <span class="d1">{risposta?.nome ? `Ciao ${risposta.nome}` : (dispositivo?.nome ?? '')}</span>
             <span class="d2">{risposta ? risposta.messaggio : 'Avvicinare il braccialetto'}</span>
-            {#if risposta?.via && risposta.minuti}<span class="d3">Via per {risposta.minuti} minuti</span>{/if}
+            {#if risposta?.via && risposta.minuti}<span class="d3">Via per {nQuanti(risposta.minuti, 'minuto', 'minuti')}</span>{/if}
           </div>
           <ul class="ultimi">
             {#each utilizzi.slice(0, 6) as u (u.id)}

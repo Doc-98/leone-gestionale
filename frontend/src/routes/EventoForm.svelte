@@ -118,7 +118,7 @@
   {#if chiusura}<p class="muted small nomargin">Le lezioni che cadono nella chiusura risultano sospese, senza toccarle.</p>{/if}
 
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
-  <button class="btn btn-primary" disabled={lavoro}>{evento ? 'Salva' : 'Aggiungi al piano'}</button>
+  <button class="btn btn-primary" disabled={lavoro}>{evento ? "Salva l'evento" : 'Aggiungi al piano'}</button>
   {#if evento}
     <Conferma class="btn btn-danger" disabled={lavoro} domanda="Annulla?" onclick={annulla}>Annulla l'evento</Conferma>
   {/if}

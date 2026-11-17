@@ -87,7 +87,7 @@
     <div class="server" class:no={serverSpento}>
       <span class="punto"></span>
       <span>Server {location.host}: {serverSpento ? 'non risponde' : 'raggiungibile'}</span>
-      <button type="button" class="link-a" onclick={() => cambiaServer()}>Cambia</button>
+      <button type="button" class="link-a" onclick={() => cambiaServer()}>Cambia server</button>
     </div>
   {/if}
 

@@ -1,9 +1,9 @@
 <script lang="ts">
   import Icona from '../Icona.svelte';
   import type { PersonaStaff, Postazione, Turno } from '../../lib/api';
-  import { daIso, GIORNI_BREVI, ora } from '../../lib/date';
+  import { ora } from '../../lib/date';
   import { ammessa, formatH, gruppoDi, orePerPersona, siAccavallano, testoRiservata } from '../../lib/gestione';
-  import { areaDi } from '../../lib/turni';
+  import { areaDi, giornoBreve } from '../../lib/turni';
 
   /**
    * La settimana per persona: una riga a testa, dal più carico al meno carico, e in cima i turni scoperti. Si tocca
@@ -34,7 +34,7 @@
   const iniziali = (n: string) => n.split(' ').map((x) => x[0]).slice(0, 2).join('');
 
   const avviso = $derived(scelto
-    ? `${GIORNI_BREVI[((daIso(scelto.data).getDay() + 6) % 7) + 1]} ${daIso(scelto.data).getDate()}, ${ora(scelto.inizio)}–${ora(scelto.fine)} · ${dove(scelto)}: scegli chi lo fa${testoRiservata(postDi(scelto)) ? ` (${testoRiservata(postDi(scelto)).trim().replace('.', '').toLowerCase()})` : ''}.`
+    ? `${giornoBreve(scelto.data).l} ${giornoBreve(scelto.data).n}, ${ora(scelto.inizio)}–${ora(scelto.fine)} · ${dove(scelto)}: scegli chi lo fa${testoRiservata(postDi(scelto)) ? ` (${testoRiservata(postDi(scelto)).trim().replace('.', '').toLowerCase()})` : ''}.`
     : scoperti.length ? `${scoperti.length === 1 ? 'Un turno scoperto' : `${scoperti.length} turni scoperti`}: tocca un turno nella riga rossa, poi «Assegna qui» sulla persona.` : 'Tutti i turni della settimana hanno qualcuno.');
   const tono = $derived(scelto ? 'cloro' : scoperti.length ? 'ferma' : 'passa');
 
@@ -64,7 +64,7 @@
   <div class="gp" role="grid" aria-label="Turni della settimana per persona">
     <div class="riga" role="row">
       <span class="th primo" role="columnheader"><span class="lbl">Persona</span></span>
-      {#each giorni as g (g)}<span class="th" role="columnheader"><span class="lbl">{GIORNI_BREVI[((daIso(g).getDay() + 6) % 7) + 1]}</span><b>{daIso(g).getDate()}</b></span>{/each}
+      {#each giorni as g (g)}<span class="th" role="columnheader"><span class="lbl">{giornoBreve(g).l}</span><b>{giornoBreve(g).n}</b></span>{/each}
       <span class="th ultimo" role="columnheader"><span class="lbl">Ore</span></span>
     </div>
 
@@ -97,7 +97,7 @@
               <div class="riga-blk">
                 <span class="blk ar-{areaDi(t.postazione)}" class:spento={!!sovr}><span class="o">{ora(t.inizio)}–{ora(t.fine)}</span><span class="p">{dove(t)}</span></span>
                 {#if sovr === t}<button type="button" class="piu-acc" title={`Assegna comunque: si accavalla con ${ora(t.inizio)}–${ora(t.fine)} · ${dove(t)}`}
-                  aria-label={`Assegna comunque a ${p.nome}: si accavalla con ${ora(t.inizio)}–${ora(t.fine)}`} onclick={() => qui(p, true)}>+</button>{/if}
+                  aria-label={`Assegna comunque a ${p.nome}: si accavalla con ${ora(t.inizio)}–${ora(t.fine)}`} onclick={() => qui(p, true)}><Icona nome="piu" /></button>{/if}
               </div>
             {/each}
             {#if quelGiorno && !sovr}<button type="button" class="qui-btn" aria-label={`Assegna qui: ${p.nome}`} onclick={() => qui(p, false)}>Assegna qui</button>{/if}
@@ -151,8 +151,9 @@
   .riga-blk { display: flex; gap: 4px; align-items: stretch; min-width: 0; }
   .riga-blk .blk { flex: 1; }
   /* si accavalla: un piccolo + tratteggiato accanto al turno con cui si sovrappone, per assegnare comunque */
-  .piu-acc { width: 24px; flex-shrink: 0; padding: 0; border: 1.5px dashed var(--warn); border-radius: 8px; background: var(--warn-bg); color: var(--warn); font: inherit; font-size: 16px;
+  .piu-acc { width: 24px; flex-shrink: 0; padding: 0; border: 1.5px dashed var(--warn); border-radius: 8px; background: var(--warn-bg); color: var(--warn); font: inherit; display: grid; place-items: center;
     font-weight: 800; line-height: 1; cursor: pointer; }
+  .piu-acc :global(.ic) { width: 16px; height: 16px; }
   .piu-acc:hover { border-style: solid; }
   .qui-btn { flex: 1; min-height: 30px; border: 1.5px dashed var(--cloro); border-radius: 8px; background: var(--cloro-soft); color: var(--cloro-ink); font: inherit; font-size: var(--text-xs);
     font-weight: 700; cursor: pointer; }

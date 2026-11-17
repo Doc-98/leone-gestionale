@@ -55,14 +55,14 @@
     <span class="stato {stato.tono}">{stato.testo}</span>
   </span>
   <span class="azioni-r">
-    <a class="btn btn-secondary btn-sm" href={api.urlPdfRicevuta(r.id)} target="_blank" rel="noopener" onclick={stampata}><Icona nome="stampa" />Stampa</a>
-    <a class="btn btn-secondary btn-sm" href={api.urlPdfRicevuta(r.id, true)} download><Icona nome="scarica" />PDF</a>
+    <a class="btn btn-secondary btn-sm" href={api.urlPdfRicevuta(r.id)} target="_blank" rel="noopener" onclick={stampata}><Icona nome="stampa" />Stampa la ricevuta</a>
+    <a class="btn btn-secondary btn-sm" href={api.urlPdfRicevuta(r.id, true)} download><Icona nome="scarica" />Scarica il PDF</a>
     {#if attiva && puoPagare}
       {#if r.intestatario.email}
         <button type="button" class="btn btn-sm {r.inviataIl ? 'btn-secondary' : 'btn-primary'}" disabled={lavoro} onclick={() => invia()}
-          title={`Manda a ${r.intestatario.email}`}><Icona nome="promemoria" />{r.inviataIl ? 'Rimanda' : 'Manda per email'}</button>
+          title={`Manda a ${r.intestatario.email}`}><Icona nome="promemoria" />{r.inviataIl ? 'Rimanda la ricevuta' : 'Manda per email'}</button>
       {:else if altraEmail === null}
-        <button type="button" class="btn btn-secondary btn-sm" onclick={() => (altraEmail = '')} title="Nella scheda di chi paga non c'è l'email"><Icona nome="promemoria" />Email…</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick={() => (altraEmail = '')} title="Nella scheda di chi paga non c'è l'email"><Icona nome="promemoria" />Manda a un'altra email…</button>
       {/if}
       {#if puoAnnullare && !annulla}
         <button type="button" class="mini-x" aria-label={`Annulla la ${nomeRicevuta(r).toLowerCase()}`} onclick={() => (annulla = { motivo: '', rifai: true })}><Icona nome="annulla" /></button>
@@ -72,7 +72,7 @@
   {#if altraEmail !== null}
     <form class="sotto" onsubmit={(e) => { e.preventDefault(); invia(altraEmail!.trim()); }}>
       <input class="inp" type="email" bind:value={altraEmail} placeholder="Indirizzo email" aria-label="Indirizzo email a cui mandarla" required />
-      <button class="btn btn-primary btn-sm" disabled={lavoro || !altraEmail.includes('@')}>Manda</button>
+      <button class="btn btn-primary btn-sm" disabled={lavoro || !altraEmail.includes('@')}>Manda la ricevuta</button>
       <button type="button" class="btn btn-secondary btn-sm" onclick={() => (altraEmail = null)}>Annulla</button>
     </form>
   {/if}
@@ -84,7 +84,7 @@
       <label class="small spunta"><input type="checkbox" bind:checked={annulla.rifai} /> Rifalla subito con i dati di adesso (prende il numero successivo)</label>
       <span class="riga">
         <button type="button" class="btn btn-secondary btn-sm" onclick={() => (annulla = null)}>Lascia com'è</button>
-        <button class="btn btn-danger btn-sm" disabled={lavoro || !annulla.motivo.trim()}>{annulla.rifai ? 'Annulla e rifai' : 'Annulla'}</button>
+        <button class="btn btn-danger btn-sm" disabled={lavoro || !annulla.motivo.trim()}>{annulla.rifai ? 'Annulla e rifai' : 'Annulla la ricevuta'}</button>
       </span>
     </form>
   {/if}

@@ -1,5 +1,5 @@
 import type { Richiesta, Turno } from './api';
-import { giornoEsteso, ora } from './date';
+import { dataAgenda, giornoEsteso, ora } from './date';
 
 export function quando(t: Turno): string {
   return `${giornoEsteso(t.data)}, ${ora(t.inizio)}–${ora(t.fine)}`;
@@ -28,7 +28,7 @@ export function descrivi(r: Richiesta, io?: string): { titolo: string; dettaglio
     case 'SCAMBIO':
       return {
         titolo: mia ? `Scambio con ${r.collega?.nome ?? '?'}` : rivoltaAMe ? `${r.richiedente.nome} ti propone uno scambio` : `Scambio tra ${r.richiedente.nome} e ${r.collega?.nome ?? '?'}`,
-        dettaglio: `${quando(t)} (${t.postazione}) ↔ ${r.turnoCollega ? `${quando(r.turnoCollega)} (${r.turnoCollega.postazione})` : '?'}`,
+        dettaglio: `${quando(t)} (${t.postazione}) con ${r.turnoCollega ? `${quando(r.turnoCollega)} (${r.turnoCollega.postazione})` : '?'}`,
       };
   }
 }
@@ -43,11 +43,6 @@ export const VISTE_RICHIESTE: { id: VistaRichieste; nome: string }[] = [
 
 export const aperta = (r: Richiesta) => r.stato === 'IN_ATTESA_COLLEGA' || r.stato === 'IN_ATTESA_APPROVAZIONE';
 
-/** «lun 2/11» */
-export function giornoCorto(d: string): string {
-  const x = new Date(`${d}T12:00:00`);
-  return `${['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'][x.getDay()]} ${x.getDate()}/${x.getMonth() + 1}`;
-}
 const nome1 = (n: string) => n.split(' ')[0];
 
 /** I passi di una richiesta: inviata → collega (se serve) → coordinatore, con il punto in cui si trova. */
@@ -73,10 +68,10 @@ export function esito(r: Richiesta, io?: string): { testo: string; tono: 'warn' 
 /** Cosa è successo, in una riga: il giorno e cosa cambia. */
 export function cosaCambia(r: Richiesta, io?: string): string {
   const t = r.turno;
-  if (r.tipo === 'CAMBIO_ORARIO') return `${giornoCorto(t.data)} · ${ora(t.inizio)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}`;
-  if (r.tipo === 'SCAMBIO') return `${giornoCorto(t.data)} ↔ ${r.turnoCollega ? giornoCorto(r.turnoCollega.data) : '?'} · con ${r.richiedente.id === io ? r.collega?.nome ?? '?' : r.richiedente.nome}`;
+  if (r.tipo === 'CAMBIO_ORARIO') return `${dataAgenda(t.data)} · ${ora(t.inizio)} → ${ora(r.nuovoInizio!)}–${ora(r.nuovoFine!)}`;
+  if (r.tipo === 'SCAMBIO') return `${dataAgenda(t.data)} per ${r.turnoCollega ? dataAgenda(r.turnoCollega.data) : '?'} · con ${r.richiedente.id === io ? r.collega?.nome ?? '?' : r.richiedente.nome}`;
   const chi = r.collega ? (r.richiedente.id === io ? `ti ha sostituito ${r.collega.nome}` : r.collega.id === io ? `hai sostituito ${r.richiedente.nome}` : `${r.collega.nome} per ${r.richiedente.nome}`) : 'chiesta a tutti';
-  return `${giornoCorto(t.data)} ${ora(t.inizio)}–${ora(t.fine)} · ${r.stato === 'APPROVATA' ? chi : r.collega ? `chiesta a ${r.collega.nome}` : 'chiesta a tutti'}`;
+  return `${dataAgenda(t.data)} ${ora(t.inizio)}–${ora(t.fine)} · ${r.stato === 'APPROVATA' ? chi : r.collega ? `chiesta a ${r.collega.nome}` : 'chiesta a tutti'}`;
 }
 
 export const NOMI_TIPO: Record<Richiesta['tipo'], string> = { SOSTITUZIONE: 'Sostituzione', SCAMBIO: 'Scambio', CAMBIO_ORARIO: 'Cambio orario' };

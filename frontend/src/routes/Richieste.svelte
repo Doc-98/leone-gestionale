@@ -3,9 +3,9 @@
   import Icona from '../components/Icona.svelte';
   import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type Richiesta, type Turno } from '../lib/api';
-  import { ora } from '../lib/date';
+  import { dataAgenda, formatOre, ora } from '../lib/date';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
-  import { aperta, cosaCambia, esito, giornoCorto, NOMI_TIPO, ordinaDaCoprire, passi, VISTE_RICHIESTE, type VistaRichieste } from '../lib/richieste';
+  import { aperta, cosaCambia, esito, NOMI_TIPO, ordinaDaCoprire, passi, VISTE_RICHIESTE, type VistaRichieste } from '../lib/richieste';
   import { sessione } from '../lib/sessione.svelte';
   import { areaDi } from '../lib/turni';
 
@@ -82,7 +82,7 @@
 </script>
 
 {#snippet miniTurno(t: Turno, di: string)}
-  <span class="mini ar-{areaDi(t.postazione)}">{#if di}<span class="lbl di">{di}</span>{/if}<span class="segno-area"></span><b class="m">{giornoCorto(t.data)} · {ora(t.inizio)}–{ora(t.fine)}</b><span class="muted nome">{t.postazione}</span></span>
+  <span class="mini ar-{areaDi(t.postazione)}">{#if di}<span class="lbl di">{di}</span>{/if}<span class="segno-area"></span><b class="m">{dataAgenda(t.data)} · {ora(t.inizio)}–{ora(t.fine)}</b><span class="muted nome">{t.postazione}</span></span>
 {/snippet}
 
 {#snippet passiDi(r: Richiesta)}
@@ -115,7 +115,7 @@
 
 {#snippet schedaDaCoprire(r: Richiesta)}
   <article class="card scheda ar-{areaDi(r.turno.postazione)}">
-    <span class="riga"><b class="m">{giornoCorto(r.turno.data)} · {ora(r.turno.inizio)}–{ora(r.turno.fine)}</b><span class="grow"></span><span class="m muted small">{Number(r.turno.ore).toLocaleString('it-IT')} h</span></span>
+    <span class="riga"><b class="m">{dataAgenda(r.turno.data)} · {ora(r.turno.inizio)}–{ora(r.turno.fine)}</b><span class="grow"></span><span class="m muted small">{formatOre(Number(r.turno.ore))} h</span></span>
     <span class="riga small"><span class="segno-area"></span>{r.turno.postazione}</span>
     <span class="muted small">Lo chiede {r.richiedente.nome}{r.messaggio ? ` · «${r.messaggio}»` : ''}</span>
     <span class="riga"><span class="grow libero small">Sei libero in quell'orario</span>
@@ -125,7 +125,7 @@
 
 {#snippet rigaOccupato(r: Richiesta)}
   <div class="occupato ar-{areaDi(r.turno.postazione)}">
-    <span class="segno-area"></span><span class="m nowrap">{giornoCorto(r.turno.data)} {ora(r.turno.inizio)}–{ora(r.turno.fine)}</span>
+    <span class="segno-area"></span><span class="m nowrap">{dataAgenda(r.turno.data)} {ora(r.turno.inizio)}–{ora(r.turno.fine)}</span>
     <span class="grow nome">· {r.richiedente.nome}</span><span class="nowrap">sei in turno</span>
   </div>
 {/snippet}
@@ -214,7 +214,7 @@
           <button type="button" class="riga-r" aria-expanded={aperto === r.id} onclick={() => (aperto = aperto === r.id ? null : r.id)}>
             <span class="ico" class:warn-i={scheda === 'perte' || (scheda === 'mie' && e.tono === 'warn')} class:cloro-i={scheda === 'coprire' && !occ}><Icona nome={scheda === 'coprire' ? 'piu' : ICONA[r.tipo]} /></span>
             <span class="grow testo">
-              <b>{scheda === 'perte' ? `${chiChiede(r).nome.split(' ')[0]} ${cosaChiede(r)}` : scheda === 'coprire' ? `${giornoCorto(r.turno.data)} · ${ora(r.turno.inizio)}–${ora(r.turno.fine)}` : NOMI_TIPO[r.tipo]}</b>
+              <b>{scheda === 'perte' ? `${chiChiede(r).nome.split(' ')[0]} ${cosaChiede(r)}` : scheda === 'coprire' ? `${dataAgenda(r.turno.data)} · ${ora(r.turno.inizio)}–${ora(r.turno.fine)}` : NOMI_TIPO[r.tipo]}</b>
               <span class="muted small">{scheda === 'coprire' ? `${r.turno.postazione} · chiede ${r.richiedente.nome}` : cosaCambia(r, io)}</span>
             </span>
             <span class="stato {occ ? 'muted' : e.tono}">{occ ? 'sei in turno' : scheda === 'coprire' ? 'sei libero' : e.testo}</span>

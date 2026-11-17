@@ -2,7 +2,7 @@
   import Icona from '../Icona.svelte';
   import Conferma from '../Conferma.svelte';
   import { api, eAvviso, messaggioErrore, type PersonaStaff, type Postazione, type Richiesta, type Turno } from '../../lib/api';
-  import { giornoEsteso, ora } from '../../lib/date';
+  import { giornoTitolo, ora } from '../../lib/date';
   import { accavallato, candidati, formatH, gruppoDi, testoRiservata, type TurnoBreve } from '../../lib/gestione';
   import { areaDi } from '../../lib/turni';
   import { descriviRichiestaSulTurno } from '../../lib/richieste';
@@ -95,7 +95,7 @@
     <span class="intesta"><span class="lbl grow">{turno ? (turno.persona ? 'Turno' : 'Turno scoperto') : 'Nuovo turno'}</span>
       <button class="x-btn" type="button" aria-label="Chiudi" onclick={chiudi}><Icona nome="chiudi" /></button></span>
   {/if}
-  <h2>{giornoEsteso(data).replace(/^./, (c) => c.toUpperCase())}</h2>
+  <h2>{giornoTitolo(data)}</h2>
   {#if !turno && compatto}
     <label class="field"><span class="lbl">Postazione</span>
       <select class="inp" bind:value={postazioneScelta}>{#each postazioni as p (p.id)}<option value={p.id}>{p.nome}</option>{/each}</select>
@@ -132,7 +132,7 @@
   </div>
   {#if occupati}
     <button type="button" class="mini-btn tratteggio" aria-expanded={mostraOccupati} onclick={() => (mostraOccupati = !mostraOccupati)}>
-      {mostraOccupati ? 'Nascondi chi ha un turno alla stessa ora' : `Mostra anche chi ha un turno alla stessa ora (${occupati})`}</button>
+      {mostraOccupati ? 'Nascondi chi è già in turno' : `Mostra anche chi è già in turno (${occupati})`}</button>
   {/if}
   {#if conflitto && turno?.persona}
     <span class="avviso">{turno.persona.nome} ha anche un turno che si accavalla: {nomePostazioneDi(conflitto.postazioneId)}, {conflitto.inizio}–{conflitto.fine}.</span>

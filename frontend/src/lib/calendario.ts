@@ -3,8 +3,9 @@
  * tutto l'impianto del piano vasca (un evento CHIUSURA senza spazi); un orario ridotto che apre più tardi e chiude
  * prima sono due eventi con lo stesso nome e le stesse date.
  */
+import { quanti } from './plurali';
 import type { Evento } from './api';
-import { aggiungiGiorni, daIso, iso, MESI } from './date';
+import { aggiungiGiorni, dataBreve, daIso, iso, MESI } from './date';
 
 export type TipoChiusura = 'chiuso' | 'ridotto';
 
@@ -44,12 +45,6 @@ export function statoDel(giorno: string, elenco: Voce[]): Voce | undefined {
   return qui.find((v) => v.tipo === 'chiuso') ?? qui[0];
 }
 
-/** «8 dic 2026» */
-export function breve(d: string): string {
-  const x = daIso(d);
-  return `${x.getDate()} ${MESI[x.getMonth()].slice(0, 3)} ${x.getFullYear()}`;
-}
-
 export function giorniTra(dal: string, al: string): number {
   return Math.round((daIso(al).getTime() - daIso(dal).getTime()) / 86_400_000) + 1;
 }
@@ -61,11 +56,11 @@ export function orarioRidotto(v: Pick<Voce, 'apre' | 'chiude'>): string {
   return `chiude alle ${v.chiude ?? '?'}`;
 }
 
-/** «8 dic 2026 · tutto il giorno», «dal 25 dic 2026 al 6 gen 2027 · 13 giorni», «24 dic 2026 · chiude alle 13:00» */
+/** «08/12/2026 · tutto il giorno», «dal 25/12/2026 al 06/01/2027 · 13 giorni», «24/12/2026 · chiude alle 13:00» */
 export function quando(v: Voce): string {
   const coda = v.tipo === 'ridotto' ? orarioRidotto(v) : 'tutto il giorno';
-  if (v.dal === v.al) return `${breve(v.dal)} · ${coda}`;
-  return `dal ${breve(v.dal)} al ${breve(v.al)} · ${giorniTra(v.dal, v.al)} giorni${v.tipo === 'ridotto' ? ` · ${coda}` : ''}`;
+  if (v.dal === v.al) return `${dataBreve(v.dal)} · ${coda}`;
+  return `dal ${dataBreve(v.dal)} al ${dataBreve(v.al)} · ${quanti(giorniTra(v.dal, v.al), 'giorno', 'giorni')}${v.tipo === 'ridotto' ? ` · ${coda}` : ''}`;
 }
 
 export interface Mese {

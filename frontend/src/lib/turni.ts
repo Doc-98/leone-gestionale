@@ -1,5 +1,6 @@
 import type { Richiesta, Turno } from './api';
-import { aggiungiGiorni, GIORNI_BREVI, GIORNI_ESTESI, lunedi, MESI, ora } from './date';
+import { aggiungiGiorni, dataAgenda, GIORNI_BREVI, lunedi, ora } from './date';
+import { quanti } from './plurali';
 
 /**
  * «I miei turni» (mockup di ottobre 2026): tre viste a scelta, la settimana (telefono), il mese e la settimana a colonne
@@ -34,18 +35,17 @@ export function prossimo(turni: Turno[], oggi: string, adessoMin: number): Turno
     .sort((a, b) => a.data.localeCompare(b.data) || a.inizio.localeCompare(b.inizio))[0] ?? null;
 }
 
-/** «in corso», «tra 40 minuti», «tra 2 h», «domani», «sabato 7/11». */
+/** «in corso», «tra 40 minuti», «tra 2 h», «domani», «sab 7/11». */
 export function traQuanto(t: Turno, oggi: string, adessoMin: number): string {
   if (t.data === oggi) {
     const mancano = minuti(t.inizio) - adessoMin;
     if (mancano <= 0) return 'in corso';
-    if (mancano < 60) return `oggi · tra ${mancano} minuti`;
+    if (mancano < 60) return `oggi · tra ${quanti(mancano, 'minuto', 'minuti')}`;
     const h = Math.floor(mancano / 60);
     return `oggi · tra ${h} ${h === 1 ? 'ora' : 'ore'}`;
   }
   if (t.data === aggiungiGiorni(oggi, 1)) return 'domani';
-  const d = new Date(`${t.data}T12:00:00`);
-  return `${GIORNI_ESTESI[d.getDay() === 0 ? 7 : d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
+  return dataAgenda(t.data);
 }
 
 /** I colleghi in turno nello stesso giorno con un orario che si sovrappone (escluso il turno stesso). */
@@ -60,14 +60,6 @@ export function occupato(personaId: string, t: Turno, staff: Turno[]): Turno | n
 }
 
 export const oreTotali = (turni: Turno[]) => turni.filter(attivo).reduce((s, t) => s + Number(t.ore), 0);
-
-/** «26 ottobre – 1 novembre»; con «breve» i mesi a tre lettere quando sono due (per il telefono: niente a capo). */
-export function titoloSettimana(lun: string, breve = false): string {
-  const a = new Date(`${lun}T12:00:00`);
-  const b = new Date(`${aggiungiGiorni(lun, 6)}T12:00:00`);
-  const m = (d: Date) => (breve ? MESI[d.getMonth()].slice(0, 3) : MESI[d.getMonth()]);
-  return a.getMonth() === b.getMonth() ? `${a.getDate()} – ${b.getDate()} ${MESI[a.getMonth()]}` : `${a.getDate()} ${m(a)} – ${b.getDate()} ${m(b)}`;
-}
 
 /** «Giulia, Marco, Sara, Elisa e altri 3»: i colleghi in turno con me, senza riempire lo schermo. */
 export function nomiCon(colleghi: Turno[], quanti = 4): string {

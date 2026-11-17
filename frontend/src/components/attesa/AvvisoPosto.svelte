@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { api, messaggioErrore, type PaginaAttesa, type TurnoPosti, type VoceAttesa } from '../../lib/api';
+  import { quanti } from '../../lib/plurali';
   import { testoAvviso } from '../../lib/attesa';
 
   /**
@@ -44,7 +45,7 @@
     invio = true;
     try {
       await api.avvisataAVoce(voce.id);
-      onfatto(`${chi}: avviso a voce segnato, ha ${pagina.giorniRisposta} giorni per rispondere.`);
+      onfatto(`${chi}: avviso a voce segnato, ha ${quanti(pagina.giorniRisposta, 'giorno', 'giorni')} per rispondere.`);
     } catch (e) {
       errore = messaggioErrore(e);
     } finally {
@@ -61,7 +62,7 @@
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
   <div class="bottoni">
     <button type="button" class="btn btn-secondary" disabled={invio} onclick={aVoce}>Avvisato a voce</button>
-    <button class="btn btn-primary" disabled={invio || !voce.contatti.length || !oggetto.trim() || !testo.trim()}>Invia l'avviso</button>
+    <button class="btn btn-primary" disabled={invio || !voce.contatti.length || !oggetto.trim() || !testo.trim()}>Manda l'avviso</button>
   </div>
 </form>
 

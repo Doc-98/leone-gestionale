@@ -72,8 +72,8 @@
         {#each r.parametri as p (p.nome)}
           <span class="par">
             <span class="unita">{p.etichetta}</span>
-            <input class="inp" type="number" min="0" max={p.max} bind:value={b.valori[p.nome]} disabled={!admin || b.vuoti[p.nome]} aria-label={p.etichetta} />
-            <span class="unita">{p.unita}</span>
+            <span class="campo-u"><input class="inp" type="number" min="0" max={p.max} bind:value={b.valori[p.nome]} disabled={!admin || b.vuoti[p.nome]} aria-label={p.etichetta} />
+              <span class="unita">{p.unita}</span></span>
             {#if p.facoltativo}<label class="se-vuoto"><input type="checkbox" bind:checked={b.vuoti[p.nome]} disabled={!admin} /> {p.seVuoto}</label>{/if}
           </span>
         {/each}
@@ -115,6 +115,7 @@
   .t b { font-size: var(--text-base); font-weight: 600; display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
   .desc { font-size: var(--text-sm); color: var(--muted); }
   .par { display: flex; align-items: center; gap: var(--space-8); margin-top: var(--space-6); flex-wrap: wrap; }
+  .campo-u { display: inline-flex; align-items: center; gap: var(--space-8); white-space: nowrap; }
   .par .inp { width: 70px; height: 36px; text-align: center; font-family: var(--font-mono); }
   .se-vuoto { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
   .se-vuoto input { width: 18px; height: 18px; }

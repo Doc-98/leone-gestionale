@@ -61,7 +61,7 @@
             <Conferma class="btn btn-secondary" domanda="Annulla?" onclick={azioni.ripristina}>Annulla lo spostamento</Conferma>
           {/if}
         {:else if o.stato === 'REGOLARE'}
-          <button class="btn btn-secondary" onclick={azioni.saltaOSposta}><Icona nome="oggi" />Salta o sposta questa data…</button>
+          <button class="btn btn-secondary" onclick={azioni.saltaOSposta}><Icona nome="oggi" />Salta o sposta questa lezione…</button>
         {/if}
         <button class="btn btn-secondary" onclick={azioni.apriCorso}><Icona nome="corsi" />Apri il corso</button>
       {:else if o.stato !== 'ANNULLATO'}

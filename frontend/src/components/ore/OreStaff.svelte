@@ -1,7 +1,10 @@
 <script lang="ts">
   import Icona from '../Icona.svelte';
+  import Azione from '../Azione.svelte';
   import { api, type GruppoRiepilogo, type Riepilogo } from '../../lib/api';
-  import { euro, formatOre } from '../../lib/date';
+  import { formatOre } from '../../lib/date';
+  import { euro, euroColonna } from '../../lib/numeri';
+  import { quanti as nQuanti } from '../../lib/plurali';
 
   /**
    * Le ore dello staff (variante C del mockup, ADR 0022): i gruppi che l'utente vede, uno o tutti insieme. Con più gruppi,
@@ -30,7 +33,7 @@
   const variazione = $derived(!gruppo && prima && prima.totaleCompenso > 0 ? Math.round(((tutti.totaleCompenso - prima.totaleCompenso) / prima.totaleCompenso) * 100) : null);
   const quota = (g: GruppoRiepilogo) => (tutti.totaleOre ? (g.ore / tutti.totaleOre) * 100 : 0);
   const notaGruppo = (g: GruppoRiepilogo) =>
-    g.turniScoperti ? `${g.turniScoperti} ${g.turniScoperti === 1 ? 'turno scoperto' : 'turni scoperti'}`
+    g.turniScoperti ? nQuanti(g.turniScoperti, 'turno scoperto', 'turni scoperti')
     : g.tariffeMancanti ? `${g.tariffeMancanti === 1 ? '1 persona' : `${g.tariffeMancanti} persone`} senza tariffa` : 'tutto in ordine';
   const iniziali = (n: string) => n.split(' ').map((x) => x[0]).join('').slice(0, 2);
   const scegli = (id: string | null) => {
@@ -50,7 +53,7 @@
 
 <div class="tiles">
   <div class="tile hero-t"><span class="lbl">Ore</span><span class="v">{formatOre(r.totaleOre)} h</span>
-    <span class="n">{gruppo ? `${tutti.totaleOre ? Math.round((r.totaleOre / tutti.totaleOre) * 100) : 0}% di tutte le ore` : piuGruppi ? `${tutti.gruppi.length} gruppi` : `${r.righe.reduce((s, x) => s + x.turni, 0)} turni`}</span></div>
+    <span class="n">{gruppo ? `${tutti.totaleOre ? Math.round((r.totaleOre / tutti.totaleOre) * 100) : 0}% di tutte le ore` : piuGruppi ? `${tutti.gruppi.length} gruppi` : nQuanti(r.righe.reduce((s, x) => s + x.turni, 0), 'turno', 'turni')}</span></div>
   <div class="tile"><span class="lbl">Compensi</span><span class="v">{euro(r.totaleCompenso)}</span>
     <span class="n">{variazione != null ? `${variazione >= 0 ? '+' : ''}${variazione}% rispetto al mese prima` : 'nel mese'}</span></div>
   <div class="tile" class:arancio={senzaTariffa > 0}><span class="lbl">Persone</span><span class="v">{r.righe.length}</span>
@@ -61,8 +64,8 @@
 
 <div class="barra">
   <span class="grow"></span>
-  {#if r.righe.length}<a class="btn btn-secondary btn-sm" href={api.urlFogliOreTutti(mese, gruppo)} download><Icona nome="scarica" />{scelto ? `Fogli ore · ${scelto.nome} (.zip)` : 'Tutti i fogli ore (.zip)'}</a>{/if}
-  <a class="btn btn-secondary btn-sm" href={api.urlCsv(mese, gruppo)} download><Icona nome="scarica" />Riepilogo per l'amministrazione (CSV)</a>
+  {#if r.righe.length}<a class="btn btn-secondary btn-sm" href={api.urlFogliOreTutti(mese, gruppo)} download><Icona nome="scarica" />Scarica i fogli ore (.zip)</a>{/if}
+  <a class="btn btn-secondary btn-sm" href={api.urlCsv(mese, gruppo)} download><Icona nome="scarica" />Scarica il riepilogo (.csv)</a>
 </div>
 
 {#if piuGruppi && !gruppo}
@@ -76,7 +79,7 @@
           <span class="muted small nome">{g.coordinatori.length ? g.coordinatori.join(', ') : '—'}</span>
           <span class="m">{g.persone}</span>
           <span class="m dx">{formatOre(g.ore)} h</span>
-          <span class="m dx">{euro(g.compenso)}</span>
+          <span class="m dx">{euroColonna(g.compenso)}</span>
           <span class="quota"><i style:width="{quota(g)}%"></i></span>
           <Icona nome="dx" />
         </button>
@@ -100,19 +103,19 @@
           <span class="small muted nome">{piuGruppi && !gruppo ? p.gruppo ?? '—' : p.voci.map((v) => v.mansione).join(', ')}</span>
           <span class="m">{p.turni}</span>
           <span class="m dx">{formatOre(p.ore)} h</span>
-          <span class="m dx" class:warn={p.tariffaMancante}>{p.tariffaMancante ? 'manca tariffa' : euro(p.compenso)}</span>
+          <span class="m dx" class:warn={p.tariffaMancante}>{p.tariffaMancante ? 'manca tariffa' : euroColonna(p.compenso)}</span>
           <Icona nome="dx" />
         </button>
         {#if aperto === p.persona.id}
           <div class="dett">
             <span class="voci-ore">
               {#each p.voci as v (v.mansione + v.euroOra)}
-                <span class="m small">{v.mansione}: {formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : `${euro(v.euroOra)} = ${euro(v.compenso)}`}</span>
+                <span class="m small">{v.mansione}: {formatOre(v.ore)} h × {v.euroOra == null ? 'tariffa mancante' : `${euroColonna(v.euroOra)} = ${euroColonna(v.compenso)}`}</span>
               {/each}
             </span>
             <span class="azioni">
               {#if p.tariffaMancante && puoTariffe}<a class="btn btn-primary btn-sm" href="#/postazioni">Imposta la tariffa</a>{/if}
-              <a class="btn btn-secondary btn-sm" href={api.urlFoglioOrePersona(p.persona.id, mese)} download><Icona nome="scarica" />Foglio ore</a>
+              <Azione icona="scarica" href={api.urlFoglioOrePersona(p.persona.id, mese)} download etichetta={`Scarica il foglio ore di ${p.persona.nome} (.xlsx)`} />
             </span>
           </div>
         {/if}
@@ -121,7 +124,7 @@
       <p class="muted small vuoto">{cerca ? 'Nessuno con questo nome.' : 'Nessun turno nel mese.'}</p>
     {/each}
     {#if persone.length > quanti}<button type="button" class="altri" onclick={() => (quanti = persone.length)}>Mostra tutte le {persone.length} persone</button>{/if}
-    <div class="gp totale"><span>Totale</span><span></span><span class="m">{r.righe.reduce((s, x) => s + x.turni, 0)}</span><span class="m dx">{formatOre(r.totaleOre)} h</span><span class="m dx">{euro(r.totaleCompenso)}</span><span></span></div>
+    <div class="gp totale"><span>Totale</span><span></span><span class="m">{r.righe.reduce((s, x) => s + x.turni, 0)}</span><span class="m dx">{formatOre(r.totaleOre)} h</span><span class="m dx">{euroColonna(r.totaleCompenso)}</span><span></span></div>
   </div>
 </section>
 

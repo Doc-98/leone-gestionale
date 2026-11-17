@@ -6,9 +6,9 @@
   import {
     api, cassaDelComputer, ErroreApi, messaggioErrore, scegliCassaDelComputer, type EsitoConfronto, type PaginaCassa, type SessioneCassa, type TipoMovimentoCassa,
   } from '../../lib/api';
-  import { conSegno, esitoDifferenza, lasciatoProposto, MOVIMENTI, numeroDa, oltreTolleranza, serveAprire, spiegaFondo, statoDaMostrare } from '../../lib/cassa';
-  import { dataBreve, dataDi, iso, oraDi } from '../../lib/date';
-  import { euro } from '../../lib/listino';
+  import { conSegno, esitoDifferenza, lasciatoProposto, MOVIMENTI, oltreTolleranza, serveAprire, spiegaFondo, statoDaMostrare } from '../../lib/cassa';
+  import { dataBreve, dataDi, dataOraFrase, iso, oraDi } from '../../lib/date';
+  import { euro, euroColonna, numeroDa, perCampo } from '../../lib/numeri';
   import { sessione } from '../../lib/sessione.svelte';
 
   /**
@@ -140,7 +140,7 @@
   const riapriCassa = (id: string) => fai(() => api.riapriCassa(id, riapri!.trim()), () => { riapri = null; fatta = null; });
 
   const nomeTipo = (t: TipoMovimentoCassa) => MOVIMENTI.find((m) => m.id === t)!;
-  const quando = (i: string) => (dataDi(i) === iso(new Date()) ? `alle ${oraDi(i)}` : `${dataBreve(dataDi(i))} alle ${oraDi(i)}`);
+  const quando = (i: string) => (dataDi(i) === iso(new Date()) ? `alle ${oraDi(i)}` : dataOraFrase(i));
   const nome1 = (n: string | null | undefined) => (n ? n.split(' ')[0] : '');
 </script>
 
@@ -185,7 +185,7 @@
       {/if}
       <span class="bottoni">
         <a class="btn btn-secondary btn-sm" href={api.urlPdfChiusura(fatta.id!)} target="_blank" rel="noopener"><Icona nome="stampa" />Stampa il riepilogo</a>
-        <button type="button" class="btn btn-quieto btn-sm" onclick={() => (fatta = null)}>Va bene</button>
+        <Azione icona="chiudi" cornice etichetta="Chiudi il riepilogo" onclick={() => (fatta = null)} />
       </span>
     </div>
   {/if}
@@ -214,7 +214,7 @@
     {#if passo !== 'confronto'}
       <!-- il riepilogo del turno: alla cieca senza importi -->
       <div class="turno" aria-label="Riepilogo del turno">
-        <div class="turno-t"><span class="lbl">{stato.aperta && s.esplicita ? 'Nel tuo turno' : 'Dall\'ultima chiusura'}</span><span class="muted small">dal {dataBreve(dataDi(s.dal))} {oraDi(s.dal)}</span></div>
+        <div class="turno-t"><span class="lbl">{stato.aperta && s.esplicita ? 'Nel tuo turno' : 'Dall\'ultima chiusura'}</span><span class="muted small">dal {dataBreve(dataDi(s.dal))} alle {oraDi(s.dal)}</span></div>
         <div class="turno-g">
           <span class="cifra"><b class="m">{euro(c.fondo)}</b><span>fondo di partenza</span></span>
           {#if s.nascosti}
@@ -230,7 +230,7 @@
         {#each movimenti as m (m.id)}
           <span class="mov"><span class="grow"><b>{nomeTipo(m.tipo).nome}</b>{m.descrizione !== nomeTipo(m.tipo).nome ? ` · ${m.descrizione}` : ''}
             <span class="muted small"> · {oraDi(m.registratoIl)}{m.registratoDa ? `, ${nome1(m.registratoDa)}` : ''}</span></span>
-            <span class="m imp-mov">{nomeTipo(m.tipo).segno}{euro(m.importo)}</span>
+            <span class="m imp-mov">{nomeTipo(m.tipo).segno}{euroColonna(m.importo)}</span>
             <Azione icona="annulla" etichetta={`Annulla ${nomeTipo(m.tipo).nome.toLowerCase()} di ${euro(m.importo)}`} conferma="Annulla?" disabled={lavoro}
               onclick={() => fai(() => api.annullaMovimentoCassa(m.id), () => (fatto = `${nomeTipo(m.tipo).nome} di ${euro(m.importo)}: annullato.`))} /></span>
         {/each}
@@ -246,7 +246,7 @@
         <ul class="voci-cassa">
           {#each s.contanti as v (v.id + v.tipo)}
             <li class:fuori={v.aCassaChiusa}><span class="m ora">{oraDi(v.istante)}</span><span class="grow tronca">{v.chi ?? ''} <span class="muted">· {v.descrizione}{v.operatore ? ` · ${nome1(v.operatore)}` : ''}</span></span>
-              <span class="m" class:rosso={v.tipo === 'USCITA'}>{v.tipo === 'USCITA' ? '−' : ''}{euro(v.importo)}</span></li>
+              <span class="m" class:rosso={v.tipo === 'USCITA'}>{v.tipo === 'USCITA' ? '−' : ''}{euroColonna(v.importo)}</span></li>
           {/each}
         </ul>
       {/if}
@@ -262,12 +262,12 @@
             <input class="inp grow" bind:value={mov.descrizione} maxlength="200" placeholder={mov.tipo === 'SPESA' ? 'Per cosa (es. cancelleria)' : 'Nota (facoltativa)'} aria-label="Descrizione" />
           </span>
           <span class="bottoni">
-            <button class="btn btn-primary btn-sm" disabled={lavoro || !numeroDa(mov.importo)}>Registra</button>
+            <button class="btn btn-primary btn-sm" disabled={lavoro || !numeroDa(mov.importo)}>Registra il movimento</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick={() => (mov = null)}>Annulla</button>
           </span>
         </form>
       {:else if !daAprire}
-        <button type="button" class="btn btn-quieto btn-sm sx" onclick={() => (mov = { tipo: 'VERSAMENTO', importo: '', descrizione: '' })}><Icona nome="piu" />Soldi tolti o messi a mano</button>
+        <button type="button" class="btn btn-quieto btn-sm sx" onclick={() => (mov = { tipo: 'VERSAMENTO', importo: '', descrizione: '' })}><Icona nome="piu" />Registra un movimento…</button>
       {/if}
     {/if}
 
@@ -276,13 +276,13 @@
         {@const ce = esito.sessione.conti}
         <!-- 2 · il confronto: adesso si vedono gli attesi -->
         <div class="conti">
-          <span class="riga"><span>Fondo cassa</span><span class="m imp">{euro(ce.fondo)}</span></span>
-          <span class="riga"><span>+ Contanti incassati</span><span class="m imp">{euro(ce.entrati ?? 0)}</span></span>
-          {#if ce.usciti}<span class="riga"><span>− Contanti restituiti</span><span class="m imp">{euro(ce.usciti)}</span></span>{/if}
-          {#if ce.versamenti}<span class="riga"><span>− Versamenti</span><span class="m imp">{euro(ce.versamenti)}</span></span>{/if}
-          {#if ce.spese}<span class="riga"><span>− Spese</span><span class="m imp">{euro(ce.spese)}</span></span>{/if}
-          {#if ce.aggiunte}<span class="riga"><span>+ Aggiunte</span><span class="m imp">{euro(ce.aggiunte)}</span></span>{/if}
-          <span class="riga tot"><span>Attesi in cassa</span><span class="m imp">{euro(ce.attesi ?? 0)}</span></span>
+          <span class="riga"><span>Fondo cassa</span><span class="m imp">{euroColonna(ce.fondo)}</span></span>
+          <span class="riga"><span>+ Contanti incassati</span><span class="m imp">{euroColonna(ce.entrati ?? 0)}</span></span>
+          {#if ce.usciti}<span class="riga"><span>− Contanti restituiti</span><span class="m imp">{euroColonna(ce.usciti)}</span></span>{/if}
+          {#if ce.versamenti}<span class="riga"><span>− Versamenti</span><span class="m imp">{euroColonna(ce.versamenti)}</span></span>{/if}
+          {#if ce.spese}<span class="riga"><span>− Spese</span><span class="m imp">{euroColonna(ce.spese)}</span></span>{/if}
+          {#if ce.aggiunte}<span class="riga"><span>+ Aggiunte</span><span class="m imp">{euroColonna(ce.aggiunte)}</span></span>{/if}
+          <span class="riga tot"><span>Attesi in cassa</span><span class="m imp">{euroColonna(ce.attesi ?? 0)}</span></span>
           <label class="riga"><span>Contati</span><input class="inp m piccolo" inputmode="decimal" bind:value={contati} aria-label="Contati" /></label>
         </div>
         {#if esito.primoConteggio != null && contatiN != null && Math.round(esito.primoConteggio * 100) !== Math.round(contatiN * 100)}
@@ -293,7 +293,7 @@
         <div class="chiudi-c">
           <div class="lbl-r"><span class="lbl">Contati</span>
             <button type="button" class="link" aria-expanded={tagli} onclick={() => (tagli = !tagli)}>{tagli ? 'Scrivi il totale' : 'Conta per tagli'}</button></div>
-          {#if tagli}<ContaTagli bind:pezzi totale={(t) => (contati = t ? String(t).replace('.', ',') : '')} />{/if}
+          {#if tagli}<ContaTagli bind:pezzi totale={(t) => (contati = t ? perCampo(t) : '')} />{/if}
           <input class="inp m grande" inputmode="decimal" bind:value={contati} readonly={tagli} placeholder="Quanto c'è nel cassetto" aria-label="Contati" />
         </div>
       {/if}
@@ -328,17 +328,17 @@
             {#if oltre}<small>Più della differenza tollerata ({euro(imp.tolleranza)}): riconta, o scrivi cosa è successo.{imp.controllo !== 'NESSUNA' ? ' La chiusura andrà controllata da un responsabile.' : ''}</small>
             {:else if diff !== 0}<small>Entro i {euro(imp.tolleranza)} tollerati{imp.controllo === 'OLTRE' ? ': non serve il controllo' : ''}.</small>{/if}
           </div>
-          {#if oltre && cieca}<button type="button" class="btn btn-secondary btn-sm sx" onclick={riconta}><Icona nome="aggiorna" />Riconta</button>{/if}
+          {#if oltre && cieca}<button type="button" class="btn btn-secondary btn-sm sx" onclick={riconta}><Icona nome="aggiorna" />Riconta il cassetto</button>{/if}
         {/if}
         {#if contatiN != null}
           <div class="lascia">
             {#if imp.fondo === 'FISSO'}
-              <span class="riga"><span>Resta il fondo</span><span class="m imp">{euro(lasciatoN ?? 0)}</span></span>
+              <span class="riga"><span>Resta il fondo</span><span class="m imp">{euroColonna(lasciatoN ?? 0)}</span></span>
             {:else}
               <label class="riga"><span>Lasci per la prossima volta</span>
                 <input class="inp m piccolo" inputmode="decimal" bind:value={lasciato} placeholder={euro(lasciatoN ?? 0)} aria-label="Lasci in cassa" /></label>
             {/if}
-            <span class="riga"><span>Da versare{imp.banca ? ' (in cassaforte)' : ' (banca, cassaforte)'}</span><span class="m imp">{euro(Math.max(0, contatiN - (lasciatoN ?? 0)))}</span></span>
+            <span class="riga"><span>Da versare{imp.banca ? ' (in cassaforte)' : ' (banca, cassaforte)'}</span><span class="m imp">{euroColonna(Math.max(0, contatiN - (lasciatoN ?? 0)))}</span></span>
           </div>
           <label class="campo-n"><span class="small">{nonTorna ? 'Cosa è successo (obbligatorio: la cassa non torna)' : 'Nota (facoltativa)'}</span>
             <textarea class="inp nota-i" bind:value={note} maxlength="500" placeholder={nonTorna ? 'Es. resto sbagliato a un cliente alle 18:20' : ''} aria-label="Nota della chiusura"></textarea></label>
@@ -365,7 +365,7 @@
         <form class="riapri" onsubmit={(ev) => { ev.preventDefault(); riapriCassa(u.id!); }}>
           <span class="small">Si riapre l'ultima chiusura (es. contati sbagliati): i soldi passati dopo finiscono in questa. Resta la nota con chi e perché.</span>
           <input class="inp" bind:value={riapri} maxlength="300" placeholder="Perché la riapri" aria-label="Perché riapri la cassa" />
-          <span class="bottoni"><button class="btn btn-danger btn-sm" disabled={lavoro || !riapri.trim()}>Riapri</button>
+          <span class="bottoni"><button class="btn btn-danger btn-sm" disabled={lavoro || !riapri.trim()}>Riapri la cassa</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick={() => (riapri = null)}>Lascia chiusa</button></span>
         </form>
       {/if}

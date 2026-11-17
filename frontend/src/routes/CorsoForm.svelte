@@ -94,7 +94,7 @@
     </label>
   {/if}
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
-  <button class="btn btn-primary" disabled={lavoro}>{corso ? 'Salva' : 'Crea il corso'}</button>
+  <button class="btn btn-primary" disabled={lavoro}>{corso ? 'Salva il corso' : 'Crea il corso'}</button>
 </form>
 
 <style>

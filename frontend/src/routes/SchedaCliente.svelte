@@ -9,7 +9,8 @@
     type Restituzione, type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type Sesso, type StatoCreditiBraccialetto,
   } from '../lib/api';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { euro, importoNonValido, numeroDa } from '../lib/numeri';
+  import { crediti as nCrediti, quanti } from '../lib/plurali';
   import { lettoreChip, lettoreSimulato } from '../lib/chip.svelte';
   import { leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
   import { sessione } from '../lib/sessione.svelte';
@@ -133,7 +134,7 @@
   async function smarrito(b: Braccialetto) {
     let persi = 0;
     const ok = await esegui(async () => (persi = (await api.statoBraccialetto(b.id, 'SMARRITO')).creditiPersi), `${b.codice} segnato come smarrito: al tornello darà rosso.`);
-    if (ok && persi > 0) messaggio = `${b.codice} segnato come smarrito: al tornello darà rosso. ${persi} crediti di phon e docce persi (regola della società).`;
+    if (ok && persi > 0) messaggio = `${b.codice} segnato come smarrito: al tornello darà rosso. ${nCrediti(persi)} di phon e docce persi (regola della società).`;
   }
 
   // ── Riconsegna ────────────────────────────────────────────────────────
@@ -190,7 +191,7 @@
     if (ok && esito) {
       const dove = (m: string | null) => (m === 'DENARO' ? 'in denaro' : 'nel borsellino');
       const parti = [esito.cauzione > 0 ? `cauzione di ${euro(esito.cauzione)} restituita ${dove(esito.modoCauzione)}` : esito.modoCauzione === 'TRATTIENI' ? 'cauzione trattenuta' : '',
-        esito.crediti > 0 ? `${esito.crediti} crediti rimborsati ${dove(esito.modoCrediti)} (${euro(esito.valoreCrediti)})` : ''].filter(Boolean);
+        esito.crediti > 0 ? `${nCrediti(esito.crediti)} rimborsati ${dove(esito.modoCrediti)} (${euro(esito.valoreCrediti)})` : ''].filter(Boolean);
       const azzerato = await azzeraChip(b);
       messaggio = `${b.codice} riconsegnato${parti.length ? ': ' + parti.join(', ') : ''}.${azzerato}`;
       riconsegna = null;
@@ -330,8 +331,8 @@
   const salvaAbbonamento = async () => {
     const a = abbonamento!;
     const ok = await esegui(() => api.nuovoAbbonamento(id, a.tipo === 'CORSO'
-      ? { tipo: 'CORSO', corsoId: a.corsoId, volteASettimana: a.volte, dal: a.dal, al: a.al || null, importo: numero(a.importo) }
-      : { tipo: 'CARNET', ingressi: numero(a.ingressi), corsoId: a.aOrario ? a.corsoId : null, dal: a.dal, al: a.al || null, importo: numero(a.importo) }), 'Abbonamento registrato.');
+      ? { tipo: 'CORSO', corsoId: a.corsoId, volteASettimana: a.volte, dal: a.dal, al: a.al || null, importo: numeroDa(String(a.importo ?? '')) }
+      : { tipo: 'CARNET', ingressi: numero(a.ingressi), corsoId: a.aOrario ? a.corsoId : null, dal: a.dal, al: a.al || null, importo: numeroDa(String(a.importo ?? '')) }), 'Abbonamento registrato.');
     if (ok) abbonamento = null;
   };
 
@@ -479,7 +480,7 @@
       </div>
       <div class="kpi">
         <span class="lbl">Phon e docce</span>
-        <span class="val m">{borsellino ? `${borsellino.saldo.crediti} crediti` : '…'}</span>
+        <span class="val m">{borsellino ? nCrediti(borsellino.saldo.crediti) : '…'}</span>
         <span class="kpi-nota">{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span>
       </div>
       <div class="kpi" class:warn={!braccialetto || braccialetto.stato !== 'ATTIVO'}>
@@ -491,7 +492,7 @@
 
     <div class="r-azioni">
       {#if puoPagare}
-        <button class="btn btn-primary" disabled={!conto || !qualcosaDaPagare} title={conto && !qualcosaDaPagare ? 'Niente da pagare' : undefined} onclick={registraPagamento}><Icona nome="euro" />Registra pagamento…</button>
+        <button class="btn btn-primary" disabled={!conto || !qualcosaDaPagare} title={conto && !qualcosaDaPagare ? 'Niente da pagare' : undefined} onclick={registraPagamento}><Icona nome="euro" />Registra un pagamento…</button>
       {/if}
       <button class="btn btn-secondary" onclick={() => { vai('corsi'); abbonamento = null; vendita = true; }}><Icona nome="piu" />Nuovo abbonamento…</button>
       {#if puoRicaricare}<button class="btn btn-secondary" onclick={ricaricaCrediti}><Icona nome="macchine" />Ricarica crediti…</button>{/if}
@@ -594,8 +595,8 @@
           <label class="field"><span class="lbl">Note</span><textarea class="inp note" rows="3" bind:value={anag.note} maxlength="1000"></textarea></label>
           <p class="muted small nomargin">Solo ciò che serve: niente documenti d'identità o dati sanitari (il certificato va nel suo riquadro).</p>
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (anag = null)}>Annulla</button>
-            <button class="btn btn-primary grow" disabled={!anag.nome.trim() || !anag.cognome.trim()}>Salva</button>
+            <button type="button" class="btn btn-secondary" onclick={() => (anag = null)}>Annulla</button>
+            <button class="btn btn-primary grow" disabled={!anag.nome.trim() || !anag.cognome.trim()}>Salva l'anagrafica</button>
           </div>
         </form>
       {:else}
@@ -615,14 +616,14 @@
                           onclick={() => esegui(() => api.verificaAppartenenza(g.appartenenzaId), `«${g.nome}» verificato.`)}>Verifica</button>
                 {/if}
                 <Conferma class="togli" etichetta={`Rimuovi dal gruppo ${g.nome}`} title="Rimuovi dal gruppo" domanda="Rimuovi?"
-                          onclick={() => esegui(() => api.togliDalGruppo(g.appartenenzaId), `Tolto dal gruppo «${g.nome}».`)}><Icona nome="chiudi" /></Conferma>
+                          onclick={() => esegui(() => api.togliDalGruppo(g.appartenenzaId), `Rimosso dal gruppo «${g.nome}».`)}><Icona nome="chiudi" /></Conferma>
               </span>
             {:else}
               <span class="muted">—</span>
             {/each}
             {#if gruppiLiberi.length}
               <select class="inp scegli-gruppo" bind:value={nuovoGruppo} onchange={aggiungiGruppo} aria-label="Aggiungi a un gruppo">
-                <option value="">+ gruppo</option>
+                <option value="">Aggiungi a un gruppo…</option>
                 {#each gruppiLiberi as g (g.id)}<option value={g.id}>{g.nome}</option>{/each}
               </select>
             {/if}
@@ -677,13 +678,13 @@
                     {@const r = riconsegna}
                     <div class="chip-ric">
                       {#if r.saldoChip === 'letto'}
-                        <span class="small">Sul braccialetto: <strong>{r.letti} crediti</strong>, si rimborsano questi.</span>
+                        <span class="small">Sul braccialetto: <strong>{nCrediti(r.letti ?? 0)}</strong>, si rimborsano questi.</span>
                       {:else}
                         <span class="small">I crediti veri sono sul braccialetto: leggili prima di rimborsarli.</span>
                         <span class="row">
-                          {#if lettoreRiconsegna}<button type="button" class="mini-btn pieno" onclick={() => leggiPerRiconsegna(b, false)}><Icona nome="nfc" />Leggi</button>{/if}
+                          {#if lettoreRiconsegna}<button type="button" class="mini-btn pieno" onclick={() => leggiPerRiconsegna(b, false)}><Icona nome="nfc" />Leggi i crediti</button>{/if}
                           <input class="inp m corto" type="number" min="0" step="1" bind:value={r.display} placeholder="Dal display" aria-label="Crediti mostrati dalla macchina" />
-                          <button type="button" class="mini-btn" disabled={r.display === '' || Number(r.display) < 0} onclick={() => leggiPerRiconsegna(b, true)}>Usa questi</button>
+                          <button type="button" class="mini-btn" disabled={r.display === '' || Number(r.display) < 0} onclick={() => leggiPerRiconsegna(b, true)}>Usa questi crediti</button>
                         </span>
                         <label class="small spunta"><input type="checkbox" checked={r.saldoChip === 'ultimo'} onchange={(e) => (r.saldoChip = e.currentTarget.checked ? 'ultimo' : 'da_leggere')} />
                           Non riesco a leggerlo: rimborsa l'ultimo saldo visto (potrebbe essere più alto del vero)</label>
@@ -705,8 +706,8 @@
                   </label>
                 {/if}
                 <div class="row">
-                  <button type="button" class="btn btn-secondary grow" onclick={() => (riconsegna = null)}>Annulla</button>
-                  <button class="btn btn-primary grow" disabled={riconsegna.crediti && riconsegna.saldoChip === 'da_leggere'}>Riconsegnato</button>
+                  <button type="button" class="btn btn-secondary" onclick={() => (riconsegna = null)}>Annulla</button>
+                  <button class="btn btn-primary grow" disabled={riconsegna.crediti && riconsegna.saldoChip === 'da_leggere'}>Registra la riconsegna</button>
                 </div>
               </form>
             {:else if b.stato !== 'DISATTIVATO' && b.stato !== 'RESTITUITO'}
@@ -728,12 +729,12 @@
       </ul>
       <form class="aggiungi" onsubmit={(e) => { e.preventDefault(); assegna(); }}>
         <span class="lbl">Assegna un braccialetto</span>
+        <input class="inp m" bind:value={nuovoCodice} placeholder="Codice o lettore" aria-label="Codice del nuovo braccialetto" autocomplete="off" />
         <div class="row">
-          <input class="inp m grow" bind:value={nuovoCodice} placeholder="Codice o lettore" aria-label="Codice del nuovo braccialetto" autocomplete="off" />
           {#if nfcDisponibile()}
-            <button type="button" class="btn btn-secondary" onclick={leggiNfc} disabled={nfcAttivo}>{nfcAttivo ? 'Avvicina…' : 'NFC'}</button>
+            <button type="button" class="btn btn-secondary" onclick={leggiNfc} disabled={nfcAttivo}>{nfcAttivo ? 'Avvicina…' : 'Leggi con NFC'}</button>
           {/if}
-          <button class="btn btn-primary" disabled={normalizzaCodice(nuovoCodice).length < 4}>Assegna</button>
+          <button class="btn btn-primary grow" disabled={normalizzaCodice(nuovoCodice).length < 4}>Assegna il braccialetto</button>
         </div>
         {#if regole && regole.cauzione > 0}
           <label class="small spunta"><input type="checkbox" bind:checked={conCauzione} /> Addebita la cauzione ({euro(regole.cauzione)}): si restituisce alla riconsegna</label>
@@ -775,7 +776,7 @@
           <input class="inp" bind:value={banPersona.motivo} placeholder="Motivo" aria-label="Motivo del ban" />
           <label class="field"><span class="lbl">Fino al (vuoto: finché non si revoca)</span><input class="inp" type="date" bind:value={banPersona.al} min={oggi} /></label>
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (banPersona = null)}>Annulla</button>
+            <button type="button" class="btn btn-secondary" onclick={() => (banPersona = null)}>Annulla</button>
             <button class="btn {banPersona.tipo === 'BAN' ? 'btn-danger' : 'btn-primary'} grow" disabled={!banPersona.motivo.trim()}>{banPersona.tipo === 'BAN' ? 'Banna la persona' : 'Metti sotto controllo'}</button>
           </div>
         </form>
@@ -783,7 +784,7 @@
         <form class="modulo" onsubmit={(e) => { e.preventDefault(); esegui(() => api.goldenPass(id, golden!.motivo, null), 'Golden pass attivato.').then((ok) => ok && (golden = null)); }}>
           <input class="inp" bind:value={golden.motivo} placeholder="Motivo (es. tornellista)" aria-label="Motivo del golden pass" />
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (golden = null)}>Annulla</button>
+            <button type="button" class="btn btn-secondary" onclick={() => (golden = null)}>Annulla</button>
             <button class="btn btn-primary grow">Attiva il golden pass</button>
           </div>
         </form>
@@ -823,8 +824,8 @@
           </div>
           <label class="field"><span class="lbl">Valido fino al (vuoto: finché non si revoca)</span><input class="inp" type="date" bind:value={permesso.al} min={oggi} /></label>
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (permesso = null)}>Annulla</button>
-            <button class="btn btn-primary grow" disabled={permesso.tipo === 'USCITA_AUTONOMA' && !permesso.firmataDa.trim()}>Registra</button>
+            <button type="button" class="btn btn-secondary" onclick={() => (permesso = null)}>Annulla</button>
+            <button class="btn btn-primary grow" disabled={permesso.tipo === 'USCITA_AUTONOMA' && !permesso.firmataDa.trim()}>Registra il permesso</button>
           </div>
         </form>
       {/if}
@@ -863,8 +864,8 @@
             <label class="field"><span class="lbl">Scade il</span><input class="inp" type="date" bind:value={certificato.scadenza} /></label>
           </div>
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (certificato = null)}>Annulla</button>
-            <button class="btn btn-primary grow" disabled={!certificato.scadenza}>Registra</button>
+            <button type="button" class="btn btn-secondary" onclick={() => (certificato = null)}>Annulla</button>
+            <button class="btn btn-primary grow" disabled={!certificato.scadenza}>Registra il certificato</button>
           </div>
         </form>
       {/if}
@@ -878,7 +879,7 @@
       <ul class="righe">
         {#each cliente.tesseramenti as t (t.id)}
           <li class="voce-l">
-            <span class="grow"><strong>{t.stagione}</strong> · {dataBreve(t.dal)} – {dataBreve(t.al)}{t.importo != null ? ` · ${t.importo} €` : ''}</span>
+            <span class="grow"><strong>{t.stagione}</strong> · {dataBreve(t.dal)} – {dataBreve(t.al)}{t.importo != null ? ` · ${euro(t.importo)}` : ''}</span>
             {#if t.importo}<span class="tag {t.pagatoIl ? 't-soft' : 't-warn'}">{t.pagatoIl ? `Quota pagata il ${dataBreve(t.pagatoIl)}` : 'Quota da pagare'}</span>{/if}
             <span class="tag {t.valido ? 't-soft' : 't-altro'}">{t.valido ? 'Valido' : t.dal > oggi ? 'Non iniziato' : 'Scaduto'}</span>
             <Azione icona="annulla" etichetta={`Annulla il tesseramento ${t.stagione} (registrato per errore)`} conferma="Annulla?" onclick={() => esegui(() => api.annullaVoce('tesseramenti', t.id), 'Tesseramento annullato.')} />
@@ -890,13 +891,13 @@
       {#each daTesserare as s (s.stagione)}
         <div class="tess">
           <button class="btn btn-secondary btn-sm sx" onclick={() => esegui(() => api.nuovoTesseramento(id, { stagione: s.stagione }), `Tesseramento ${s.stagione} registrato.`)}>
-            <Icona nome="piu" />Registra il tesseramento {s.stagione}{s.importo != null ? ` · ${s.importo} €` : ''}
+            <Icona nome="piu" />Registra il tesseramento {s.stagione}{s.importo != null ? ` · ${euro(s.importo)}` : ''}
           </button>
           <p class="muted small nomargin">Vale dal {dataBreve(s.dal)} al {dataBreve(s.al)}{s.importo ? '; la quota va tra i pagamenti' : ''}.</p>
         </div>
       {/each}
       {#if !cliente.stagioniTesseramento.length}
-        <p class="muted small nomargin">Nessuna stagione in corso: le stagioni si impostano in «Impostazioni della società».</p>
+        <p class="muted small nomargin">Nessuna stagione in corso: le stagioni si impostano in «Dati, stagioni e gruppi».</p>
       {/if}
     </section>
 {/snippet}
@@ -912,7 +913,7 @@
           <li class="voce-l">
             <span class="grow">
               {#if a.tipo === 'CORSO'}<strong>{a.corso}</strong> · {a.volteASettimana === 1 ? 'una volta' : `${a.volteASettimana} volte`} a settimana
-              {:else}<strong>Carnet {a.ingressi} ingressi</strong> · {a.corso ? `negli orari di ${a.corso}` : 'entrata libera'} · {a.residui} rimasti{a.ultimoIngresso ? `, ultimo il ${dataBreve(dataDi(a.ultimoIngresso))}` : ''}{/if}
+              {:else}<strong>Carnet {a.ingressi} ingressi</strong> · {a.corso ? `negli orari di ${a.corso}` : 'entrata libera'} · {quanti(a.residui ?? 0, 'rimasto', 'rimasti')}{a.ultimoIngresso ? `, ultimo il ${dataBreve(dataDi(a.ultimoIngresso))}` : ''}{/if}
               <span class="muted small"> · dal {dataBreve(a.dal)}{a.al ? ` al ${dataBreve(a.alEffettivo ?? a.al)}` : ''}{a.alEffettivo && a.al && a.alEffettivo !== a.al ? ` (allungato per le sospensioni)` : ''}{a.importo != null ? ` · ${euro(a.importo)}` : ''}</span>
               {#if a.motivoImporto}<span class="small muted riga-info">Proposto {euro(a.importoListino)} · {a.motivoImporto}</span>{/if}
               {#if conferma === 'fin' + a.id}
@@ -952,7 +953,7 @@
                       <label><input type="radio" bind:group={sospensione.scelta} value="ALLUNGA" /> allungare l'abbonamento di {giorniTesto(restituzione.giorniRestituiti)}</label>
                       <label><input type="radio" bind:group={sospensione.scelta} value="BORSELLINO" /> {euro(restituzione.importo)} nel borsellino</label></span>
                   {/if}
-                  <button class="btn btn-primary" disabled={!sospensione.dal || !sospensione.al || (restituzione?.modo === 'A_SCELTA' && !sospensione.scelta)}><Icona nome="pausa" />Sospendi</button>
+                  <button class="btn btn-primary" disabled={!sospensione.dal || !sospensione.al || (restituzione?.modo === 'A_SCELTA' && !sospensione.scelta)}><Icona nome="pausa" />Sospendi l'abbonamento</button>
                   <Azione icona="chiudi" etichetta="Annulla" onclick={() => (sospensione = null)} />
                 </form>
               {/if}
@@ -1014,10 +1015,11 @@
             <label class="field"><span class="lbl">Dal</span><input class="inp" type="date" bind:value={abbonamento.dal} /></label>
             <label class="field"><span class="lbl">Al {abbonamento.tipo === 'CARNET' ? '(facoltativo)' : ''}</span><input class="inp" type="date" bind:value={abbonamento.al} min={abbonamento.dal} /></label>
           </div>
-          <label class="field"><span class="lbl">Importo (€, facoltativo)</span><input class="inp" type="number" min="0" step="0.01" bind:value={abbonamento.importo} /></label>
+          <label class="field"><span class="lbl">Importo (€, facoltativo)</span><input class="inp" inputmode="decimal" bind:value={abbonamento.importo} aria-invalid={importoNonValido(String(abbonamento.importo ?? ''))} /></label>
+          {#if importoNonValido(String(abbonamento.importo ?? ''))}<p class="msg err" role="alert">Scrivi l'importo in euro, es. 35 o 35,50 (o lascia vuoto)</p>{/if}
           <div class="row">
-            <button type="button" class="btn btn-secondary grow" onclick={() => (abbonamento = null)}>Annulla</button>
-            <button class="btn btn-primary grow" disabled={abbonamento.tipo === 'CORSO' || abbonamento.aOrario ? !abbonamento.corsoId : !numero(abbonamento.ingressi)}>Registra</button>
+            <button type="button" class="btn btn-secondary" onclick={() => (abbonamento = null)}>Annulla</button>
+            <button class="btn btn-primary grow" disabled={importoNonValido(String(abbonamento.importo ?? '')) || (abbonamento.tipo === 'CORSO' || abbonamento.aOrario ? !abbonamento.corsoId : !numero(abbonamento.ingressi))}>{abbonamento.tipo === 'CARNET' ? 'Registra il carnet' : 'Registra l\'abbonamento'}</button>
           </div>
         </form>
       {/if}

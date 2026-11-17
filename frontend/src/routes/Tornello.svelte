@@ -3,6 +3,7 @@
   import Icona from '../components/Icona.svelte';
   import { onDestroy, onMount, tick } from 'svelte';
   import { api, messaggioErrore, type EsitoTornello, type GiornataBanco, type Passaggio, type Verso } from '../lib/api';
+  import { quanti as nQuanti } from '../lib/plurali';
   import { esitoDi, VISTE_PASSAGGI, VISTE_SISTEMARE, type VistaPassaggi, type VistaSistemare } from '../lib/banco';
   import { oraDi } from '../lib/date';
   import { codiceValido, leggiConNfc, motivoNfcAssente, nfcDisponibile, normalizzaCodice } from '../lib/nfc';
@@ -170,7 +171,7 @@
         <div class="nfc on" role="status"><span class="onda" aria-hidden="true"></span>Avvicina il braccialetto al telefono</div>
         <button type="button" class="btn btn-secondary" onclick={fermaLettura}>Ferma la lettura</button>
       {:else}
-        <button type="button" class="btn btn-accent grande" onclick={avviaNfc}>Leggi i braccialetti con l'NFC</button>
+        <button type="button" class="btn btn-accent grande" onclick={avviaNfc}>Leggi i braccialetti con NFC</button>
       {/if}
     {:else if !schermo.larga || /Android/i.test(navigator.userAgent)}
       <p class="muted small nomargin">{motivoNfcAssente()}</p>
@@ -179,7 +180,7 @@
       <Icona nome="braccialetto" />
       <input class="inp m grow" bind:this={campo} bind:value={codice} autocomplete="off" autocapitalize="characters" spellcheck="false"
              placeholder={schermo.larga ? 'Passa il braccialetto sul lettore o scrivi il codice' : 'Codice del braccialetto'} aria-label="Codice del braccialetto" />
-      <button class="btn btn-primary" disabled={inCorso || !codice.trim()}>Controlla</button>
+      <button class="btn btn-primary" disabled={inCorso || !codice.trim()}>Controlla il codice</button>
     </div>
     <span class="impost"><Azione icona="impostazioni" etichetta="Scegli come mostrare il banco" premuto={scegliViste} onclick={() => (scegliViste = !scegliViste)} /></span>
     {#if !nfc}<LettoreTelefonoPc />{/if}
@@ -226,7 +227,7 @@
 
       {#if giornata}
         <section class="blocco">
-          <div class="blocco-testa"><h2 class="lbl">Da sistemare · {giornata.daSistemare.length ? `${giornata.daSistemare.length} rimasti fuori` : 'nessuno'}</h2></div>
+          <div class="blocco-testa"><h2 class="lbl">Da sistemare · {giornata.daSistemare.length ? `${nQuanti(giornata.daSistemare.length, 'rimasto', 'rimasti')} fuori` : 'nessuno'}</h2></div>
           <DaSistemare fuori={giornata.daSistemare} sistemati={giornata.sistemati} vista={vistaSistemare} {scelto} {adesso} onapri={apriId} schede={vedeSchede} />
         </section>
       {/if}

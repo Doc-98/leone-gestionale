@@ -2,7 +2,8 @@
   import Icona from '../Icona.svelte';
   import { api, type Conto, type SchedaAccessi, type SchedaBorsellino, type SchedaCliente, type TurnoAlBanco } from '../../lib/api';
   import { etichettaTurno } from '../../lib/banco';
-  import { euro } from '../../lib/listino';
+  import { euro } from '../../lib/numeri';
+  import { crediti as nCrediti, quanti } from '../../lib/plurali';
   import { colore } from '../../lib/piano';
 
   /**
@@ -51,7 +52,7 @@
     <div class="kpi" class:warn={daPagare > 0}><span class="lbl">Da pagare</span><span class="v m">{conto ? euro(daPagare) : '…'}</span>
       <span class="n">{!conto ? '' : daPagare > 0 ? 'da registrare' : 'in regola'}</span></div>
     <div class="kpi"><span class="lbl">Credito</span><span class="v m">{borsellino ? euro(borsellino.saldo.euro) : '…'}</span><span class="n">nel borsellino</span></div>
-    <div class="kpi"><span class="lbl">Phon e docce</span><span class="v m">{borsellino ? `${borsellino.saldo.crediti} crediti` : '…'}</span><span class="n">{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span></div>
+    <div class="kpi"><span class="lbl">Phon e docce</span><span class="v m">{borsellino ? nCrediti(borsellino.saldo.crediti) : '…'}</span><span class="n">{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span></div>
     <div class="kpi" class:warn={accessi && braccialetto?.stato !== 'ATTIVO'}><span class="lbl">Braccialetto</span><span class="v m">{accessi ? braccialetto?.codice ?? 'Nessuno' : '…'}</span>
       <span class="n">{braccialetto && braccialetto.stato !== 'ATTIVO' ? braccialetto.stato.toLowerCase() : ''}</span></div>
   </div>
@@ -60,7 +61,7 @@
     <span class="lbl">Oggi</span>
     {#each turni as t (t.lezioneId + t.inizio)}
       <div class="turno {colore(t.tipo ?? 'ALTRO')}"><span class="liv" style:background={t.colore ?? 'var(--c-line)'} aria-hidden="true"></span>
-        <b>{etichettaTurno(t)}</b><span class="muted">–{t.fine.slice(0, 5)} · {t.iscritti} iscritti</span></div>
+        <b>{etichettaTurno(t)}</b><span class="muted">–{t.fine.slice(0, 5)} · {quanti(t.iscritti, 'iscritto', 'iscritti')}</span></div>
     {:else}
       <span class="muted small">Nessun corso oggi.</span>
     {/each}

@@ -26,8 +26,8 @@
   {#if puoAccount}<button type="button" role="tab" aria-selected={scheda === 'account'} onclick={() => (scheda = 'account')}>Account</button>{/if}
   {#if puoRuoli}<button type="button" role="tab" aria-selected={scheda === 'ruoli'} onclick={() => (scheda = 'ruoli')}>Ruoli</button>{/if}
   <span class="grow"></span>
-  {#if scheda === 'ruoli'}<button type="button" class="btn btn-primary" onclick={() => nuovoRuolo++}><Icona nome="piu" />Nuovo ruolo</button>
-  {:else}<button type="button" class="btn btn-primary" onclick={() => nuovoAccount++}><Icona nome="piu" />Nuovo account</button>{/if}
+  {#if scheda === 'ruoli'}<button type="button" class="btn btn-primary" onclick={() => nuovoRuolo++}><Icona nome="piu" />Nuovo ruolo…</button>
+  {:else}<button type="button" class="btn btn-primary" onclick={() => nuovoAccount++}><Icona nome="piu" />Nuovo account…</button>{/if}
 </div>
 
 {#if scheda === 'ruoli'}<Ruoli nuovo={nuovoRuolo} />{:else}<Account nuovo={nuovoAccount} />{/if}

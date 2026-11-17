@@ -1,7 +1,9 @@
 <script lang="ts">
   import Icona from '../Icona.svelte';
   import type { PersonaStaff, Postazione, Turno } from '../../lib/api';
-  import { daIso, GIORNI_BREVI, iso, ora } from '../../lib/date';
+  import { iso, ora } from '../../lib/date';
+  import { giornoBreve } from '../../lib/turni';
+  import { quanti } from '../../lib/plurali';
   import { ammessa, formatH, gruppi, orePerPersona, scoperto, siAccavallano, testoRiservata } from '../../lib/gestione';
 
   /**
@@ -77,7 +79,7 @@
 
   const riass = $derived.by(() => {
     const s = delGiorno.filter((t) => !t.persona).length;
-    return `${delGiorno.length} turni · ${new Set(delGiorno.filter((t) => t.persona).map((t) => t.persona!.id)).size} persone${s ? ` · ${scoperto(s)}` : ''}`;
+    return `${quanti(delGiorno.length, 'turno', 'turni')} · ${quanti(new Set(delGiorno.filter((t) => t.persona).map((t) => t.persona!.id)).size, 'persona', 'persone')}${s ? ` · ${scoperto(s)}` : ''}`;
   });
 </script>
 
@@ -85,8 +87,8 @@
   <div class="giorni" role="group" aria-label="Giorno">
     {#each giorni as g (g)}
       <button type="button" aria-pressed={giorno === g} onclick={() => ((giorno = g), (avviso = null))}
-        aria-label={`${GIORNI_BREVI[((daIso(g).getDay() + 6) % 7) + 1]} ${daIso(g).getDate()}${scopertiDel(g) ? `, ${scoperto(scopertiDel(g))}` : ''}`}>
-        <span>{GIORNI_BREVI[((daIso(g).getDay() + 6) % 7) + 1]}</span><b>{daIso(g).getDate()}</b>{#if scopertiDel(g)}<i class="punto"></i>{/if}
+        aria-label={`${giornoBreve(g).l} ${giornoBreve(g).n}${scopertiDel(g) ? `, ${scoperto(scopertiDel(g))}` : ''}`}>
+        <span>{giornoBreve(g).l}</span><b>{giornoBreve(g).n}</b>{#if scopertiDel(g)}<i class="punto"></i>{/if}
       </button>
     {/each}
   </div>
@@ -124,7 +126,7 @@
                   {@const p = personale.find((x) => x.id === t.persona!.id)}
                   <span class="chip-p" draggable={!!p} ondragstart={(e) => p && prendi(e, p, t)} ondragend={() => (sopra = '')} title="Trascina su un'altra postazione per spostare" role="listitem">
                     <span class="av">{iniziali(t.persona.nome)}</span><span class="n">{t.persona.nome}</span>
-                    <button type="button" class="x" aria-label={`Rimuovi ${t.persona.nome} da ${r.postazione.nome}`} onclick={() => togli(t)}>×</button>
+                    <button type="button" class="x" aria-label={`Lascia scoperto il turno di ${t.persona.nome}`} title="Lascia scoperto" onclick={() => togli(t)}><Icona nome="persona-meno" /></button>
                   </span>
                 {:else}
                   <span class="vuoto-t">{inMano ? (ok ? `Lascia qui ${nome1(inMano.persona.nome)}` : 'Non adatta') : 'Trascina qui un nome'}</span>
@@ -153,7 +155,7 @@
         <button type="button" class="riga-s" draggable="true" ondragstart={(e) => prendi(e, p)} ondragend={() => (sopra = '')} aria-pressed={inMano?.persona.id === p.id && !inMano.da}
           onclick={() => ((inMano = inMano?.persona.id === p.id ? null : { persona: p }), (avviso = null))}>
           <span class="av" class:u={p.sesso === 'M'} class:d={p.sesso === 'F'}>{iniziali(p.nome)}</span>
-          <span class="t"><b>{p.nome}</b><span>{formatH(ore.get(p.id)?.ore ?? 0)} questa settimana</span></span><span class="maniglia" aria-hidden="true">⋮⋮</span>
+          <span class="t"><b>{p.nome}</b><span>{formatH(ore.get(p.id)?.ore ?? 0)} questa settimana</span></span><span class="maniglia" aria-hidden="true"><Icona nome="trascina" /></span>
         </button>
       {:else}
         <p class="muted small nomargin">Nessuno libero{cerca || filtro ? ' con questi filtri' : ''}.</p>
@@ -216,7 +218,7 @@
     font-weight: 600; cursor: grab; min-width: 0; }
   .chip-p .av { width: 24px; height: 24px; font-size: 10px; background: var(--surface); color: var(--a-fg); }
   .chip-p .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chip-p .x { position: relative; width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+  .chip-p .x { position: relative; width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; border: none; background: none; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
   .chip-p .x:hover { background: var(--surface); color: var(--danger); }
   .vuoto-t { position: relative; font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--ferma-fg); pointer-events: none; }
   .staff-p { padding: var(--space-14); gap: var(--space-10); }
@@ -238,7 +240,7 @@
   .riga-s .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .riga-s .t b { font-size: var(--text-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .riga-s .t span { font-size: var(--text-xs); color: var(--muted); }
-  .maniglia { color: var(--line-strong); font-size: 14px; letter-spacing: -2px; }
+  .maniglia { color: var(--line-strong); display: inline-flex; }
   .mostra { display: flex; align-items: center; gap: var(--space-8); min-height: 40px; padding: 0 var(--space-4); border: none; background: none; cursor: pointer; color: var(--muted); }
   .mostra :global(.ic) { width: 18px; height: 18px; }
 </style>

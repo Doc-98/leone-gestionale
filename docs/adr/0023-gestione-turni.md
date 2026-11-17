@@ -55,3 +55,10 @@ Il gestionale resta generico: la riserva per sesso è un'impostazione della post
   altrimenti la mansione; il colore viene dal nome come nelle altre pagine dello staff.
 - Le chiusure del calendario valgono per tutto l'impianto: un evento di chiusura di un solo spazio resta del piano vasca
   e non tocca i turni.
+
+## Nota di aggiornamento (17/11/2026)
+
+I nomi dei pulsanti della decisione sul cambio orario sono cambiati (stessi effetti): con un buco, «Risolvi» è ora
+**«Approva e crea il turno»** (`copriBuco: true`, l'orario lasciato libero diventa un turno da assegnare) e «Lascia
+scoperto» è ora **«Approva senza turno»**; senza buchi resta «Approva il cambio». Nella sostituzione «Lascia scoperto»
+resta com'era. Nei testi degli scambi il segno «↔» è sostituito da parole («scambia con», «per», «e»).

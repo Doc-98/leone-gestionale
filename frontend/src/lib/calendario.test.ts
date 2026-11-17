@@ -25,10 +25,10 @@ describe('calendario della stagione', () => {
   });
 
   it('descrive quando', () => {
-    expect(quando(elenco[0])).toBe('8 dic 2026 · tutto il giorno');
-    expect(quando(elenco[1])).toBe('24 dic 2026 · chiude alle 13:00');
-    expect(quando(elenco[2])).toBe('dal 25 dic 2026 al 6 gen 2027 · 13 giorni');
-    expect(quando(elenco[3])).toBe('10 feb 2027 · apre alle 10:00 e chiude alle 18:00');
+    expect(quando(elenco[0])).toBe('08/12/2026 · tutto il giorno');
+    expect(quando(elenco[1])).toBe('24/12/2026 · chiude alle 13:00');
+    expect(quando(elenco[2])).toBe('dal 25/12/2026 al 06/01/2027 · 13 giorni');
+    expect(quando(elenco[3])).toBe('10/02/2027 · apre alle 10:00 e chiude alle 18:00');
   });
 
   it('stato del giorno e conteggi', () => {

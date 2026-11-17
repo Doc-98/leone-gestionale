@@ -90,7 +90,7 @@
     <label class="field"><span class="lbl">Fino al (facoltativo)</span><input class="inp" type="date" bind:value={validaAl} min={validaDal} /></label>
   </div>
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
-  <button class="btn btn-primary" disabled={lavoro}>{lezione ? 'Salva' : 'Aggiungi il turno'}</button>
+  <button class="btn btn-primary" disabled={lavoro}>{lezione ? 'Salva il turno' : 'Aggiungi il turno'}</button>
 </form>
 
 <style>

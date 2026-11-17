@@ -2,8 +2,9 @@
   import Icona from '../components/Icona.svelte';
   import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type Dispositivo, type RegoleBorsellino, type Servizio, type StatoCreditiBraccialetto } from '../lib/api';
-  import { dataBreve, dataDi, oraDi } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { dataOra } from '../lib/date';
+  import { euro, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
+  import { crediti as nCrediti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -13,6 +14,8 @@
    */
   let regole = $state<RegoleBorsellino | null>(null);
   let scade = $state(true);
+  /** Gli importi come si scrivono nei campi: si convertono al salvataggio. */
+  let testi = $state({ valoreCredito: '', ricaricaMinima: '', cauzione: '' });
   let servizi = $state<(Servizio & { nuovo?: boolean })[]>([]);
   let dispositivi = $state<Dispositivo[]>([]);
   let originale = '';
@@ -24,11 +27,12 @@
   let chip = $state<StatoCreditiBraccialetto | null>(null);
   api.statoCreditiBraccialetto().then((c) => (chip = c)).catch(() => {});
 
-  const istantanea = () => JSON.stringify({ regole, scade, servizi });
+  const istantanea = () => JSON.stringify({ regole, scade, servizi, testi });
   async function carica() {
     try {
       const [r, s, d] = await Promise.all([api.regoleBorsellino(), api.servizi(), api.dispositivi()]);
       regole = r;
+      testi = { valoreCredito: perCampo(r.valoreCredito), ricaricaMinima: perCampo(r.ricaricaMinima), cauzione: perCampo(r.cauzione) };
       scade = r.validitaEuroMesi != null;
       servizi = s;
       dispositivi = d;
@@ -39,6 +43,12 @@
   }
   carica();
 
+  const valoreN = $derived(numeroDa(testi.valoreCredito));
+  const minimaN = $derived(numeroDa(testi.ricaricaMinima));
+  const erroreCredito = $derived(valoreN == null || valoreN <= 0 || importoNonValido(testi.valoreCredito) ? 'Scrivi quanto vale un credito in euro, es. 0,20' : '');
+  const erroreMinima = $derived(minimaN == null || importoNonValido(testi.ricaricaMinima) ? 'Scrivi la ricarica minima in euro, es. 5' : '');
+  const erroreCauzione = $derived(importoNonValido(testi.cauzione) ? 'Scrivi la cauzione in euro, es. 5 (vuoto = nessuna)' : '');
+  const nonValido = $derived(!!(erroreCredito || erroreMinima || erroreCauzione));
   const sporco = $derived(!!regole && istantanea() !== originale);
 
   async function salva() {
@@ -46,7 +56,7 @@
     messaggio = '';
     try {
       const r = regole!;
-      await api.modificaRegoleBorsellino({ ...r, valoreCredito: Number(r.valoreCredito), ricaricaMinima: Number(r.ricaricaMinima), cauzione: Number(r.cauzione),
+      await api.modificaRegoleBorsellino({ ...r, valoreCredito: valoreN!, ricaricaMinima: minimaN!, cauzione: numeroDa(testi.cauzione) ?? 0,
         validitaEuroMesi: scade ? Number(r.validitaEuroMesi ?? 12) : null });
       const prima = JSON.parse(originale).servizi as Servizio[];
       for (const s of servizi) {
@@ -62,7 +72,7 @@
   }
 
   const nuovoServizio = () => (servizi = [...servizi, { id: `nuovo-${servizi.length}`, nome: '', crediti: 1, gratuitiAlGiorno: 0, minuti: null, attivo: true, ordine: servizi.length, nuovo: true }]);
-  const ricaricaCrediti = $derived(regole && Number(regole.valoreCredito) > 0 ? Math.floor(Number(regole.ricaricaMinima) / Number(regole.valoreCredito)) : 0);
+  const ricaricaCrediti = $derived(regole && valoreN != null && valoreN > 0 && minimaN != null ? Math.floor(minimaN / valoreN) : 0);
 
   // ── Macchine ──────────────────────────────────────────────────────────
   let nuova = $state<{ nome: string; tipo: 'SERVIZIO' | 'SALDO'; servizioId: string } | null>(null);
@@ -95,7 +105,7 @@
       errore = messaggioErrore(e);
     }
   }
-  const quando = (i: string | null) => (i ? `ultimo contatto ${dataBreve(dataDi(i))} ${oraDi(i)}` : 'mai collegata');
+  const quando = (i: string | null) => (i ? `ultimo contatto ${dataOra(i)}` : 'mai collegata');
   const maiCollegate = $derived(regole?.creditiSu === 'BRACCIALETTO' ? 0 : dispositivi.filter((d) => d.attivo && !d.ultimoContatto).length);
   const gruppiMacchine = $derived([
     { nome: 'Macchine', voci: dispositivi.filter((d) => d.tipo === 'SERVIZIO') },
@@ -131,9 +141,11 @@
       <section class="card sez" id="imp-crediti" aria-label="Crediti e servizi">
         <div class="sez-t"><h2 class="grow">Crediti e servizi</h2></div>
         <div class="riga-imp"><span class="t"><b>Un credito vale</b><span>Si comprano al banco o alla cassa automatica.</span></span>
-          <span class="ctl"><input class="inp num" type="number" min="0.01" step="0.01" bind:value={regole.valoreCredito} aria-label="Un credito vale" /><span class="unita">€</span></span></div>
+          <span class="ctl"><input class="inp num" type="text" inputmode="decimal" bind:value={testi.valoreCredito} aria-invalid={!!erroreCredito} aria-label="Un credito vale" /><span class="unita">€</span></span>
+          {#if erroreCredito}<span class="msg err" role="alert">{erroreCredito}</span>{/if}</div>
         <div class="riga-imp"><span class="t"><b>Ricarica minima</b></span>
-          <span class="ctl"><input class="inp num" type="number" min="0" step="0.01" bind:value={regole.ricaricaMinima} aria-label="Ricarica minima" /><span class="unita">€</span></span></div>
+          <span class="ctl"><input class="inp num" type="text" inputmode="decimal" bind:value={testi.ricaricaMinima} aria-invalid={!!erroreMinima} aria-label="Ricarica minima" /><span class="unita">€</span></span>
+          {#if erroreMinima}<span class="msg err" role="alert">{erroreMinima}</span>{/if}</div>
         <div class="tabella" id="imp-servizi">
           <table class="serv">
             <thead><tr><th>Servizio</th><th>Crediti per uso</th><th>Gratis al giorno</th><th>Minuti</th><th><span class="sr">Acceso</span></th></tr></thead>
@@ -153,8 +165,8 @@
           </table>
         </div>
         <div class="conto-c">
-          {#if ricaricaCrediti}<span class="grow">Con la ricarica minima di {euro(Number(regole.ricaricaMinima))}: <b>{ricaricaCrediti} crediti</b>{#each servizi.filter((s) => s.attivo && Number(s.crediti) > 0).slice(0, 2) as s (s.id)}, {Math.floor(ricaricaCrediti / Number(s.crediti))} usi di {s.nome.toLowerCase()}{/each}.</span>{:else}<span class="grow"></span>{/if}
-          <button type="button" class="mini-btn tratt" onclick={nuovoServizio}><Icona nome="piu" />Servizio</button>
+          {#if ricaricaCrediti}<span class="grow">Con la ricarica minima di {euro(minimaN ?? 0)}: <b>{nCrediti(ricaricaCrediti)}</b>{#each servizi.filter((s) => s.attivo && Number(s.crediti) > 0).slice(0, 2) as s (s.id)}, {Math.floor(ricaricaCrediti / Number(s.crediti))} usi di {s.nome.toLowerCase()}{/each}.</span>{:else}<span class="grow"></span>{/if}
+          <button type="button" class="mini-btn tratt" onclick={nuovoServizio}><Icona nome="piu" />Aggiungi un servizio</button>
         </div>
       </section>
 
@@ -172,7 +184,8 @@
       <section class="card sez" id="imp-braccialetto" aria-label="Braccialetto">
         <div class="sez-t"><h2 class="grow">Braccialetto</h2></div>
         <div class="riga-imp"><span class="t"><b>Cauzione alla consegna</b><span>0 = nessuna cauzione.</span></span>
-          <span class="ctl"><input class="inp num" type="number" min="0" step="0.01" bind:value={regole.cauzione} aria-label="Cauzione" /><span class="unita">€</span></span></div>
+          <span class="ctl"><input class="inp num" type="text" inputmode="decimal" bind:value={testi.cauzione} aria-invalid={!!erroreCauzione} aria-label="Cauzione" /><span class="unita">€</span></span>
+          {#if erroreCauzione}<span class="msg err" role="alert">{erroreCauzione}</span>{/if}</div>
         <div class="riga-imp"><span class="t"><b>Alla riconsegna, cauzione e crediti tornano</b></span>
           <span class="ctl"><span class="seg seg-s" role="group" aria-label="Alla riconsegna">
             {#each [['DENARO', 'In denaro'], ['BORSELLINO', 'Nel borsellino'], ['A_SCELTA', 'A scelta']] as [v, t] (v)}<button type="button" aria-pressed={regole.cauzioneRiconsegna === v} onclick={() => (regole!.cauzioneRiconsegna = v as RegoleBorsellino['cauzioneRiconsegna'])}>{t}</button>{/each}
@@ -188,7 +201,7 @@
 
     <aside class="lato-p largo-p">
       <section class="card sez" id="imp-macchine" aria-label="Macchine">
-        <div class="sez-t"><h2 class="grow">Macchine</h2>{#if puo && !nuova}<button type="button" class="mini-btn" onclick={() => (nuova = { nome: '', tipo: 'SERVIZIO', servizioId: servizi.find((s) => s.attivo && !s.nuovo)?.id ?? '' })}><Icona nome="piu" />Nuova</button>{/if}</div>
+        <div class="sez-t"><h2 class="grow">Macchine</h2>{#if puo && !nuova}<button type="button" class="mini-btn" onclick={() => (nuova = { nome: '', tipo: 'SERVIZIO', servizioId: servizi.find((s) => s.attivo && !s.nuovo)?.id ?? '' })}><Icona nome="piu" />Nuova macchina…</button>{/if}</div>
         {#if chiave}
           <div class="chiave" role="status">
             <strong>Chiave di «{chiave.nome}»</strong>
@@ -208,8 +221,8 @@
               <label class="field"><span class="lbl">Servizio</span><select class="inp" bind:value={nuova.servizioId}>{#each servizi.filter((s) => s.attivo && !s.nuovo) as s (s.id)}<option value={s.id}>{s.nome}</option>{/each}</select></label>
             {/if}
             <div class="row">
-              <button type="button" class="btn btn-secondary grow" onclick={() => (nuova = null)}>Annulla</button>
-              <button class="btn btn-primary grow" disabled={!nuova.nome.trim() || (nuova.tipo === 'SERVIZIO' && !nuova.servizioId)}>Crea e mostra la chiave</button>
+              <button type="button" class="btn btn-secondary" onclick={() => (nuova = null)}>Annulla</button>
+              <button class="btn btn-primary grow" disabled={!nuova.nome.trim() || (nuova.tipo === 'SERVIZIO' && !nuova.servizioId)}>Crea la macchina</button>
             </div>
           </form>
         {/if}
@@ -229,7 +242,7 @@
               <span class="ico-m"><Icona nome={d.tipo === 'SALDO' ? 'occhio' : 'macchine'} /></span>
               <span class="t"><b>{d.nome}</b><span>{d.tipo === 'SALDO' ? 'mostra il saldo' : d.servizio?.toLowerCase()} · {quando(d.ultimoContatto)}{d.utilizziOggi ? ` · oggi ${d.utilizziOggi}` : ''}{d.attivo ? '' : ' · spenta'}</span></span>
               {#if puo}
-                <Conferma class="mini-btn" tono="cloro" domanda="Nuova chiave?" title="Una chiave nuova: quella vecchia smette subito di funzionare" onclick={() => rigenera(d)}>Chiave</Conferma>
+                <Conferma class="mini-btn" tono="cloro" domanda="Nuova chiave?" title="Una chiave nuova: quella vecchia smette subito di funzionare" onclick={() => rigenera(d)}>Nuova chiave</Conferma>
                 <button type="button" class="x-btn" aria-label={d.attivo ? `Spegni «${d.nome}»` : `Riaccendi «${d.nome}»`} title={d.attivo ? 'Spegni' : 'Riaccendi'} onclick={() => accendi(d)}><Icona nome="spegni" /></button>
               {/if}
             </div>
@@ -246,7 +259,7 @@
     <div class="salva-bar" role="status">
       <span>Modifiche da salvare</span>
       <button type="button" class="vuoto" onclick={carica}>Annulla</button>
-      <button type="button" class="chiaro" onclick={salva}>Salva</button>
+      <button type="button" class="chiaro" disabled={nonValido} onclick={salva}>Salva</button>
     </div>
   {/if}
 {:else if !errore}

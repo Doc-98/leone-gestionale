@@ -5,6 +5,7 @@ describe('pagamenti', () => {
   it('somma senza errori di arrotondamento', () => {
     expect(somma([0.1, 0.2])).toBe(0.3);
     expect(somma(['55', 150, null, ''])).toBe(205);
+    expect(somma(['9,50', '0,5'])).toBe(10);
   });
   it('divide l\'importo nell\'ordine scelto, come il server', () => {
     const r = ripartisci(205, [{ id: 'quota', residuo: 35 }, { id: 'sorella', residuo: 5 }, { id: 'corso', residuo: 300 }, { id: 'cuffia', residuo: 8 }]);

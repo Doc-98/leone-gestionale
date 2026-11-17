@@ -1,8 +1,10 @@
 import type { Addebito, StatoAddebito } from './api';
+import { numeroDa } from './numeri';
 
 /** Somma in centesimi, per non accumulare errori di arrotondamento. */
 export function somma(valori: (number | string | null | undefined)[]): number {
-  return valori.reduce<number>((t, v) => t + Math.round(Number(v || 0) * 100), 0) / 100;
+  const n = (v: number | string | null | undefined) => (typeof v === 'string' ? numeroDa(v) ?? 0 : Number(v || 0));
+  return valori.reduce<number>((t, v) => t + Math.round(n(v) * 100), 0) / 100;
 }
 
 /**

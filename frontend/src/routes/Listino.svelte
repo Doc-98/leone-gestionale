@@ -1,9 +1,12 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
+  import Azione from '../components/Azione.svelte';
   import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type Corso, type GruppoClienti, type NuovaOfferta, type Offerta, type PaginaListino, type Stagione, type TipoOfferta } from '../lib/api';
   import { dataLunga, iso } from '../lib/date';
-  import { etichettaVolte, euro, VOLTE } from '../lib/listino';
+  import { etichettaVolte, VOLTE } from '../lib/listino';
+  import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
+  import { quanti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -11,9 +14,9 @@
    * confrontano; tocca un'offerta per cambiarla nel pannello a destra. Le regole di prezzo hanno la loro pagina.
    */
   const TIPI: { id: TipoOfferta; nome: string; nuova: string; etichetta: string }[] = [
-    { id: 'CORSO', nome: 'Abbonamenti ai corsi', nuova: 'Nuovo abbonamento', etichetta: 'Abbonamento ai corsi' },
-    { id: 'CARNET', nome: 'Carnet', nuova: 'Nuovo carnet', etichetta: 'Carnet' },
-    { id: 'ALTRO', nome: 'Altri importi', nuova: 'Nuovo importo', etichetta: 'Altro importo (non dà accesso)' },
+    { id: 'CORSO', nome: 'Abbonamenti ai corsi', nuova: 'Nuovo abbonamento…', etichetta: 'Abbonamento ai corsi' },
+    { id: 'CARNET', nome: 'Carnet', nuova: 'Nuovo carnet…', etichetta: 'Carnet' },
+    { id: 'ALTRO', nome: 'Altri importi', nuova: 'Nuovo importo…', etichetta: 'Altro importo (non dà accesso)' },
   ];
 
   let stagioni = $state<Stagione[]>([]);
@@ -113,7 +116,7 @@
       offerta = { id: o.id, b: { nome: o.nome, descrizione: o.descrizione ?? '', tipo: o.tipo, corsi: [...o.corsi], corsoId: o.corsoId, ingressi: v(o.ingressi),
         validita: v(o.validitaMesi ?? o.validitaGiorni), unita: o.validitaGiorni ? 'giorni' : 'mesi', riduzioneTardiva: o.riduzioneTardiva, attiva: o.attiva, ordine: o.ordine,
         righe: righe.length ? righe.sort((a, b) => VOLTE.indexOf(a === '' ? null : Number(a)) - VOLTE.indexOf(b === '' ? null : Number(b))) : [t === 'CORSO' ? '1' : ''],
-        colonne, prezzi: Object.fromEntries(o.prezzi.map((p) => [chiave(o.tipo === 'CORSO' ? v(p.volte) : '', p.gruppoId ?? ''), String(p.importo)])) } };
+        colonne, prezzi: Object.fromEntries(o.prezzi.map((p) => [chiave(o.tipo === 'CORSO' ? v(p.volte) : '', p.gruppoId ?? ''), perCampo(p.importo)])) } };
     } else {
       offerta = { id: null, b: { nome: '', descrizione: '', tipo: t, corsi: [], corsoId: null, ingressi: t === 'CARNET' ? '10' : '', validita: t === 'CARNET' ? '3' : '', unita: 'mesi',
         riduzioneTardiva: t === 'CORSO', attiva: true, ordine: 0, righe: t === 'CORSO' ? ['1', '2'] : [''], colonne: [''], prezzi: {} } };
@@ -125,7 +128,7 @@
     const numero = (s: string) => (s.trim() === '' ? null : Number(s));
     const prezzi = b.righe.flatMap((r) => b.colonne.map((c) => ({ r, c, imp: b.prezzi[chiave(r, c)] ?? '' })))
       .filter((x) => String(x.imp).trim() !== '')
-      .map((x) => ({ volte: b.tipo === 'CORSO' ? numero(x.r) : null, gruppoId: x.c || null, importo: Number(String(x.imp).replace(',', '.')) }));
+      .map((x) => ({ volte: b.tipo === 'CORSO' ? numero(x.r) : null, gruppoId: x.c || null, importo: numeroDa(String(x.imp)) ?? NaN }));
     return {
       stagioneId, nome: b.nome.trim(), tipo: b.tipo, descrizione: b.descrizione.trim() || null, corsoId: b.tipo === 'CARNET' ? b.corsoId || null : null,
       corsi: b.tipo === 'CORSO' ? b.corsi : [], riduzioneTardiva: b.tipo === 'ALTRO' ? false : b.riduzioneTardiva, attiva: b.attiva, ordine: b.ordine,
@@ -134,7 +137,8 @@
       prezzi,
     };
   }
-  const salvabile = $derived(!!offerta && !!offerta.b.nome.trim() && corpo(offerta.b).prezzi.length > 0 && (offerta.b.tipo !== 'CORSO' || offerta.b.corsi.length > 0));
+  const prezziErrati = $derived(!!offerta && corpo(offerta.b).prezzi.some((x) => !Number.isFinite(x.importo) || x.importo < 0));
+  const salvabile = $derived(!!offerta && !prezziErrati && !!offerta.b.nome.trim() && corpo(offerta.b).prezzi.length > 0 && (offerta.b.tipo !== 'CORSO' || offerta.b.corsi.length > 0));
 
   function salvaOfferta() {
     const { id, b } = offerta!;
@@ -176,7 +180,7 @@
   });
   const copia = () => esegui(async () => {
     const r = await api.copiaListino(copiaDa, stagioneId, Number(aumento) || 0);
-    messaggio = `${r.offerte} offerte copiate.`;
+    messaggio = `${quanti(r.offerte, 'offerta copiata', 'offerte copiate')}.`;
   }, '').then((ok) => ok && (messaggio = 'Listino e regole copiati: ora cambia solo quello che serve.'));
   const stagioneScelta = $derived(stagioni.find((s) => s.id === stagioneId));
 </script>
@@ -241,7 +245,7 @@
                 {#if tipo === 'CORSO'}
                   {#each colonneVolte as v (v)}
                     {@const p = prezzo(o, v)}
-                    <div class="c" role="cell"><span class="p" class:vuoto={p.tutti == null}>{p.tutti == null ? '—' : euro(p.tutti)}</span>{#each p.gruppi as g (g)}<span class="g">{g}</span>{/each}</div>
+                    <div class="c" role="cell"><span class="p" class:vuoto={p.tutti == null}>{p.tutti == null ? '—' : euroColonna(p.tutti)}</span>{#each p.gruppi as g (g)}<span class="g">{g}</span>{/each}</div>
                   {/each}
                 {:else}
                   {@const p = prezzo(o, null)}
@@ -249,7 +253,7 @@
                     <div class="c" role="cell"><span class="p">{o.ingressi ?? '—'}</span></div>
                     <div class="c" role="cell"><span class="p testo">{validita(o)}</span></div>
                   {/if}
-                  <div class="c" role="cell"><span class="p" class:vuoto={p.tutti == null}>{p.tutti == null ? '—' : euro(p.tutti)}</span>{#each p.gruppi as g (g)}<span class="g">{g}</span>{/each}</div>
+                  <div class="c" role="cell"><span class="p" class:vuoto={p.tutti == null}>{p.tutti == null ? '—' : euroColonna(p.tutti)}</span>{#each p.gruppi as g (g)}<span class="g">{g}</span>{/each}</div>
                 {/if}
               </div>
             {/each}
@@ -266,7 +270,7 @@
         {@const b = offerta.b}
         <form class="card pann" onsubmit={(e) => { e.preventDefault(); salvaOfferta(); }}>
           <span class="testa-p"><span class="lbl grow">{offerta.id ? TIPI.find((t) => t.id === b.tipo)?.etichetta : `${TIPI.find((t) => t.id === b.tipo)?.nuova}`}</span>
-            {#if offerta.id && modifica}<button type="button" class="mini-btn" onclick={duplica}>Duplica</button>{/if}
+            {#if offerta.id && modifica}<Azione icona="copia" etichetta="Duplica l'offerta" onclick={duplica} />{/if}
             <button type="button" class="x-btn" aria-label="Chiudi" onclick={() => (offerta = null)}><Icona nome="chiudi" /></button></span>
           <fieldset disabled={!modifica}>
             <label class="field"><span class="lbl">Nome</span><input class="inp" bind:value={b.nome} placeholder={b.tipo === 'CORSO' ? 'Es. Scuola nuoto' : b.tipo === 'CARNET' ? 'Es. Nuoto libero 10 ingressi' : 'Es. Quota squadra'} /></label>
@@ -275,9 +279,9 @@
               <div class="field"><span class="lbl">Vale per i corsi</span>
                 {#if scegliCorsi}
                   <div class="chips">{#each corsi.filter((c) => c.attivo || b.corsi.includes(c.id)) as c (c.id)}<button type="button" class="chip" aria-pressed={b.corsi.includes(c.id)} onclick={() => toggleCorso(c.id)}>{c.nome}</button>{/each}</div>
-                  <button type="button" class="mini-btn sx" onclick={() => (scegliCorsi = false)}>Fatto</button>
+                  <button type="button" class="mini-btn sx" onclick={() => (scegliCorsi = false)}>Chiudi la scelta</button>
                 {:else}
-                  <div class="corsi-c">{#each b.corsi.slice(0, 6) as id (id)}<span>{nomeCorso(id)}</span>{:else}<span class="manca">nessun corso</span>{/each}{#if b.corsi.length > 6}<span>+ {b.corsi.length - 6}</span>{/if}</div>
+                  <div class="corsi-c">{#each b.corsi.slice(0, 6) as id (id)}<span>{nomeCorso(id)}</span>{:else}<span class="manca">nessun corso</span>{/each}{#if b.corsi.length > 6}<span>e altri {b.corsi.length - 6}</span>{/if}</div>
                   <button type="button" class="mini-btn tratt sx" onclick={() => (scegliCorsi = true)}>Scegli i corsi</button>
                 {/if}
               </div>
@@ -303,12 +307,12 @@
               <span class="aggiungi">
                 {#if b.tipo === 'CORSO' && righeDisponibili.length}
                   <select class="inp mini" aria-label="Aggiungi una frequenza" onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v !== 'x') b.righe = [...b.righe, v]; (e.currentTarget as HTMLSelectElement).value = 'x'; }}>
-                    <option value="x">+ frequenza</option>{#each righeDisponibili as v (v)}<option value={v == null ? '' : String(v)}>{etichettaVolte(v)}</option>{/each}
+                    <option value="x">Aggiungi una frequenza…</option>{#each righeDisponibili as v (v)}<option value={v == null ? '' : String(v)}>{etichettaVolte(v)}</option>{/each}
                   </select>
                 {/if}
                 {#if colonneDisponibili.length}
                   <select class="inp mini" aria-label="Aggiungi i prezzi per un gruppo" onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v) b.colonne = [...b.colonne, v]; (e.currentTarget as HTMLSelectElement).value = ''; }}>
-                    <option value="">+ prezzo per un gruppo</option>{#each colonneDisponibili as g (g.id)}<option value={g.id}>{g.nome}</option>{/each}
+                    <option value="">Aggiungi un prezzo per un gruppo…</option>{#each colonneDisponibili as g (g.id)}<option value={g.id}>{g.nome}</option>{/each}
                   </select>
                 {/if}
               </span>
@@ -321,11 +325,12 @@
           </fieldset>
           {#if offerta.id}<span class="muted small">Cambiare i prezzi vale per le vendite nuove: chi l'ha già comprata resta com'è.</span>{/if}
           {#if modifica}
+            {#if prezziErrati}<p class="msg err" role="alert">Scrivi i prezzi in euro, es. 35 o 35,50</p>{/if}
             <div class="row">
-              <button class="btn btn-primary grow" disabled={!salvabile}>{offerta.id ? 'Salva' : 'Aggiungi al listino'}</button>
+              <button class="btn btn-primary grow" disabled={!salvabile}>{offerta.id ? "Salva l'offerta" : 'Aggiungi al listino'}</button>
               {#if offerta.id}
-                <button type="button" class="btn btn-secondary" onclick={accendi}>{b.attiva ? 'Spegni' : 'Riaccendi'}</button>
-                <Conferma class="btn btn-danger" etichetta="Elimina" domanda="Elimina?" onclick={elimina}><Icona nome="cestino" /></Conferma>
+                <button type="button" class="btn btn-secondary" onclick={accendi}>{b.attiva ? "Spegni l'offerta" : "Riaccendi l'offerta"}</button>
+                <Conferma class="btn btn-danger" etichetta="Elimina l'offerta" domanda="Elimina?" onclick={elimina}><Icona nome="cestino" /></Conferma>
               {/if}
             </div>
           {/if}

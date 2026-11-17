@@ -6,10 +6,12 @@
   import VistaMese from '../components/turni/VistaMese.svelte';
   import VistaSettimana from '../components/turni/VistaSettimana.svelte';
   import { api, messaggioErrore, NonAutenticato, type Richiesta, type Riepilogo, type TipoRichiesta, type Turno } from '../lib/api';
-  import { aggiungiGiorni, euro, formatOre, iso, lunedi, nomeMese, spostaMese } from '../lib/date';
+  import { aggiungiGiorni, formatOre, iso, lunedi, nomeMese, spostaMese, titoloSettimana } from '../lib/date';
+  import { quanti } from '../lib/plurali';
+  import { euro } from '../lib/numeri';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
   import { sessione } from '../lib/sessione.svelte';
-  import { oreTotali, prossimo, richiestaSul, titoloSettimana, VISTE_TURNI, type VistaTurni } from '../lib/turni';
+  import { oreTotali, prossimo, richiestaSul, VISTE_TURNI, type VistaTurni } from '../lib/turni';
   import RichiestaForm from './RichiestaForm.svelte';
 
   /**
@@ -87,7 +89,7 @@
   const mia = $derived(delMese?.righe[0]);
 
   const titolo = $derived(efficace === 'mese' ? nomeMese(mese).replace(/^./, (c) => c.toUpperCase()) : titoloSettimana(lun, !largo));
-  const sotto = $derived(caricamento ? '…' : `${turni.filter((t) => t.stato === 'PIANIFICATO').length} turni · ${formatOre(oreTotali(turni))} h`);
+  const sotto = $derived(caricamento ? '…' : `${quanti(turni.filter((t) => t.stato === 'PIANIFICATO').length, 'turno', 'turni')} · ${formatOre(oreTotali(turni))} h`);
   function sposta(d: number) {
     if (efficace === 'mese') mese = spostaMese(mese, d);
     else lun = aggiungiGiorni(lun, 7 * d);

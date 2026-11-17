@@ -1,5 +1,5 @@
 import type { EventoAttesa, PaginaAttesa, TurnoPosti, VoceAttesa } from './api';
-import { dataBreve, dataDi, GIORNI_BREVI, GIORNI_ESTESI, ora } from './date';
+import { dataAgenda, dataBreve, dataDi, GIORNI_BREVI, GIORNI_ESTESI, ora } from './date';
 
 /**
  * Le liste d'attesa (ADR 0015, mockup di ottobre 2026): due viste a scelta, «Posti da assegnare» (i turni dove c'è un
@@ -29,18 +29,13 @@ export function giorniTra(a: string, b: string): number {
 /** Da quanti giorni aspetta. */
 export const giorniDiAttesa = (v: VoceAttesa, oggi: string) => Math.max(0, giorniTra(dataDi(v.aggiuntaIl), oggi));
 
-const giornoDellaSettimana = (d: string) => {
-  const g = new Date(`${d.slice(0, 10)}T12:00:00`).getDay();
-  return GIORNI_ESTESI[g === 0 ? 7 : g];
-};
-
-/** «venerdì 30/10», «domani», «oggi» */
+/** «ven 30/10», «domani», «oggi», «ieri» */
 export function quandoBreve(d: string, oggi: string): string {
   const n = giorniTra(oggi, d);
   if (n === 0) return 'oggi';
   if (n === 1) return 'domani';
   if (n === -1) return 'ieri';
-  return `${giornoDellaSettimana(d)} ${dataBreve(d).slice(0, 5)}`;
+  return dataAgenda(d);
 }
 
 /** C'è un posto: subito (quanti) o da una data. */
@@ -50,7 +45,7 @@ export function postoLibero(t: TurnoPosti, oggi: string): { libero: boolean; tes
     const n = t.liberi == null ? null : Math.max(1, t.liberi);
     return { libero: true, testo: n == null ? 'Posti liberi' : n === 1 ? '1 posto libero' : `${n} posti liberi`, dal: oggi };
   }
-  return { libero: true, testo: `Un posto dal ${dataBreve(t.liberoDal).slice(0, 5)}`, dal: t.liberoDal };
+  return { libero: true, testo: `Un posto dal ${dataAgenda(t.liberoDal)}`, dal: t.liberoDal };
 }
 
 export const quandoTurno = (t: Pick<TurnoPosti, 'giornoSettimana' | 'inizio'>) => `${GIORNI_ESTESI[t.giornoSettimana]} ${ora(t.inizio)}`;
@@ -202,13 +197,13 @@ export function ordinaPersone(persone: PersonaInAttesa[], ordine: OrdinePersone)
 export function statoPersona(p: PersonaInAttesa, oggi: string): { testo: string; tono: 'muted' | 'warn' | 'cloro' } {
   const t = principale(p);
   const s = statoVoce(t.voce, oggi);
-  if (s === 'scaduto') return { testo: `avviso del ${dataBreve(dataDi(t.voce.avvisataIl!)).slice(0, 5)} senza risposta`, tono: 'warn' };
+  if (s === 'scaduto') return { testo: `avviso del ${dataAgenda(dataDi(t.voce.avvisataIl!))} senza risposta`, tono: 'warn' };
   if (s === 'avvisata') return { testo: `avviso fatto, risposta entro ${quandoBreve(t.voce.rispostaEntro ?? oggi, oggi)}`, tono: 'muted' };
   if (s === 'saltata') return { testo: 'nessuna risposta, resta in lista', tono: 'muted' };
   if (t.tocca) return { testo: 'c\'è un posto: da avvisare', tono: 'cloro' };
   const confermata = p.turni.map((x) => x.voce.confermataIl).filter((x): x is string => !!x).sort().at(-1);
-  if (confermata) return { testo: `aspetta ancora (detto il ${dataBreve(dataDi(confermata)).slice(0, 5)})`, tono: 'muted' };
-  return { testo: `dal ${dataBreve(p.dal).slice(0, 5)}`, tono: 'muted' };
+  if (confermata) return { testo: `aspetta ancora (detto il ${dataAgenda(dataDi(confermata))})`, tono: 'muted' };
+  return { testo: `dal ${dataAgenda(p.dal)}`, tono: 'muted' };
 }
 
 /** L'azione in evidenza sulla riga di una persona (null = nessuna: solo il menu). */

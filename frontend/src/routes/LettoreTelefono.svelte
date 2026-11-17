@@ -178,9 +178,9 @@
         <ol class="passi">
           <li>Apri le <b>Impostazioni</b> del telefono.</li>
           <li>Cerca <b>NFC</b> (di solito in «Dispositivi connessi») e accendilo.</li>
-          <li>Torna qui e tocca «Riprova».</li>
+          <li>Torna qui e tocca «Riprova a leggere».</li>
         </ol>
-        <button class="btn btn-primary" onclick={iniziaLettura}>Riprova</button>
+        <button class="btn btn-primary" onclick={iniziaLettura}>Riprova a leggere</button>
       </div>
     {:else if leggendo}
       <div class="card grande">

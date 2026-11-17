@@ -7,6 +7,7 @@
   import { api, messaggioErrore, type Evento, type Modello, type PersonaStaff, type Postazione, type RigaModello, type Turno } from '../lib/api';
   import { GIORNI_BREVI, GIORNI_ESTESI, iso, meseIso, nomeMese, ora, oreTra, spostaMese } from '../lib/date';
   import { ammessa, anteprima, formatH, gruppoDi, nomeNuovaPostazione, testoRiservata, type Gruppo } from '../lib/gestione';
+  import { quanti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
   import { schermo } from '../lib/schermo.svelte';
 
@@ -188,7 +189,7 @@
   const genera = () => esegui(async () => {
     if (!scelto) return;
     const e = await api.generaMese(scelto.id, mese);
-    generato = `Fatto: ${e.creati + e.scoperti} turni creati${e.scoperti ? `, ${e.scoperti} scoperti` : ''}.`;
+    generato = `Fatto: ${quanti(e.creati + e.scoperti, 'turno creato', 'turni creati')}${e.scoperti ? `, ${quanti(e.scoperti, 'scoperto', 'scoperti')}` : ''}.`;
     if (e.avvisi.length) errore = e.avvisi.join(' ');
     esistenti = (await api.turniTutti(giorniMese[0], giorniMese.at(-1)!)).filter((x) => x.stato === 'PIANIFICATO');
   });
@@ -197,9 +198,9 @@
 <section class="page">
   <div class="barra" role="group" aria-label="Quale settimana tipo">
     {#each modelli as m (m.id)}
-      <button type="button" class="chip" aria-pressed={m.id === sceltoId} onclick={() => scegli(m.id)}>{m.nome}<span class="sotto">{m.righe.length} turni</span></button>
+      <button type="button" class="chip" aria-pressed={m.id === sceltoId} onclick={() => scegli(m.id)}>{m.nome}<span class="sotto">{quanti(m.righe.length, 'turno', 'turni')}</span></button>
     {/each}
-    <button type="button" class="chip nuova" onclick={() => ((nuovo = true), (riga = null), (bozza = ''), (partenza = scelto ? 'copia' : 'vuota'), (messaggio = ''))}>+ Nuova settimana tipo</button>
+    <button type="button" class="chip nuova" onclick={() => ((nuovo = true), (riga = null), (bozza = ''), (partenza = scelto ? 'copia' : 'vuota'), (messaggio = ''))}><Icona nome="piu" /> Nuova settimana tipo…</button>
   </div>
 
   {#if scelto}
@@ -207,13 +208,13 @@
       {#if rinomina}
         <label class="sr" for="nome-preset">Nome della settimana tipo</label>
         <input id="nome-preset" class="inp nome-in" bind:value={bozza} onkeydown={(e) => e.key === 'Enter' && salvaNome()} />
-        <button class="mini-btn pieno" type="button" disabled={lavoro} onclick={salvaNome}>Salva</button>
+        <button class="mini-btn pieno" type="button" disabled={lavoro} onclick={salvaNome}>Salva il nome</button>
         <button class="mini-btn" type="button" onclick={() => (rinomina = false)}>Annulla</button>
       {:else}
         <b class="titolo-m">{scelto.nome}</b>
-        <button class="mini-btn" type="button" onclick={() => ((rinomina = true), (bozza = scelto.nome))}>Rinomina</button>
-        <button class="mini-btn" type="button" disabled={lavoro} onclick={duplica}>Duplica</button>
-        {#if modelli.length > 1}<Conferma class="mini-btn rosso" disabled={lavoro} domanda="Elimina?" onclick={elimina}>Elimina</Conferma>{/if}
+        <Azione icona="matita" etichetta={`Rinomina «${scelto.nome}»`} onclick={() => ((rinomina = true), (bozza = scelto.nome))} />
+        <Azione icona="copia" etichetta={`Duplica «${scelto.nome}»`} disabled={lavoro} onclick={duplica} />
+        {#if modelli.length > 1}<Azione icona="cestino" tono="danger" conferma="Elimina?" etichetta={`Elimina «${scelto.nome}»`} disabled={lavoro} onclick={elimina} />{/if}
       {/if}
     </div>
   {/if}
@@ -224,7 +225,7 @@
   {#if scelto}
     <div class="colonne-p">
       <div class="princ">
-        <span class="muted small">{scelto.righe.length} turni · {formatH(oreSett)} a settimana · {senzaNessuno} senza nessuno · tocca un turno per cambiarlo, o il «+» in una casella vuota per aggiungerne uno. Una postazione è una persona alla volta: se serve qualcuno in più, aggiungi una postazione. Chi è indicato qui viene messo nei turni generati; «scoperto» resta da assegnare.</span>
+        <span class="muted small">{quanti(scelto.righe.length, 'turno', 'turni')} · {formatH(oreSett)} a settimana · {senzaNessuno} senza nessuno · tocca un turno per cambiarlo, o il «+» in una casella vuota per aggiungerne uno. Una postazione è una persona alla volta: se serve qualcuno in più, aggiungi una postazione. Chi è indicato qui viene messo nei turni generati; «scoperto» resta da assegnare.</span>
         {#if schermo.larga}
           <GrigliaPostazioni colonne={COLONNE} {postazioni} {blocchi} scelto={riga?.id ?? ''} etichetta="Settimana tipo per postazione"
             apri={(id) => { const r = scelto.righe.find((x) => x.id === id); if (r) apriRiga(r, r.postazioneId, r.giornoSettimana); }}
@@ -236,7 +237,7 @@
             {@const delGiorno = scelto.righe.filter((r) => r.giornoSettimana === g).sort((a, b) => a.inizio.localeCompare(b.inizio))}
             <div class="giorno">
               <div class="intesta"><h2 class="lbl grow">{GIORNI_ESTESI[g]}</h2>
-                <Azione icona="piu" tono="cloro" etichetta={`Aggiungi un turno il ${GIORNI_ESTESI[g]}`} onclick={() => postazioni[0] && apriRiga(null, postazioni[0].id, g)} /></div>
+                <Azione icona="piu" tono="cloro" etichetta={`Aggiungi un turno di ${GIORNI_ESTESI[g]}`} onclick={() => postazioni[0] && apriRiga(null, postazioni[0].id, g)} /></div>
               {#each delGiorno as r (r.id)}
                 {@const p = postazioni.find((x) => x.id === r.postazioneId)}
                 <button class="card riga-tel" class:scoperta={!r.persona} onclick={() => apriRiga(r, r.postazioneId, g)}>
@@ -288,7 +289,7 @@
     </div>
   {/if}
   <span class="muted small">Puoi averne quante ne servono, cambiarle e rinominarle quando vuoi.</span>
-  <button class="btn btn-primary" type="button" disabled={lavoro || !impianto()} onclick={crea}>Crea</button>
+  <button class="btn btn-primary" type="button" disabled={lavoro || !impianto()} onclick={crea}>Crea la settimana tipo</button>
 {/snippet}
 
 {#snippet pannelloRiga()}
@@ -321,8 +322,8 @@
   </label>
   <span class="muted small">{testoRiservata(postazioneRiga)}Cambia la settimana tipo, non i turni già creati: vale dai prossimi mesi che generi.</span>
   <div class="azioni-r">
-    <button class="btn btn-primary grow" type="button" disabled={lavoro} onclick={salvaRiga}>Salva</button>
-    {#if riga?.id}<Conferma class="btn btn-danger" disabled={lavoro} domanda="Elimina?" onclick={togliRiga}>Elimina</Conferma>{/if}
+    <button class="btn btn-primary grow" type="button" disabled={lavoro} onclick={salvaRiga}>Salva il turno</button>
+    {#if riga?.id}<Conferma class="btn btn-danger" disabled={lavoro} domanda="Elimina?" onclick={togliRiga}>Elimina il turno</Conferma>{/if}
   </div>
 {/snippet}
 
@@ -346,12 +347,12 @@
   </span>
   <span class="small">Le chiusure vengono dal calendario della stagione.{' '}{#if sessione.puo('IMPOSTAZIONI', 'PIANO_MODIFICA')}<a href="#/calendario" class="forte">Modifica il calendario →</a>{/if}</span>
   <div class="conto">
-    <span><b>{prev.nuovi}</b> turni nuovi · {formatH(prev.ore)}</span>
+    <span><b>{prev.nuovi}</b> {prev.nuovi === 1 ? 'turno nuovo' : 'turni nuovi'} · {formatH(prev.ore)}</span>
     {#if prev.scoperti}<span class="warn"><b>{prev.scoperti}</b> resteranno scoperti</span>{/if}
     <span class="muted">{prev.chiusure.length ? `Saltati dal calendario: ${prev.chiusure.join(', ')}.` : 'Nessuna chiusura in questo mese.'}</span>
   </div>
   {#if generato}<a class="fatto" href="#/pianifica">{generato} Apri la pianificazione →</a>{/if}
-  <button class="btn btn-primary" type="button" disabled={lavoro || !prev.nuovi} onclick={genera}>{prev.nuovi ? `Genera ${prev.nuovi} turni` : 'Niente da generare'}</button>
+  <button class="btn btn-primary" type="button" disabled={lavoro || !prev.nuovi} onclick={genera}>{prev.nuovi ? `Genera ${quanti(prev.nuovi, 'turno', 'turni')}` : 'Niente da generare'}</button>
 {/snippet}
 
 {#if !schermo.larga}

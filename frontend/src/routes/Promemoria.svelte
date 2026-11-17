@@ -2,6 +2,8 @@
   import Icona from '../components/Icona.svelte';
   import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type DatiSocieta, type PaginaPromemoria, type RegolaPromemoria, type StatoEmail, type TipoPromemoria } from '../lib/api';
+  import { quanti } from '../lib/plurali';
+  import { euro } from '../lib/numeri';
   import { dataBreve, dataDi, iso, oraDi } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -19,8 +21,8 @@
   /** Questi si ripetono ogni N giorni, al massimo M volte; gli altri partono una volta, N giorni prima della scadenza. */
   const ripetuto = (t: TipoPromemoria) => t === 'TESSERAMENTO_MANCANTE' || t === 'PAGAMENTO';
   function ogni(r: Pick<RegolaPromemoria, 'tipo' | 'giorni' | 'maxInvii'>): string {
-    const volte = `al massimo ${r.maxInvii ?? 1} volte`;
-    return r.tipo === 'PAGAMENTO' ? `${r.giorni} giorni dopo la scadenza, poi ogni ${r.giorni}, ${volte}` : `ogni ${r.giorni} giorni, ${volte}`;
+    const volte = (r.maxInvii ?? 1) === 1 ? 'una volta sola' : `al massimo ${r.maxInvii} volte`;
+    return r.tipo === 'PAGAMENTO' ? `${quanti(Number(r.giorni), 'giorno', 'giorni')} dopo la scadenza, poi ${Number(r.giorni) === 1 ? 'ogni giorno' : `ogni ${r.giorni}`}, ${volte}` : `${Number(r.giorni) === 1 ? 'ogni giorno' : `ogni ${r.giorni} giorni`}, ${volte}`;
   }
   /** I dati del cliente che si possono inserire nel testo: si sostituiscono da soli all'invio. */
   const DATI: [string, string][] = [['nome', '{nome}'], ['cognome', '{cognome}'], ['data di scadenza', '{scadenza}'], ['giorni che mancano', '{giorni}'],
@@ -104,7 +106,7 @@
       const r = await api.eseguiPromemoria();
       await carica();
       messaggio = r.email === 0 ? 'Oggi non c\'era nessun promemoria da preparare.'
-        : `${r.email} promemoria: ${r.inviate} inviati${r.nonInviate ? `, ${r.nonInviate} registrati senza partire (posta non configurata)` : ''}${r.senzaEmail ? `, ${r.senzaEmail} senza email` : ''}${r.errori ? `, ${r.errori} con errore` : ''}.`;
+        : `${r.email} promemoria: ${r.inviate} ${r.inviate === 1 ? 'inviato' : 'inviati'}${r.nonInviate ? `, ${r.nonInviate} registrati senza partire (posta non configurata)` : ''}${r.senzaEmail ? `, ${r.senzaEmail} senza email` : ''}${r.errori ? `, ${r.errori} con errore` : ''}.`;
     } catch (e) {
       errore = messaggioErrore(e);
     }
@@ -136,12 +138,12 @@
   // ── Il testo ──────────────────────────────────────────────────────────
   const tipoScelto = $derived(TIPI.find((t) => t.tipo === bozza?.tipo));
   const titolo = $derived(!bozza ? '' : ripetuto(bozza.tipo) ? ogni(bozza)
-    : Number(bozza.giorni) === 0 ? 'il giorno della scadenza' : `${bozza.giorni} giorni prima della scadenza`);
+    : Number(bozza.giorni) === 0 ? 'il giorno della scadenza' : `${quanti(Number(bozza.giorni), 'giorno', 'giorni')} prima della scadenza`);
   function anteprima(t: string, r: RegolaPromemoria): string {
     const g = r.tipo === 'TESSERAMENTO_MANCANTE' ? 0 : r.tipo === 'PAGAMENTO' ? -Number(r.giorni) : Number(r.giorni);
     const scad = iso(new Date(Date.now() + g * 86400000));
     return t.replaceAll('{nome}', 'Giulia').replaceAll('{cognome}', 'Rossi').replaceAll('{scadenza}', dataBreve(scad)).replaceAll('{giorni}', String(Math.max(0, g)))
-      .replaceAll('{importo}', '60,00 €').replaceAll('{corso}', 'Delfino Giallo').replaceAll('{stagione}', '2026/27').replaceAll('{societa}', societa?.nome ?? 'la società');
+      .replaceAll('{importo}', euro(60)).replaceAll('{corso}', 'Delfino Giallo').replaceAll('{stagione}', '2026/27').replaceAll('{societa}', societa?.nome ?? 'la società');
   }
   /** Il campo (oggetto o testo) dove sta il cursore: le pillole scrivono lì. */
   let campo: HTMLInputElement | HTMLTextAreaElement | null = null;
@@ -170,7 +172,7 @@
   <div class="stato-posta" role="status">
     <Icona nome="avviso" />
     <span class="t"><b>Il server di posta non è configurato</b><span>Le email si preparano ogni giorno ({pagina.orario}) e si vedono qui sotto, ma non arrivano a nessuno. Lo configura il tecnico sul server.</span></span>
-    <button type="button" class="btn btn-secondary" onclick={eseguiOra}>Prepara adesso quelle di oggi</button>
+    <button type="button" class="btn btn-secondary" onclick={eseguiOra}>Prepara adesso quelli di oggi</button>
   </div>
 {:else if pagina}
   <div class="posta-ok"><span class="pill passa">Posta configurata</span><span class="muted small grow">Promemoria automatici: {pagina.orario}</span>
@@ -243,8 +245,8 @@
               </div>
             </div>
             <div class="row fine">
-              <Conferma class="btn btn-danger" domanda="Elimina?" onclick={togli}>Elimina</Conferma>
-              <button class="btn btn-primary largo" type="button" disabled={!cambiata} onclick={salva}>Salva</button>
+              <Conferma class="btn btn-danger" domanda="Elimina?" onclick={togli}>Elimina il promemoria</Conferma>
+              <button class="btn btn-primary largo" type="button" disabled={!cambiata} onclick={salva}>Salva il promemoria</button>
             </div>
           </div>
         </section>
@@ -254,10 +256,10 @@
     <aside class="lato-p largo-p">
       <section class="card sez" id="imp-attesa" aria-label="Lista d'attesa">
         <div class="sez-t"><h2 class="grow">Avvisi della lista d'attesa</h2></div>
-        <div class="riga-imp"><span class="t"><b>Chi è avvisato di un posto libero ha</b><span>Poi l'avviso passa al prossimo in lista.</span></span>
+        <div class="riga-imp"><span class="t"><b>Chi è avvisato di un posto libero ha tempo</b><span>Poi l'avviso passa al prossimo in lista.</span></span>
           <span class="ctl"><input class="inp num" type="number" min="1" max="30" disabled={!puoAttesa || !societa} value={societa?.giorniRispostaAttesa ?? ''}
-            oninput={(e) => societa && (societa.giorniRispostaAttesa = Number(e.currentTarget.value))} aria-label="Giorni" /><span class="unita">giorni per rispondere</span></span></div>
-        {#if societa && Number(societa.giorniRispostaAttesa) !== attesaOriginale}<div class="riga-imp"><button class="mini-btn pieno" type="button" onclick={salvaAttesa}>Salva</button></div>{/if}
+            oninput={(e) => societa && (societa.giorniRispostaAttesa = Number(e.currentTarget.value))} aria-label="Giorni" /><span class="unita">giorni</span></span></div>
+        {#if societa && Number(societa.giorniRispostaAttesa) !== attesaOriginale}<div class="riga-imp"><button class="mini-btn pieno" type="button" onclick={salvaAttesa}>Salva i giorni</button></div>{/if}
       </section>
 
       <section class="card sez" aria-label="Ultime email">

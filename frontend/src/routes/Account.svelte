@@ -96,7 +96,7 @@
     <div class="lbl">Password temporanea di {temporanea.chi}</div>
     <div class="pw m">{temporanea.password}</div>
     <p class="small nomargin">Comunicala di persona: accede con <strong>{temporanea.email}</strong> e al primo accesso sceglie la sua. Non verrà più mostrata.</p>
-    <div class="row"><button class="btn btn-secondary" onclick={copia}><Icona nome="copia" />Copia</button><button class="btn btn-primary" onclick={() => (temporanea = null)}>Fatto</button></div>
+    <div class="row"><button class="btn btn-secondary" onclick={copia}><Icona nome="copia" />Copia la password</button><button class="btn btn-primary" onclick={() => (temporanea = null)}>L'ho copiata</button></div>
   </div>
 {/if}
 {#if messaggio}<p class="msg ok" role="status">{messaggio}</p>{/if}
@@ -134,7 +134,7 @@
     {/if}
     <p class="muted small nomargin">Si crea con una password temporanea, da comunicare di persona: al primo accesso va cambiata.</p>
     <div class="row">
-      <button type="button" class="btn btn-secondary grow" onclick={() => (nuovo = null)}>Annulla</button>
+      <button type="button" class="btn btn-secondary" onclick={() => (nuovo = null)}>Annulla</button>
       <button class="btn btn-primary grow" disabled={!nuovo.nome.trim() || !nuovo.cognome.trim() || !nuovo.email.includes('@')}>Crea l'account</button>
     </div>
   </form>

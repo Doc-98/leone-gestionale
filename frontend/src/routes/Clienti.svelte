@@ -4,8 +4,9 @@
   import { onMount, tick } from 'svelte';
   import { api, messaggioErrore, type GiornataBanco, type PersonaScheda, type VoceScadenza } from '../lib/api';
   import { motivoBreve } from '../lib/banco';
-  import { aggiungiGiorni, dataBreve, GIORNI, iso, daIso, oraDi } from '../lib/date';
-  import { euro } from '../lib/listino';
+  import { aggiungiGiorni, dataAgenda, dataBreve, iso, oraDi } from '../lib/date';
+  import { eta } from '../lib/attesa';
+  import { euro } from '../lib/numeri';
   import { codiceValido, normalizzaCodice } from '../lib/nfc';
   import { recenti, type Recente } from '../lib/recenti';
   import { schermo } from '../lib/schermo.svelte';
@@ -147,13 +148,11 @@
     const visti = new Set<string>();
     return giornata.passaggi.filter((p) => p.persona && !visti.has(p.persona.id) && visti.add(p.persona.id)).slice(0, 6);
   });
-  const eta = (n: number | null) => (n == null ? '' : n === 1 ? '1 anno' : `${n} anni`);
   const iniziali = (nome: string, cognome: string) => `${nome[0] ?? ''}${cognome[0] ?? ''}`.toUpperCase();
   function quando(v: VoceScadenza): string {
     if (v.giorni === 0) return 'oggi';
     if (!v.scadenza) return '';
-    const d = daIso(v.scadenza);
-    return `${GIORNI[d.getDay()].slice(0, 3)} ${d.getDate()}`;
+    return dataAgenda(v.scadenza);
   }
   function apertoIl(r: Recente): string {
     const giorno = r.quando.slice(0, 10);
@@ -189,8 +188,8 @@
       </div>
       <label class="field"><span class="lbl">Data di nascita</span><input class="inp" type="date" bind:value={nuovo.dataNascita} max={oggi} /></label>
       <div class="row">
-        <button type="button" class="btn btn-secondary grow" onclick={() => (nuovo = null)}>Annulla</button>
-        <button class="btn btn-primary grow" disabled={!nuovo.nome.trim() || !nuovo.cognome.trim()}>Crea</button>
+        <button type="button" class="btn btn-secondary" onclick={() => (nuovo = null)}>Annulla</button>
+        <button class="btn btn-primary grow" disabled={!nuovo.nome.trim() || !nuovo.cognome.trim()}>Crea il cliente</button>
       </div>
       <p class="muted small nomargin">Contatti e tutori si aggiungono poi nella scheda.</p>
     </form>
