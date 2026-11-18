@@ -1,6 +1,8 @@
-/** Il numero con il suo nome al singolare o al plurale: quanti(1, 'turno', 'turni') → «1 turno», quanti(3, …) → «3 turni». */
+import { numero } from './numeri';
+
+/** Il numero (migliaia col punto, come `numero()`) con il suo nome al singolare o al plurale: quanti(1, 'turno', 'turni') → «1 turno», quanti(3, …) → «3 turni». */
 export function quanti(n: number, singolare: string, plurale: string): string {
-  return `${n} ${n === 1 ? singolare : plurale}`;
+  return `${numero(n)} ${n === 1 ? singolare : plurale}`;
 }
 
 /** «1 credito», «20 crediti». */

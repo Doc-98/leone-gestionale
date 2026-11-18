@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PersonaStaff, Postazione } from './api';
-import { ammessa, candidati, gruppi, nomeCorto, nomeNuovaPostazione, orePerPersona, type TurnoBreve } from './gestione';
+import { ammessa, candidati, gruppi, nomeCorto, nomeNuovaPostazione, nomiBrevi, orePerPersona, postazioneBreve, type TurnoBreve } from './gestione';
 
 const post = (id: string, nome: string, mansione = 'Assistente spogliatoio', soloSesso: 'M' | 'F' | null = null): Postazione =>
   ({ id, nome, mansione, impiantoId: 'i', soloSesso });
@@ -69,5 +69,43 @@ describe('anteprima della generazione', () => {
       [{ postazioneId: 'm1', data: '2027-06-15', inizio: '16:00:00', fine: '20:00:00' }, { postazioneId: 'm2', data: '2027-06-15', inizio: '16:00:00', fine: '19:00:00' }]);
     expect(a.giorni.map((g) => [g.nuovi, g.stato])).toEqual([[0, 'chiuso'], [2, 'ridotto'], [1, ''], [0, 'gia']]);
     expect(a).toMatchObject({ nuovi: 3, ore: 8, scoperti: 1, chiusure: ['Chiuso', 'Ridotto'] });
+  });
+});
+
+describe('postazioneBreve', () => {
+  it('area e numero per le postazioni numerate', () => {
+    expect(postazioneBreve('Spogliatoio piccoli · Postazione 5')).toBe('Piccoli · 5');
+    expect(postazioneBreve('Spogliatoio M · postazione 4')).toBe('Maschile · 4');
+    expect(postazioneBreve('Spogliatoio F · postazione 12')).toBe('Femminile · 12');
+    expect(postazioneBreve('Spogliatoio maschile · Postazione 1')).toBe('Maschile · 1');
+    expect(postazioneBreve('Tornelli · postazione 2')).toBe('Tornelli · 2');
+  });
+  it('altrimenti resta il testo dopo il punto, senza indovinare', () => {
+    expect(postazioneBreve('Spogliatoio piccoli · Phon 2')).toBe('Phon 2');
+    expect(postazioneBreve('Atrio · Cassa 1')).toBe('Cassa 1');
+    expect(postazioneBreve('Atrio · ingresso')).toBe('Ingresso');
+    expect(postazioneBreve('Spogliatoio M · Phon')).toBe('Phon');
+  });
+  it('mai da pezzi di parola, mai vuoto', () => {
+    expect(postazioneBreve('Reception 3')).toBe('Reception 3');
+    expect(postazioneBreve('Sala corso 2025')).toBe('Sala corso 2025');
+    expect(postazioneBreve('Mansarda · Postazione 2')).toBe('Postazione 2');
+    expect(postazioneBreve('Reception')).toBe('Reception');
+    expect(postazioneBreve('Atrio · ')).toBe('Atrio · ');
+    expect(postazioneBreve('')).toBe('');
+  });
+});
+
+describe('nomiBrevi', () => {
+  it('se due postazioni diverse hanno lo stesso breve, per quelle resta il nome intero', () => {
+    const breve = nomiBrevi(['Spogliatoio M · Phon', 'Spogliatoio F · Phon', 'Spogliatoio piccoli · Postazione 2', 'Atrio · Cassa 1']);
+    expect(breve('Spogliatoio M · Phon')).toBe('Spogliatoio M · Phon');
+    expect(breve('Spogliatoio F · Phon')).toBe('Spogliatoio F · Phon');
+    expect(breve('Spogliatoio piccoli · Postazione 2')).toBe('Piccoli · 2');
+    expect(breve('Atrio · Cassa 1')).toBe('Cassa 1');
+  });
+  it('la stessa postazione ripetuta non è un doppione', () => {
+    const breve = nomiBrevi(['Spogliatoio M · Phon', 'Spogliatoio M · Phon']);
+    expect(breve('Spogliatoio M · Phon')).toBe('Phon');
   });
 });

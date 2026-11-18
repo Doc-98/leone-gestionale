@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.pagamenti;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -83,7 +84,7 @@ class Addebito {
 
     /** Pagato in parte e poi chiuso (es. recesso): resta dovuto solo quello che è stato pagato. */
     void riduciA(BigDecimal pagato, String motivo) {
-        this.note = (note == null ? "" : note + " · ") + motivo + " (era " + importo + " €)";
+        this.note = (note == null ? "" : note + " · ") + motivo + " (era " + Importi.testo(importo) + ")";
         if (note.length() > 300) note = note.substring(0, 300);
         this.importo = pagato;
     }

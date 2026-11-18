@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.cassa;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Persone;
@@ -572,6 +573,6 @@ public class CassaService {
     }
 
     static String euroTesto(BigDecimal v) {
-        return PdfChiusura.euro(v);
+        return Importi.testo(v);
     }
 }

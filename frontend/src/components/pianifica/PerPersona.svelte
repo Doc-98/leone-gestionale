@@ -2,7 +2,7 @@
   import Icona from '../Icona.svelte';
   import type { PersonaStaff, Postazione, Turno } from '../../lib/api';
   import { ora } from '../../lib/date';
-  import { ammessa, formatH, gruppoDi, orePerPersona, siAccavallano, testoRiservata } from '../../lib/gestione';
+  import { ammessa, formatH, gruppoDi, orePerPersona, nomiBrevi, siAccavallano, testoRiservata } from '../../lib/gestione';
   import { areaDi, giornoBreve } from '../../lib/turni';
 
   /**
@@ -31,6 +31,7 @@
     const p = postDi(t);
     return p ? `${gruppoDi(p).nome} · ${gruppoDi(p).etichetta}` : t.postazione;
   };
+  const breve_ = $derived(nomiBrevi(postazioni.map((p) => p.nome)));
   const iniziali = (n: string) => n.split(' ').map((x) => x[0]).slice(0, 2).join('');
 
   const avviso = $derived(scelto
@@ -75,7 +76,8 @@
           <div class="c" role="gridcell">
             {#each scoperti.filter((t) => t.data === g) as t (t.id)}
               <button type="button" class="blk vuoto ar-{areaDi(t.postazione)}" class:scelto={sceltoId === t.id} aria-pressed={sceltoId === t.id}
-                onclick={() => (sceltoId = sceltoId === t.id ? '' : t.id)}><span class="o">{ora(t.inizio)}–{ora(t.fine)}</span><span class="p">{dove(t)}</span></button>
+                title="Scoperto: {ora(t.inizio)}–{ora(t.fine)} · {dove(t)}" aria-label="Scoperto: {ora(t.inizio)}–{ora(t.fine)} · {dove(t)}"
+                onclick={() => (sceltoId = sceltoId === t.id ? '' : t.id)}><span class="o">{ora(t.inizio)}–{ora(t.fine)}</span><span class="p">{breve_(t.postazione)}</span></button>
             {/each}
           </div>
         {/each}
@@ -95,7 +97,7 @@
           <div class="c" class:spenta={st.spenta && !sovr} role="gridcell">
             {#each suoi as t (t.id)}
               <div class="riga-blk">
-                <span class="blk ar-{areaDi(t.postazione)}" class:spento={!!sovr}><span class="o">{ora(t.inizio)}–{ora(t.fine)}</span><span class="p">{dove(t)}</span></span>
+                <span class="blk ar-{areaDi(t.postazione)}" class:spento={!!sovr} title="{ora(t.inizio)}–{ora(t.fine)} · {dove(t)}"><span class="o">{ora(t.inizio)}–{ora(t.fine)}</span><span class="p" aria-hidden="true">{breve_(t.postazione)}</span><span class="sr">{dove(t)}</span></span>
                 {#if sovr === t}<button type="button" class="piu-acc" title={`Assegna comunque: si accavalla con ${ora(t.inizio)}–${ora(t.fine)} · ${dove(t)}`}
                   aria-label={`Assegna comunque a ${p.nome}: si accavalla con ${ora(t.inizio)}–${ora(t.fine)}`} onclick={() => qui(p, true)}><Icona nome="piu" /></button>{/if}
               </div>
@@ -139,11 +141,11 @@
   .vuoti .chi, .vuoti .tot { color: var(--ferma-fg); }
   /* chi non può coprire il turno scelto: grigio, senza cambiare l'altezza */
   .spenta { opacity: 0.3; filter: grayscale(1); }
-  .blk { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 5px 6px; border-radius: 8px; border: none; background: var(--a-bg); color: var(--a-fg); font: inherit;
+  .blk { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 1px; padding: 5px 6px; border-radius: 8px; border: none; background: var(--a-bg); color: var(--a-fg); font: inherit;
     text-align: left; min-width: 0; }
   button.blk { cursor: pointer; }
   .blk .o { font-family: var(--font-mono); font-size: 10.5px; white-space: nowrap; overflow: hidden; }
-  .blk .p { font-size: var(--text-xs); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .blk .p { font-size: var(--text-xs); font-weight: 700; color: var(--ink); overflow: hidden; white-space: nowrap; }
   .blk.vuoto { background: repeating-linear-gradient(135deg, var(--surface) 0 7px, var(--ferma-bg) 7px 10px); color: var(--ferma-fg); box-shadow: inset 0 0 0 2px var(--ferma); }
   .blk.vuoto .p { color: var(--ferma-fg); }
   .blk.vuoto.scelto { box-shadow: inset 0 0 0 3px var(--ink); }

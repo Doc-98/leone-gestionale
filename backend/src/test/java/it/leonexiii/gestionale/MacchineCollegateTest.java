@@ -122,7 +122,7 @@ class MacchineCollegateTest extends ProvaApi {
         assertThat(anonimo().macchina("GET", saldo + codice, null, null).statusCode()).isEqualTo(401);
         assertThat(json(anonimo().macchina("GET", saldo + codice, chiave, null))).containsEntry("esito", "SALDO").containsEntry("messaggio", "Crediti: 25");
         assertThat(coord.post("/api/borsellino/persone/" + persona + "/correzioni", "{\"saldo\":\"EURO\",\"quantita\":7.5,\"motivo\":\"Prova del lettore\"}").statusCode()).isEqualTo(204);
-        assertThat(json(anonimo().macchina("GET", saldo + codice, chiave, null))).containsEntry("messaggio", "Crediti: 25 · credito 7.50 €");
+        assertThat(json(anonimo().macchina("GET", saldo + codice, chiave, null))).containsEntry("messaggio", "Crediti: 25 · credito 7,50 €");
         assertThat(json(anonimo().macchina("GET", saldo + nuovoCodice(), chiave, null))).containsEntry("esito", "SCONOSCIUTO");
         // passato su una macchina «da servizio», un lettore del saldo mostra soltanto il saldo
         assertThat(json(usa(lettore, chiave, codice))).containsEntry("via", false).containsEntry("esito", "SALDO").containsEntry("crediti", 25);

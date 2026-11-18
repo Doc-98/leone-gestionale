@@ -24,6 +24,7 @@
   import VenditaListino from '../components/VenditaListino.svelte';
   import LettoreTelefonoPc from '../components/LettoreTelefonoPc.svelte';
   import { lettoreTelefono } from '../lib/lettore.svelte';
+  import { adattaCifra } from '../lib/adattaCifra';
 
   /**
    * La scheda di un cliente per la segreteria. In alto il riassunto, sempre visibile: chi è, come andrebbe adesso al
@@ -470,23 +471,23 @@
     <div class="kpis">
       <div class="kpi" class:warn={daPagare > 0}>
         <span class="lbl">Da pagare</span>
-        <span class="val m">{conto ? euro(daPagare) : '…'}</span>
-        <span class="kpi-nota">{!conto ? '' : conto.totali.scaduto > 0 ? `di cui ${euro(conto.totali.scaduto)} scaduti` : daPagare > 0 ? 'Da registrare' : 'In regola'}</span>
+        <span class="val m" use:adattaCifra>{conto ? euro(daPagare) : '…'}</span>
+        <span class="kpi-nota" use:adattaCifra>{!conto ? '' : conto.totali.scaduto > 0 ? `${euro(conto.totali.scaduto)} scaduti` : daPagare > 0 ? 'Da registrare' : 'In regola'}</span>
       </div>
       <div class="kpi">
         <span class="lbl">Credito</span>
-        <span class="val m">{borsellino ? euro(borsellino.saldo.euro) : '…'}</span>
-        <span class="kpi-nota">{borsellino?.saldo.inScadenza && borsellino.saldo.prossimaScadenza ? `${euro(borsellino.saldo.inScadenza)} scadono il ${dataBreve(borsellino.saldo.prossimaScadenza)}` : 'Nel borsellino'}</span>
+        <span class="val m" use:adattaCifra>{borsellino ? euro(borsellino.saldo.euro) : '…'}</span>
+        <span class="kpi-nota" use:adattaCifra title={borsellino?.saldo.inScadenza && borsellino.saldo.prossimaScadenza ? `${euro(borsellino.saldo.inScadenza)} entro il ${dataBreve(borsellino.saldo.prossimaScadenza)}` : undefined}>{borsellino?.saldo.inScadenza && borsellino.saldo.prossimaScadenza ? (borsellino.saldo.inScadenza >= borsellino.saldo.euro ? `Scade il ${dataBreve(borsellino.saldo.prossimaScadenza)}` : `${euro(borsellino.saldo.inScadenza)} entro ${dataBreve(borsellino.saldo.prossimaScadenza)}`) : 'Nel borsellino'}</span>
       </div>
       <div class="kpi">
         <span class="lbl">Phon e docce</span>
-        <span class="val m">{borsellino ? nCrediti(borsellino.saldo.crediti) : '…'}</span>
-        <span class="kpi-nota">{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span>
+        <span class="val m" use:adattaCifra>{borsellino ? nCrediti(borsellino.saldo.crediti) : '…'}</span>
+        <span class="kpi-nota" use:adattaCifra>{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span>
       </div>
       <div class="kpi" class:warn={!braccialetto || braccialetto.stato !== 'ATTIVO'}>
         <span class="lbl">Braccialetto</span>
-        <span class="val m">{braccialetto?.codice ?? 'Nessuno'}</span>
-        <span class="kpi-nota">{braccialetto ? `${STATI[braccialetto.stato].nome} dal ${dataBreve(dataDi(braccialetto.statoDal))}` : 'Da assegnare'}</span>
+        <span class="val m" use:adattaCifra>{braccialetto?.codice ?? 'Nessuno'}</span>
+        <span class="kpi-nota" use:adattaCifra>{braccialetto ? `${STATI[braccialetto.stato].nome} dal ${dataBreve(dataDi(braccialetto.statoDal))}` : 'Da assegnare'}</span>
       </div>
     </div>
 
@@ -1057,8 +1058,8 @@
   .r-esito { flex: 0 1 340px; min-width: 260px; }
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-10); }
   .kpi { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--carta); min-width: 0; }
-  .kpi .val { font-size: var(--text-2xl); overflow-wrap: anywhere; }
-  .kpi-nota { font-size: var(--text-xs); color: var(--muted); }
+  .kpi .val { font-size: var(--text-2xl); white-space: nowrap; overflow: hidden; }
+  .kpi-nota { font-size: var(--text-xs); color: var(--muted); white-space: nowrap; overflow: hidden; }
   .kpi.warn { background: var(--warn-bg); }
   .kpi.warn .val, .kpi.warn .kpi-nota, .kpi.warn .lbl { color: var(--warn); }
   .r-azioni { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }

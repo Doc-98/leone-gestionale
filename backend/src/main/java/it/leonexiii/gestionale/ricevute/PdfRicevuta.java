@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.ricevute;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -18,7 +19,6 @@ import it.leonexiii.gestionale.societa.Societa;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -40,16 +40,7 @@ final class PdfRicevuta {
     private PdfRicevuta() {}
 
     static String euro(BigDecimal importo) {
-        String s = importo.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        String intero = s.substring(0, s.indexOf('.')), dec = s.substring(s.indexOf('.') + 1);
-        StringBuilder g = new StringBuilder();
-        boolean meno = intero.startsWith("-");
-        if (meno) intero = intero.substring(1);
-        for (int i = 0; i < intero.length(); i++) {
-            if (i > 0 && (intero.length() - i) % 3 == 0) g.append('.');
-            g.append(intero.charAt(i));
-        }
-        return (meno ? "-" : "") + g + "," + dec + " €";
+        return Importi.colonna(importo);
     }
 
     static byte[] crea(Ricevuta r, Serie.Tipo tipo, Societa.Dati societa, boolean firma) {

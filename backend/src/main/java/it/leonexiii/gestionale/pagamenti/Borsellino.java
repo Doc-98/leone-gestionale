@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.pagamenti;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Persone;
@@ -206,10 +207,10 @@ public class Borsellino {
     public int creditiPer(BigDecimal importo) {
         Regole r = regole();
         if (importo == null || importo.signum() <= 0) throw new IllegalArgumentException("Scrivi l'importo della ricarica.");
-        if (importo.compareTo(r.ricaricaMinima()) < 0) throw new IllegalArgumentException("La ricarica minima è di " + r.ricaricaMinima() + " €.");
+        if (importo.compareTo(r.ricaricaMinima()) < 0) throw new IllegalArgumentException("La ricarica minima è di " + Importi.testo(r.ricaricaMinima()) + ".");
         BigDecimal[] div = importo.divideAndRemainder(r.valoreCredito());
         if (div[1].signum() != 0)
-            throw new IllegalArgumentException("L'importo deve essere un multiplo del valore di un credito (" + r.valoreCredito() + " €).");
+            throw new IllegalArgumentException("L'importo deve essere un multiplo del valore di un credito (" + Importi.testo(r.valoreCredito()) + ").");
         return div[0].intValueExact();
     }
 
@@ -244,7 +245,7 @@ public class Borsellino {
             List.of(addebito), in.metodi(), in.note(), false), da, flessibile).getFirst();
         movimenti.blocca(persona);
         movimenti.salva(new MovimentoBorsellino(persona, MovimentoBorsellino.Saldo.CREDITI, BigDecimal.valueOf(crediti), MovimentoBorsellino.Causale.RICARICA,
-            braccialettoId == null ? "Ricarica di " + in.importo() + " €" : "Ricarica di " + in.importo() + " € scritta sul braccialetto", null, da,
+            braccialettoId == null ? "Ricarica di " + Importi.testo(in.importo()) : "Ricarica di " + Importi.testo(in.importo()) + " scritta sul braccialetto", null, da,
             orologio.instant()).conPagamento(pagamento).conRiferimento(braccialettoId));
         return pagamento;
     }
