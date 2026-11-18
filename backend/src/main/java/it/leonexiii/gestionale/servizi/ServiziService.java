@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.servizi;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.accessi.Braccialetti;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Persone;
@@ -130,7 +131,7 @@ class ServiziService {
         if (t.isEmpty()) return new Risposta(false, Utilizzo.Esito.SCONOSCIUTO.name(), "Braccialetto non registrato", null, null, 0, null, null);
         var s = borsellino.saldo(t.get().personaId());
         return new Risposta(false, t.get().attivo() ? "SALDO" : Utilizzo.Esito.NON_ATTIVO.name(),
-            t.get().attivo() ? "Crediti: " + s.crediti() + (s.euro().signum() > 0 ? " · credito " + s.euro() + " €" : "") : "Braccialetto non attivo",
+            t.get().attivo() ? "Crediti: " + s.crediti() + (s.euro().signum() > 0 ? " · credito " + Importi.testo(s.euro()).replace('\u00a0', ' ') : "") : "Braccialetto non attivo",
             t.get().nome(), s.crediti(), 0, null, s.euro());
     }
 

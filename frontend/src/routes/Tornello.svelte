@@ -17,6 +17,7 @@
   import DaSistemare from '../components/banco/DaSistemare.svelte';
   import RiepilogoCliente from '../components/banco/RiepilogoCliente.svelte';
   import { lettoreTelefono } from '../lib/lettore.svelte';
+  import { adattaCifra } from '../lib/adattaCifra';
 
   /**
    * Il banco del tornello. Sul telefono Android si leggono i braccialetti con l'NFC; sul PC un lettore da scrivania
@@ -236,9 +237,9 @@
     <aside class="dx">
       {#if conti}
         <div class="kpi-oggi">
-          <div class="k"><span class="lbl">Entrati oggi</span><span class="v">{conti.entrati}</span><span class="n">{conti.conCarnet ? `di cui ${conti.conCarnet} con il carnet` : 'persone diverse'}</span></div>
-          <div class="k"><span class="lbl">Dentro ora</span><span class="v">{conti.dentro ?? '–'}</span><span class="n">{conti.dentro == null ? 'nessuna uscita registrata' : 'entrati e non usciti'}</span></div>
-          <div class="k" class:warn={giornata!.daSistemare.length > 0}><span class="lbl">Da sistemare</span><span class="v">{giornata!.daSistemare.length}</span><span class="n">rimasti fuori oggi</span></div>
+          <div class="k"><span class="lbl">Entrati oggi</span><span class="v">{conti.entrati}</span><span class="n" use:adattaCifra>{conti.conCarnet ? `di cui ${conti.conCarnet} col carnet` : 'persone diverse'}</span></div>
+          <div class="k"><span class="lbl">Dentro ora</span><span class="v">{conti.dentro ?? '–'}</span><span class="n" use:adattaCifra>{conti.dentro == null ? 'uscita non registrata' : 'entrati e non usciti'}</span></div>
+          <div class="k" class:warn={giornata!.daSistemare.length > 0}><span class="lbl">Da sistemare</span><span class="v">{giornata!.daSistemare.length}</span><span class="n" use:adattaCifra>rimasti fuori oggi</span></div>
         </div>
       {/if}
       <section class="blocco">
@@ -300,4 +301,13 @@
   .k .v { font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.1; }
   .k.warn .v { color: var(--warn); }
   .k .n { font-size: var(--text-xs); color: var(--muted); }
+  .k .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .k .n { white-space: nowrap; overflow: hidden; }
+  /* sul telefono i tre riquadri sono tre righe: etichetta e nota a sinistra, la cifra a destra */
+  @media (max-width: 640px) {
+    .kpi-oggi { grid-template-columns: minmax(0, 1fr); }
+    .k { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-12); align-items: center; padding: var(--space-8) var(--space-14); }
+    .k .lbl, .k .n { grid-column: 1; }
+    .k .v { grid-column: 2; grid-row: 1 / span 2; }
+  }
 </style>

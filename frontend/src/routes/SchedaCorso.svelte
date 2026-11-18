@@ -16,6 +16,7 @@
   } from '../lib/corsi';
   import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
   import { schermo } from '../lib/schermo.svelte';
+  import { adattaCifra } from '../lib/adattaCifra';
 
   /**
    * La scheda di un corso: in alto il riassunto (istruttori, turni, iscritti, posti liberi, lista d'attesa), sotto le
@@ -279,14 +280,14 @@
       {/if}
     </div>
     <div class="kpis">
-      <div class="kpi"><span class="lbl">Turni</span><span class="val">{attivi.length}</span><span class="kpi-nota">{giorniTesto}</span></div>
+      <div class="kpi"><span class="lbl">Turni</span><span class="val" use:adattaCifra>{attivi.length}</span><span class="kpi-nota" use:adattaCifra>{giorniTesto}</span></div>
       <div class="kpi"><span class="lbl">Iscritti</span>
-        <span class="val">{r.iscritti}{#if r.posti != null} <span class="m su">/ {r.posti}</span>{/if}</span>
-        <span class="kpi-nota">{r.percentuale != null ? `${r.percentuale}% dei posti` : 'senza limite di posti'}</span></div>
-      <div class="kpi"><span class="lbl">Posti liberi</span><span class="val">{r.posti != null ? r.liberi : '—'}</span>
-        <span class="kpi-nota">{r.posti != null ? `in ${quanti(r.turniLiberi, 'turno', 'turni')} su ${attivi.length}` : ''}</span></div>
-      <div class="kpi" class:warn={r.inAttesa > 0}><span class="lbl">In lista d'attesa</span><span class="val">{r.inAttesa}</span>
-        <span class="kpi-nota">{r.inAttesa ? `per ${quanti(conAttesa.length, 'turno', 'turni')}` : 'nessuno'}</span></div>
+        <span class="val" use:adattaCifra>{r.iscritti}{#if r.posti != null} <span class="m su">/ {r.posti}</span>{/if}</span>
+        <span class="kpi-nota" use:adattaCifra>{r.percentuale != null ? `${r.percentuale}% dei posti` : 'senza limite di posti'}</span></div>
+      <div class="kpi"><span class="lbl">Posti liberi</span><span class="val" use:adattaCifra>{r.posti != null ? r.liberi : '—'}</span>
+        <span class="kpi-nota" use:adattaCifra>{r.posti != null ? `in ${quanti(r.turniLiberi, 'turno', 'turni')} su ${attivi.length}` : ''}</span></div>
+      <div class="kpi" class:warn={r.inAttesa > 0}><span class="lbl">In lista d'attesa</span><span class="val" use:adattaCifra>{r.inAttesa}</span>
+        <span class="kpi-nota" use:adattaCifra>{r.inAttesa ? `per ${quanti(conAttesa.length, 'turno', 'turni')}` : 'nessuno'}</span></div>
     </div>
   </section>
 
@@ -511,8 +512,8 @@
     <div class="foglio-turno">
       <p class="muted nomargin">{[corso.nome, doveBreve(l.spazi, spazi), nomiBrevi(istruttoriDi(l)), notaTurno(l)].filter(Boolean).join(' · ')}</p>
       <div class="kpis piccoli">
-        <div class="kpi" class:warn={pieno(l)}><span class="lbl">Iscritti</span><span class="val">{l.iscritti}{l.posti != null ? ` / ${l.posti}` : ''}</span></div>
-        <div class="kpi" class:warn={l.inAttesa > 0}><span class="lbl">In attesa</span><span class="val">{l.inAttesa}</span></div>
+        <div class="kpi" class:warn={pieno(l)}><span class="lbl">Iscritti</span><span class="val" use:adattaCifra>{l.iscritti}{l.posti != null ? ` / ${l.posti}` : ''}</span></div>
+        <div class="kpi" class:warn={l.inAttesa > 0}><span class="lbl">In attesa</span><span class="val" use:adattaCifra>{l.inAttesa}</span></div>
         <div class="kpi"><span class="lbl">Prossima</span><span class="val small-v">{dataBreve(prossimaOccorrenza(l))}</span></div>
       </div>
       {#key l.id}
@@ -549,9 +550,9 @@
   .azioni-r { display: flex; flex-wrap: wrap; gap: var(--space-8); }
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-10); }
   .kpi { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--carta); min-width: 0; }
-  .kpi .val { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 800; line-height: 1.1; }
+  .kpi .val { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden; }
   .kpi .su { font-size: var(--text-md); font-weight: 500; color: var(--muted); }
-  .kpi-nota { font-size: var(--text-xs); color: var(--muted); }
+  .kpi-nota { font-size: var(--text-xs); color: var(--muted); white-space: nowrap; overflow: hidden; }
   .kpi.warn { background: var(--warn-bg); }
   .kpi.warn .val, .kpi.warn .kpi-nota, .kpi.warn .lbl { color: var(--warn); }
   .kpis.piccoli .val { font-size: var(--text-2xl); }

@@ -4,7 +4,7 @@
  */
 import type { PersonaBreve, PersonaStaff, Postazione } from './api';
 import { oreTra } from './date';
-import { areaDi, type Area } from './turni';
+import { areaDi, NOMI_AREA, type Area } from './turni';
 
 export interface RigaPostazione {
   postazione: Postazione;
@@ -26,6 +26,44 @@ export function gruppoDi(p: Postazione): { nome: string; etichetta: string } {
   const i = p.nome.indexOf(' · ');
   if (i > 0) return { nome: p.nome.slice(0, i), etichetta: maiuscola(p.nome.slice(i + 3)) };
   return { nome: p.mansione, etichetta: p.nome };
+}
+
+/** L'area in breve, ricavata solo da parole intere all'inizio del nome del gruppo: «Spogliatoio piccoli» → «Piccoli». */
+function areaBreve(gruppo: string): string | null {
+  const m = /^(?:spogliato(?:io|i)\s+(piccoli|maschile|femminile|m|f)|(tornelli|atrio))(?![\p{L}\d])/iu.exec(gruppo.trim());
+  if (!m) return null;
+  const x = (m[1] ?? m[2]).toLowerCase();
+  return x === 'm' ? 'Maschile' : x === 'f' ? 'Femminile' : maiuscola(x);
+}
+
+/**
+ * Il nome di una postazione per i blocchi stretti dei turni. «Spogliatoio piccoli · Postazione 5» → «Piccoli 5»,
+ * «Spogliatoio M · postazione 4» → «Maschile 4». Se dopo « · » non c'è «Postazione N» resta quel testo («Phon»), senza
+ * il gruppo; senza « · » (o con testo vuoto) resta il nome intero. Mai una stringa vuota.
+ * Il nome intero va sempre nel `title` e nel testo per i lettori di schermo; `nomiBrevi` evita i doppioni.
+ */
+export function postazioneBreve(nome: string): string {
+  const i = nome.indexOf(' \u00b7 ');
+  if (i <= 0) return nome.trim() || nome;
+  const resto = nome.slice(i + 3).trim();
+  if (!resto) return nome;
+  const n = /^postazione\s+(\d+)$/i.exec(resto)?.[1];
+  const area = areaBreve(nome.slice(0, i));
+  if (n && area) return `${area} ${n}`;
+  return maiuscola(resto);
+}
+
+/** Come `postazioneBreve`, ma se due postazioni diverse avrebbero lo stesso nome breve, per quelle resta il nome intero. */
+export function nomiBrevi(nomi: string[]): (nome: string) => string {
+  const conta = new Map<string, Set<string>>();
+  for (const n of nomi) {
+    const b = postazioneBreve(n);
+    (conta.get(b) ?? conta.set(b, new Set()).get(b)!).add(n);
+  }
+  return (nome) => {
+    const b = postazioneBreve(nome);
+    return (conta.get(b)?.size ?? 0) > 1 ? nome : b;
+  };
 }
 
 /** Le postazioni nell'ordine della pianificazione, raggruppate (es. spogliatoio maschile, femminile, piccoli, atrio). */

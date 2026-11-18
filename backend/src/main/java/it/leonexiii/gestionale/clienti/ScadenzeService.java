@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.clienti;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.identita.Persone;
 import it.leonexiii.gestionale.notifiche.Posta;
 import it.leonexiii.gestionale.pagamenti.Pagamenti;
@@ -165,8 +166,8 @@ class ScadenzeService {
         return out;
     }
 
-    /** «45,00 €», come lo legge una persona. */
+    /** «45 €» o «45,50 €», come lo legge una persona. */
     static String euro(BigDecimal importo) {
-        return importo.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString().replace('.', ',') + " €";
+        return Importi.testo(importo);
     }
 }

@@ -5,7 +5,7 @@
   import { api, messaggioErrore, type Corso, type GruppoClienti, type NuovaOfferta, type Offerta, type PaginaListino, type Stagione, type TipoOfferta } from '../lib/api';
   import { dataLunga, iso } from '../lib/date';
   import { etichettaVolte, VOLTE } from '../lib/listino';
-  import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
+  import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { quanti } from '../lib/plurali';
   import { sessione } from '../lib/sessione.svelte';
 
@@ -95,7 +95,7 @@
   /** Il prezzo per tutti di quella frequenza, e quelli per i gruppi sotto. */
   const prezzo = (o: Offerta, volte: number | null) => ({
     tutti: o.prezzi.find((p) => p.volte === volte && !p.gruppoId)?.importo ?? null,
-    gruppi: o.prezzi.filter((p) => p.volte === volte && p.gruppoId).map((p) => `${nomeGruppo(p.gruppoId).split(' ')[0].toLowerCase()} ${euro(p.importo)}`),
+    gruppi: o.prezzi.filter((p) => p.volte === volte && p.gruppoId).map((p) => `${nomeGruppo(p.gruppoId).split(' ')[0].toLowerCase()} ${euroColonna(p.importo)}`),
   });
 
   // ── Il pannello dell'offerta ──────────────────────────────────────────
@@ -301,7 +301,7 @@
                 {#each b.colonne as c (c)}<span class="h" title={nomeGruppo(c)}><span class="nome-c">{nomeGruppo(c).split(' ')[0]}</span>{#if c}<button type="button" class="x-btn piccolo" aria-label="Elimina i prezzi per {nomeGruppo(c)}" onclick={() => (b.colonne = b.colonne.filter((x) => x !== c))}><Icona nome="chiudi" /></button>{/if}</span>{/each}
                 {#each b.righe as r (r)}
                   <span class="r">{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}</span>
-                  {#each b.colonne as c (c)}<input class="inp m" inputmode="decimal" placeholder="—" bind:value={b.prezzi[chiave(r, c)]} aria-label="{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}, {nomeGruppo(c)}" />{/each}
+                  {#each b.colonne as c (c)}<input class="inp m" inputmode="decimal" placeholder="—" bind:value={b.prezzi[chiave(r, c)]} aria-invalid={importoNonValido(b.prezzi[chiave(r, c)] ?? '')} aria-label="{b.tipo === 'CORSO' ? etichettaVolte(r === '' ? null : Number(r)) : 'Prezzo'}, {nomeGruppo(c)}" />{/each}
                 {/each}
               </div>
               <span class="aggiungi">
@@ -326,7 +326,7 @@
           {#if offerta.id}<span class="muted small">Cambiare i prezzi vale per le vendite nuove: chi l'ha già comprata resta com'è.</span>{/if}
           {#if modifica}
             {#if prezziErrati}<p class="msg err" role="alert">Scrivi i prezzi in euro, es. 35 o 35,50</p>{/if}
-            <div class="row">
+            <div class="row a-capo">
               <button class="btn btn-primary grow" disabled={!salvabile}>{offerta.id ? "Salva l'offerta" : 'Aggiungi al listino'}</button>
               {#if offerta.id}
                 <button type="button" class="btn btn-secondary" onclick={accendi}>{b.attiva ? "Spegni l'offerta" : "Riaccendi l'offerta"}</button>
@@ -380,7 +380,8 @@
   .copia { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
   .copia select { width: 140px; height: 40px; appearance: auto; }
   .num { width: 70px; height: 40px; text-align: right; }
-  .testa-p { display: flex; align-items: center; gap: var(--space-8); }
+  .testa-p { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+  .testa-p .lbl { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   fieldset { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-12); min-width: 0; }
   select.inp { appearance: auto; }
   .tre { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); }

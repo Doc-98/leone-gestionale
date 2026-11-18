@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.pagamenti;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Persone;
@@ -383,8 +384,9 @@ public class Pagamenti {
             somma = somma.add(m.importo());
         }
         BigDecimal importo = in.importo() != null ? in.importo() : somma;
+        if (importo.scale() > 2) throw new IllegalArgumentException("L'importo del pagamento ha al massimo due decimali.");
         if (importo.compareTo(somma) != 0)
-            throw new IllegalArgumentException("I metodi fanno " + somma + " €, ma il pagamento è di " + importo + " €.");
+            throw new IllegalArgumentException("I metodi fanno " + Importi.testo(somma) + ", ma il pagamento è di " + Importi.testo(importo) + ".");
 
         List<UUID> ordine = in.addebiti().stream().distinct().toList();
         Map<UUID, Addebito> bloccati = addebiti.bloccati(ordine).stream().collect(Collectors.toMap(Addebito::getId, x -> x));
@@ -401,10 +403,10 @@ public class Pagamenti {
         }
         BigDecimal residuo = daPagare.stream().map(a -> a.getImporto().subtract(pagato.getOrDefault(a.getId(), ZERO))).reduce(ZERO, BigDecimal::add);
         if (importo.compareTo(residuo) > 0)
-            throw new IllegalArgumentException("Il pagamento (" + importo + " €) supera quanto c'è da pagare (" + residuo + " €).");
+            throw new IllegalArgumentException("Il pagamento (" + Importi.testo(importo) + ") supera quanto c'è da pagare (" + Importi.testo(residuo) + ").");
         if (!flessibile && (in.metodi().size() > 1 || importo.compareTo(residuo) < 0))
             throw new org.springframework.security.access.AccessDeniedException(
-                "Acconti e pagamenti divisi tra più metodi richiedono il permesso «Acconti e pagamenti misti»: si paga per intero (" + residuo + " €) con un solo metodo.");
+                "Acconti e pagamenti divisi tra più metodi richiedono il permesso «Acconti e pagamenti misti»: si paga per intero (" + Importi.testo(residuo) + ") con un solo metodo.");
 
         UUID pagante = in.paganteId() != null ? in.paganteId() : daPagare.getFirst().getPersonaId();
         if (persone.nomiCompleti(List.of(pagante)).isEmpty()) throw new NonTrovato("Chi paga non è tra le persone registrate.");

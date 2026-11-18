@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.clienti;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.identita.Autorizzazioni;
 import it.leonexiii.gestionale.identita.Permesso;
@@ -277,7 +278,7 @@ class SchedaClientiService {
         String motivo = in.motivoImporto() == null || in.motivoImporto().isBlank() ? null : in.motivoImporto().strip();
         if (importo.compareTo(p.proposto()) != 0) {
             if (!autorizzazioni.puo(u, Permesso.SCONTI)) throw new AccessDeniedException("Per cambiare l'importo proposto serve il permesso «Cambiare l'importo proposto».");
-            if (motivo == null) throw new IllegalArgumentException("L'importo è diverso da quello proposto (" + p.proposto() + " €): scrivi il motivo.");
+            if (motivo == null) throw new IllegalArgumentException("L'importo è diverso da quello proposto (" + Importi.testo(p.proposto()) + "): scrivi il motivo.");
         }
         LocalDate al = in.al() != null ? in.al() : p.al();
         Abbonamento a = switch (o.tipo()) {
@@ -362,7 +363,7 @@ class SchedaClientiService {
                 throw new IllegalArgumentException("Il cliente sceglie dove va il rimborso: nel borsellino o in denaro.");
             r = r.conModo(r.importo().signum() > 0 ? in.rimborso() : Listino.BORSELLINO);
         }
-        String descr = r == null ? null : "Rimborso per recesso (" + r.percentuale() + "% di " + r.base() + " €)";
+        String descr = r == null ? null : "Rimborso per recesso (" + r.percentuale() + "% di " + Importi.testo(r.base()) + ")";
         if (r != null && r.importo().signum() > 0 && Listino.BORSELLINO.equals(r.modo()))
             borsellino.accredita(a.getPersonaId(), r.importo(), descr, id, u.personaId());
         else if (r != null && r.importo().signum() > 0)

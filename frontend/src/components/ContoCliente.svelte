@@ -243,7 +243,7 @@
             {#each daPagare as a (a.id)}
               {@const q = quotaDi(a)}
               <div class="voce-r"><span>{a.personaId !== id ? `${a.persona} · ` : ''}{a.descrizione}</span>
-                <span class="m">{q === 0 ? 'resta da pagare' : q < a.residuo ? `${euro(q)} su ${euro(a.residuo)}` : euro(q)}</span></div>
+                <span class="m">{q === 0 ? 'resta da pagare' : q < a.residuo ? `${euroColonna(q)} su ${euroColonna(a.residuo)}` : euroColonna(q)}</span></div>
             {/each}
             {#if totale > residuoScelto}<p class="msg err nomargin">Il pagamento supera quanto c'è da pagare ({euro(residuoScelto)}).</p>{/if}
           </div>

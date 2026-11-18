@@ -226,7 +226,7 @@
         {#if t.correggi}
           <span class="muted small">{t.correggi.persona ? `Solo ${t.correggi.persona.nome}` : 'Tutti'} · dal {dataLunga(t.correggi.dal)}. Per un aumento da una certa data aggiungi invece una tariffa nuova: lo storico resta corretto.</span>
           <div class="due">
-            <label class="field"><span class="lbl">€ all'ora</span><input class="inp m" inputmode="decimal" bind:value={t.euro} required /></label>
+            <label class="field"><span class="lbl">€ all'ora</span><input class="inp m" inputmode="decimal" bind:value={t.euro} required aria-invalid={t.euro.trim() !== '' && tariffaNonValida(t.euro)} /></label>
             <label class="field"><span class="lbl">Fino al</span><input class="inp" type="date" bind:value={t.al} min={t.correggi.dal} /></label>
           </div>
         {:else}
@@ -234,7 +234,7 @@
             <label class="field"><span class="lbl">Per</span><select class="inp" bind:value={t.persona}>{#each personale as p (p.id)}<option value={p.id}>{p.nome}</option>{/each}</select></label>
           {/if}
           <div class="due">
-            <label class="field"><span class="lbl">€ all'ora{t.persona ? '' : ', per tutti'}</span><input class="inp m" inputmode="decimal" bind:value={t.euro} required placeholder="9,50" /></label>
+            <label class="field"><span class="lbl">€ all'ora{t.persona ? '' : ', per tutti'}</span><input class="inp m" inputmode="decimal" bind:value={t.euro} required placeholder="9,50" aria-invalid={t.euro.trim() !== '' && tariffaNonValida(t.euro)} /></label>
             <label class="field"><span class="lbl">Dal</span><input class="inp" type="date" bind:value={t.dal} required /></label>
           </div>
           <span class="muted small">Una tariffa nuova vale dalla data scelta; i mesi già passati restano con quella di allora.</span>

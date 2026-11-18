@@ -140,7 +140,7 @@
   .blk { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 5px 6px; border-radius: 8px; border: none; background: var(--a-bg); color: var(--a-fg);
     font: inherit; text-align: left; cursor: pointer; min-width: 0; }
   .blk .o { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; }
-  .blk .p { font-size: var(--text-sm); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .blk .p { font-size: var(--text-xs); font-weight: 700; color: var(--ink); overflow: hidden; white-space: nowrap; }
   /* scoperto: bianco a righe rosse con il bordo rosso, per non confondersi con nessun colore di area */
   .blk.vuoto { background: repeating-linear-gradient(135deg, var(--surface) 0 7px, var(--ferma-bg) 7px 10px); color: var(--ferma-fg); box-shadow: inset 0 0 0 2px var(--ferma); }
   .blk.vuoto .p { color: var(--ferma-fg); }

@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.cassa;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
@@ -13,7 +14,6 @@ import com.lowagie.text.pdf.PdfWriter;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
@@ -35,16 +35,7 @@ final class PdfChiusura {
     private PdfChiusura() {}
 
     static String euro(BigDecimal importo) {
-        String s = importo.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        boolean meno = s.startsWith("-");
-        if (meno) s = s.substring(1);
-        String intero = s.substring(0, s.indexOf('.')), dec = s.substring(s.indexOf('.') + 1);
-        StringBuilder g = new StringBuilder();
-        for (int i = 0; i < intero.length(); i++) {
-            if (i > 0 && (intero.length() - i) % 3 == 0) g.append('.');
-            g.append(intero.charAt(i));
-        }
-        return (meno ? "−" : "") + g + "," + dec + " €";
+        return Importi.colonna(importo).replaceFirst("^-", "−");
     }
 
     static byte[] crea(CassaService.SessioneDto s, String societa) {

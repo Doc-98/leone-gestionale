@@ -16,6 +16,16 @@ describe('plurali', () => {
   });
 });
 
+describe('migliaia col punto', () => {
+  it('i conteggi grandi hanno il punto, anche da 1.000', () => {
+    expect(crediti(5878)).toBe('5.878 crediti');
+    expect(crediti(1000)).toBe('1.000 crediti');
+    expect(crediti(999)).toBe('999 crediti');
+    expect(quanti(12345, 'turno', 'turni')).toBe('12.345 turni');
+    expect(giorni(1)).toBe('1 giorno');
+  });
+});
+
 describe('daGiorni', () => {
   it('oggi, ieri, poi i giorni', () => {
     expect(daGiorni(0)).toBe('da oggi');

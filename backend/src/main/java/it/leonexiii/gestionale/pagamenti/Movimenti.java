@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.pagamenti;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -82,7 +83,7 @@ class Movimenti {
         blocca(persona);
         BigDecimal saldo = euro(persona);
         if (saldo.compareTo(importo) < 0)
-            throw new IllegalArgumentException("Nel borsellino ci sono " + saldo + " €: non bastano per " + importo + " €.");
+            throw new IllegalArgumentException("Nel borsellino ci sono " + Importi.testo(saldo) + ": non bastano per " + Importi.testo(importo) + ".");
         return salva(new MovimentoBorsellino(persona, MovimentoBorsellino.Saldo.EURO, importo.negate(), causale, descrizione, null, da, orologio.instant())
             .conPagamento(pagamentoId));
     }

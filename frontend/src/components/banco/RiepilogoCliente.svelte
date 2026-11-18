@@ -5,6 +5,7 @@
   import { euro } from '../../lib/numeri';
   import { crediti as nCrediti, quanti } from '../../lib/plurali';
   import { colore } from '../../lib/piano';
+  import { adattaCifra } from '../../lib/adattaCifra';
 
   /**
    * Sotto l'esito, il riepilogo di chi è appena passato: tesseramento e certificato, quanto deve, credito e crediti,
@@ -49,12 +50,12 @@
   </div>
 
   <div class="kpis">
-    <div class="kpi" class:warn={daPagare > 0}><span class="lbl">Da pagare</span><span class="v m">{conto ? euro(daPagare) : '…'}</span>
-      <span class="n">{!conto ? '' : daPagare > 0 ? 'da registrare' : 'in regola'}</span></div>
-    <div class="kpi"><span class="lbl">Credito</span><span class="v m">{borsellino ? euro(borsellino.saldo.euro) : '…'}</span><span class="n">nel borsellino</span></div>
-    <div class="kpi"><span class="lbl">Phon e docce</span><span class="v m">{borsellino ? nCrediti(borsellino.saldo.crediti) : '…'}</span><span class="n">{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span></div>
-    <div class="kpi" class:warn={accessi && braccialetto?.stato !== 'ATTIVO'}><span class="lbl">Braccialetto</span><span class="v m">{accessi ? braccialetto?.codice ?? 'Nessuno' : '…'}</span>
-      <span class="n">{braccialetto && braccialetto.stato !== 'ATTIVO' ? braccialetto.stato.toLowerCase() : ''}</span></div>
+    <div class="kpi" class:warn={daPagare > 0}><span class="lbl">Da pagare</span><span class="v m" use:adattaCifra>{conto ? euro(daPagare) : '…'}</span>
+      <span class="n" use:adattaCifra>{!conto ? '' : daPagare > 0 ? 'da registrare' : 'in regola'}</span></div>
+    <div class="kpi"><span class="lbl">Credito</span><span class="v m" use:adattaCifra>{borsellino ? euro(borsellino.saldo.euro) : '…'}</span><span class="n" use:adattaCifra>nel borsellino</span></div>
+    <div class="kpi"><span class="lbl">Phon e docce</span><span class="v m" use:adattaCifra>{borsellino ? nCrediti(borsellino.saldo.crediti) : '…'}</span><span class="n" use:adattaCifra>{borsellino ? `= ${euro(borsellino.saldo.valoreCrediti)}` : ''}</span></div>
+    <div class="kpi" class:warn={accessi && braccialetto?.stato !== 'ATTIVO'}><span class="lbl">Braccialetto</span><span class="v m" use:adattaCifra>{accessi ? braccialetto?.codice ?? 'Nessuno' : '…'}</span>
+      <span class="n" use:adattaCifra>{braccialetto && braccialetto.stato !== 'ATTIVO' ? braccialetto.stato.toLowerCase() : ''}</span></div>
   </div>
 
   <div class="oggi">
@@ -76,8 +77,9 @@
   .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-8); }
   .kpi { display: flex; flex-direction: column; gap: 2px; padding: var(--space-10) var(--space-12); border-radius: var(--radius-md); background: var(--carta); min-width: 0; }
   .kpi.warn { background: var(--warn-bg); }
-  .kpi .v { font-size: var(--text-md, 15px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .kpi .n { font-size: var(--text-xs); color: var(--muted); min-height: 1em; }
+  .kpi .v { font-size: var(--text-md, 15px); font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .kpi .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .n { font-size: var(--text-xs); color: var(--muted); min-height: 1em; white-space: nowrap; overflow: hidden; }
   .oggi { display: flex; flex-direction: column; gap: var(--space-6); padding-top: var(--space-12); border-top: 1px solid var(--line-soft); }
   .turno { display: flex; align-items: center; gap: var(--space-8); font-size: var(--text-sm); }
   .liv { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }

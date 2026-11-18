@@ -1,8 +1,8 @@
 package it.leonexiii.gestionale.accessi;
 
+import it.leonexiii.gestionale.condiviso.Importi;
 import it.leonexiii.gestionale.pagamenti.Pagamenti;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -55,6 +55,6 @@ class ControlloPagamenti implements ControlloAccesso {
     }
 
     static String euro(BigDecimal importo) {
-        return importo.setScale(2, RoundingMode.HALF_UP).toPlainString().replace('.', ',') + " €";
+        return Importi.testo(importo);
     }
 }
