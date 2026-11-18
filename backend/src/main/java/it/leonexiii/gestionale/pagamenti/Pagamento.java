@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -71,6 +72,7 @@ class Pagamento {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "pagamento_addebito", joinColumns = @JoinColumn(name = "pagamento_id"))
+    @OrderColumn(name = "posizione")
     private List<Voce> voci = new ArrayList<>();
 
     protected Pagamento() {}

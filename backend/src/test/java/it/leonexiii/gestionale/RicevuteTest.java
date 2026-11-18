@@ -141,6 +141,30 @@ class RicevuteTest extends ProvaApi {
         return lista(c.get("/api/ricevute?personaId=" + persona)).stream().map(ProvaApi::mappa).toList();
     }
 
+    /** L'ordine delle voci è quello scelto da chi registra: né alfabetico né di creazione degli addebiti; è salvato (colonna «posizione»). */
+    @Test
+    void leVociRestanoNellOrdineScelto() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        orologio.alle("2028-03-11T10:00");
+        String marco = persona(segr, "Marco", "1981-01-01", "M", "RSSMRC81A01F205A");
+        String sofia = persona(segr, "Sofia", "2017-04-14", "F", "VRDSFO17D54F205A");
+        String luca = persona(segr, "Luca", "2019-03-02", "M", "NRILCU19C02F205E");
+        String anna = persona(segr, "Anna", "2020-05-20", "F", "GLLNNA20E60F205D");
+        // creati: Sofia, Luca, Anna (alfabetico: Anna, Luca, Sofia); pagati: Luca, Anna, Sofia
+        String aSofia = addebito(segr, sofia, "Corso Delfini, 1ª rata", 100);
+        String aLuca = addebito(segr, luca, "Corso Squali, 1ª rata", 200);
+        String aAnna = addebito(segr, anna, "Corso Trote, 1ª rata", 300);
+        String idPagamento = creaId(segr, "/api/pagamenti", "{\"paganteId\":\"" + marco + "\",\"addebiti\":[\"" + aLuca + "\",\"" + aAnna + "\",\"" + aSofia
+            + "\"],\"metodi\":[{\"metodoId\":\"" + metodoPagamento(segr, "Contanti") + "\",\"importo\":600}],\"separati\":false}");
+        var conto = json(segr.get("/api/pagamenti/persone/" + sofia));
+        assertThat(elenco(elenco(conto.get("pagamenti")).getFirst().get("voci"))).extracting(v -> v.get("persona")).containsExactly("Luca Bianchi", "Anna Bianchi", "Sofia Bianchi");
+
+        var r = emetti(segr, idPagamento, "FAMIGLIA").getFirst();
+        assertThat(elenco(r.get("beneficiari"))).extracting(b -> b.get("nome")).containsExactly("Luca", "Anna", "Sofia");
+        assertThat(elenco(r.get("righe"))).extracting(x -> x.get("per")).containsExactly("Luca Bianchi", "Anna Bianchi", "Sofia Bianchi");
+        assertThat((String) r.get("dicitura")).contains("Attività svolta da Luca Bianchi e Anna Bianchi e Sofia Bianchi, nato/a il 02/03/2019 e 20/05/2020 e 14/04/2017.");
+    }
+
     @Test
     void leImpostazioniDelleRicevute() throws Exception {
         var admin = come("admin@demo.leone");
