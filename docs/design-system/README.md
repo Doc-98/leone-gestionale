@@ -79,7 +79,7 @@ Regole di componenti che ricorrono in molte pagine. Quelli segnati «da costruir
 **Elenco modificabile** (riga da costruire nel blocco 6). In fondo all'elenco c'è la riga «Aggiungi un X», tratteggiata, che si tocca come un pulsante. Ogni riga si modifica sul posto. Il foglio si usa solo per un elemento complesso (più campi, rate, regole).
 - **Dentro la riga**, da sinistra: la maniglia `trascina` (tre lineette: si trascina, o con la tastiera si sposta con le frecce su e giù), il contenuto, l'interruttore acceso/spento, il cestino rosso. Non c'è un'icona «Spegni»: lo stato si cambia con l'interruttore.
 - **Cestino:** due tocchi, «Elimina?» quando la cosa sparisce, «Rimuovi?» quando si scioglie un legame.
-- **Riga spenta:** i valori restano leggibili e l'interruttore resta attivo, per riaccenderla.
+- **Riga spenta:** i valori restano leggibili e tutti i controlli della riga restano attivi: interruttore, maniglia, modifica e cestino. Spostare, correggere o eliminare una cosa spenta non obbliga ad accenderla prima (es. un metodo di pagamento spento).
 - **Elemento complesso:** nel foglio, per primo, un riquadro suo con l'interruttore che accende tutto. Acceso ha fondo `cloro-soft`; spento ha fondo `surface-sunken` e la scritta «Spento». Da spento il resto del foglio sbiadisce e non si può modificare: i valori restano leggibili e resta attivo solo l'interruttore che riaccende. Lo stato si cambia sia dalla riga sia dal foglio, e i due sono sempre uguali.
 
 **Menu «⋯»** (da costruire nel blocco 6). Le azioni rare di una pagina o di una riga stanno in un menu: pulsante-icona `altro` con cornice. Sul computer si apre sotto il pulsante, sul telefono come foglio dal basso. Le voci sono verbo + oggetto con la loro icona, al massimo sette. L'azione che elimina è l'ultima, rossa, e chiede i due tocchi dentro la voce. Un'azione di tutti i giorni non va nel menu.
@@ -155,7 +155,6 @@ Per un'icona nuova si disegna sulla stessa griglia con lo stesso tratto e si agg
 
 Cose che il design system non dice ancora. Finché non c'è una decisione, non si inventa: si chiede.
 
-- Cosa resta attivo su una riga spenta (maniglia, cestino, modifica).
 - Conferma con motivo (annullare un pagamento, una ricevuta, un recesso): serve un foglio con il campo motivo; area amministrativa, prima `ricerca-dominio`.
 - Selettore della stagione.
 - Esportazione: formato, nome del file, dove sta il pulsante.
