@@ -49,7 +49,7 @@ export function postazioneBreve(nome: string): string {
   if (!resto) return nome;
   const n = /^postazione\s+(\d+)$/i.exec(resto)?.[1];
   const area = areaBreve(nome.slice(0, i));
-  if (n && area) return `${area} ${n}`;
+  if (n && area) return `${area} \u00b7 ${n}`;
   return maiuscola(resto);
 }
 

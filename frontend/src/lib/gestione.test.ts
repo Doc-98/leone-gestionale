@@ -74,11 +74,11 @@ describe('anteprima della generazione', () => {
 
 describe('postazioneBreve', () => {
   it('area e numero per le postazioni numerate', () => {
-    expect(postazioneBreve('Spogliatoio piccoli · Postazione 5')).toBe('Piccoli 5');
-    expect(postazioneBreve('Spogliatoio M · postazione 4')).toBe('Maschile 4');
-    expect(postazioneBreve('Spogliatoio F · postazione 12')).toBe('Femminile 12');
-    expect(postazioneBreve('Spogliatoio maschile · Postazione 1')).toBe('Maschile 1');
-    expect(postazioneBreve('Tornelli · postazione 2')).toBe('Tornelli 2');
+    expect(postazioneBreve('Spogliatoio piccoli · Postazione 5')).toBe('Piccoli · 5');
+    expect(postazioneBreve('Spogliatoio M · postazione 4')).toBe('Maschile · 4');
+    expect(postazioneBreve('Spogliatoio F · postazione 12')).toBe('Femminile · 12');
+    expect(postazioneBreve('Spogliatoio maschile · Postazione 1')).toBe('Maschile · 1');
+    expect(postazioneBreve('Tornelli · postazione 2')).toBe('Tornelli · 2');
   });
   it('altrimenti resta il testo dopo il punto, senza indovinare', () => {
     expect(postazioneBreve('Spogliatoio piccoli · Phon 2')).toBe('Phon 2');
@@ -101,7 +101,7 @@ describe('nomiBrevi', () => {
     const breve = nomiBrevi(['Spogliatoio M · Phon', 'Spogliatoio F · Phon', 'Spogliatoio piccoli · Postazione 2', 'Atrio · Cassa 1']);
     expect(breve('Spogliatoio M · Phon')).toBe('Spogliatoio M · Phon');
     expect(breve('Spogliatoio F · Phon')).toBe('Spogliatoio F · Phon');
-    expect(breve('Spogliatoio piccoli · Postazione 2')).toBe('Piccoli 2');
+    expect(breve('Spogliatoio piccoli · Postazione 2')).toBe('Piccoli · 2');
     expect(breve('Atrio · Cassa 1')).toBe('Cassa 1');
   });
   it('la stessa postazione ripetuta non è un doppione', () => {

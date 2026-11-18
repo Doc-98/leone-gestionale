@@ -166,8 +166,8 @@ class ScadenzeService {
         return out;
     }
 
-    /** «45 €» o «45,50 €», come lo legge una persona. */
+    /** Importi che arrivano al cliente (voce «Da pagare», promemoria): sempre con i due decimali, «45,00 €». */
     static String euro(BigDecimal importo) {
-        return Importi.testo(importo);
+        return Importi.colonna(importo);
     }
 }

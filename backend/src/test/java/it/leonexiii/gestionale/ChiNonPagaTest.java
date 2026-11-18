@@ -100,7 +100,7 @@ class ChiNonPagaTest extends ProvaApi {
             // nelle scadenze, una voce per persona con quanto resta da pagare
             orologio.alle("2028-03-12T09:00");
             var voce = elenco(json(segr.get("/api/scadenze")).get("pagamenti")).stream().filter(v -> persona.equals(v.get("personaId"))).findFirst().orElseThrow();
-            assertThat(voce).containsEntry("descrizione", "Da pagare 60\u00A0€").containsEntry("scadenza", "2028-03-05").containsEntry("giorni", -7)
+            assertThat(voce).containsEntry("descrizione", "Da pagare 60,00\u00A0€").containsEntry("scadenza", "2028-03-05").containsEntry("giorni", -7)
                 .containsEntry("importo", 60.00).containsEntry("email", email);
 
             // il promemoria, acceso: il primo a 7 giorni dalla scadenza, poi ogni 7, al massimo 2 volte
@@ -114,7 +114,7 @@ class ChiNonPagaTest extends ProvaApi {
             segr.post("/api/promemoria/esegui", "{}"); // lo stesso giorno non riparte
             assertThat(casella.per(email)).singleElement().satisfies(m -> {
                 assertThat(m.getSubject()).isEqualTo("Un pagamento da sistemare per Pino");
-                assertThat(m.getText()).isEqualTo("Da pagare 60\u00A0€ per Pino, scaduto il 05/03/2028.");
+                assertThat(m.getText()).isEqualTo("Da pagare 60,00\u00A0€ per Pino, scaduto il 05/03/2028.");
             });
             orologio.alle("2028-03-15T09:00");
             segr.post("/api/promemoria/esegui", "{}");
