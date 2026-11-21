@@ -3,6 +3,7 @@
   import { api } from './lib/api';
   import { sessione } from './lib/sessione.svelte';
   import { schermo } from './lib/schermo.svelte';
+  import { ambiente } from './lib/ambiente.svelte';
   import { quanti } from './lib/plurali';
   import {
     cambiaServer, cercaAggiornamento, infoProgramma, installaAggiornamento, type AggiornamentoProgramma, type InfoProgramma,
@@ -66,14 +67,16 @@
     /** In alternativa ai permessi: visibile se questa condizione è vera (es. chi insegna in un corso con livelli). */
     anche?: () => boolean;
     larga?: boolean;
+    /** La pagina disegna da sola la sua barra (titolo, periodo, vista, azioni): `App` non mette l'intestazione (ADR 0028). */
+    barra?: boolean;
     icona: NomeIcona;
   }
 
   // Icone a tratto, 24×24
   const SEZIONI: Sezione[] = [
-    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', larga: true, icona: 'turni' },
+    { id: 'turni', nome: 'I miei turni', breve: 'Turni', titolo: 'I miei turni', gruppo: 'Il mio lavoro', larga: true, barra: true, icona: 'turni' },
     { id: 'richieste', nome: 'Le mie richieste', breve: 'Richieste', titolo: 'Le mie richieste', gruppo: 'Il mio lavoro', icona: 'richieste' },
-    { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, icona: 'ore' },
+    { id: 'ore', nome: 'Ore e compensi', breve: 'Ore', titolo: 'Ore e compensi', gruppo: 'Il mio lavoro', larga: true, barra: true, icona: 'ore' },
     { id: 'livelli', nome: 'I miei corsi', breve: 'Corsi', titolo: 'I miei corsi', gruppo: 'Il mio lavoro', permessi: ['LIVELLI'],
       anche: () => insegnaConLivelli === true, larga: true, icona: 'corsi' },
     { id: 'piano', nome: 'Piano vasca', breve: 'Piano', titolo: 'Piano vasca', gruppo: 'Piscina', larga: true, icona: 'piano' },
@@ -229,7 +232,7 @@
   // il nome della società (il gestionale serve a qualsiasi società)
   let nomeSocieta = $state('');
   $effect(() => {
-    if (sessione.utente) api.ambiente().then((d) => (nomeSocieta = d.societa)).catch(() => {});
+    if (sessione.utente) api.ambiente().then((d) => ((nomeSocieta = d.societa), (ambiente.societa = d.societa))).catch(() => {});
   });
   const iniziali = $derived(((sessione.utente?.nome ?? ' ')[0] + (sessione.utente?.cognome ?? ' ')[0]).toUpperCase());
   // Telefono: al massimo cinque voci in basso, le prime per il ruolo; il resto in «Altro»
@@ -243,13 +246,12 @@
   );
   const altre = $derived(lavoro.filter((s) => !prime.includes(s.id)));
   const inBasso = $derived(
-    prime.map((id) => lavoro.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, altre.length || impostazioni.length ? 4 : 5),
+    prime.map((id) => lavoro.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, 4) // «Altro» c'è sempre: porta anche «Cambia password» ed «Esci»,
   );
   const nelMenu = $derived(lavoro.filter((s) => !inBasso.includes(s)));
-  let menuAltro = $state(false);
   $effect(() => {
     void scheda;
-    menuAltro = false;
+    ambiente.menuAltro = false;
   });
   const NOMI_RUOLI: Record<string, string> = { ADMIN: 'Admin', COORDINATORE: 'Coordinatore', SEGRETERIA: 'Segreteria', STAFF: 'Staff' };
   const ruolo = $derived(
@@ -452,20 +454,15 @@
           </section>
         {/each}
       {:else}
-        <header class="testa">
-          <div>
-            {#if !schermo.larga && inImpostazioni}<a class="indietro small" href="#/impostazioni"><Icona nome="sx" class="chev" />Impostazioni</a>
-            {:else if !schermo.larga}<div class="lbl">{nomeSocieta}</div>{/if}
-            <h1 class="page-title">{corrente.titolo}</h1>
-          </div>
-          {#if !schermo.larga}
-            <div class="chi">
-              <span class="muted small">{sessione.utente.nome}</span>
-              <Azione icona="chiave" etichetta="Cambia la tua password" onclick={() => (cambioPassword = true)} />
-              <Azione icona="esci" etichetta="Esci" onclick={() => sessione.esci()} />
+        {#if !corrente.barra}
+          <header class="testa">
+            <div>
+              {#if !schermo.larga && inImpostazioni}<a class="indietro small" href="#/impostazioni"><Icona nome="sx" class="chev" />Impostazioni</a>
+              {:else if !schermo.larga}<div class="lbl">{nomeSocieta}</div>{/if}
+              <h1 class="page-title">{corrente.titolo}</h1>
             </div>
-          {/if}
-        </header>
+          </header>
+        {/if}
         {@render pagina()}
       {/if}
     </main>
@@ -478,7 +475,7 @@
     {/if}
 
     {#if !schermo.larga}
-      {#if menuAltro}
+      {#if ambiente.menuAltro}
         <div class="altro card" id="menu-altro">
           {#each nelMenu as s (s.id)}
             <a href={`#/${s.id}`} class:on={scheda === s.id}>{@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}</a>
@@ -486,18 +483,19 @@
           {#if impostazioni.length}
             <a href="#/impostazioni" class="sep" class:on={inImpostazioni}>{@render icona('impostazioni')}<span class="grow">Impostazioni</span></a>
           {/if}
+          <!-- «Cambia password» ed «Esci» non stanno nella barra di pagina: sul telefono sono qui (ADR 0028) -->
+          <button type="button" class="sep" onclick={() => ((ambiente.menuAltro = false), (cambioPassword = true))}>{@render icona('chiave')}<span class="grow">Cambia password</span></button>
+          <button type="button" onclick={() => ((ambiente.menuAltro = false), sessione.esci())}>{@render icona('esci')}<span class="grow">Esci</span></button>
         </div>
       {/if}
-      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length + (nelMenu.length || impostazioni.length ? 1 : 0)}">
+      <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length + 1}">
         {#each inBasso as s (s.id)}
           <a href={`#/${s.id}`} class:on={scheda === s.id} aria-current={scheda === s.id ? 'page' : undefined}>
             {s.breve ?? s.nome}{@render badge(s)}
           </a>
         {/each}
-        {#if nelMenu.length || impostazioni.length}
-          <button class:on={menuAltro || inImpostazioni || nelMenu.some((s) => s.id === scheda)} aria-expanded={menuAltro} aria-controls="menu-altro"
-                  onclick={() => (menuAltro = !menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}{#if nelMenu.some((s) => s.id === 'incassi') && avvisiCassa}<span class="badge warn">{avvisiCassa}</span>{/if}</button>
-        {/if}
+          <button class:on={ambiente.menuAltro || inImpostazioni || nelMenu.some((s) => s.id === scheda)} aria-expanded={ambiente.menuAltro} aria-controls="menu-altro"
+                  onclick={() => (ambiente.menuAltro = !ambiente.menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}{#if nelMenu.some((s) => s.id === 'incassi') && avvisiCassa}<span class="badge warn">{avvisiCassa}</span>{/if}</button>
       </nav>
     {/if}
   </div>
@@ -514,8 +512,6 @@
   main.con-nav { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
   .centro { text-align: center; margin-top: 40vh; }
   .testa { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-12); }
-  .chi { display: flex; align-items: center; gap: var(--space-4); }
-  .chi > span { margin-right: var(--space-4); }
 
   /* ── Desktop ─────────────────────────────────────────────── */
   .guscio.desktop { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
@@ -599,6 +595,10 @@
   .altro a { display: flex; align-items: center; gap: var(--space-10); min-height: 46px; padding: 0 var(--space-10); border-radius: var(--radius-sm);
     color: var(--ink); text-decoration: none; font-weight: 500; }
   .altro a :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
+  .altro button { display: flex; align-items: center; gap: var(--space-10); min-height: 46px; padding: 0 var(--space-10); border: none; border-radius: var(--radius-sm);
+    background: none; color: var(--ink); font: inherit; font-weight: 500; text-align: left; cursor: pointer; }
+  .altro button :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
+  .altro button.sep { border-top: 1px solid var(--line-soft); border-radius: 0; margin-top: var(--space-4); }
   .altro a.on { background: var(--cloro-soft); color: var(--cloro-ink); }
   .badge.warn { background: var(--warn-bg); color: var(--warn); }
   .badge { min-width: 18px; height: 18px; border-radius: 9px; background: var(--cloro); color: var(--on-cloro); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }

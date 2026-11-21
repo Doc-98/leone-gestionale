@@ -1,10 +1,13 @@
 <script lang="ts">
-  import Mese from '../components/Mese.svelte';
+  import BarraPagina from '../components/BarraPagina.svelte';
   import MieOre from '../components/ore/MieOre.svelte';
   import OreStaff from '../components/ore/OreStaff.svelte';
+  import Periodo from '../components/Periodo.svelte';
+  import SceltaVista from '../components/SceltaVista.svelte';
   import { api, messaggioErrore, type Riepilogo, type Turno } from '../lib/api';
   import { aggiungiGiorni, meseIso, spostaMese } from '../lib/date';
-  import { leggiPreferenza, salvaPreferenza } from '../lib/preferenze';
+  import { inizioPeriodo } from '../lib/periodo';
+  import { leggiPreferenza } from '../lib/preferenze';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -13,9 +16,14 @@
    * anche tutti insieme.
    */
   const coordinatore = $derived(sessione.puo('ORE_STAFF'));
-  let vista = $state<'mie' | 'staff'>(leggiPreferenza<'mie' | 'staff'>('ore.vista', 'mie', ['mie', 'staff']));
-  const efficace = $derived(coordinatore ? vista : 'mie');
-  let mese = $state(meseIso(new Date()));
+  let scelta = $state<'mie' | 'staff'>(leggiPreferenza<'mie' | 'staff'>('ore.vista', 'mie', ['mie', 'staff']));
+  const efficace = $derived(coordinatore ? scelta : 'mie');
+  const OPZIONI = [
+    { id: 'mie', nome: 'Le mie ore' },
+    { id: 'staff', nome: 'Lo staff' },
+  ];
+  let inizio = $state(inizioPeriodo(meseIso(new Date()) + '-01', 'mese'));
+  const mese = $derived(inizio.slice(0, 7));
   let errore = $state('');
 
   let mio = $state<Riepilogo | null>(null);
@@ -48,24 +56,17 @@
     delGruppo = null;
     if (efficace === 'staff' && g) api.riepilogo(m, g).then((r) => (delGruppo = r)).catch((e) => (errore = messaggioErrore(e)));
   });
-
-  function cambia(v: 'mie' | 'staff') {
-    vista = v;
-    salvaPreferenza('ore.vista', v);
-  }
 </script>
 
+{#snippet periodo()}
+  <Periodo bind:inizio passo="mese" />
+{/snippet}
+{#snippet vistaOre()}
+  <SceltaVista opzioni={OPZIONI} bind:valore={scelta} etichetta="Quali ore" preferenza="ore.vista" />
+{/snippet}
+
 <section class="page ore">
-  <div class="testa">
-    {#if coordinatore}
-      <div class="seg vista" role="group" aria-label="Quali ore">
-        <button type="button" aria-pressed={efficace === 'mie'} onclick={() => cambia('mie')}>Le mie ore</button>
-        <button type="button" aria-pressed={efficace === 'staff'} onclick={() => cambia('staff')}>Lo staff</button>
-      </div>
-    {/if}
-    <span class="grow"></span>
-    <div class="mese"><Mese bind:mese /></div>
-  </div>
+  <BarraPagina titolo="Ore e compensi" {periodo} vista={coordinatore ? vistaOre : undefined} />
   {#if errore}<p class="msg err nomargin" role="alert">{errore}</p>{/if}
 
   {#if efficace === 'mie'}
@@ -79,9 +80,4 @@
 
 <style>
   .ore { max-width: 1400px; }
-  .testa { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-12); }
-  .vista { grid-template-columns: 1fr 1fr; }
-  .vista button { padding: 0 var(--space-16); white-space: nowrap; }
-  .mese { min-width: 280px; }
-  @media (max-width: 600px) { .vista, .mese { width: 100%; } }
 </style>
