@@ -2,7 +2,15 @@
   import Azione from './Azione.svelte';
   import type { Snippet } from 'svelte';
 
-  let { titolo, chiudi, children }: { titolo: string; chiudi: () => void; children: Snippet } = $props();
+  /**
+   * Il foglio dei moduli: dal basso sul telefono, pannello a destra sul computer.
+   * - `dalBasso`: il foglio sale dal basso, al centro, anche sul computer invece di aprirsi come pannello a destra
+   *   (per i fogli corti, come quello del menu «⋯» sul telefono e sul tablet).
+   * - `dopoTitolo`: un pezzo accanto al titolo (la pillola «spento» di un elemento spento).
+   */
+  let { titolo, chiudi, children, dalBasso = false, dopoTitolo }: {
+    titolo: string; chiudi: () => void; children: Snippet; dalBasso?: boolean; dopoTitolo?: Snippet;
+  } = $props();
 
   function tasto(e: KeyboardEvent) {
     if (e.key === 'Escape') chiudi();
@@ -11,10 +19,10 @@
 
 <svelte:window onkeydown={tasto} />
 
-<div class="velo" role="presentation" onclick={chiudi}></div>
-<div class="foglio" role="dialog" aria-modal="true" aria-label={titolo}>
+<div class="velo" class:dal-basso={dalBasso} role="presentation" onclick={chiudi}></div>
+<div class="foglio" class:dal-basso={dalBasso} role="dialog" aria-modal="true" aria-label={titolo}>
   <header>
-    <h2>{titolo}</h2>
+    <div class="tit"><h2>{titolo}</h2>{#if dopoTitolo}{@render dopoTitolo()}{/if}</div>
     <Azione cornice icona="chiudi" etichetta="Chiudi" onclick={chiudi} />
   </header>
   <div class="corpo">{@render children()}</div>
@@ -29,14 +37,15 @@
   }
   /* Sul PC: pannello laterale a destra, la pagina resta visibile accanto */
   @media (min-width: 1024px) {
-    .velo { background: rgba(16, 33, 43, 0.25); }
-    .foglio {
+    .velo:not(.dal-basso) { background: rgba(16, 33, 43, 0.25); }
+    .foglio:not(.dal-basso) {
       left: auto; top: 0; width: 440px; max-width: none; max-height: none; margin: 0;
       border-radius: 0; border-left: 1px solid var(--line); padding: var(--space-20) var(--space-20) var(--space-20);
       box-shadow: -12px 0 32px rgba(16, 33, 43, 0.12);
     }
   }
   header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-12); margin-bottom: var(--space-12); }
+  .tit { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
   h2 { margin: 0; font-size: var(--text-xl); }
   .corpo { display: flex; flex-direction: column; gap: var(--space-14); }
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
   import Conferma from '../components/Conferma.svelte';
+  import StatoVuoto from '../components/StatoVuoto.svelte';
   import { api, messaggioErrore, type Dispositivo, type RegoleBorsellino, type Servizio, type StatoCreditiBraccialetto } from '../lib/api';
   import { dataOra } from '../lib/date';
   import { euro, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
@@ -159,7 +160,7 @@
                   <td><button type="button" class="switch" role="switch" aria-checked={s.attivo} aria-label="{s.nome || 'Servizio'} acceso" onclick={() => (s.attivo = !s.attivo)}><span></span></button></td>
                 </tr>
               {:else}
-                <tr><td colspan="5" class="muted small">Nessun servizio.</td></tr>
+                <StatoVuoto come="tr" colonne={5} testo="Nessun servizio." />
               {/each}
             </tbody>
           </table>
@@ -248,7 +249,7 @@
             </div>
           {/each}
         {:else}
-          <p class="muted small nessuno">Nessuna macchina.</p>
+          <StatoVuoto testo="Nessuna macchina." />
         {/each}
         <span class="muted small piede">La chiave si mostra una volta sola: copiala nella macchina. Le istruzioni per il tecnico sono nel manuale.</span>
       </section>
@@ -311,7 +312,6 @@
   .macc .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .macc .t b { font-size: var(--text-md); }
   .macc .t span { font-size: var(--text-xs); color: var(--muted); }
-  .nessuno { padding: var(--space-12) var(--space-16); margin: 0; }
   /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
   .salva-bar .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
   .piede { padding: var(--space-10) var(--space-16) var(--space-14); display: block; border-top: 1px solid var(--line-soft); }

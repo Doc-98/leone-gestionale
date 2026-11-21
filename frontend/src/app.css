@@ -405,6 +405,14 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
 .x-btn:hover { background: var(--surface-sunken); color: var(--danger); }
 .x-btn .ic { width: 16px; height: 16px; }
 .x-btn::after { content: ''; position: absolute; inset: -6px; }
+/* Selezionato (design system, «Componenti comuni › Selezionato»): una tessera o una riga scelta ha fondo cloro-soft,
+   bordo cloro e il segno check in alto a destra. Per tessere e righe; un elemento che usa già ::after (area di tocco
+   da 44px: .azione, .chip, .seg button) non prende il segno e mette un <Icona nome="check"> dentro. */
+.scelto { position: relative; background: var(--cloro-soft); border-color: var(--cloro); color: var(--cloro-ink); }
+.scelto::after { content: ''; position: absolute; top: var(--space-8); right: var(--space-8); width: var(--space-16); height: var(--space-16);
+  background: var(--cloro); pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4 4 10-10'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4 4 10-10'/%3E%3C/svg%3E") center / contain no-repeat; }
 /* testo solo per i lettori di schermo */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

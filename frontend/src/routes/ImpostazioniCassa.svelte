@@ -1,5 +1,6 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
+  import Fumetto from '../components/Fumetto.svelte';
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Cassa, type ChiusuraModo, type FondoModo, type ImpostazioniCassa, type MetodoPagamento, type PaginaCassa } from '../lib/api';
   import { CONTROLLI, spiegaFondo } from '../lib/cassa';
@@ -74,6 +75,8 @@
   const aggiungi = () => esegui(() => api.creaCassa(nuova!.trim()), `«${nuova!.trim()}» aggiunta.`).then((ok) => ok && (nuova = null));
   const cambia = (c: Cassa, m: Parameters<typeof api.modificaCassa>[1], fatto: string) => esegui(() => api.modificaCassa(c.id, m), fatto);
 
+  /** Una spiegazione lunga: in pagina una riga corta, il testo intero nel fumetto «i». */
+  type Spiega = { corta: string; tema: string; lunga: string };
   type Scelte = { valore: string; opzioni: { id: string; nome: string }[]; scegli: (v: string) => void };
   const seg = <T extends string>(valore: T, opzioni: { id: T; nome: string }[], scegli: (v: T) => void): Scelte => ({ valore, opzioni, scegli: (v) => scegli(v as T) });
   const FONDI: { id: FondoModo; nome: string }[] = [{ id: 'RIPORTATO', nome: 'Riportato' }, { id: 'FISSO', nome: 'Fisso' }, { id: 'CONTATO', nome: 'Contato' }];
@@ -89,7 +92,7 @@
       <div class="princ">
         <section class="card sez" id="imp-casse" aria-label="Le casse">
           <div class="sez-t"><h2 class="grow">Le casse</h2><span class="spiega">un cassetto con il suo fondo e la sua chiusura</span></div>
-          {@render scelte('Quante casse', 'Una sola per tutta la segreteria, o una per postazione: ogni computer dice di quale cassa è (si sceglie nella pagina Incassi) e chiude la sua.',
+          {@render scelte('Quante casse', { corta: 'Una sola o una per postazione.', tema: 'le casse', lunga: 'Una sola per tutta la segreteria, o una per postazione: ogni computer dice di quale cassa è (si sceglie nella pagina Incassi) e chiude la sua.' },
             seg(bozza.casse, [{ id: 'UNICA', nome: 'Una sola' }, { id: 'PER_POSTAZIONE', nome: 'Una per postazione' }], (v) => (bozza!.casse = v)))}
           {#if aperte.length && bozza.casse !== pagina.impostazioni.casse}
             <p class="hint nomargin avviso-r"><span>Per cambiare prima si chiude: {aperte.length === 1 ? `è aperta «${aperte[0]}»` : `sono aperte ${aperte.map((x) => `«${x}»`).join(', ')}`}.</span></p>
@@ -138,37 +141,39 @@
 
         <section class="card sez" id="imp-fondo" aria-label="Il fondo cassa">
           <div class="sez-t"><h2 class="grow">Il fondo cassa</h2><span class="spiega">i contanti per dare il resto</span></div>
-          {@render scelte('Da dove si parte', spiegaFondo({ fondo: bozza.fondo, importoFondo: fondoN ?? 0 }, euro), seg(bozza.fondo, FONDI, (v) => (bozza!.fondo = v)))}
+          {@render scelte('Da dove si parte', { corta: 'Il fondo con cui si apre la cassa.', tema: 'il fondo', lunga: spiegaFondo({ fondo: bozza.fondo, importoFondo: fondoN ?? 0 }, euro) }, seg(bozza.fondo, FONDI, (v) => (bozza!.fondo = v)))}
           <div class="riga-imp"><span class="t"><b>{bozza.fondo === 'FISSO' ? 'Il fondo' : 'Il fondo di solito'}</b>
-            <span>{bozza.fondo === 'FISSO' ? 'Alla chiusura resta nel cassetto, il resto si versa.' : 'Il primo giorno, e quello proposto da lasciare alla chiusura.'}</span></span>
+            {@render spiega(bozza.fondo === 'FISSO'
+              ? { corta: 'Resta nel cassetto alla chiusura.', tema: 'il fondo', lunga: 'Alla chiusura resta nel cassetto, il resto si versa.' }
+              : { corta: 'Il primo giorno e alla chiusura.', tema: 'il fondo', lunga: 'Il primo giorno, e quello proposto da lasciare alla chiusura.' })}</span>
             <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.importoFondo} disabled={!puo} aria-label="Importo del fondo" aria-invalid={fondoN == null || fondoN < 0} /><span class="unita">€</span></span>
             {#if fondoN == null || fondoN < 0}<span class="msg err" role="alert">Scrivi il fondo in euro, es. 100 o 100,50</span>{/if}</div>
         </section>
 
         <section class="card sez" id="imp-chiusura" aria-label="La chiusura">
           <div class="sez-t"><h2 class="grow">La chiusura</h2><span class="spiega">contati, differenza, quanto si lascia</span></div>
-          {@render scelte('Quando si chiude', bozza.chiusura === 'TURNO'
+          {@render scelte('Quando si chiude', { corta: 'A fine turno o a fine giornata.', tema: 'la chiusura', lunga: bozza.chiusura === 'TURNO'
             ? 'Chi entra in cassa la apre, e la chiude a fine turno: ogni chiusura ha il suo nome. Più chiusure al giorno.'
-            : 'Una chiusura a fine giornata, senza apertura (tranne con il fondo da contare). I pagamenti dopo la chiusura vanno nel giorno dopo.',
+            : 'Una chiusura a fine giornata, senza apertura (tranne con il fondo da contare). I pagamenti dopo la chiusura vanno nel giorno dopo.' },
             seg(bozza.chiusura, CHIUSURE, (v) => (bozza!.chiusura = v)))}
           <div class="riga-imp"><span class="t"><b>Cosa finisce nel cassetto</b>
-            <span>Contano nei contanti attesi solo i metodi segnati «nel cassetto».{#if !nelCassetto.length}{' '}<strong class="manca">Nessuno lo è.</strong>{/if}</span></span>
+            <span class="corta"><span class="t-c">{#if nelCassetto.length}Contano solo i metodi «nel cassetto».{:else}<strong class="manca">Nessun metodo è «nel cassetto».</strong>{/if}</span><Fumetto tema="il cassetto">Contano nei contanti attesi solo i metodi segnati «nel cassetto».{#if !nelCassetto.length}{' '}<strong class="manca">Nessuno lo è.</strong>{/if}</Fumetto></span></span>
             <span class="ctl"><span class="esempio">{nelCassetto.join(', ') || '—'}</span><a class="mini-btn" href="#/metodi">Metodi di pagamento →</a></span></div>
         </section>
 
         <section class="card sez" id="imp-conteggio" aria-label="Il conteggio e il controllo">
           <div class="sez-t"><h2 class="grow">Il conteggio e il controllo</h2><span class="spiega">come si usa nel settore</span></div>
           <div class="riga-imp"><span class="t"><b>Conta alla cieca</b>
-            <span>Chi chiude conta senza vedere i contanti attesi; il confronto arriva dopo. È la pratica consigliata: il conto non si «aggiusta» sul numero atteso.</span></span>
+            {@render spiega({ corta: 'Chi chiude non vede gli attesi.', tema: 'il conteggio alla cieca', lunga: 'Chi chiude conta senza vedere i contanti attesi; il confronto arriva dopo. È la pratica consigliata: il conto non si «aggiusta» sul numero atteso.' })}</span>
             <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.cieca} aria-label="Conta alla cieca" disabled={!puo} onclick={() => (bozza!.cieca = !bozza!.cieca)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Differenza tollerata</b>
-            <span>Fino a questa cifra, in più o in meno, si chiude e basta. Oltre: si propone di ricontare, la nota diventa obbligatoria e la chiusura può andare controllata. 0 = ogni differenza.</span></span>
+            {@render spiega({ corta: 'Fino a qui si chiude e basta.', tema: 'la differenza tollerata', lunga: 'Fino a questa cifra, in più o in meno, si chiude e basta. Oltre: si propone di ricontare, la nota diventa obbligatoria e la chiusura può andare controllata. 0 = ogni differenza.' })}</span>
             <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.tolleranza} disabled={!puo} aria-label="Differenza tollerata" aria-invalid={tolleranzaN == null || tolleranzaN < 0} /><span class="unita">€</span></span>
             {#if tolleranzaN == null || tolleranzaN < 0}<span class="msg err" role="alert">Scrivi la differenza in euro, es. 2 o 0,50 (0 = ogni differenza)</span>{/if}</div>
-          {@render scelte('Quali chiusure controlla un responsabile', 'Chi può annullare i pagamenti le segna come controllate (non chi le ha chiuse); sul riepilogo stampato compare chi e quando.',
+          {@render scelte('Chiusure da controllare', { corta: 'Le segna chi annulla i pagamenti.', tema: 'il controllo delle chiusure', lunga: 'Chi può annullare i pagamenti le segna come controllate (non chi le ha chiuse); sul riepilogo stampato compare chi e quando.' },
             seg(bozza.controllo, CONTROLLI, (v) => (bozza!.controllo = v)))}
           <div class="riga-imp"><span class="t"><b>Riscontro con il POS</b>
-            <span>Per i metodi scelti, alla chiusura si scrive il totale dello scontrino di chiusura del POS e si vede se torna con i pagamenti registrati. Si cambia subito, senza salvare.</span></span>
+            {@render spiega({ corta: 'Si cambia subito, senza salvare.', tema: 'il riscontro con il POS', lunga: 'Per i metodi scelti, alla chiusura si scrive il totale dello scontrino di chiusura del POS e si vede se torna con i pagamenti registrati. Si cambia subito, senza salvare.' })}</span>
             <span class="ctl chips-m">
               {#each pagabili as m (m.id)}
                 <button type="button" class="chip" aria-pressed={m.riscontro} disabled={!puo}
@@ -181,13 +186,13 @@
         <section class="card sez" id="imp-tolti" aria-label="I soldi tolti dal cassetto">
           <div class="sez-t"><h2 class="grow">I soldi tolti dal cassetto</h2><span class="spiega">spese, cassaforte, banca</span></div>
           <div class="riga-imp"><span class="t"><b>Spese pagate con la cassa</b>
-            <span>Spento, il cassetto serve solo per incassi e resto: le piccole spese passano da una cassa a parte (come si consiglia di solito).</span></span>
+            {@render spiega({ corta: 'Spento, le spese stanno fuori cassa.', tema: 'le spese', lunga: 'Spento, il cassetto serve solo per incassi e resto: le piccole spese passano da una cassa a parte (come si consiglia di solito).' })}</span>
             <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.spese} aria-label="Spese pagate con la cassa" disabled={!puo} onclick={() => (bozza!.spese = !bozza!.spese)}><span></span></button></span></div>
-          <div class="riga-imp"><span class="t"><b>Tieni il conto della cassaforte e della banca</b>
-            <span>Quello versato alle chiusure resta «in cassaforte» finché qualcuno non segna che è stato portato in banca, con il giorno e la distinta. Il conto parte da quando si accende.</span></span>
+          <div class="riga-imp"><span class="t"><b>Conto di cassaforte e banca</b>
+            {@render spiega({ corta: 'Dalla cassaforte alla banca.', tema: 'il conto della cassaforte e della banca', lunga: 'Quello versato alle chiusure resta «in cassaforte» finché qualcuno non segna che è stato portato in banca, con il giorno e la distinta. Il conto parte da quando si accende.' })}</span>
             <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.banca} aria-label="Conto della cassaforte e della banca" disabled={!puo} onclick={() => (bozza!.banca = !bozza!.banca)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Avvisa se una cassa resta aperta</b>
-            <span>Dopo queste ore dall'apertura, un avviso a chi entra in cassa e, sulla voce Incassi, a chi usa la cassa. 0 = mai.</span></span>
+            {@render spiega({ corta: 'Dopo quante ore dall\'apertura. 0 = mai.', tema: 'l\'avviso di cassa aperta', lunga: 'Dopo queste ore dall\'apertura, un avviso a chi entra in cassa e, sulla voce Incassi, a chi usa la cassa. 0 = mai.' })}</span>
             <span class="ctl"><input class="inp m corto" inputmode="numeric" bind:value={bozza.oreAvviso} disabled={!puo} aria-label="Ore dopo cui avvisare" /><span class="unita">ore</span></span></div>
         </section>
       </div>
@@ -228,8 +233,10 @@
   {/if}
 </div>
 
-{#snippet scelte(titolo: string, spiega: string, s: Scelte)}
-  <div class="riga-imp"><span class="t"><b>{titolo}</b><span>{spiega}</span></span>
+{#snippet spiega(s: Spiega)}<span class="corta"><span class="t-c">{s.corta}</span><Fumetto tema={s.tema}>{s.lunga}</Fumetto></span>{/snippet}
+
+{#snippet scelte(titolo: string, spiega_: Spiega, s: Scelte)}
+  <div class="riga-imp"><span class="t"><b>{titolo}</b>{@render spiega(spiega_)}</span>
     <span class="ctl"><span class="seg" style:grid-template-columns={`repeat(${s.opzioni.length}, minmax(0, 1fr))`} role="group" aria-label={titolo}>
       {#each s.opzioni as o (o.id)}<button type="button" aria-pressed={s.valore === o.id} disabled={!puo} onclick={() => s.scegli(o.id)}>{o.nome}</button>{/each}
     </span></span></div>
@@ -247,6 +254,10 @@
   .chips-m { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: flex-end; max-width: 360px; }
   .esempio { font-size: var(--text-md); font-weight: 600; padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--carta); }
   .manca { color: var(--warn); font-weight: 600; }
+  /* la riga corta: non va a capo, la «i» sta in fondo e non allarga la riga */
+  .corta { display: flex; align-items: center; gap: var(--space-4); white-space: nowrap; min-width: 0; }
+  /* a 320 px il testo si accorcia con i puntini (il testo intero resta nel fumetto), la «i» si vede sempre */
+  .t-c { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .avviso-r { margin: 0 var(--space-16) var(--space-12); }
   .casse { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-soft); }
   .casse li { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line-soft); }

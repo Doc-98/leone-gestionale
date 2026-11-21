@@ -20,6 +20,7 @@ caratteri (‹ › ↑ ↓ ×). Ogni schermata reinventava anche la conferma in 
 
 **Conseguenze.** Le righe sono più corte e si leggono meglio; l'etichetta, non più limitata a una parola a vista, nomina
 la cosa («Togli Giulia Rossi dalla lista d'attesa»). Il costo è che un'icona va imparata: per questo il suggerimento
-al passaggio del mouse, i nomi che dicono il significato e pochi gesti ricorrenti (matita, cestino, annulla, spegni).
+al passaggio del mouse, i nomi che dicono il significato e pochi gesti ricorrenti (matita, cestino, annulla, spegni; nelle righe degli elenchi
+modificabili «spegni» è l'interruttore acceso/spento, ADR 0028).
 Le conferme che hanno bisogno di altre scelte prima del secondo clic (il recesso in «Termina oggi») restano un piccolo
 riquadro con i loro pulsanti.
