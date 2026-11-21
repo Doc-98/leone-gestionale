@@ -1,16 +1,18 @@
 import type { Richiesta, Turno } from './api';
 import { aggiungiGiorni, dataAgenda, GIORNI_BREVI, lunedi, ora } from './date';
 import { quanti } from './plurali';
+import type { OpzioneVista } from './viste';
 
 /**
  * «I miei turni» (mockup di ottobre 2026): tre viste a scelta, la settimana (telefono), il mese e la settimana a colonne
  * (PC). Qui i calcoli che non dipendono dalla pagina.
  */
 export type VistaTurni = 'settimana' | 'mese' | 'colonne';
-export const VISTE_TURNI: { id: VistaTurni; nome: string }[] = [
-  { id: 'settimana', nome: 'La settimana' },
-  { id: 'mese', nome: 'Il mese' },
-  { id: 'colonne', nome: 'A colonne' },
+export const VISTE_TURNI: (OpzioneVista & { id: VistaTurni })[] = [
+  { id: 'settimana', nome: 'La settimana', breve: 'Settimana' },
+  { id: 'mese', nome: 'Il mese', breve: 'Mese' },
+  // la vista a colonne non sta su un telefono: lì non compare (ADR 0028)
+  { id: 'colonne', nome: 'A colonne', solo: 'larga' },
 ];
 
 /** L'area di una postazione, per il colore: spogliatoio maschile, femminile, piccoli, atrio, altro. */
