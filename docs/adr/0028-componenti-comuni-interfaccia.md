@@ -61,12 +61,7 @@ voleva che le cose con storico (un metodo di pagamento già usato) si spegnesser
   pagina per pagina e toglie i duplicati: `.menu-azioni`, `tastiSchede`, `.tab-c`, le rotelle delle viste, `Settimana`
   e `Mese` se restano senza uso, l'icona `spegni` nelle righe.
 - `App.svelte` perde la sua intestazione quando l'ultima pagina di lavoro passa alla barra.
-- «Niente si cancella» va letto così: lo storico non si perde mai, perché conserva la sua copia; la cosa in sé si può
-  eliminare. Per i metodi di pagamento servono una migrazione (copia del metodo in `pagamento_metodo` e in `uscita`,
-  le due tabelle che oggi lo riferiscono con `metodo_id not null`; `movimento_borsellino` passa da pagamento e
-  uscita; copia riempita dai dati esistenti, riferimento al metodo facoltativo) e
-  `DELETE /api/pagamenti/metodi/{id}` con il permesso `IMPOSTAZIONI`. Nel blocco 7 la stessa regola vale per le altre
-  cose con storico, una per una, ciascuna con la sua copia.
+- Il principio «Niente si cancella» è riformulato in `docs/regole-dominio.md` come «Lo storico non si perde»: le cose che durano si chiudono con una data di fine; una cosa di cui lo storico conserva una copia presa alla registrazione si può eliminare.
 - Il cestino che può rispondere «non ancora» è un'eccezione voluta alla regola «disabilitato solo quando manca qualcosa
   adesso»: il messaggio dice proprio cosa manca adesso.
 - Due dipendenze di sviluppo in più nel frontend e un ambiente jsdom per i test dei componenti.

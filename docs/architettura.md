@@ -24,7 +24,7 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
   mappa: cosa salva per ogni persona, corso, pagamento, e in che forma è registrato il bracciale.
 - **Dati personali di minori**: minimizzazione (ognuno vede solo ciò che gli serve), registro delle
   consultazioni, server in UE, nessun dato reale nello sviluppo (solo dati finti realistici).
-- **Niente si cancella**: le cose si chiudono con una data di fine; lo storico resta.
+- **Lo storico non si perde**: le cose che durano si chiudono con una data di fine; una cosa di cui lo storico conserva una copia presa alla registrazione (come un metodo di pagamento) si può eliminare (ADR 0028).
 - **Orari nel fuso Europe/Rome**: date e ore "da calendario" (giorno + ora locale).
 - **Lo sport è una dimensione, non un modulo**: ogni corso, spazio e mansione appartiene a un impianto
   e a una disciplina.

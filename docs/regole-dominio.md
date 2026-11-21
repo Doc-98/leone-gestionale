@@ -15,7 +15,7 @@ rompere senza accorgersene. Se una regola cambia, si aggiorna qui e nell'ADR che
   persona decide.
 - **Lo sport è una dimensione, non un modulo.** Corsi, spazi e mansioni appartengono a un impianto e a una
   disciplina: un altro sport si aggiunge senza riscrivere il sistema.
-- **Niente si cancella.** Le cose si chiudono con una data di fine e lo storico resta.
+- **Lo storico non si perde.** Le cose che durano si chiudono con una data di fine. Una cosa di cui lo storico conserva una copia presa alla registrazione (come un metodo di pagamento) si può eliminare (ADR 0028).
 
 ## Privacy e dati
 
