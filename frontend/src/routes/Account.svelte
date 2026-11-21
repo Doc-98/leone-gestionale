@@ -1,6 +1,8 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
   import Azione from '../components/Azione.svelte';
+  import Fumetto from '../components/Fumetto.svelte';
+  import StatoVuoto from '../components/StatoVuoto.svelte';
   import { api, messaggioErrore, type Account, type PaginaRuoli, type PasswordTemporanea } from '../lib/api';
   import { dataBreve, dataDi, oraDi } from '../lib/date';
   import { sessione } from '../lib/sessione.svelte';
@@ -95,7 +97,7 @@
   <div class="temporanea card" role="status">
     <div class="lbl">Password temporanea di {temporanea.chi}</div>
     <div class="pw m">{temporanea.password}</div>
-    <p class="small nomargin">Comunicala di persona: accede con <strong>{temporanea.email}</strong> e al primo accesso sceglie la sua. Non verrà più mostrata.</p>
+    <p class="small nomargin riga-s"><span class="t-s con-email"><span class="fisso">Accede&nbsp;con&nbsp;</span><span class="em" title={temporanea.email}>{temporanea.email}</span><span class="fisso">.</span></span><Fumetto tema="la password temporanea">Comunicala di persona: accede con <strong>{temporanea.email}</strong> e al primo accesso sceglie la sua. Non verrà più mostrata.</Fumetto></p>
     <div class="row"><button class="btn btn-secondary" onclick={copia}><Icona nome="copia" />Copia la password</button><button class="btn btn-primary" onclick={() => (temporanea = null)}>L'ho copiata</button></div>
   </div>
 {/if}
@@ -132,7 +134,7 @@
         </label>
       </div>
     {/if}
-    <p class="muted small nomargin">Si crea con una password temporanea, da comunicare di persona: al primo accesso va cambiata.</p>
+    <p class="muted small nomargin riga-s"><span class="t-s">Si crea con una password temporanea.</span><Fumetto tema="la password temporanea">Si crea con una password temporanea, da comunicare di persona: al primo accesso va cambiata.</Fumetto></p>
     <div class="row">
       <button type="button" class="btn btn-secondary" onclick={() => (nuovo = null)}>Annulla</button>
       <button class="btn btn-primary grow" disabled={!nuovo.nome.trim() || !nuovo.cognome.trim() || !nuovo.email.includes('@')}>Crea l'account</button>
@@ -168,15 +170,21 @@
       </span>
     </li>
   {:else}
-    <li class="muted small">{caricato ? 'Nessun account.' : 'Caricamento…'}</li>
+    <StatoVuoto come="li" testo="Nessun account." caricamento={!caricato} />
   {/each}
 </ul>
-{#if daRuoli}<p class="muted small nomargin">Cosa può fare ogni ruolo, e a chi darlo, si decide nella scheda <a href="#/account/ruoli">Ruoli</a>.</p>{/if}
+{#if daRuoli}<p class="muted small nomargin riga-s"><span class="t-s">Cosa può fare ogni ruolo: scheda <a href="#/account/ruoli">Ruoli</a>.</span><Fumetto tema="i ruoli">Cosa può fare ogni ruolo, e a chi darlo, si decide nella scheda <a href="#/account/ruoli">Ruoli</a>.</Fumetto></p>{/if}
 
 <style>
   .temporanea { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-14) var(--space-16); border: 2px solid var(--cloro); background: var(--cloro-soft); color: var(--cloro-ink); }
   .pw { font-size: 28px; letter-spacing: 0.06em; }
   .barra { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; }
+  /* la riga corta non va a capo; a 320 px il testo si accorcia con i puntini (nella password temporanea solo l'email), la «i» resta */
+  .riga-s { display: flex; align-items: center; gap: var(--space-4); white-space: nowrap; min-width: 0; }
+  .t-s { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .t-s.con-email { display: flex; overflow: visible; }
+  .fisso { flex-shrink: 0; }
+  .em { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
   .cerca { width: 260px; }
   .spunta { display: flex; align-items: center; gap: var(--space-6); }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); }

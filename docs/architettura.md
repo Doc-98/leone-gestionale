@@ -24,7 +24,7 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
   mappa: cosa salva per ogni persona, corso, pagamento, e in che forma è registrato il bracciale.
 - **Dati personali di minori**: minimizzazione (ognuno vede solo ciò che gli serve), registro delle
   consultazioni, server in UE, nessun dato reale nello sviluppo (solo dati finti realistici).
-- **Niente si cancella**: le cose si chiudono con una data di fine; lo storico resta.
+- **Lo storico non si perde**: le cose che durano si chiudono con una data di fine; una cosa di cui lo storico conserva una copia presa alla registrazione (come un metodo di pagamento) si può eliminare (ADR 0028).
 - **Orari nel fuso Europe/Rome**: date e ore "da calendario" (giorno + ora locale).
 - **Lo sport è una dimensione, non un modulo**: ogni corso, spazio e mansione appartiene a un impianto
   e a una disciplina.
@@ -65,6 +65,11 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
   interfaccia con due disposizioni: **desktop** (menu laterale, tabelle, pianificazione ampia) e
   **mobile** (schede in basso). Sul PC è impacchettata con **Tauri** in un programma Windows che accede
   a lettore NFC e stampante; sul telefono è una PWA. Vedi ADR 0006.
+  I pezzi che ricorrono (stato vuoto, fumetto «i», menu «⋯», schede, barra di pagina con periodo e vista, elenco
+  modificabile) sono **componenti comuni** in `src/components/`, che le pagine usano senza riscriverli. La logica
+  sta in funzioni pure in `src/lib/` con i test Vitest; i comportamenti da tastiera dei componenti si provano con
+  jsdom e `@testing-library/svelte`. La barra di pagina la disegna la pagina; ogni riordino si salva con una sola
+  chiamata `PUT …/ordine`. Vedi ADR 0028.
 - **Database**: PostgreSQL. Relazionale perché i dati sono fortemente collegati (bracciale → persona →
   iscrizioni → corso → lezioni → certificato → pagamenti) e servono vincoli e transazioni. Le parti
   meno strutturate (impostazioni, dettagli per disciplina) usano colonne JSONB.
