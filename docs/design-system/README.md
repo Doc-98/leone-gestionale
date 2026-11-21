@@ -69,10 +69,13 @@ Regole di componenti che ricorrono in molte pagine. Quelli segnati «da costruir
 
 **Barra di pagina** (`BarraPagina.svelte`, con `Periodo.svelte` e `SceltaVista.svelte`). In cima a ogni pagina di lavoro, con il titolo e le azioni della pagina. La disegna la pagina, non `App.svelte`: finché non l'hanno tutte, il campo `barra` di `SEZIONI` dice a `App` di non mettere la sua intestazione (oggi I miei turni e Ore e compensi).
 - **Computer:** il titolo a sinistra; a destra periodo, vista e azioni (cerca, file, «⋯»).
-- **Telefono:** il titolo a sinistra e a destra le azioni (cerca, file, «⋯»); sotto, su una riga, il periodo a sinistra e la vista a destra.
+- **Telefono e tablet** (sotto i 1024 px), su tre righe:
+  1. in piccolo, la società a sinistra e a destra l'avatar con il nome dell'account (`Avatar.svelte`: iniziali su `--cloro-soft`, 24 px, area di tocco da 44 px); il tocco apre il menu «Altro». La riga è staccata di 12 px dalla successiva, così l'area di tocco non si sovrappone ai controlli sotto;
+  2. il titolo a sinistra; a destra la vista o, se la pagina ne ha, le azioni (cerca, file, «⋯»);
+  3. il periodo, da solo.
 - **Viste:** un segmentato fino a 3 opzioni; con più opzioni una tendina. Mai due segmentati nella stessa barra. Una vista che sul telefono non si può usare non compare (non resta spenta): la vista «A colonne» dei Turni sul telefono non c'è. Oggi la rotella delle viste con il pannello di chip (Turni, Richieste, Incassi, Tornello) non segue la regola: da portare a segmentato o tendina nel blocco 7.
 - **Periodo:** due pulsanti-icona `sx` e `dx` con la scritta del periodo in mezzo («9–15 novembre»); il tocco sulla scritta apre il calendario del sistema (il selettore nativo di data o di mese); «Oggi» è il pulsante-icona `oggi`.
-- «Cambia password» ed «Esci» non stanno nella barra: sul telefono sono nel menu «Altro», sul computer nel menu dell'account in fondo alla barra laterale.
+- «Cambia password» ed «Esci» non stanno nella barra: sul telefono sono nel menu «Altro» (che si apre anche dall'avatar), sul computer nel menu dell'account in fondo alla barra laterale.
 
 **Barra in basso del telefono** (da costruire nel blocco 8). Quattro voci, ciascuna con icona e nome, più «Altro». Le voci si scelgono da «Altro» › «Personalizza la barra», tra tutte quelle che il ruolo può vedere, «Account» compreso. Ogni ruolo ha le sue voci predefinite. La scelta si salva sul dispositivo, per account (`lib/preferenze.ts`). La barra laterale del computer non cambia.
 

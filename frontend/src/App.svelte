@@ -249,10 +249,9 @@
     prime.map((id) => lavoro.find((s) => s.id === id)).filter((s): s is Sezione => !!s).slice(0, 4) // «Altro» c'è sempre: porta anche «Cambia password» ed «Esci»,
   );
   const nelMenu = $derived(lavoro.filter((s) => !inBasso.includes(s)));
-  let menuAltro = $state(false);
   $effect(() => {
     void scheda;
-    menuAltro = false;
+    ambiente.menuAltro = false;
   });
   const NOMI_RUOLI: Record<string, string> = { ADMIN: 'Admin', COORDINATORE: 'Coordinatore', SEGRETERIA: 'Segreteria', STAFF: 'Staff' };
   const ruolo = $derived(
@@ -476,7 +475,7 @@
     {/if}
 
     {#if !schermo.larga}
-      {#if menuAltro}
+      {#if ambiente.menuAltro}
         <div class="altro card" id="menu-altro">
           {#each nelMenu as s (s.id)}
             <a href={`#/${s.id}`} class:on={scheda === s.id}>{@render icona(s.icona)}<span class="grow">{s.nome}</span>{@render badge(s)}</a>
@@ -485,8 +484,8 @@
             <a href="#/impostazioni" class="sep" class:on={inImpostazioni}>{@render icona('impostazioni')}<span class="grow">Impostazioni</span></a>
           {/if}
           <!-- «Cambia password» ed «Esci» non stanno nella barra di pagina: sul telefono sono qui (ADR 0028) -->
-          <button type="button" class="sep" onclick={() => ((menuAltro = false), (cambioPassword = true))}>{@render icona('chiave')}<span class="grow">Cambia password</span></button>
-          <button type="button" onclick={() => ((menuAltro = false), sessione.esci())}>{@render icona('esci')}<span class="grow">Esci</span></button>
+          <button type="button" class="sep" onclick={() => ((ambiente.menuAltro = false), (cambioPassword = true))}>{@render icona('chiave')}<span class="grow">Cambia password</span></button>
+          <button type="button" onclick={() => ((ambiente.menuAltro = false), sessione.esci())}>{@render icona('esci')}<span class="grow">Esci</span></button>
         </div>
       {/if}
       <nav class="basso" aria-label="Sezioni" style="--n: {inBasso.length + 1}">
@@ -495,8 +494,8 @@
             {s.breve ?? s.nome}{@render badge(s)}
           </a>
         {/each}
-          <button class:on={menuAltro || inImpostazioni || nelMenu.some((s) => s.id === scheda)} aria-expanded={menuAltro} aria-controls="menu-altro"
-                  onclick={() => (menuAltro = !menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}{#if nelMenu.some((s) => s.id === 'incassi') && avvisiCassa}<span class="badge warn">{avvisiCassa}</span>{/if}</button>
+          <button class:on={ambiente.menuAltro || inImpostazioni || nelMenu.some((s) => s.id === scheda)} aria-expanded={ambiente.menuAltro} aria-controls="menu-altro"
+                  onclick={() => (ambiente.menuAltro = !ambiente.menuAltro)}>Altro{#if nelMenu.some((s) => s.id === 'approva') && daApprovare}<span class="badge">{daApprovare}</span>{/if}{#if nelMenu.some((s) => s.id === 'incassi') && avvisiCassa}<span class="badge warn">{avvisiCassa}</span>{/if}</button>
       </nav>
     {/if}
   </div>
