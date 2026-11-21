@@ -6,10 +6,11 @@
    * Il foglio dei moduli: dal basso sul telefono, pannello a destra sul computer.
    * - `dalBasso`: il foglio sale dal basso, al centro, anche sul computer invece di aprirsi come pannello a destra
    *   (per i fogli corti, come quello del menu «⋯» sul telefono e sul tablet).
+   * - `troncaTitolo`: il titolo sta su una riga e, se è lungo, finisce nei puntini (il nome intero resta nell'etichetta e nel `title`).
    * - `dopoTitolo`: un pezzo accanto al titolo (la pillola «spento» di un elemento spento).
    */
-  let { titolo, chiudi, children, dalBasso = false, dopoTitolo }: {
-    titolo: string; chiudi: () => void; children: Snippet; dalBasso?: boolean; dopoTitolo?: Snippet;
+  let { titolo, chiudi, children, dalBasso = false, dopoTitolo, troncaTitolo = false }: {
+    titolo: string; chiudi: () => void; children: Snippet; dalBasso?: boolean; dopoTitolo?: Snippet; troncaTitolo?: boolean;
   } = $props();
 
   function tasto(e: KeyboardEvent) {
@@ -22,7 +23,7 @@
 <div class="velo" class:dal-basso={dalBasso} role="presentation" onclick={chiudi}></div>
 <div class="foglio" class:dal-basso={dalBasso} role="dialog" aria-modal="true" aria-label={titolo}>
   <header>
-    <div class="tit"><h2>{titolo}</h2>{#if dopoTitolo}{@render dopoTitolo()}{/if}</div>
+    <div class="tit"><h2 class:tronca={troncaTitolo} title={troncaTitolo ? titolo : undefined}>{titolo}</h2>{#if dopoTitolo}{@render dopoTitolo()}{/if}</div>
     <Azione cornice icona="chiudi" etichetta="Chiudi" onclick={chiudi} />
   </header>
   <div class="corpo">{@render children()}</div>
@@ -47,5 +48,6 @@
   header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-12); margin-bottom: var(--space-12); }
   .tit { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
   h2 { margin: 0; font-size: var(--text-xl); }
+  h2.tronca { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .corpo { display: flex; flex-direction: column; gap: var(--space-14); }
 </style>
