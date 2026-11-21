@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PagamentoRegistrato, VoceScadenza } from './api';
 import type { PaginaCassa, StatoCassa } from './api';
-import { andamento, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
+import { andamento, chiaveMetodo, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
 import { euro, numeroDa } from './numeri';
 
 const voce = (p: Partial<VoceScadenza>): VoceScadenza => ({
@@ -57,7 +57,7 @@ describe('incassi', () => {
     const d = {
       pagamenti: [pag('2026-10-27', '09:00', [['Contanti', 50]]), pag('2026-10-27', '10:00', [['Carta', 40], ['Contanti', 10.5]]),
         pag('2026-10-27', '11:00', [['Contanti', 99]], { annullatoIl: '2026-10-27T11:05:00Z' })],
-      uscite: [{ id: 'u', data: '2026-10-27', personaId: 'x', persona: 'Mario', metodo: 'Contanti', contanti: true, importo: 5, descrizione: 'Cauzione', registratoDa: null, registratoIl: '2026-10-27T09:30:00Z' }],
+      uscite: [{ id: 'u', data: '2026-10-27', personaId: 'x', persona: 'Mario', metodoId: 'Contanti', metodo: 'Contanti', contanti: true, importo: 5, descrizione: 'Cauzione', registratoDa: null, registratoIl: '2026-10-27T09:30:00Z' }],
     };
     expect(contanti(d)).toEqual({ entrati: 60.5, usciti: 5 });
     const r = registro(d);
@@ -72,6 +72,25 @@ describe('incassi', () => {
     expect(g[5]).toMatchObject({ etichetta: '6', totale: 10, pezzi: [5, 5] });
     const s = andamento(p, ['Contanti', 'Carta'], '2026-10-01', '2026-10-07', 'settimana');
     expect(s.map((x) => [x.etichetta, x.totale])).toEqual([['1–4', 10], ['5–7', 30]]);
+  });
+});
+
+describe('metodi negli incassi', () => {
+  it('la chiave è l\'id; per i metodi eliminati (id vuoto) il nome, così due eliminati restano distinti', () => {
+    expect(chiaveMetodo({ metodoId: 'a1', metodo: 'Carta' })).toBe('a1');
+    const x = chiaveMetodo({ metodoId: null, metodo: 'Satispay' }), y = chiaveMetodo({ metodoId: null, metodo: 'Bonifico' });
+    expect(x).not.toBe(y);
+    expect(x).not.toBe('Satispay');
+  });
+
+  it('il grafico segue l\'id anche se il nome nel pagamento è quello di prima della rinomina', () => {
+    const p = pag('2026-10-02', '09:00', [['Carta', 10]]);
+    p.metodi[0] = { ...p.metodi[0], metodoId: 'carta-id', metodo: 'Carta' };
+    const g = andamento([p], ['carta-id', chiaveMetodo({ metodoId: null, metodo: 'Satispay' })], '2026-10-01', '2026-10-03', 'giorno');
+    expect(g[1].pezzi).toEqual([10, 0]);
+    const e = pag('2026-10-02', '10:00', [['Satispay', 5]]);
+    e.metodi[0] = { ...e.metodi[0], metodoId: null };
+    expect(andamento([e], ['carta-id', chiaveMetodo({ metodoId: null, metodo: 'Satispay' })], '2026-10-01', '2026-10-03', 'giorno')[1].pezzi).toEqual([0, 5]);
   });
 });
 

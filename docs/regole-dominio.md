@@ -47,6 +47,10 @@ rompere senza accorgersene. Se una regola cambia, si aggiorna qui e nell'ADR che
 - Pagamenti, chiusura di cassa, ricevute e simili sono **provvisori** finché non si sa come lavora davvero la
   segreteria: prima di cambiarli si confrontano con le pratiche del settore e con altri gestionali (subagente
   `ricerca-dominio`), e le scelte vanno in un ADR.
+- **Metodi di pagamento.** Ogni pagamento e ogni uscita conserva una copia del metodo presa alla registrazione (nome,
+  contanti, da incassare, riscontro POS, borsellino) e lo storico legge la copia. Un metodo si elimina anche se è stato
+  usato, tranne se ha qualcosa di aperto (pagamenti da incassare, una cassa non ancora chiusa con quel metodo); il
+  borsellino non si elimina mai. Rinominare un metodo non cambia la copia: i documenti passati mostrano il nome di allora.
 - Pagamenti online: solo bonifico con causale generata dall'app e addebito diretto SEPA, senza spingere. Niente carte
   senza una richiesta esplicita.
 

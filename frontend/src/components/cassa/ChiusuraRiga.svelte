@@ -68,12 +68,12 @@
         {#if s.primoConteggio != null && Math.round(s.primoConteggio * 100) !== Math.round((s.contati ?? 0) * 100)}
           <span class="fatto">Primo conteggio · riconteggio<b class="m">{euro(s.primoConteggio)} · {euro(s.contati ?? 0)}</b></span>
         {/if}
-        {#each s.riscontri ?? [] as r (r.metodo)}
+        {#each s.riscontri ?? [] as r, i (i)}
           <span class="fatto">POS {r.metodo}<b class="m">{r.dichiarato == null ? 'non scritto' : Math.round(r.differenza * 100) === 0 ? `torna (${euro(r.atteso)})` : `${conSegno(r.differenza, euro)} su ${euro(r.atteso)}`}</b></span>
         {/each}
       </div>
       {#if s.conti.perMetodo.length}
-        <span class="metodi">{#each s.conti.perMetodo as m (m.metodo)}<span class="tag-m">{m.metodo} <b class="m">{euro(m.entrate)}</b>{m.uscite ? ` · −${euro(m.uscite)}` : ''}</span>{/each}</span>
+        <span class="metodi">{#each s.conti.perMetodo as m, i (i)}<span class="tag-m">{m.metodo} <b class="m">{euro(m.entrate)}</b>{m.uscite ? ` · −${euro(m.uscite)}` : ''}</span>{/each}</span>
       {/if}
       {#if dettaglio?.movimenti?.some((m) => !m.annullato)}
         <span class="small">{#each dettaglio.movimenti.filter((m) => !m.annullato) as m, i (m.id)}{i ? ' · ' : ''}{nomeTipo(m.tipo)} {euro(m.importo)}{m.descrizione !== nomeTipo(m.tipo) ? ` (${m.descrizione})` : ''}{/each}</span>

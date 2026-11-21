@@ -59,6 +59,8 @@ class GestioneErrori {
             : m.contains("stagione_nome_key") ? "C'è già una stagione con questo nome."
             : m.contains("servizio_nome") ? "C'è già un servizio con questo nome."
             : m.contains("metodo_pagamento_nome") ? "C'è già un metodo di pagamento con questo nome."
+            : m.contains("pagamento_metodo_metodo_id_fkey") || m.contains("uscita_metodo_id_fkey")
+                ? "Il metodo di pagamento è appena stato eliminato: ricarica e scegline un altro."
             : m.contains("gruppo_clienti_nome") ? "C'è già un gruppo con questo nome."
             : m.contains("appartenenza_gruppo_attiva") ? "La persona è già in questo gruppo."
             : m.contains("offerta_prezzo_unico") ? "C'è già un prezzo per questa frequenza (e gruppo)."

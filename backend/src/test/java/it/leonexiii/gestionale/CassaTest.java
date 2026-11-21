@@ -321,4 +321,116 @@ class CassaTest extends ProvaApi {
             + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
         assertThat(segr.get("/api/cassa/cassaforte").statusCode()).isEqualTo(409);
     }
+
+    @Test
+    @Order(4)
+    void unMetodoEliminatoLasciaLoStorico() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        var coord = come("coordinatore@demo.leone");
+        var admin = come("admin@demo.leone");
+        orologio.alle("2030-09-02T07:00");
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"cieca\":false,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
+        String cassa = (String) elenco(json(segr.get("/api/cassa")).get("casse")).stream().filter(c -> Boolean.TRUE.equals(c.get("principale"))).findFirst().orElseThrow().get("id");
+        azzera(segr, cassa);
+
+        // un metodo da riscontrare con il POS e uno da incassare a mano
+        String suffisso = java.util.UUID.randomUUID().toString().substring(0, 6);
+        String pos = "App pagamenti " + suffisso, banca = "Bonifico veloce " + suffisso;
+        String posId = creaId(admin, "/api/pagamenti/metodi", "{\"nome\":\"" + pos + "\",\"riscontro\":true}");
+        String bancaId = creaId(admin, "/api/pagamenti/metodi", "{\"nome\":\"" + banca + "\",\"daIncassare\":true}");
+        orologio.alle("2030-09-02T08:00");
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/apri", "{}").statusCode()).isEqualTo(200);
+        String anna = persona(segr, "Elisa");
+        orologio.alle("2030-09-02T09:00");
+        String pagPos = paga(segr, anna, pos, 30);
+        orologio.alle("2030-09-02T09:10");
+        paga(segr, anna, banca, 20);
+
+        // un metodo rinominato a cassa aperta resta una riga sola nei totali della cassa, con il nome attuale
+        String terzo = "Buono famiglia " + suffisso, terzoNuovo = "Buono famiglia due " + suffisso;
+        String terzoId = creaId(admin, "/api/pagamenti/metodi", "{\"nome\":\"" + terzo + "\"}");
+        orologio.alle("2030-09-02T09:20");
+        paga(segr, anna, terzo, 5);
+        assertThat(admin.put("/api/pagamenti/metodi/" + terzoId, "{\"nome\":\"" + terzoNuovo + "\"}").statusCode()).isEqualTo(200);
+        orologio.alle("2030-09-02T09:25");
+        paga(segr, anna, terzoNuovo, 5);
+        var righeBuono = elenco(conti(stato(segr, cassa)).get("perMetodo")).stream().filter(m -> ((String) m.get("metodo")).startsWith("Buono famiglia")).toList();
+        assertThat(righeBuono).hasSize(1);
+        assertThat(righeBuono.getFirst()).containsEntry("metodo", terzoNuovo).containsEntry("metodoId", terzoId);
+        assertThat(num(righeBuono.getFirst().get("entrate"))).isEqualTo(10);
+
+        // con la cassa aperta, e con un bonifico da incassare, non si elimina (e il messaggio dice cosa fare)
+        var inCassa = admin.delete("/api/pagamenti/metodi/" + posId);
+        assertThat(inCassa.statusCode()).isEqualTo(409);
+        assertThat(inCassa.body()).contains(pos).contains("cassa non ancora chiusa").contains("Segreteria");
+        var daIncassare = admin.delete("/api/pagamenti/metodi/" + bancaId);
+        assertThat(daIncassare.statusCode()).isEqualTo(409);
+        assertThat(daIncassare.body()).contains("ha ancora 1 pagamento da incassare");
+        var elencoMetodi = elenco(lista(admin.get("/api/pagamenti/metodi")));
+        assertThat(elencoMetodi.stream().filter(m -> posId.equals(m.get("id"))).findFirst().orElseThrow()).containsEntry("eliminabile", false);
+
+        // si chiude la cassa (il POS torna): il metodo del POS è libero, il bonifico aspetta ancora di essere incassato
+        orologio.alle("2030-09-02T12:00");
+        double attesi = num(mappa(mappa(json(segr.post("/api/cassa/casse/" + cassa + "/confronta", "{\"contati\":0}")).get("sessione")).get("conti")).get("attesi"));
+        var chiusa = segr.post("/api/cassa/casse/" + cassa + "/chiudi", "{\"contati\":" + attesi + ",\"lasciato\":" + Math.min(100, attesi)
+            + ",\"riscontri\":[{\"metodoId\":\"" + posId + "\",\"importo\":30}]}");
+        assertThat(chiusa.statusCode()).as(chiusa.body()).isEqualTo(200);
+        String sessione = (String) json(chiusa).get("id");
+        elencoMetodi = elenco(lista(admin.get("/api/pagamenti/metodi")));
+        assertThat(elencoMetodi.stream().filter(m -> posId.equals(m.get("id"))).findFirst().orElseThrow()).containsEntry("eliminabile", true).containsEntry("motivoBlocco", null);
+        assertThat(admin.delete("/api/pagamenti/metodi/" + bancaId).statusCode()).isEqualTo(409);
+        String voceBonifico = (String) elenco(json(segr.get("/api/pagamenti/persone/" + anna)).get("pagamenti")).stream()
+            .flatMap(p -> elenco(p.get("metodi")).stream()).filter(m -> bancaId.equals(m.get("metodoId"))).toList().getFirst().get("id");
+        assertThat(segr.post("/api/pagamenti/metodi-usati/" + voceBonifico + "/incassa", "{}").statusCode()).isEqualTo(204);
+
+        // tutto chiuso: si eliminano tutti e due, anche se sono stati usati
+        assertThat(segr.delete("/api/pagamenti/metodi/" + posId).statusCode()).isEqualTo(403);
+        assertThat(admin.delete("/api/pagamenti/metodi/" + posId).statusCode()).isEqualTo(204);
+        assertThat(admin.delete("/api/pagamenti/metodi/" + bancaId).statusCode()).isEqualTo(204);
+        assertThat(elenco(lista(admin.get("/api/pagamenti/metodi"))).stream().map(m -> m.get("nome"))).doesNotContain(pos, banca);
+
+        // lo storico legge la copia: il conto della persona, gli incassi del giorno, la cassa chiusa e la ricevuta mostrano ancora nomi e totali
+        var conto = json(segr.get("/api/pagamenti/persone/" + anna));
+        var usati = elenco(conto.get("pagamenti")).stream().flatMap(p -> elenco(p.get("metodi")).stream()).toList();
+        // il metodo rinominato mostra il nome di allora nei due pagamenti (prima e dopo la rinomina)
+        assertThat(usati).extracting(m -> m.get("metodo")).containsExactlyInAnyOrder(pos, banca, terzo, terzoNuovo);
+        assertThat(usati.stream().filter(m -> pos.equals(m.get("metodo")) || banca.equals(m.get("metodo")))).allSatisfy(m -> assertThat(m.get("metodoId")).isNull());
+        assertThat(usati.stream().filter(m -> banca.equals(m.get("metodo"))).findFirst().orElseThrow()).containsEntry("daIncassare", true).containsEntry("importo", 20.0);
+        assertThat(mappa(conto.get("totali"))).containsEntry("daIncassare", 0.0);
+        var incassi = json(segr.get("/api/pagamenti/incassi?da=2030-09-02&a=2030-09-02"));
+        var perMetodo = elenco(incassi.get("perMetodo"));
+        assertThat(perMetodo.stream().filter(m -> pos.equals(m.get("metodo"))).findFirst().orElseThrow()).containsEntry("importo", 30.0);
+        assertThat(perMetodo.stream().filter(m -> banca.equals(m.get("metodo"))).findFirst().orElseThrow()).containsEntry("importo", 20.0);
+        assertThat(num(incassi.get("totale"))).isEqualTo(60.0);
+        // due metodi eliminati nello stesso periodo sono due righe distinte (id vuoto, nome della copia)
+        assertThat(perMetodo.stream().filter(m -> m.get("metodoId") == null).map(m -> m.get("metodo"))).containsExactlyInAnyOrder(pos, banca);
+        var chiusaDopo = json(segr.get("/api/cassa/sessioni/" + sessione));
+        assertThat(elenco(mappa(chiusaDopo.get("conti")).get("perMetodo"))).extracting(m -> m.get("metodo")).contains(pos, banca);
+        assertThat(elenco(chiusaDopo.get("riscontri"))).extracting(r -> r.get("metodo")).contains(pos);
+        assertThat(segr.scarica("/api/cassa/sessioni/" + sessione + "/pdf").statusCode()).isEqualTo(200);
+        var ricevute = segr.post("/api/ricevute", "{\"pagamentoId\":\"" + pagPos + "\"}");
+        assertThat(ricevute.statusCode()).as(ricevute.body()).isEqualTo(201);
+        assertThat(mappa(lista(ricevute).getFirst())).containsEntry("metodi", pos);
+
+        // si può annullare un pagamento vecchio fatto con un metodo che non c'è più; la chiusura fatta non cambia
+        var annullato = coord.post("/api/pagamenti/" + pagPos + "/annulla", "{\"motivo\":\"Prova\"}");
+        assertThat(annullato.statusCode()).as(annullato.body()).isEqualTo(204);
+        assertThat(json(segr.get("/api/cassa/sessioni/" + sessione)).get("conti").toString()).contains(pos);
+        assertThat(num(json(segr.get("/api/pagamenti/incassi?da=2030-09-02&a=2030-09-02")).get("totale"))).isEqualTo(30.0);
+
+        // un pagamento a cassa chiusa, dopo l'ultima chiusura, aspetta la chiusura successiva: il metodo non si elimina finché non c'è
+        orologio.alle("2030-09-02T13:00");
+        paga(segr, anna, terzoNuovo, 3);
+        var dopoChiusura = admin.delete("/api/pagamenti/metodi/" + terzoId);
+        assertThat(dopoChiusura.statusCode()).isEqualTo(409);
+        assertThat(dopoChiusura.body()).contains("cassa non ancora chiusa");
+        orologio.alle("2030-09-02T13:30");
+        azzera(segr, cassa);
+        assertThat(admin.delete("/api/pagamenti/metodi/" + terzoId).statusCode()).isEqualTo(204);
+
+        // si torna alle scelte di base
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
+    }
 }

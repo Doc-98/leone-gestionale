@@ -1704,7 +1704,8 @@ export interface Addebito {
 
 export interface MetodoUsato {
   id: string;
-  metodoId: string;
+  /** vuoto se il metodo è stato eliminato: restano nome e proprietà com'erano alla registrazione */
+  metodoId: string | null;
   metodo: string;
   importo: number;
   daIncassare: boolean;
@@ -1771,6 +1772,9 @@ export interface MetodoPagamento {
   attivo: boolean;
   ordine: number;
   borsellino: boolean;
+  /** solo per chi ha il permesso «Impostazioni»: se si può eliminare adesso e, se no, perché (null per gli altri) */
+  eliminabile?: boolean | null;
+  motivoBlocco?: string | null;
 }
 
 export interface NuovoMetodoPagamento {
@@ -1786,10 +1790,11 @@ export interface Incassi {
   da: string;
   a: string;
   totale: number;
-  perMetodo: { metodoId: string; metodo: string; importo: number; daIncassare: number; uscite: number }[];
+  /** metodoId vuoto = metodo eliminato (il nome è quello della copia); più eliminati sono righe distinte */
+  perMetodo: { metodoId: string | null; metodo: string; importo: number; daIncassare: number; uscite: number }[];
   pagamenti: PagamentoRegistrato[];
   /** soldi restituiti (cauzione, credito in denaro) */
-  uscite: { id: string; data: string; personaId: string; persona: string | null; metodo: string; contanti: boolean; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string }[];
+  uscite: { id: string; data: string; personaId: string; persona: string | null; metodoId: string | null; metodo: string; contanti: boolean; importo: number; descrizione: string; registratoDa: string | null; registratoIl: string }[];
 }
 
 export interface DaIncassare {
@@ -2020,6 +2025,8 @@ export interface RiscontroScritto {
 
 /** Un metodo riscontrato con il POS: atteso dai pagamenti, scritto dallo scontrino (null = non scritto). */
 export interface RiscontroCassa {
+  /** vuoto per un metodo eliminato e per le chiusure salvate prima che si tenesse l'id */
+  metodoId?: string | null;
   metodo: string;
   atteso: number;
   dichiarato: number | null;
@@ -2043,7 +2050,7 @@ export interface ContiCassa {
   spese: number;
   aggiunte: number;
   attesi: number | null;
-  perMetodo: { metodo: string; contanti: boolean; entrate: number; uscite: number }[];
+  perMetodo: { metodoId?: string | null; metodo: string; contanti: boolean; entrate: number; uscite: number }[];
   pagamenti: number;
   quanteEntrate: number;
   quanteUscite: number;
