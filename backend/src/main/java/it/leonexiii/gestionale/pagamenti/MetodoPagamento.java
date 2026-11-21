@@ -33,10 +33,10 @@ class MetodoPagamento {
 
     protected MetodoPagamento() {}
 
-    MetodoPagamento(String nome, boolean daIncassare, boolean contanti, int ordine) {
+    MetodoPagamento(String nome, boolean daIncassare, boolean contanti, boolean attivo, int ordine) {
         this.id = UUID.randomUUID();
-        this.attivo = true;
-        modifica(nome, daIncassare, contanti, true, ordine);
+        this.attivo = attivo;
+        modifica(nome, daIncassare, contanti, attivo, ordine);
     }
 
     void modifica(String nome, boolean daIncassare, boolean contanti, boolean attivo, int ordine) {
@@ -55,6 +55,12 @@ class MetodoPagamento {
     Pagamenti.Metodo dto() {
         return new Pagamenti.Metodo(id, nome, daIncassare, contanti, riscontro, attivo, ordine, borsellino);
     }
+
+    Pagamenti.MetodoDto dto(String motivoBlocco) {
+        return new Pagamenti.MetodoDto(id, nome, daIncassare, contanti, riscontro, attivo, ordine, borsellino, Boolean.valueOf(motivoBlocco == null), motivoBlocco);
+    }
+
+    void ordina(int ordine) { this.ordine = ordine; }
 
     UUID getId() { return id; }
     String getNome() { return nome; }

@@ -24,4 +24,9 @@ interface PagamentoRepository extends JpaRepository<Pagamento, UUID> {
 
     @Query("select p from Pagamento p join p.metodi m where m.id = :metodoUsato")
     Optional<Pagamento> conMetodoUsato(UUID metodoUsato);
+
+    /** Per ogni metodo: quanti pagamenti non annullati hanno ancora una parte da incassare. Righe [metodoId, quanti]. */
+    @Query("select m.metodoId, count(distinct p.id) from Pagamento p join p.metodi m "
+        + "where m.metodoId is not null and m.incassatoIl is null and p.annullatoIl is null group by m.metodoId")
+    List<Object[]> daIncassarePerMetodo();
 }

@@ -6,7 +6,7 @@
   import CassaforteBox from '../components/cassa/Cassaforte.svelte';
   import DaIncassareLista from '../components/cassa/DaIncassare.svelte';
   import { api, messaggioErrore, type AvvisiCassa, type DaIncassare, type Incassi, type SessioneCassa } from '../lib/api';
-  import { andamento, coloreMetodo, conSegno, contanti, perPersona, registro, statoChiusura, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
+  import { andamento, chiaveMetodo, coloreMetodo, conSegno, contanti, perPersona, registro, statoChiusura, VISTE_INCASSI, type VistaIncassi } from '../lib/cassa';
   import { aggiungiGiorni, dataBreve, giornoEsteso, giornoTitolo, iso, lunedi, oraDi } from '../lib/date';
   import { euro, euroColonna, euroPerFile } from '../lib/numeri';
   import { quanti as nQuanti } from '../lib/plurali';
@@ -121,7 +121,7 @@
 
   // ── comuni ──
   const metodi = $derived(dati ? dati.perMetodo.filter((m) => m.importo > 0 || m.uscite > 0) : []);
-  const colore = (nome: string) => coloreMetodo(Math.max(0, dati?.perMetodo.findIndex((m) => m.metodo === nome) ?? 0));
+  const colore = (chiave: string) => coloreMetodo(Math.max(0, dati?.perMetodo.findIndex((m) => chiaveMetodo(m) === chiave) ?? 0));
   const validi = $derived(dati?.pagamenti.filter((p) => !p.annullatoIl) ?? []);
   const cassa = $derived(dati ? contanti(dati) : { entrati: 0, usciti: 0 });
   const restituiti = $derived(dati?.uscite.reduce((t, u) => t + Math.round(u.importo * 100), 0) ?? 0);
@@ -132,7 +132,7 @@
 
   // ── cassa del giorno ──
   let filtroMetodo = $state('');
-  const pagamentiFiltrati = $derived(dati ? dati.pagamenti.filter((p) => !filtroMetodo || p.metodi.some((m) => m.metodo === filtroMetodo)) : []);
+  const pagamentiFiltrati = $derived(dati ? dati.pagamenti.filter((p) => !filtroMetodo || p.metodi.some((m) => chiaveMetodo(m) === filtroMetodo)) : []);
   function sposta(n: number) {
     const d = aggiungiGiorni(da, n);
     if (d > oggi) return;
@@ -141,7 +141,7 @@
 
   // ── periodo ──
   let raggruppa = $state<'giorno' | 'settimana'>('giorno');
-  const colonne = $derived(dati && da !== a ? andamento(dati.pagamenti, dati.perMetodo.map((m) => m.metodo), da, a, raggruppa) : []);
+  const colonne = $derived(dati && da !== a ? andamento(dati.pagamenti, dati.perMetodo.map((m) => chiaveMetodo(m)), da, a, raggruppa) : []);
   const massimo = $derived(Math.max(1, ...colonne.map((c) => c.totale)));
   const clienti = $derived(new Set(validi.map((p) => p.paganteId)).size);
   let quanti = $state(50);
@@ -209,10 +209,10 @@
           </div>
           {#if dati.totale > 0}
             <div class="barra-metodi" role="img" aria-label={metodi.map((m) => `${m.metodo} ${euro(m.importo)}`).join(', ')}>
-              {#each metodi as m (m.metodoId)}<span style:width="{(m.importo / dati.totale) * 100}%" style:background={colore(m.metodo)}></span>{/each}
+              {#each metodi as m (chiaveMetodo(m))}<span style:width="{(m.importo / dati.totale) * 100}%" style:background={colore(chiaveMetodo(m))}></span>{/each}
             </div>
             <div class="legenda chiaro">
-              {#each metodi as m (m.metodoId)}<span><i style:background={colore(m.metodo)}></i>{m.metodo} <b class="m">{euro(m.importo)}</b>{#if m.daIncassare}<span class="tenue"> · {euro(m.daIncassare)} da incassare</span>{/if}</span>{/each}
+              {#each metodi as m (chiaveMetodo(m))}<span><i style:background={colore(chiaveMetodo(m))}></i>{m.metodo} <b class="m">{euro(m.importo)}</b>{#if m.daIncassare}<span class="tenue"> · {euro(m.daIncassare)} da incassare</span>{/if}</span>{/each}
             </div>
           {/if}
         </div>
@@ -224,7 +224,7 @@
             {#if metodi.length > 1}
               <div class="chips" role="group" aria-label="Quali pagamenti">
                 <button type="button" class="chip" aria-pressed={!filtroMetodo} onclick={() => (filtroMetodo = '')}>Tutti</button>
-                {#each metodi as m (m.metodoId)}<button type="button" class="chip" aria-pressed={filtroMetodo === m.metodo} onclick={() => (filtroMetodo = m.metodo)}>{m.metodo}</button>{/each}
+                {#each metodi as m (chiaveMetodo(m))}<button type="button" class="chip" aria-pressed={filtroMetodo === chiaveMetodo(m)} onclick={() => (filtroMetodo = chiaveMetodo(m))}>{m.metodo}</button>{/each}
               </div>
             {/if}
           </div>
@@ -235,7 +235,7 @@
                 <span class="m imp">{euroColonna(p.importo)}</span>
                 <span class="col"><strong class="tronca">{p.pagante}</strong><span class="muted small tronca">{per(p)}{p.note ? ` · ${p.note}` : ''}</span></span>
                 <span class="tags">
-                  {#each p.metodi as m (m.id)}<span class="tag-m" class:da={m.daIncassare && !m.incassatoIl}><i style:background={colore(m.metodo)}></i>{m.metodo}{p.metodi.length > 1 ? ` ${euro(m.importo)}` : ''}</span>{/each}
+                  {#each p.metodi as m (m.id)}<span class="tag-m" class:da={m.daIncassare && !m.incassatoIl}><i style:background={colore(chiaveMetodo(m))}></i>{m.metodo}{p.metodi.length > 1 ? ` ${euro(m.importo)}` : ''}</span>{/each}
                   {#if p.annullatoIl}<span class="tag-m" title={p.motivoAnnullamento ?? ''}>annullato</span>{/if}
                 </span>
               </li>
@@ -251,7 +251,7 @@
               {#each dati.uscite as u (u.id)}
                 <li><span class="m ora">{oraDi(u.registratoIl)}</span><span class="m imp rosso">−{euroColonna(u.importo)}</span>
                   <span class="col"><strong>{u.persona}</strong><span class="muted small">{u.descrizione}</span></span>
-                  <span class="tags"><span class="tag-m"><i style:background={colore(u.metodo)}></i>{u.metodo}</span></span></li>
+                  <span class="tags"><span class="tag-m"><i style:background={colore(chiaveMetodo(u))}></i>{u.metodo}</span></span></li>
               {/each}
             </ul>
           </section>
@@ -286,7 +286,7 @@
       <section class="card grafico">
         <div class="g-testa">
           <h2>{raggruppa === 'giorno' ? 'Giorno per giorno' : 'Settimana per settimana'}</h2>
-          <div class="legenda">{#each metodi as m (m.metodoId)}<span><i style:background={colore(m.metodo)}></i>{m.metodo}</span>{/each}</div>
+          <div class="legenda">{#each metodi as m (chiaveMetodo(m))}<span><i style:background={colore(chiaveMetodo(m))}></i>{m.metodo}</span>{/each}</div>
           <span class="grow"></span>
           <div class="seg due-scelte" role="group" aria-label="Raggruppa">
             <button type="button" aria-pressed={raggruppa === 'giorno'} onclick={() => (raggruppa = 'giorno')}>Per giorno</button>
@@ -317,7 +317,7 @@
                     <td class="m muted">{dataBreve(p.data)} · {oraDi(p.registratoIl)}</td>
                     <td><strong>{p.pagante}</strong></td>
                     <td class="muted">{per(p)}</td>
-                    <td>{#each p.metodi as m (m.id)}<span class="tag-m" class:da={m.daIncassare && !m.incassatoIl}><i style:background={colore(m.metodo)}></i>{m.metodo}</span> {/each}</td>
+                    <td>{#each p.metodi as m (m.id)}<span class="tag-m" class:da={m.daIncassare && !m.incassatoIl}><i style:background={colore(chiaveMetodo(m))}></i>{m.metodo}</span> {/each}</td>
                     <td class="m imp dx-t">{euroColonna(p.importo)}</td>
                   </tr>
                 {:else}
@@ -332,10 +332,10 @@
       <aside class="dx">
         <section class="card metodi">
           <h2 class="lbl">Per metodo</h2>
-          {#each metodi as m (m.metodoId)}
+          {#each metodi as m (chiaveMetodo(m))}
             <div class="m-riga">
-              <span class="m-nome"><i style:background={colore(m.metodo)}></i>{m.metodo}</span>
-              <span class="traccia"><span style:width="{dati.totale ? (m.importo / dati.totale) * 100 : 0}%" style:background={colore(m.metodo)}></span></span>
+              <span class="m-nome"><i style:background={colore(chiaveMetodo(m))}></i>{m.metodo}</span>
+              <span class="traccia"><span style:width="{dati.totale ? (m.importo / dati.totale) * 100 : 0}%" style:background={colore(chiaveMetodo(m))}></span></span>
               <span class="m imp">{euroColonna(m.importo)}</span>
             </div>
           {:else}
@@ -416,7 +416,7 @@
                   <tr class:annullato={r.annullato}>
                     <td class="m muted">{da === a ? '' : dataBreve(r.istante.slice(0, 10)) + ' · '}{oraDi(r.istante)}</td>
                     <td class="cosa-c"><span class="col"><strong>{r.chi}</strong><span class="muted small">{r.per}{r.annullato && r.motivo ? ` · annullato: ${r.motivo}` : r.annullato ? ' · annullato' : ''}</span></span></td>
-                    <td><span class="tag-m"><i style:background={colore(r.metodo.split(' + ')[0])}></i>{r.metodo}</span></td>
+                    <td><span class="tag-m"><i style:background={colore(r.chiave)}></i>{r.metodo}</span></td>
                     <td class="m imp dx-t verde">{r.entrata != null ? euroColonna(r.entrata) : ''}</td>
                     <td class="m imp dx-t rosso">{r.uscita != null ? `−${euroColonna(r.uscita)}` : ''}</td>
                     <td class="m dx-t muted">{r.contanti != null ? euroColonna(r.contanti) : ''}</td>
@@ -435,8 +435,8 @@
         <DaIncassareLista {aperti} {oggi} onincassa={incassa} />
         <section class="card metodi">
           <h2 class="lbl">Per metodo</h2>
-          {#each metodi as m (m.metodoId)}
-            <span class="riga-m"><span class="m-nome"><i style:background={colore(m.metodo)}></i>{m.metodo}</span><span class="m imp">{euroColonna(m.importo)}</span></span>
+          {#each metodi as m (chiaveMetodo(m))}
+            <span class="riga-m"><span class="m-nome"><i style:background={colore(chiaveMetodo(m))}></i>{m.metodo}</span><span class="m imp">{euroColonna(m.importo)}</span></span>
           {/each}
           <span class="riga-m tot"><span>Totale</span><span class="m imp">{euroColonna(dati.totale)}</span></span>
           <button class="btn btn-primary" onclick={() => { da = a = oggi; cambiaVista('cassa'); }}>Vai alla cassa di oggi</button>

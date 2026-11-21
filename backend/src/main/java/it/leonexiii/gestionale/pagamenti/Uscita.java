@@ -22,8 +22,12 @@ class Uscita {
     private LocalDate data;
     @Column(nullable = false)
     private BigDecimal importo;
-    @Column(name = "metodo_id", nullable = false)
+    /** Il metodo, finché esiste: se viene eliminato si svuota e resta la copia. */
+    @Column(name = "metodo_id")
     private UUID metodoId;
+    /** Il metodo com'era quando si sono restituiti i soldi: lo storico legge questa. */
+    @jakarta.persistence.Embedded
+    private CopiaMetodo copia;
     @Column(nullable = false)
     private String descrizione;
     @Column(name = "registrato_da")
@@ -38,13 +42,14 @@ class Uscita {
 
     protected Uscita() {}
 
-    Uscita(UUID personaId, LocalDate data, BigDecimal importo, UUID metodoId, String descrizione, UUID registratoDa, Instant ora, UUID cassaId) {
+    Uscita(UUID personaId, LocalDate data, BigDecimal importo, MetodoPagamento metodo, String descrizione, UUID registratoDa, Instant ora, UUID cassaId) {
         this.cassaId = cassaId;
         this.id = UUID.randomUUID();
         this.personaId = personaId;
         this.data = data;
         this.importo = importo;
-        this.metodoId = metodoId;
+        this.metodoId = metodo.getId();
+        this.copia = new CopiaMetodo(metodo);
         this.descrizione = descrizione;
         this.registratoDa = registratoDa;
         this.registratoIl = ora;
@@ -55,6 +60,7 @@ class Uscita {
     LocalDate getData() { return data; }
     BigDecimal getImporto() { return importo; }
     UUID getMetodoId() { return metodoId; }
+    CopiaMetodo getCopia() { return copia; }
     String getDescrizione() { return descrizione; }
     UUID getRegistratoDa() { return registratoDa; }
     Instant getRegistratoIl() { return registratoIl; }

@@ -21,10 +21,11 @@ import org.hibernate.type.SqlTypes;
 class Sessione {
 
     /** I totali per metodo alla chiusura: entrate e uscite, e se il metodo finisce nel cassetto. */
-    public record TotaleMetodo(String metodo, boolean contanti, BigDecimal entrate, BigDecimal uscite) {}
+    /** «metodoId» vuoto = metodo eliminato (o chiusura salvata prima che si tenesse l'id). */
+    public record TotaleMetodo(String metodo, boolean contanti, BigDecimal entrate, BigDecimal uscite, java.util.UUID metodoId) {}
 
     /** Un metodo riscontrato con lo scontrino del POS: atteso dai pagamenti, scritto da chi chiude (vuoto = non scritto). */
-    public record Riscontro(String metodo, BigDecimal atteso, BigDecimal dichiarato, BigDecimal differenza) {
+    public record Riscontro(String metodo, BigDecimal atteso, BigDecimal dichiarato, BigDecimal differenza, java.util.UUID metodoId) {
         boolean torna() { return dichiarato == null || differenza.signum() == 0; }
     }
 

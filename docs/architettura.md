@@ -157,6 +157,7 @@ erDiagram
   CORSO ||--o{ ISCRIZIONE : raccoglie
   PERSONA ||--o{ ABBONAMENTO : possiede
   PERSONA ||--o{ PAGAMENTO : effettua
+  METODO_PAGAMENTO |o--o{ PAGAMENTO : "copiato in (il riferimento si svuota se il metodo si elimina)"
   PERSONA ||--o{ CERTIFICATO : presenta
   PERSONA ||--o{ LEGAME : "è tutore / ha un tutore"
   PERSONA ||--o{ CONSENSO : firma
@@ -229,7 +230,10 @@ erDiagram
 - Modulo `pagamenti` (ADR 0018, parte 5): `addebito` (cosa una persona deve e entro quando: quota, rate di un
   abbonamento, altri importi; negativo = credito, es. rimborso per recesso), `pagamento` (chi paga, anche un genitore
   per più figli) con `pagamento_metodo` (anche più metodi insieme; «da incassare» finché il bonifico non arriva) e
-  `pagamento_addebito` (quanto di ogni addebito), `metodo_pagamento` (elenco modificabile). Il tesseramento sa di
+  `pagamento_addebito` (quanto di ogni addebito), `metodo_pagamento` (elenco modificabile). Ogni riga di `pagamento_metodo` e di `uscita` conserva una copia del metodo
+  presa alla registrazione (nome, contanti, da incassare, riscontro, borsellino) e lo storico legge la copia; il
+  riferimento `metodo_id` è facoltativo e si svuota (`on delete set null`) quando il metodo si elimina, cosa possibile
+  solo senza stati aperti (da incassare, cassa non chiusa). Il tesseramento sa di
   essere pagato dall'evento `Pagamenti.Saldato`. Ricevute: modulo `ricevute` (parte 10: `serie_ricevute`, `impostazioni_ricevute`, `ricevuta` con
   intestatario, beneficiari e righe fotografati). Cassa: modulo `cassa` (parte 11: `cassa`, `impostazioni_cassa`,
   `sessione_cassa` con contati, primo conteggio, differenza, riscontri e totali fotografati, controllo del responsabile,

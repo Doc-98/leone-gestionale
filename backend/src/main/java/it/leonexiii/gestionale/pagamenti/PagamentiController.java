@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -93,20 +94,36 @@ class PagamentiController {
 
     @GetMapping("/metodi")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'PAGAMENTI', 'IMPOSTAZIONI')")
-    List<Pagamenti.Metodo> metodi() {
-        return pagamenti.metodi();
+    List<Pagamenti.MetodoDto> metodi(@AuthenticationPrincipal Utente u) {
+        // se si può eliminare (e perché) lo vede solo chi gestisce le impostazioni
+        return pagamenti.metodi(autorizzazioni.puo(u, Permesso.IMPOSTAZIONI));
     }
 
     @PostMapping("/metodi")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
-    Pagamenti.Metodo creaMetodo(@RequestBody Pagamenti.NuovoMetodo in) {
+    Pagamenti.MetodoDto creaMetodo(@RequestBody Pagamenti.NuovoMetodo in) {
         return pagamenti.creaMetodo(in);
+    }
+
+    /** {"ids": [...]}: tutti i metodi, nell'ordine voluto. Risponde con l'elenco aggiornato. */
+    @PutMapping("/metodi/ordine")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    List<Pagamenti.MetodoDto> ordinaMetodi(@RequestBody Pagamenti.Ordine in) {
+        return pagamenti.ordinaMetodi(in);
     }
 
     @PutMapping("/metodi/{id}")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
-    Pagamenti.Metodo modificaMetodo(@PathVariable UUID id, @RequestBody Pagamenti.NuovoMetodo in) {
+    Pagamenti.MetodoDto modificaMetodo(@PathVariable UUID id, @RequestBody Pagamenti.NuovoMetodo in) {
         return pagamenti.modificaMetodo(id, in);
+    }
+
+    /** Elimina un metodo (anche usato in passato: i pagamenti ne tengono la copia); 409 se c'è qualcosa ancora aperto o è il borsellino. */
+    @DeleteMapping("/metodi/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    void eliminaMetodo(@PathVariable UUID id) {
+        pagamenti.eliminaMetodo(id);
     }
 }

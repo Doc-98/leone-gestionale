@@ -195,3 +195,11 @@ elettronica, cosa serve all'amministrazione).
   - Fuori: il registratore telematico (la chiusura è un documento interno) e il nascondere i totali dei contanti nelle
     altre viste di Incassi.
 
+## Aggiornamento (novembre 2026): copia del metodo ed eliminazione
+
+- Ogni pagamento (`pagamento_metodo`) e ogni uscita conserva una **copia** del metodo presa alla registrazione (nome,
+  contanti, da incassare, riscontro POS, borsellino); lo storico, i conti, le ricevute e le chiusure di cassa leggono la
+  copia. Rinominare un metodo non cambia il nome nei documenti passati.
+- Un metodo si **elimina** anche se è stato usato (la chiave verso `metodo_pagamento` si svuota), ma non se ha qualcosa
+  di **aperto**: pagamenti da incassare non ancora incassati, o entrate e uscite in una cassa non ancora chiusa. Il
+  borsellino non si elimina mai. Dettagli e motivazioni: ADR 0028 (con il lotto 1 del blocco 6).
