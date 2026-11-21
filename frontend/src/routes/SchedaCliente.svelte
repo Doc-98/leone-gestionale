@@ -2,6 +2,8 @@
   import Azione from '../components/Azione.svelte';
   import Icona from '../components/Icona.svelte';
   import Conferma from '../components/Conferma.svelte';
+  import MenuAltro from '../components/MenuAltro.svelte';
+  import Schede from '../components/Schede.svelte';
   import { onDestroy, tick, untrack } from 'svelte';
   import {
     api, ErroreApi, messaggioErrore,
@@ -25,6 +27,8 @@
   import LettoreTelefonoPc from '../components/LettoreTelefonoPc.svelte';
   import { lettoreTelefono } from '../lib/lettore.svelte';
   import { adattaCifra } from '../lib/adattaCifra';
+  import type { VoceMenu } from '../lib/menu';
+  import type { Scheda as SchedaTab } from '../lib/schede';
 
   /**
    * La scheda di un cliente per la segreteria. In alto il riassunto, sempre visibile: chi è, come andrebbe adesso al
@@ -402,21 +406,11 @@
     return 'corsi';
   }
   let scheda = $state<Scheda>(schedaSalvata());
-  function vai(s: Scheda) {
-    scheda = s;
+  const vai = (s: Scheda) => (scheda = s);
+  $effect(() => {
+    const s = scheda;
     try { sessionStorage.setItem('scheda-cliente', s); } catch { /* niente */ }
-  }
-  /** Frecce, Inizio e Fine si spostano tra le schede, come in ogni elenco di schede. */
-  async function tastiSchede(e: KeyboardEvent) {
-    const i = SCHEDE.findIndex((x) => x.id === scheda);
-    const j = e.key === 'ArrowRight' ? (i + 1) % SCHEDE.length : e.key === 'ArrowLeft' ? (i - 1 + SCHEDE.length) % SCHEDE.length
-      : e.key === 'Home' ? 0 : e.key === 'End' ? SCHEDE.length - 1 : -1;
-    if (j < 0) return;
-    e.preventDefault();
-    vai(SCHEDE[j].id);
-    await tick();
-    document.getElementById(`tab-${SCHEDE[j].id}`)?.focus();
-  }
+  });
 
   /** Il segno accanto al nome della scheda: quante cose ci sono, o cosa manca. */
   const segni = $derived.by(() => {
@@ -434,17 +428,22 @@
     return r;
   });
 
+  const schedeTab = $derived<SchedaTab<Scheda>[]>(SCHEDE.map((t) => ({ ...t, segno: segni[t.id] })));
+
   // ── Altre azioni ──────────────────────────────────────────────────────
-  let menu = $state(false);
-  let menuEl = $state<HTMLElement>();
-  const chiudiMenu = (e: MouseEvent) => {
-    if (menu && menuEl && !menuEl.contains(e.target as Node)) menu = false;
-  };
   function altra(s: Scheda, fai: () => void) {
-    menu = false;
     vai(s);
     fai();
   }
+  /** Le voci del menu «⋯» della pagina (le stesse di sempre): la voce rossa che apre un modulo sta per ultima. */
+  const vociAltre = $derived<VoceMenu[]>([
+    { testo: "Modifica l'anagrafica", icona: 'matita', onclick: () => altra('anagrafica', modificaAnagrafica) },
+    { testo: 'Nuovo certificato…', icona: 'piu', onclick: () => altra('documenti', nuovoCertificato) },
+    { testo: 'Nuovo permesso firmato…', icona: 'firma', onclick: () => altra('documenti', nuovoPermesso) },
+    ...(daiGolden && !gp ? [{ testo: 'Golden pass…', icona: 'golden', separatore: true, onclick: () => altra('accessi', () => (golden = { motivo: '' })) } satisfies VoceMenu] : []),
+    { testo: 'Sotto controllo…', icona: 'occhio', separatore: !(daiGolden && !gp), onclick: () => altra('accessi', () => (banPersona = { tipo: 'SORVEGLIANZA', motivo: '', al: '' })) },
+    { testo: 'Banna la persona…', icona: 'divieto', rossa: true, onclick: () => altra('accessi', () => (banPersona = { tipo: 'BAN', motivo: '', al: '' })) },
+  ]);
   const nuovoPermesso = () => (permesso = { tipo: 'USCITA_AUTONOMA', firmataDa: '', firmataIl: oggi, al: '', note: '' });
   const nuovoCertificato = () => (certificato = { tipo: 'NON_AGONISTICO', rilasciatoIl: oggi, scadenza: '', firmatoDa: '' });
 </script>
@@ -498,20 +497,7 @@
       <button class="btn btn-secondary" onclick={() => { vai('corsi'); abbonamento = null; vendita = true; }}><Icona nome="piu" />Nuovo abbonamento…</button>
       {#if puoRicaricare}<button class="btn btn-secondary" onclick={ricaricaCrediti}><Icona nome="macchine" />Ricarica crediti…</button>{/if}
       <span class="grow"></span>
-      <div class="menu-wrap" bind:this={menuEl}>
-        <Azione cornice icona="altro" etichetta="Altre azioni" premuto={menu} onclick={() => (menu = !menu)} />
-        {#if menu}
-          <div class="menu-azioni" role="menu" aria-label="Altre azioni">
-            <button role="menuitem" onclick={() => altra('anagrafica', modificaAnagrafica)}><Icona nome="matita" />Modifica l'anagrafica</button>
-            <button role="menuitem" onclick={() => altra('documenti', nuovoCertificato)}><Icona nome="piu" />Nuovo certificato…</button>
-            <button role="menuitem" onclick={() => altra('documenti', nuovoPermesso)}><Icona nome="firma" />Nuovo permesso firmato…</button>
-            <div class="sep" role="separator"></div>
-            {#if daiGolden && !gp}<button role="menuitem" onclick={() => altra('accessi', () => (golden = { motivo: '' }))}><Icona nome="golden" />Golden pass…</button>{/if}
-            <button role="menuitem" onclick={() => altra('accessi', () => (banPersona = { tipo: 'SORVEGLIANZA', motivo: '', al: '' }))}><Icona nome="occhio" />Sotto controllo…</button>
-            <button role="menuitem" class="danger" onclick={() => altra('accessi', () => (banPersona = { tipo: 'BAN', motivo: '', al: '' }))}><Icona nome="divieto" />Banna la persona…</button>
-          </div>
-        {/if}
-      </div>
+      <MenuAltro voci={vociAltre} />
     </div>
   </section>
 
@@ -519,43 +505,38 @@
   {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
 
   <!-- Schede -->
-  <div class="schede" role="tablist" aria-label="Sezioni della scheda" tabindex="-1" onkeydown={tastiSchede}>
-    {#each SCHEDE as t (t.id)}
-      {@const segno = segni[t.id]}
-      <button id={`tab-${t.id}`} class="scheda-tab" role="tab" aria-selected={scheda === t.id} aria-controls={`pannello-${t.id}`} tabindex={scheda === t.id ? 0 : -1} onclick={() => vai(t.id)}>
-        {t.nome}{#if segno}<span class="conta" class:warn={segno.warn}>{segno.testo}</span>{/if}
-      </button>
-    {/each}
-  </div>
-
-  <div class="pannello" id={`pannello-${scheda}`} role="tabpanel" aria-labelledby={`tab-${scheda}`}>
-    {#if scheda === 'corsi'}
-      {@render sAbbonamenti(cliente, accessi)}
-      <TurniCliente {cliente} {corsi} {esegui} />
-    {:else if scheda === 'pagamenti'}
-      <div class="largo-g"><ContoCliente bind:this={contoEl} personaId={id} {versione} cambiato={() => { carica(); caricaRiassunto(); }} /></div>
-      <div class="largo-g"><BorsellinoCliente bind:this={borsEl} personaId={id} {versione} cambiato={() => versione++} /></div>
-    {:else if scheda === 'accessi'}
-      {@render sBraccialetti(cliente, accessi)}
-      {@render sBan(cliente, accessi)}
-      {@render sPassaggi(cliente, accessi)}
-    {:else if scheda === 'anagrafica'}
-      {@render sAnagrafica(cliente, accessi)}
-      <FamigliaCliente {cliente} {esegui} />
-    {:else}
-      {@render sCertificato(cliente, accessi)}
-      {@render sTesseramento(cliente, accessi)}
-      <ConsensiCliente {cliente} {esegui} />
-      {@render sPermessi(cliente, accessi)}
-    {/if}
-  </div>
+  {@const cl = cliente}
+  {@const ac = accessi}
+  <Schede schede={schedeTab} bind:attiva={scheda} etichetta="Sezioni della scheda" id="cliente">
+    {#snippet children(s)}
+      <div class="pannello">
+        {#if s === 'corsi'}
+          {@render sAbbonamenti(cl, ac)}
+          <TurniCliente cliente={cl} {corsi} {esegui} />
+        {:else if s === 'pagamenti'}
+          <div class="largo-g"><ContoCliente bind:this={contoEl} personaId={id} {versione} cambiato={() => { carica(); caricaRiassunto(); }} /></div>
+          <div class="largo-g"><BorsellinoCliente bind:this={borsEl} personaId={id} {versione} cambiato={() => versione++} /></div>
+        {:else if s === 'accessi'}
+          {@render sBraccialetti(cl, ac)}
+          {@render sBan(cl, ac)}
+          {@render sPassaggi(cl, ac)}
+        {:else if s === 'anagrafica'}
+          {@render sAnagrafica(cl, ac)}
+          <FamigliaCliente cliente={cl} {esegui} />
+        {:else}
+          {@render sCertificato(cl, ac)}
+          {@render sTesseramento(cl, ac)}
+          <ConsensiCliente cliente={cl} {esegui} />
+          {@render sPermessi(cl, ac)}
+        {/if}
+      </div>
+    {/snippet}
+  </Schede>
 {:else if errore}
   <p class="msg err" role="alert">{errore}</p>
 {:else}
   <p class="muted">Caricamento…</p>
 {/if}
-
-<svelte:window onclick={chiudiMenu} onkeydown={(e) => e.key === 'Escape' && (menu = false)} />
 
 {#snippet sAnagrafica(cliente: SchedaCliente, accessi: SchedaAccessi)}
     <!-- Anagrafica e contatti -->
@@ -1063,28 +1044,7 @@
   .kpi.warn { background: var(--warn-bg); }
   .kpi.warn .val, .kpi.warn .kpi-nota, .kpi.warn .lbl { color: var(--warn); }
   .r-azioni { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
-  .menu-wrap { position: relative; }
   @media (max-width: 600px) { .r-azioni > .btn { flex: 1 1 100%; } .r-esito { flex-basis: 100%; min-width: 0; } }
-  .menu-azioni { position: absolute; right: 0; top: calc(100% + var(--space-6)); z-index: 10; width: 270px; padding: var(--space-6); display: flex; flex-direction: column;
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(16, 33, 43, 0.14); }
-  .menu-azioni button { display: flex; align-items: center; gap: var(--space-10); min-height: 44px; padding: 0 var(--space-10); border: none; background: none;
-    border-radius: var(--radius-sm); font: inherit; font-size: var(--text-md); color: var(--ink); cursor: pointer; text-align: left; }
-  .menu-azioni button:hover { background: var(--carta); }
-  .menu-azioni button :global(.ic) { width: 18px; height: 18px; color: var(--muted); }
-  .menu-azioni button.danger, .menu-azioni button.danger :global(.ic) { color: var(--danger); }
-  .menu-azioni .sep { height: 1px; background: var(--line-soft); margin: var(--space-4) var(--space-6); }
-
-  /* Schede */
-  .schede { display: flex; gap: var(--space-4); border-bottom: 1px solid var(--line); overflow-x: auto; margin-bottom: calc(-1 * var(--space-4)); }
-  .scheda-tab { position: relative; display: inline-flex; align-items: center; gap: var(--space-8); min-height: 46px; padding: 0 var(--space-14); border: none; background: none;
-    color: var(--muted); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; white-space: nowrap; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
-  .scheda-tab:hover { color: var(--ink); background: var(--surface-sunken); }
-  .scheda-tab[aria-selected='true'] { color: var(--cloro-ink); }
-  .scheda-tab[aria-selected='true']::after { content: ''; position: absolute; left: var(--space-10); right: var(--space-10); bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--cloro); }
-  .scheda-tab:focus-visible { outline-offset: -2px; }
-  .conta { min-width: 20px; height: 20px; padding: 0 var(--space-6); border-radius: var(--radius-pill); background: var(--surface-sunken); color: var(--ink);
-    font-size: var(--text-2xs); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-  .conta.warn { background: var(--warn-bg); color: var(--warn); }
   .pannello { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: var(--space-14); align-items: start; }
   .largo-g { grid-column: 1 / -1; }
   .testa-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-height: 40px; margin: calc(-1 * var(--space-6)) 0; }

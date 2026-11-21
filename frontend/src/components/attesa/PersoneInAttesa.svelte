@@ -1,7 +1,6 @@
 <script lang="ts">
-  import Azione from '../Azione.svelte';
+  import MenuAltro from '../MenuAltro.svelte';
   import Icona from '../Icona.svelte';
-  import Conferma from '../Conferma.svelte';
   import AvvisoPosto from './AvvisoPosto.svelte';
   import { api, messaggioErrore, type PaginaAttesa, type TurnoPosti, type VoceAttesa } from '../../lib/api';
   import { quanti as nQuanti } from '../../lib/plurali';
@@ -11,6 +10,7 @@
   } from '../../lib/attesa';
   import { colore } from '../../lib/piano';
   import { leggiPreferenza, salvaPreferenza } from '../../lib/preferenze';
+  import type { VoceMenu } from '../../lib/menu';
 
   /**
    * Vista «Persone in attesa» (variante C del mockup): una riga per persona con tutti i turni che aspetta e la posizione,
@@ -24,7 +24,6 @@
   $effect(() => salvaPreferenza('attesa.ordine', ordine));
   let scelti = $state<Set<string>>(new Set());
   let quanti = $state(40);
-  let menu = $state<string | null>(null);
   let avviso = $state<{ personaId: string; voce: VoceAttesa; turno: TurnoPosti } | null>(null);
   let conferma = $state<{ oggetto: string; testo: string } | null>(null);
   let errore = $state('');
@@ -50,13 +49,23 @@
     if (s.has(id)) s.delete(id); else s.add(id);
     scelti = s;
   }
-  const chiudiMenu = (e: MouseEvent) => {
-    if (menu && !(e.target as Element).closest?.(`[data-menu="${menu}"]`)) menu = null;
-  };
 
   function apriAvviso(p: PersonaInAttesa, voce: VoceAttesa, turno: TurnoPosti) {
-    menu = null;
     avviso = { personaId: p.personaId, voce, turno };
+  }
+
+  /** Le voci del menu «⋯» per un turno in cui la persona aspetta (le stesse di sempre); la rimozione è l'ultima, a due tocchi. */
+  function vociTurno(p: PersonaInAttesa, t: PersonaInAttesa['turni'][number]): VoceMenu[] {
+    const s = statoVoce(t.voce, pagina.oggi);
+    return [
+      ...(t.tocca && s !== 'saltata'
+        ? [{ testo: s === 'nuovo' ? 'Avvisa del posto…' : 'Avvisa di nuovo…', icona: 'campana', onclick: () => apriAvviso(p, t.voce, t.turno) } satisfies VoceMenu]
+        : []),
+      { testo: 'Iscrivi al turno', icona: 'persona-piu', onclick: () => azioni.iscrivi(t.voce, t.turno) },
+      { testo: 'Aspetta ancora', icona: 'check', onclick: () => azioni.esegui(() => api.confermataAttesa(t.voce.id), `${nome(p)} aspetta ancora: segnato.`) },
+      { testo: 'Rimuovi dalla lista', icona: 'cestino', elimina: 'Rimuovi?',
+        onclick: () => azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} rimosso dalla lista di ${t.turno.corso}.`) },
+    ];
   }
 
   async function azione(p: PersonaInAttesa) {
@@ -88,8 +97,6 @@
     }
   }
 </script>
-
-<svelte:window onclick={chiudiMenu} />
 
 <div class="barra">
   <div class="chips" role="group" aria-label="Chi mostrare">
@@ -138,9 +145,15 @@
         <span class="turni">
           {#each p.turni as t (t.voce.id)}
             <span class="turno">
+              <span class="turno-testo">
               <span class="pallino-l {colore(t.turno.tipo ?? 'ALTRO')}" style:background={t.turno.colore ?? 'var(--c-line)'} aria-hidden="true"></span>
-              <span><b>{t.turno.corso}</b> <span class="muted">{quandoTurnoBreve(t.turno)}</span></span>
-              <span class="pos" class:posto={t.tocca}>{t.tocca ? `${t.voce.posizione}° · c'è posto` : `${t.voce.posizione}° di ${t.di}`}</span>
+                <span><b>{t.turno.corso}</b> <span class="muted">{quandoTurnoBreve(t.turno)}</span></span>
+                <span class="pos" class:posto={t.tocca}>{t.tocca ? `${t.voce.posizione}° · c'è posto` : `${t.voce.posizione}° di ${t.di}`}</span>
+              </span>
+              {#if p.turni.length > 1}
+                <!-- più turni: ognuno ha il suo menu (al massimo sette voci per menu) -->
+                <span class="menu-turno"><MenuAltro voci={vociTurno(p, t)} etichetta={`${nome(p)} · ${t.turno.corso} ${quandoTurnoBreve(t.turno)}`} pulsante={`Altre azioni per ${nome(p)}, ${t.turno.corso} ${quandoTurnoBreve(t.turno)}`} /></span>
+              {/if}
             </span>
           {/each}
         </span>
@@ -150,23 +163,7 @@
         </span>
         <span class="azioni">
           {#if a}<button type="button" class="btn btn-sm" class:btn-primary={a.tipo === 'avvisa'} class:btn-secondary={a.tipo !== 'avvisa'} onclick={() => azione(p)}>{a.testo}</button>{/if}
-          <span class="menu-wrap" data-menu={p.personaId}>
-            <Azione icona="altro" etichetta={`Altre azioni per ${nome(p)}`} premuto={menu === p.personaId} onclick={() => (menu = menu === p.personaId ? null : p.personaId)} />
-            {#if menu === p.personaId}
-              <div class="menu-azioni" role="menu" aria-label={`Azioni per ${nome(p)}`}>
-                {#each p.turni as t (t.voce.id)}
-                  {@const s = statoVoce(t.voce, pagina.oggi)}
-                  {#if p.turni.length > 1}<span class="gruppo-corso lbl">{t.turno.corso} {quandoTurnoBreve(t.turno)}</span>{/if}
-                  {#if t.tocca && s !== 'saltata'}
-                    <button role="menuitem" onclick={() => apriAvviso(p, t.voce, t.turno)}><Icona nome="campana" />{s === 'nuovo' ? 'Avvisa del posto…' : 'Avvisa di nuovo…'}</button>
-                  {/if}
-                  <button role="menuitem" onclick={() => { menu = null; azioni.iscrivi(t.voce, t.turno); }}><Icona nome="persona-piu" />Iscrivi al turno</button>
-                  <button role="menuitem" onclick={() => { menu = null; azioni.esegui(() => api.confermataAttesa(t.voce.id), `${nome(p)} aspetta ancora: segnato.`); }}><Icona nome="check" />Aspetta ancora</button>
-                  <Conferma role="menuitem" class="danger" domanda="Rimuovi?" onclick={() => { menu = null; azioni.esegui(() => api.rinunciaAttesa(t.voce.id), `${nome(p)} rimosso dalla lista di ${t.turno.corso}.`); }}><Icona nome="cestino" />Rimuovi dalla lista</Conferma>
-                {/each}
-              </div>
-            {/if}
-          </span>
+          {#if p.turni.length === 1}<MenuAltro voci={vociTurno(p, p.turni[0])} etichetta={`Azioni per ${nome(p)}`} pulsante={`Altre azioni per ${nome(p)}`} />{/if}
         </span>
       </div>
       {#if avviso?.personaId === p.personaId}
@@ -211,7 +208,8 @@
   .nome { font-weight: 700; color: var(--ink); text-decoration: none; }
   a.nome:hover { text-decoration: underline; }
   .turni { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-  .turno { display: flex; align-items: center; gap: var(--space-8); font-size: var(--text-md); flex-wrap: wrap; }
+  .turno { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); font-size: var(--text-md); }
+  .turno-testo { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; min-width: 0; }
   .turno b { font-weight: 600; }
   .pallino-l { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
   .pos { font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -225,15 +223,7 @@
   .azioni .btn { white-space: nowrap; }
   .avviso-riga { padding: 0 var(--space-16) var(--space-16) 60px; max-width: 760px; }
 
-  .menu-wrap { position: relative; }
-  .menu-azioni { position: absolute; right: 0; top: calc(100% + var(--space-6)); z-index: 10; width: 280px; padding: var(--space-6); display: flex; flex-direction: column;
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(16, 33, 43, 0.14); }
-  .menu-azioni :global(button) { display: flex; align-items: center; gap: var(--space-10); min-height: 44px; padding: 0 var(--space-10); border: none; background: none;
-    border-radius: var(--radius-sm); font: inherit; font-size: var(--text-md); color: var(--ink); cursor: pointer; text-align: left; }
-  .menu-azioni :global(button:hover) { background: var(--carta); }
-  .menu-azioni :global(button .ic) { width: 18px; height: 18px; color: var(--muted); }
-  .menu-azioni :global(button.danger), .menu-azioni :global(button.danger .ic) { color: var(--danger); }
-  .menu-azioni .gruppo-corso { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8) var(--space-10) var(--space-2); }
+  .menu-turno { margin-block: calc(var(--space-6) * -1); flex-shrink: 0; }
 
   .piede { display: flex; align-items: center; padding: var(--space-10) var(--space-16); }
   .vuoto { margin: var(--space-16); padding: var(--space-14); border: 1px dashed var(--line-dashed); border-radius: var(--radius-md); }
