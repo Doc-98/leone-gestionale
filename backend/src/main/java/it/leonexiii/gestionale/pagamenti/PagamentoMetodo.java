@@ -15,8 +15,12 @@ class PagamentoMetodo {
 
     @Id
     private UUID id;
-    @Column(name = "metodo_id", nullable = false)
+    /** Il metodo, finché esiste: se viene eliminato si svuota e resta la copia. */
+    @Column(name = "metodo_id")
     private UUID metodoId;
+    /** Il metodo com'era quando si è registrato il pagamento: lo storico legge questa. */
+    @jakarta.persistence.Embedded
+    private CopiaMetodo copia;
     @Column(nullable = false)
     private BigDecimal importo;
     @Column(name = "incassato_il")
@@ -27,9 +31,10 @@ class PagamentoMetodo {
 
     protected PagamentoMetodo() {}
 
-    PagamentoMetodo(UUID metodoId, BigDecimal importo, LocalDate incassatoIl, String riferimento) {
+    PagamentoMetodo(MetodoPagamento metodo, BigDecimal importo, LocalDate incassatoIl, String riferimento) {
         this.id = UUID.randomUUID();
-        this.metodoId = metodoId;
+        this.metodoId = metodo.getId();
+        this.copia = new CopiaMetodo(metodo);
         this.importo = importo;
         this.incassatoIl = incassatoIl;
         this.riferimento = riferimento == null || riferimento.isBlank() ? null : riferimento.strip();
@@ -43,6 +48,7 @@ class PagamentoMetodo {
 
     UUID getId() { return id; }
     UUID getMetodoId() { return metodoId; }
+    CopiaMetodo getCopia() { return copia; }
     BigDecimal getImporto() { return importo; }
     LocalDate getIncassatoIl() { return incassatoIl; }
     String getRiferimento() { return riferimento; }

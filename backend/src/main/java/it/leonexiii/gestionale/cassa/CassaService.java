@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -397,7 +398,14 @@ public class CassaService {
             nascosti ? nascondi(conti) : conti, nascosti ? null : contanti(s, voci), List.of(), nascosti, null, null, false, null, null, null, null, false);
     }
 
-    private static Conti conti(Sessione s, List<Pagamenti.VoceCassa> voci, List<MovimentoCassa> mov) {
+    /**
+     * I totali per metodo si raggruppano per metodo (non per nome): una rinomina a cassa aperta non li divide, e un metodo
+     * eliminato non si fonde con uno vivo che ha lo stesso nome. Il nome mostrato è quello attuale; per un metodo eliminato
+     * (id vuoto) quello della copia, e si raggruppa per nome.
+     */
+    private Conti conti(Sessione s, List<Pagamenti.VoceCassa> voci, List<MovimentoCassa> mov) {
+        Map<UUID, String> attuali = new HashMap<>();
+        pagamenti.elencoMetodi().forEach(m -> attuali.put(m.id(), m.nome()));
         Map<String, Sessione.TotaleMetodo> per = new LinkedHashMap<>();
         BigDecimal entrati = ZERO, usciti = ZERO;
         int quanteE = 0, quanteU = 0;
@@ -405,8 +413,10 @@ public class CassaService {
         for (var v : voci) {
             boolean entrata = "ENTRATA".equals(v.tipo());
             if (entrata) pagati.add(v.id());
-            per.merge(v.metodo(), new Sessione.TotaleMetodo(v.metodo(), v.contanti(), entrata ? v.importo() : ZERO, entrata ? ZERO : v.importo()),
-                (x, y) -> new Sessione.TotaleMetodo(x.metodo(), x.contanti(), x.entrate().add(y.entrate()), x.uscite().add(y.uscite())));
+            String nome = v.metodoId() != null ? attuali.getOrDefault(v.metodoId(), v.metodo()) : v.metodo();
+            String chiave = v.metodoId() != null ? v.metodoId().toString() : "eliminato:" + v.metodo().toLowerCase();
+            per.merge(chiave, new Sessione.TotaleMetodo(nome, v.contanti(), entrata ? v.importo() : ZERO, entrata ? ZERO : v.importo(), v.metodoId()),
+                (x, y) -> new Sessione.TotaleMetodo(x.metodo(), x.contanti(), x.entrate().add(y.entrate()), x.uscite().add(y.uscite()), x.metodoId()));
             if (!v.contanti()) continue;
             if (entrata) {
                 entrati = entrati.add(v.importo());
@@ -447,8 +457,13 @@ public class CassaService {
             BigDecimal atteso = voci.stream().filter(v -> m.id().equals(v.metodoId()))
                 .map(v -> "ENTRATA".equals(v.tipo()) ? v.importo() : v.importo().negate()).reduce(ZERO, BigDecimal::add);
             BigDecimal d = dichiarati.get(m.id());
-            out.add(new Sessione.Riscontro(m.nome(), atteso, d, d == null ? ZERO : d.subtract(atteso)));
+            out.add(new Sessione.Riscontro(m.nome(), atteso, d, d == null ? ZERO : d.subtract(atteso), m.id()));
         }
+        // un metodo eliminato dopo i pagamenti (si riapre una cassa già chiusa): c'è ancora, con l'atteso, ma non si può scrivere lo scontrino
+        Map<String, BigDecimal> eliminati = new LinkedHashMap<>();
+        for (var v : voci) if (v.metodoId() == null && v.riscontro())
+            eliminati.merge(v.metodo(), "ENTRATA".equals(v.tipo()) ? v.importo() : v.importo().negate(), BigDecimal::add);
+        eliminati.forEach((nome, atteso) -> out.add(new Sessione.Riscontro(nome, atteso, null, ZERO, null)));
         return out;
     }
 
@@ -478,6 +493,24 @@ public class CassaService {
     List<Sessione> inCassaforte(ImpostazioniCassa imp) {
         Instant dal = imp.getBancaDal() != null ? imp.getBancaDal() : Instant.EPOCH;
         return sessioni.findByChiusaIlGreaterThanEqualAndVersamentoIdIsNullAndPerCassaforteGreaterThanOrderByChiusaIl(dal, ZERO);
+    }
+
+    /**
+     * Per ogni metodo con entrate o uscite in una cassa non ancora chiusa (aperta, o che raccoglie già i pagamenti per la
+     * prossima chiusura): il nome della prima di queste casse. Finché la cassa non è chiusa il metodo serve ancora al
+     * riscontro con il POS e ai conti, quindi non si elimina.
+     */
+    @Transactional(readOnly = true)
+    Map<UUID, String> metodiInCassaNonChiusa() {
+        ImpostazioniCassa imp = imp();
+        Instant fine = orologio.instant();
+        Map<UUID, String> out = new LinkedHashMap<>();
+        for (Cassa c : casse.findAllByOrderByOrdineAscNomeAsc()) {
+            if (!c.isAttiva() || (!imp.perPostazione() && !c.isPrincipale())) continue;
+            Instant dal = sessioni.findByCassaIdAndChiusaIlIsNull(c.getId()).map(Sessione::getDal).orElseGet(() -> inizio(c));
+            for (var v : vociDi(dal, fine, c, imp)) if (v.metodoId() != null) out.putIfAbsent(v.metodoId(), c.getNome());
+        }
+        return out;
     }
 
     /** Le entrate e uscite di quella cassa nella finestra: con una cassa sola tutte; se no le sue (e alla principale quelle senza cassa). */

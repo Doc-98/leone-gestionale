@@ -98,8 +98,14 @@ export interface Colonna {
   pezzi: number[];
 }
 
+/**
+ * La chiave di un metodo negli incassi: l'id, e solo se è stato eliminato (id vuoto) il nome. Si confronta per chiave e non
+ * per nome perché i totali portano il nome attuale e i pagamenti quello di allora (dopo una rinomina).
+ */
+export const chiaveMetodo = (m: { metodoId: string | null; metodo: string }): string => m.metodoId ?? 'eliminato:' + m.metodo;
+
 /** Gli incassi raggruppati per giorno (o per settimana, da lunedì) tra `da` e `a`, divisi per metodo. */
-export function andamento(pagamenti: PagamentoRegistrato[], metodi: string[], da: string, a: string, per: 'giorno' | 'settimana'): Colonna[] {
+export function andamento(pagamenti: PagamentoRegistrato[], metodi: string[] /* chiavi, vedi chiaveMetodo */, da: string, a: string, per: 'giorno' | 'settimana'): Colonna[] {
   const out: Colonna[] = [];
   const chiave = (d: string) => (per === 'giorno' ? d : lunedi(d) < da ? da : lunedi(d));
   for (let d = da; d <= a; d = aggiungiGiorni(d, 1)) {
@@ -117,7 +123,7 @@ export function andamento(pagamenti: PagamentoRegistrato[], metodi: string[], da
     const c = out.find((x) => p.data >= x.da && p.data <= x.a);
     if (!c) continue;
     for (const m of p.metodi) {
-      const i = metodi.indexOf(m.metodo);
+      const i = metodi.indexOf(chiaveMetodo(m));
       if (i >= 0) c.pezzi[i] = euro(cent(c.pezzi[i]) + cent(m.importo));
     }
     c.totale = euro(cent(c.totale) + cent(p.importo));
@@ -131,6 +137,8 @@ export interface RigaRegistro {
   chi: string;
   per: string;
   metodo: string;
+  /** la chiave del (primo) metodo, per il colore */
+  chiave: string;
   entrata: number | null;
   uscita: number | null;
   annullato: boolean;
@@ -146,10 +154,10 @@ export function registro(d: Pick<Incassi, 'pagamenti' | 'uscite'>): RigaRegistro
     righe.push({
       id: p.id, istante: p.registratoIl, chi: p.pagante ?? '', annullato: !!p.annullatoIl, motivo: p.motivoAnnullamento,
       per: p.voci.map((v) => `${v.persona && v.persona !== p.pagante ? v.persona + ' · ' : ''}${v.descrizione}`).join(' · '),
-      metodo: p.metodi.map((m) => m.metodo).join(' + '), entrata: p.importo, uscita: null,
+      metodo: p.metodi.map((m) => m.metodo).join(' + '), chiave: p.metodi[0] ? chiaveMetodo(p.metodi[0]) : '', entrata: p.importo, uscita: null,
     });
   for (const u of d.uscite)
-    righe.push({ id: u.id, istante: u.registratoIl, chi: u.persona ?? '', per: u.descrizione, metodo: u.metodo, entrata: null, uscita: u.importo, annullato: false, motivo: null });
+    righe.push({ id: u.id, istante: u.registratoIl, chi: u.persona ?? '', per: u.descrizione, metodo: u.metodo, chiave: chiaveMetodo(u), entrata: null, uscita: u.importo, annullato: false, motivo: null });
   righe.sort((x, y) => x.istante.localeCompare(y.istante));
   let c = 0;
   const pag = new Map(d.pagamenti.map((p) => [p.id, p]));

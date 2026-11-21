@@ -69,10 +69,10 @@
   const riscontriVisti = $derived(
     esito ? esito.riscontri
       : (pagina?.daRiscontrare ?? []).map((m) => {
-        const t = c?.perMetodo.find((x) => x.metodo === m.nome);
+        const t = c?.perMetodo.find((x) => x.metodoId === m.id);
         const atteso = t ? Math.round((t.entrate - t.uscite) * 100) / 100 : 0;
         const d = numeroDa(pos[m.id] ?? '');
-        return { metodo: m.nome, atteso, dichiarato: d, differenza: d == null ? 0 : Math.round((d - atteso) * 100) / 100 };
+        return { metodoId: m.id, metodo: m.nome, atteso, dichiarato: d, differenza: d == null ? 0 : Math.round((d - atteso) * 100) / 100 };
       }),
   );
   const nonTorna = $derived(oltre || riscontriVisti.some((r) => r.dichiarato != null && Math.round(r.differenza * 100) !== 0));
@@ -302,14 +302,14 @@
         <div class="blocco-c">
           <span class="lbl">Riscontro con il POS</span>
           {#if passo === 'confronto'}
-            {#each riscontriVisti as r (r.metodo)}
+            {#each riscontriVisti as r, i (i)}
               {@const torna = r.dichiarato == null || Math.round(r.differenza * 100) === 0}
               <span class="riga piccola"><span>{r.metodo}: atteso {euro(r.atteso)}{r.dichiarato != null ? `, scontrino ${euro(r.dichiarato)}` : ', scontrino non scritto'}</span>
                 <span class="pill {r.dichiarato == null ? '' : torna ? 'passa' : 'ferma'}">{r.dichiarato == null ? '—' : torna ? 'Torna' : conSegno(r.differenza, euro)}</span></span>
             {/each}
           {:else}
             {#each pagina.daRiscontrare as m (m.id)}
-              {@const r = riscontriVisti.find((x) => x.metodo === m.nome)}
+              {@const r = riscontriVisti.find((x) => x.metodoId === m.id)}
               <label class="pos"><span>{m.nome} · totale dello scontrino di chiusura del POS{#if !cieca && r} <span class="muted">(atteso {euro(r.atteso)})</span>{/if}</span>
                 <input class="inp m" inputmode="decimal" bind:value={pos[m.id]} placeholder="0,00" aria-label={`Totale del POS per ${m.nome}`} /></label>
             {/each}
