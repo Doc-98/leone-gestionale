@@ -25,3 +25,25 @@ describe('Foglio – basi del lotto 1', () => {
     expect(titolo.parentElement).toHaveTextContent('spento');
   });
 });
+
+describe('Foglio – fuoco', () => {
+  it('all\'apertura il fuoco passa al foglio e alla chiusura torna a chi l\'aveva aperto', () => {
+    const apre = document.createElement('button');
+    document.body.appendChild(apre);
+    apre.focus();
+    const { unmount } = render(Foglio, { props: { titolo: 'Prova', chiudi: () => {}, children: figli } });
+    expect(screen.getByRole('dialog')).toHaveFocus();
+    unmount();
+    expect(apre).toHaveFocus();
+    apre.remove();
+  });
+
+  it('se chi l\'aveva aperto non c\'è più, non rompe', () => {
+    const apre = document.createElement('button');
+    document.body.appendChild(apre);
+    apre.focus();
+    const { unmount } = render(Foglio, { props: { titolo: 'Prova', chiudi: () => {}, children: figli } });
+    apre.remove();
+    expect(() => unmount()).not.toThrow();
+  });
+});

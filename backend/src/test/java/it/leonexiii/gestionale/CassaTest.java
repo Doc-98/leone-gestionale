@@ -433,4 +433,64 @@ class CassaTest extends ProvaApi {
         assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
             + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
     }
+
+    @Test
+    @Order(5)
+    void conLaCassaApertaUnMetodoNonEntraNeEsceDalCassetto() throws Exception {
+        var admin = come("admin@demo.leone");
+        var segr = come("segreteria@demo.leone");
+        orologio.alle("2030-10-07T07:00");
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"cieca\":false,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
+        String cassa = (String) elenco(json(segr.get("/api/cassa")).get("casse")).stream().filter(c -> Boolean.TRUE.equals(c.get("principale"))).findFirst().orElseThrow().get("id");
+        azzera(segr, cassa);
+
+        String nome = "Gettone " + java.util.UUID.randomUUID().toString().substring(0, 6);
+        String id = creaId(admin, "/api/pagamenti/metodi", "{\"nome\":\"" + nome + "\"}");
+        String url = "/api/pagamenti/metodi/" + id;
+        String corpo = "{\"nome\":\"" + nome + "\",\"contanti\":%s,\"daIncassare\":%s}";
+
+        // cassa chiusa: si passa nel cassetto e si torna
+        var dentro = admin.put(url, corpo.formatted(true, false));
+        assertThat(dentro.statusCode()).as(dentro.body()).isEqualTo(200);
+        assertThat(json(dentro)).containsEntry("contanti", true);
+        assertThat(json(admin.put(url, corpo.formatted(false, false)))).containsEntry("contanti", false);
+
+        // cassa aperta: il metodo non entra nel cassetto (409 col nome e cosa fare)…
+        orologio.alle("2030-10-07T08:00");
+        assertThat(segr.post("/api/cassa/casse/" + cassa + "/apri", "{}").statusCode()).isEqualTo(200);
+        var no = admin.put(url, corpo.formatted(true, false));
+        assertThat(no.statusCode()).isEqualTo(409);
+        assertThat(no.body()).contains("Chiudi la cassa e poi cambia «" + nome + "» da o verso «Nel cassetto».");
+        assertThat(elenco(lista(admin.get("/api/pagamenti/metodi"))).stream().filter(m -> id.equals(m.get("id"))).findFirst().orElseThrow()).containsEntry("contanti", false);
+
+        // …ma nome, acceso/spento e «da incassare» ↔ «incassato subito» si cambiano lo stesso
+        assertThat(json(admin.put(url, corpo.formatted(false, true)))).containsEntry("daIncassare", true).containsEntry("contanti", false);
+        assertThat(json(admin.put(url, corpo.formatted(false, false)))).containsEntry("daIncassare", false);
+        assertThat(json(admin.put(url, "{\"nome\":\"" + nome + " bis\",\"attivo\":false}"))).containsEntry("nome", nome + " bis").containsEntry("attivo", false);
+        assertThat(json(admin.put(url, "{\"nome\":\"" + nome + "\",\"attivo\":true}"))).containsEntry("attivo", true);
+        // da incassare con il cassetto in un colpo solo è sempre impossibile
+        assertThat(admin.put(url, corpo.formatted(true, true)).statusCode()).isIn(400, 409);
+
+        // un metodo che è già nel cassetto non ne esce a cassa aperta
+        orologio.alle("2030-10-07T08:30");
+        String contanti = metodoPagamento(admin, "Contanti");
+        var esce = admin.put("/api/pagamenti/metodi/" + contanti, "{\"nome\":\"Contanti\",\"contanti\":false}");
+        assertThat(esce.statusCode()).isEqualTo(409);
+        assertThat(esce.body()).contains("«Contanti»").contains("Chiudi la cassa");
+        // lo stesso valore (il foglio rimanda tutto com'è) non è un cambio
+        assertThat(admin.put("/api/pagamenti/metodi/" + contanti, "{\"nome\":\"Contanti\",\"contanti\":true}").statusCode()).isEqualTo(200);
+
+        // cassa chiusa: ora sì
+        orologio.alle("2030-10-07T12:00");
+        azzera(segr, cassa);
+        var finalmente = admin.put(url, corpo.formatted(true, false));
+        assertThat(finalmente.statusCode()).as(finalmente.body()).isEqualTo(200);
+        assertThat(json(finalmente)).containsEntry("contanti", true);
+
+        assertThat(admin.delete(url).statusCode()).isEqualTo(204);
+        // si torna alle scelte di base
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
+            + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
+    }
 }

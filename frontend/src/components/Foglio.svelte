@@ -1,17 +1,28 @@
 <script lang="ts">
   import Azione from './Azione.svelte';
-  import type { Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
 
   /**
    * Il foglio dei moduli: dal basso sul telefono, pannello a destra sul computer.
    * - `dalBasso`: il foglio sale dal basso, al centro, anche sul computer invece di aprirsi come pannello a destra
    *   (per i fogli corti, come quello del menu «⋯» sul telefono e sul tablet).
    * - `troncaTitolo`: il titolo sta su una riga e, se è lungo, finisce nei puntini (il nome intero resta nell'etichetta e nel `title`).
+   * - Fuoco: all'apertura passa al foglio (che si annuncia con il suo titolo, senza far comparire la tastiera del telefono);
+   *   alla chiusura torna a chi l'aveva, se c'è ancora.
    * - `dopoTitolo`: un pezzo accanto al titolo (la pillola «spento» di un elemento spento).
    */
   let { titolo, chiudi, children, dalBasso = false, dopoTitolo, troncaTitolo = false }: {
     titolo: string; chiudi: () => void; children: Snippet; dalBasso?: boolean; dopoTitolo?: Snippet; troncaTitolo?: boolean;
   } = $props();
+
+  let foglio = $state<HTMLDivElement>();
+  onMount(() => {
+    const apriva = document.activeElement;
+    foglio?.focus({ preventScroll: true });
+    return () => {
+      if (apriva instanceof HTMLElement && apriva !== document.body && document.contains(apriva)) apriva.focus({ preventScroll: true });
+    };
+  });
 
   function tasto(e: KeyboardEvent) {
     if (e.key === 'Escape') chiudi();
@@ -21,7 +32,7 @@
 <svelte:window onkeydown={tasto} />
 
 <div class="velo" class:dal-basso={dalBasso} role="presentation" onclick={chiudi}></div>
-<div class="foglio" class:dal-basso={dalBasso} role="dialog" aria-modal="true" aria-label={titolo}>
+<div class="foglio" class:dal-basso={dalBasso} role="dialog" aria-modal="true" aria-label={titolo} tabindex="-1" bind:this={foglio}>
   <header>
     <div class="tit"><h2 class:tronca={troncaTitolo} title={troncaTitolo ? titolo : undefined}>{titolo}</h2>{#if dopoTitolo}{@render dopoTitolo()}{/if}</div>
     <Azione cornice icona="chiudi" etichetta="Chiudi" onclick={chiudi} />
@@ -36,6 +47,7 @@
     max-width: 640px; margin: 0 auto; background: var(--carta); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     padding: var(--space-16) var(--space-16) calc(env(safe-area-inset-bottom, 0px) + var(--space-20));
   }
+  .foglio:focus { outline: none; }
   /* Sul PC: pannello laterale a destra, la pagina resta visibile accanto */
   @media (min-width: 1024px) {
     .velo:not(.dal-basso) { background: rgba(16, 33, 43, 0.25); }

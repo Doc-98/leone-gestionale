@@ -34,3 +34,15 @@ export const STATI_ADDEBITO: Record<StatoAddebito, { nome: string; classe: strin
 };
 
 export const aperto = (a: Pick<Addebito, 'stato'>) => a.stato === 'DA_PAGARE' || a.stato === 'SCADUTO';
+
+/** Come si incassa un metodo, a tre scelte (le due caselle `contanti` e `daIncassare` si escludono). */
+export type TipoMetodo = 'subito' | 'cassetto' | 'daIncassare';
+
+export function tipoMetodo(m: { daIncassare: boolean; contanti: boolean }): TipoMetodo {
+  return m.daIncassare ? 'daIncassare' : m.contanti ? 'cassetto' : 'subito';
+}
+
+/** Le due caselle del backend che corrispondono alla scelta: una sola è vera, o nessuna. */
+export function comeIncassa(tipo: TipoMetodo): { daIncassare: boolean; contanti: boolean } {
+  return { daIncassare: tipo === 'daIncassare', contanti: tipo === 'cassetto' };
+}

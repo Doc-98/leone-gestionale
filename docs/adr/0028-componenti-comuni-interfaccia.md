@@ -1,6 +1,6 @@
 # 0028 · Componenti comuni dell'interfaccia
 
-**Stato:** proposta (diventa accettata a fine blocco 6)
+**Stato:** accettata (blocco 6 finito: i sei componenti sono costruiti)
 
 ## Contesto
 

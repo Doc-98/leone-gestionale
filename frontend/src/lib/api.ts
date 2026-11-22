@@ -1152,6 +1152,10 @@ export const api = {
   metodiPagamento: () => richiesta<MetodoPagamento[]>('GET', '/api/pagamenti/metodi'),
   creaMetodoPagamento: (m: NuovoMetodoPagamento) => richiesta<MetodoPagamento>('POST', '/api/pagamenti/metodi', m),
   modificaMetodoPagamento: (id: string, m: NuovoMetodoPagamento) => richiesta<MetodoPagamento>('PUT', `/api/pagamenti/metodi/${id}`, m),
+  /** Tutti i metodi nell'ordine voluto, in una chiamata sola; risponde con l'elenco aggiornato. */
+  ordinaMetodiPagamento: (ids: string[]) => richiesta<MetodoPagamento[]>('PUT', '/api/pagamenti/metodi/ordine', { ids }),
+  /** Elimina un metodo; 409 col messaggio di cosa manca («Satispay ha ancora 2 pagamenti da incassare») o se è il borsellino. */
+  eliminaMetodoPagamento: (id: string) => richiesta<void>('DELETE', `/api/pagamenti/metodi/${id}`),
   annullaVoce: (cosa: 'certificati' | 'tesseramenti' | 'abbonamenti', id: string) => richiesta<void>('POST', `/api/clienti/${cosa}/${id}/annulla`, {}),
   generaMese: (modelloId: string, mese: string) => richiesta<EsitoGenerazione>('POST', `/api/modelli/${modelloId}/genera`, { mese }),
   creaRichiesta: (r: NuovaRichiesta) => richiesta<Richiesta>('POST', '/api/richieste', r),
