@@ -27,7 +27,7 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Recesso', dove: 'Prezzi e pagamenti › Regole di prezzo', sezione: 'prezzi', ancora: 'recesso', parole: 'recesso rimborso disdetta ritiro restituzione' },
   { titolo: 'Rate', dove: 'Prezzi e pagamenti › Regole di prezzo', sezione: 'prezzi', ancora: 'rate', parole: 'rate rata pagamento dilazione scadenza seconda' },
   { titolo: 'Sospensione per malattia', dove: 'Prezzi e pagamenti › Regole di prezzo', sezione: 'prezzi', ancora: 'sospensione', parole: 'sospensione malattia infortunio certificato stop' },
-  { titolo: 'Metodi di pagamento', dove: 'Prezzi e pagamenti › Metodi di pagamento', sezione: 'metodi', parole: 'metodo pagamento contanti carta bonifico satispay incassare' },
+  { titolo: 'Metodi di pagamento', dove: 'Prezzi e pagamenti › Metodi di pagamento', sezione: 'metodi', parole: 'metodo pagamento contanti carta bonifico satispay incassare spento acceso elimina riordina ordine cassetto' },
   { titolo: 'Ricevute: numerazione e serie', dove: 'Prezzi e pagamenti › Ricevute', sezione: 'ricevute', ancora: 'serie', parole: 'ricevuta ricevute numero numerazione serie fattura fatture formato' },
   { titolo: 'Cosa c\'è scritto sulla ricevuta', dove: 'Prezzi e pagamenti › Ricevute', sezione: 'ricevute', ancora: 'scritto', parole: 'ricevuta intestata codice fiscale marca bollo dicitura detrazione firma' },
   { titolo: 'Come si consegna la ricevuta', dove: 'Prezzi e pagamenti › Ricevute', sezione: 'ricevute', ancora: 'consegna', parole: 'ricevuta stampa email pdf figli famiglia dopo pagamento' },
@@ -36,7 +36,7 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Conta alla cieca e differenza tollerata', dove: 'Prezzi e pagamenti › Cassa', sezione: 'cassa', ancora: 'conteggio', parole: 'cieca conta tolleranza differenza controllo responsabile riscontro pos bancomat scontrino' },
   { titolo: 'Cassaforte, banca e spese con la cassa', dove: 'Prezzi e pagamenti › Cassa', sezione: 'cassa', ancora: 'tolti', parole: 'cassaforte banca versamento distinta spese avviso aperta' },
   { titolo: 'Chiusura di cassa', dove: 'Prezzi e pagamenti › Cassa', sezione: 'cassa', ancora: 'chiusura', parole: 'chiusura cassa turno giornata contati differenza versamento' },
-  { titolo: 'Una famiglia paga per più persone', dove: 'Prezzi e pagamenti › Metodi di pagamento', sezione: 'metodi', ancora: 'famiglia', parole: 'famiglia fratelli pagamento unico insieme' },
+  { titolo: 'Pagamenti di famiglia', dove: 'Prezzi e pagamenti › Metodi di pagamento', sezione: 'metodi', ancora: 'famiglia', parole: 'famiglia fratelli familiari più persone pagamento unico insieme' },
   // Clienti e accessi
   { titolo: 'Regole del tornello', dove: 'Clienti e accessi › Regole del tornello', sezione: 'regole', parole: 'tornello regole controlli rosso verde accesso' },
   { titolo: 'Certificato medico provvisorio', dove: 'Clienti e accessi › Regole del tornello', sezione: 'regole', parole: 'certificato medico provvisorio scaduto' },

@@ -513,6 +513,12 @@ public class CassaService {
         return out;
     }
 
+    /** C'è una sessione di cassa non ancora chiusa (di qualunque cassa). */
+    @Transactional(readOnly = true)
+    boolean cassaAperta() {
+        return sessioni.existsByChiusaIlIsNull();
+    }
+
     /** Le entrate e uscite di quella cassa nella finestra: con una cassa sola tutte; se no le sue (e alla principale quelle senza cassa). */
     private List<Pagamenti.VoceCassa> vociDi(Instant dal, Instant fine, Cassa c, ImpostazioniCassa imp) {
         var voci = pagamenti.vociCassa(dal, fine);

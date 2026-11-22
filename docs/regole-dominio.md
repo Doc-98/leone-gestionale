@@ -51,6 +51,10 @@ rompere senza accorgersene. Se una regola cambia, si aggiorna qui e nell'ADR che
   contanti, da incassare, riscontro POS, borsellino) e lo storico legge la copia. Un metodo si elimina anche se è stato
   usato, tranne se ha qualcosa di aperto (pagamenti da incassare, una cassa non ancora chiusa con quel metodo); il
   borsellino non si elimina mai. Rinominare un metodo non cambia la copia: i documenti passati mostrano il nome di allora.
+  Anche cambiare il tipo di un metodo («Incassato subito», «Nel cassetto», «Da incassare») vale solo dal pagamento successivo:
+  i pagamenti già registrati, anche quelli ancora da incassare, tengono la loro copia. Finché una cassa è aperta (non chiusa)
+  un metodo non entra né esce da «Nel cassetto» (409: chiudi la cassa e poi cambia); il resto della modifica resta
+  permesso. Il riscontro con il POS vale solo per i metodi incassati subito e si azzera passando a «Nel cassetto» o «Da incassare».
 - Pagamenti online: solo bonifico con causale generata dall'app e addebito diretto SEPA, senza spingere. Niente carte
   senza una richiesta esplicita.
 

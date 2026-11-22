@@ -202,4 +202,51 @@ class MetodiPagamentoTest extends ProvaApi {
             assertThat(admin.put("/api/borsellino/regole", regole).statusCode()).isEqualTo(200);
         }
     }
+
+    @Test
+    void cambiareIlTipoDiUnMetodoValeDalPagamentoSuccessivo() throws Exception {
+        var admin = come("admin@demo.leone");
+        var segr = come("segreteria@demo.leone");
+        String nome = nomeProva("Carta prova");
+        var creato = crea(admin, "/api/pagamenti/metodi", "{\"nome\":\"" + nome + "\",\"riscontro\":true}");
+        String id = (String) creato.get("id");
+        assertThat(creato).containsEntry("riscontro", true).containsEntry("daIncassare", false).containsEntry("contanti", false);
+        String url = "/api/pagamenti/metodi/" + id;
+
+        // il riscontro con il POS vale solo per i metodi incassati subito: non si accende su uno da incassare né nel cassetto
+        assertThat(admin.post("/api/pagamenti/metodi", "{\"nome\":\"" + nomeProva("Da incassare con POS") + "\",\"daIncassare\":true,\"riscontro\":true}").statusCode()).isEqualTo(400);
+        assertThat(admin.post("/api/pagamenti/metodi", "{\"nome\":\"" + nomeProva("Cassetto con POS") + "\",\"contanti\":true,\"riscontro\":true}").statusCode()).isEqualTo(400);
+        assertThat(admin.put(url, "{\"nome\":\"" + nome + "\",\"daIncassare\":true,\"riscontro\":true}").statusCode()).isEqualTo(400);
+        // una modifica che non tocca il tipo lascia il riscontro com'è
+        assertThat(json(admin.put(url, "{\"nome\":\"" + nome + "\"}"))).containsEntry("riscontro", true);
+
+        // un pagamento con il metodo com'è (incassato subito)
+        var prima = paga(segr, id, 12);
+
+        // passa a «Da incassare»: il riscontro si azzera (anche se il foglio non lo manda)
+        var daIncassare = admin.put(url, "{\"nome\":\"" + nome + "\",\"daIncassare\":true,\"contanti\":false}");
+        assertThat(daIncassare.statusCode()).as(daIncassare.body()).isEqualTo(200);
+        assertThat(json(daIncassare)).containsEntry("daIncassare", true).containsEntry("contanti", false).containsEntry("riscontro", false);
+        // tornando a «Incassato subito» il riscontro non torna da solo
+        assertThat(json(admin.put(url, "{\"nome\":\"" + nome + "\",\"daIncassare\":false,\"contanti\":false}"))).containsEntry("daIncassare", false).containsEntry("riscontro", false);
+        assertThat(json(admin.put(url, "{\"nome\":\"" + nome + "\",\"daIncassare\":true}"))).containsEntry("daIncassare", true);
+
+        // il pagamento di prima tiene la sua copia (incassato subito); quello dopo la prende nuova (da incassare)
+        var dopo = paga(segr, id, 8);
+        var vecchio = elenco(elenco(json(segr.get("/api/pagamenti/persone/" + prima[0])).get("pagamenti")).getFirst().get("metodi")).getFirst();
+        assertThat(vecchio).containsEntry("daIncassare", false).containsEntry("metodo", nome);
+        var nuovo = elenco(elenco(json(segr.get("/api/pagamenti/persone/" + dopo[0])).get("pagamenti")).getFirst().get("metodi")).getFirst();
+        assertThat(nuovo).containsEntry("daIncassare", true).containsEntry("metodo", nome);
+
+        // con un pagamento ancora da incassare il tipo si cambia lo stesso: quel pagamento resta da incassare
+        var inElenco = json(admin.put(url, "{\"nome\":\"" + nome + "\",\"daIncassare\":false}"));
+        assertThat(inElenco).containsEntry("daIncassare", false);
+        assertThat(segr.get("/api/pagamenti/da-incassare").body()).contains(dopo[1]);
+
+        // il cambio di tipo lo fa solo chi gestisce le impostazioni
+        assertThat(segr.put(url, "{\"nome\":\"" + nome + "\",\"daIncassare\":true}").statusCode()).isEqualTo(403);
+
+        // si spegne (usato in un pagamento da incassare: non si elimina; pulizia come negli altri test)
+        assertThat(json(admin.put(url, "{\"nome\":\"" + nome + "\",\"attivo\":false}"))).containsEntry("attivo", false);
+    }
 }

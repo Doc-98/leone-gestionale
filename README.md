@@ -542,7 +542,7 @@ la CI su Windows.
 | POST | `/api/pagamenti` `{paganteId, addebiti, metodi, importo?, data?, note?}` · `/api/pagamenti/addebiti` | pagamento (anche misto); addebito a mano (PAGAMENTI) |
 | POST | `/api/pagamenti/{id}/annulla` · `/api/pagamenti/addebiti/{id}/annulla` `{motivo}` | annullamenti (PAGAMENTI_ANNULLA) |
 | GET · POST | `/api/pagamenti/incassi?da=&a=` · `/api/pagamenti/da-incassare` · `/api/pagamenti/metodi-usati/{id}/incassa` | incassi e bonifici da incassare (PAGAMENTI) |
-| GET · POST · PUT | `/api/pagamenti/metodi` · `/{id}` | metodi di pagamento (modifica: IMPOSTAZIONI) |
+| GET · POST · PUT · DELETE | `/api/pagamenti/metodi` · `/{id}` · `PUT /ordine` `{ids}` | metodi di pagamento; il riordino è una chiamata sola; l'eliminazione risponde 409 col motivo se c'è qualcosa di aperto o se è il borsellino; la modifica cambia anche il tipo (`daIncassare`, `contanti`) dal pagamento successivo, azzera `riscontro` per i metodi da incassare o nel cassetto e risponde 409 «Chiudi la cassa e poi cambia «Nome» da o verso «Nel cassetto».» se una cassa è aperta e `contanti` cambia (modifica: IMPOSTAZIONI) |
 | GET | `/api/borsellino/persone/{id}` | saldi (euro e crediti), movimenti, a chi si può trasferire |
 | POST | `/api/borsellino/persone/{id}/ricariche` · `/trasferimenti` | ricarica dei crediti (pagata subito); euro a un familiare (BORSELLINO) |
 | POST | `/api/borsellino/persone/{id}/restituzioni` · `/correzioni` | credito restituito in denaro; correzioni a mano (BORSELLINO_RIMBORSI) |

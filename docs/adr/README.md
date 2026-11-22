@@ -31,4 +31,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0025](0025-crediti-sul-braccialetto.md) | Crediti di phon e docce sul braccialetto, con le macchine non collegate | accettata |
 | [0026](0026-campagne-di-iscrizione.md) | Campagne di iscrizione: riconferme, graduatoria, assegnazione dei turni, area per le famiglie | proposta |
 | [0027](0027-area-famiglie-e-vetrina-demo.md) | App delle famiglie accanto al gestionale, pubblicata da sola con un tunnel; vetrina della demo | accettata |
-| [0028](0028-componenti-comuni-interfaccia.md) | Componenti comuni dell'interfaccia; cose con storico eliminabili se lo storico ne tiene una copia | proposta |
+| [0028](0028-componenti-comuni-interfaccia.md) | Componenti comuni dell'interfaccia; cose con storico eliminabili se lo storico ne tiene una copia | accettata |

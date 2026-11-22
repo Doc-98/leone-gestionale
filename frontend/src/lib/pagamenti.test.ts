@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inOrdineDiScadenza, ripartisci, somma } from './pagamenti';
+import { comeIncassa, inOrdineDiScadenza, ripartisci, somma, tipoMetodo } from './pagamenti';
 
 describe('pagamenti', () => {
   it('somma senza errori di arrotondamento', () => {
@@ -13,5 +13,18 @@ describe('pagamenti', () => {
   });
   it('mette prima quello che scade prima', () => {
     expect(inOrdineDiScadenza([{ scadenza: '2026-09-14' }, { scadenza: '2026-09-01' }]).map((a) => a.scadenza)).toEqual(['2026-09-01', '2026-09-14']);
+  });
+});
+
+describe('come si incassa un metodo', () => {
+  it('dalle due caselle alla scelta a tre', () => {
+    expect(tipoMetodo({ daIncassare: false, contanti: false })).toBe('subito');
+    expect(tipoMetodo({ daIncassare: false, contanti: true })).toBe('cassetto');
+    expect(tipoMetodo({ daIncassare: true, contanti: false })).toBe('daIncassare');
+  });
+  it('dalla scelta alle due caselle: si escludono', () => {
+    expect(comeIncassa('subito')).toEqual({ daIncassare: false, contanti: false });
+    expect(comeIncassa('cassetto')).toEqual({ daIncassare: false, contanti: true });
+    expect(comeIncassa('daIncassare')).toEqual({ daIncassare: true, contanti: false });
   });
 });

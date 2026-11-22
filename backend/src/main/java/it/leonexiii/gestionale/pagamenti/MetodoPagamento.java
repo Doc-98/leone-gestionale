@@ -43,7 +43,8 @@ class MetodoPagamento {
         if (borsellino && (daIncassare || contanti || (this.nome != null && nome != null && !this.nome.equals(nome.strip()))))
             throw new IllegalArgumentException("Il borsellino si può solo spegnere o spostare.");
         if (daIncassare && contanti) throw new IllegalArgumentException("Un metodo da incassare a mano non finisce nel cassetto.");
-        if (contanti && riscontro) riscontro = false; // i contanti si contano, non si riscontrano
+        // i contanti si contano e i metodi da incassare si segnano a mano: il riscontro con il POS vale solo per quelli incassati subito
+        if ((contanti || daIncassare) && riscontro) riscontro = false;
         if (nome == null || nome.isBlank() || nome.strip().length() > 60) throw new IllegalArgumentException("Dai un nome al metodo (al massimo 60 caratteri).");
         this.nome = nome.strip();
         this.daIncassare = daIncassare;

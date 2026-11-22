@@ -19,4 +19,9 @@ class ControlloMetodiCassa implements ControlloMetodi {
     public Map<UUID, String> metodiInCassaNonChiusa() {
         return cassa.metodiInCassaNonChiusa();
     }
+
+    @Override
+    public boolean cassaAperta() {
+        return cassa.cassaAperta();
+    }
 }

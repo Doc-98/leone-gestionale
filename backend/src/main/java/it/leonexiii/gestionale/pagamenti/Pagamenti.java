@@ -620,7 +620,12 @@ public class Pagamenti {
     @Transactional
     MetodoDto modificaMetodo(UUID id, NuovoMetodo in) {
         MetodoPagamento m = metodi.findById(id).orElseThrow(() -> new NonTrovato("Metodo di pagamento non trovato."));
-        m.modifica(in.nome(), in.daIncassare() != null ? in.daIncassare() : m.isDaIncassare(), in.contanti() != null ? in.contanti() : m.isContanti(), in.attivo() != null ? in.attivo() : m.isAttivo(),
+        boolean contanti = in.contanti() != null ? in.contanti() : m.isContanti();
+        // il tipo si cambia (vale dal pagamento successivo: lo storico tiene la sua copia), ma con una cassa aperta
+        // un metodo non entra né esce dal cassetto: i contanti attesi della cassa cambierebbero a metà sessione
+        if (contanti != m.isContanti() && controlli.orderedStream().anyMatch(ControlloMetodi::cassaAperta))
+            throw new Conflitto("Chiudi la cassa e poi cambia «" + m.getNome() + "» da o verso «Nel cassetto».");
+        m.modifica(in.nome(), in.daIncassare() != null ? in.daIncassare() : m.isDaIncassare(), contanti, in.attivo() != null ? in.attivo() : m.isAttivo(),
             in.ordine() != null ? in.ordine() : m.getOrdine());
         if (in.riscontro() != null) m.riscontro(in.riscontro());
         metodi.saveAndFlush(m);
