@@ -131,6 +131,7 @@ public class Clienti {
         String nome = null;
         for (AppartenenzaGruppo a : appartenenze.findAll()) {
             if (!a.getPersonaId().equals(personaId) || !a.isVerificata() || !a.attivaIl(giorno)) continue;
+            if (a.getGruppoId() == null) continue; // gruppo eliminato: nello storico resta solo il nome
             GruppoClienti g = perId.get(a.getGruppoId());
             if (g == null || !g.isAttivo()) continue;
             if (g.getPrecedenza() != null && (precedenza == null || g.getPrecedenza() < precedenza)) {

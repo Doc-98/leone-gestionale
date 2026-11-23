@@ -61,10 +61,13 @@ class GestioneErrori {
             : m.contains("metodo_pagamento_nome") ? "C'è già un metodo di pagamento con questo nome."
             : m.contains("pagamento_metodo_metodo_id_fkey") || m.contains("uscita_metodo_id_fkey")
                 ? "Il metodo di pagamento è appena stato eliminato: ricarica e scegline un altro."
+            : m.contains("appartenenza_gruppo_gruppo_id_fkey") || m.contains("offerta_prezzo_gruppo_id_fkey")
+                ? "Il gruppo è appena stato eliminato: ricarica e scegline un altro."
             : m.contains("gruppo_clienti_nome") ? "C'è già un gruppo con questo nome."
             : m.contains("appartenenza_gruppo_attiva") ? "La persona è già in questo gruppo."
             : m.contains("offerta_prezzo_unico") ? "C'è già un prezzo per questa frequenza (e gruppo)."
-            : m.contains("abbonamento_offerta_id_fkey") ? "Con questa offerta sono già stati venduti abbonamenti: invece di eliminarla, disattivala."
+            : m.contains("abbonamento_offerta_id_fkey") || m.contains("addebito_offerta_id_fkey")
+                ? "Non si può eliminare: con questa offerta sono già state fatte delle vendite.\nPuoi spegnerla: chi l'ha comprata la tiene com'è, ma non si vende più."
             : "I dati non rispettano un vincolo del database.";
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, testo);
     }

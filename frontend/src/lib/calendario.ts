@@ -141,11 +141,34 @@ export function festivita(dal: string, al: string): [string, string, string][] {
   return out.filter(([, d1, d2]) => d1 >= dal && d2 <= al).sort((a, b) => a[1].localeCompare(b[1]));
 }
 
-/** Le stesse date un anno dopo (il 29 febbraio diventa il 28). */
-export function unAnnoDopo(d: string): string {
+/** Le stesse date spostate di `anni` anni (il 29 febbraio diventa il 28). */
+export function spostaDiAnni(d: string, anni: number): string {
   const [y, m, g] = d.split('-').map(Number);
-  const ultimo = new Date(y + 1, m, 0).getDate();
-  return iso(new Date(y + 1, m - 1, Math.min(g, ultimo)));
+  const ultimo = new Date(y + anni, m, 0).getDate();
+  return iso(new Date(y + anni, m - 1, Math.min(g, ultimo)));
+}
+
+/**
+ * Le chiusure di un'altra stagione da copiare in questa: le date si spostano della differenza tra gli anni di inizio
+ * (la stagione precedente: un anno). Le voci che portano il nome di una festività nazionale (`festivita()`), Pasqua e
+ * Pasquetta comprese, non si spostano: si prendono le date della festività nella stagione di arrivo, così la Pasqua
+ * mobile non si duplica con quella di «Aggiungi le festività nazionali». Restano solo le voci che cadono dentro la
+ * stagione e quelle non ancora segnate (stesso nome e stesso primo giorno).
+ */
+export function chiusureDaCopiare(vecchie: Voce[], da: { dal: string }, a: { dal: string; al: string }, esistenti: Voce[]): Voce[] {
+  const anni = Number(a.dal.slice(0, 4)) - Number(da.dal.slice(0, 4));
+  const festive = festivita(a.dal, a.al);
+  const nomiFestivi = new Set(festivita('2000-01-01', '2000-12-31').map(([n]) => n));
+  nomiFestivi.add('Pasqua e Pasquetta');
+  return vecchie
+    .map((v) => {
+      if (nomiFestivi.has(v.nome)) {
+        const f = festive.find(([n]) => n === v.nome);
+        return f ? { ...v, dal: f[1], al: f[2] } : { ...v, dal: '', al: '' }; // fuori dalla stagione di arrivo: sparisce
+      }
+      return { ...v, dal: spostaDiAnni(v.dal, anni), al: spostaDiAnni(v.al, anni) };
+    })
+    .filter((v) => v.dal >= a.dal && v.al <= a.al && !esistenti.some((x) => x.nome === v.nome && x.dal === v.dal));
 }
 
 /** Gli eventi da creare per una voce nuova: uno per tutto il giorno, o uno/due per l'orario ridotto. */

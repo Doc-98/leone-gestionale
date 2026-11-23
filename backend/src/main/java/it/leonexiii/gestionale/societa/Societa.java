@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.societa;
 
+import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,10 +36,12 @@ public class Societa {
 
     private final DatiSocietaRepository dati;
     private final StagioneRepository stagioni;
+    private final List<UsiStagione> usi;
 
-    Societa(DatiSocietaRepository dati, StagioneRepository stagioni) {
+    Societa(DatiSocietaRepository dati, StagioneRepository stagioni, List<UsiStagione> usi) {
         this.dati = dati;
         this.stagioni = stagioni;
+        this.usi = usi;
     }
 
     @Transactional(readOnly = true)
@@ -103,15 +106,47 @@ public class Societa {
     @Transactional
     public Stagione modificaStagione(UUID id, NuovaStagione in) {
         StagioneSportiva s = stagioni.findById(id).orElseThrow(() -> new NonTrovato("Stagione non trovata."));
+        Stagione prima = s.dto();
+        if (in.nome() != null && !in.nome().strip().equals(prima.nome())) {
+            List<String> testi = usi.stream().flatMap(u -> u.usiDelNome(prima).stream()).map(UsiStagione.Uso::testo).toList();
+            if (!testi.isEmpty()) {
+                String elenco = testi.size() == 1 ? testi.getFirst() : String.join(", ", testi.subList(0, testi.size() - 1)) + " e " + testi.getLast();
+                throw new Conflitto("Non si può rinominare: " + elenco + (testi.size() == 1 && elenco.startsWith("1 ") ? " usa" : " usano")
+                    + " il nome «" + prima.nome() + "».\nIl nome resta: le date e la quota si possono cambiare.");
+            }
+        }
         s.modifica(in);
         stagioni.flush();
         return s.dto();
     }
 
-    /** I tesseramenti già registrati restano com'erano (con il nome e le date della stagione). */
+    /**
+     * Elimina una stagione che nessuno usa (ADR 0029). Se qualcosa la usa, 409 con cosa è e cosa fare. Le regole di prezzo
+     * della stagione se ne vanno con lei: sono sue impostazioni.
+     */
     @Transactional
     public void eliminaStagione(UUID id) {
-        stagioni.delete(stagioni.findById(id).orElseThrow(() -> new NonTrovato("Stagione non trovata.")));
+        StagioneSportiva s = stagioni.findById(id).orElseThrow(() -> new NonTrovato("Stagione non trovata."));
+        Optional<String> blocco = motivoBlocco(s.dto());
+        if (blocco.isPresent()) throw new Conflitto(blocco.get());
+        stagioni.delete(s);
+        stagioni.flush();
+    }
+
+    /** Perché la stagione non si elimina adesso (due righe: cosa la usa, cosa fare), o vuoto se si può. */
+    @Transactional(readOnly = true)
+    public Optional<String> motivoBlocco(Stagione stagione) {
+        // prima ciò che si può togliere, poi lo storico; a parità, nell'ordine dei moduli
+        List<UsiStagione.Uso> tutti = usi.stream().flatMap(u -> u.usi(stagione).stream())
+            .sorted(Comparator.comparing(UsiStagione.Uso::storico)).toList();
+        if (tutti.isEmpty()) return Optional.empty();
+        List<String> testi = tutti.stream().map(UsiStagione.Uso::testo).toList();
+        String elenco = testi.size() == 1 ? testi.getFirst()
+            : String.join(", ", testi.subList(0, testi.size() - 1)) + " e " + testi.getLast();
+        boolean storico = tutti.stream().anyMatch(UsiStagione.Uso::storico);
+        return Optional.of("Non si può eliminare: la stagione " + stagione.nome() + " ha " + elenco + ".\n"
+            + (storico ? "Resta nello storico: una stagione già usata non si elimina."
+                : "Svuota prima il listino: poi potrai eliminare la stagione."));
     }
 
     private DatiSocieta riga() {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Evento } from './api';
-import { conteggi, eventiDaCreare, festivita, mesi, pasqua, prossima, quando, statoDel, unAnnoDopo, voci } from './calendario';
+import { chiusureDaCopiare, conteggi, eventiDaCreare, festivita, mesi, pasqua, prossima, quando, spostaDiAnni, statoDel, voci, type Voce } from './calendario';
 
 let n = 0;
 const ev = (titolo: string, data: string, dataFine: string | null, inizio = '00:00', fine = '23:59'): Evento => ({
@@ -61,11 +61,49 @@ describe('calendario della stagione', () => {
     expect(f.at(-1)).toEqual(['Ferragosto', '2027-08-15', '2027-08-15']);
   });
 
-  it('copia nella stagione dopo e eventi da creare', () => {
-    expect(unAnnoDopo('2026-12-08')).toBe('2027-12-08');
-    expect(unAnnoDopo('2028-02-29')).toBe('2029-02-28');
+  it('eventi da creare', () => {
     expect(eventiDaCreare({ nome: 'X', dal: '2026-12-08', al: '2026-12-08', tipo: 'chiuso', apre: null, chiude: null }))
       .toEqual([{ titolo: 'X', data: '2026-12-08', dataFine: null, inizio: '00:00', fine: '23:59' }]);
     expect(eventiDaCreare({ nome: 'X', dal: '2026-12-08', al: '2026-12-09', tipo: 'ridotto', apre: '10:00', chiude: '18:00' })).toHaveLength(2);
+  });
+});
+
+describe('spostaDiAnni e chiusureDaCopiare', () => {
+  const v = (nome: string, dal: string, al: string): Voce => ({ nome, dal, al, tipo: 'chiuso', apre: null, chiude: null, eventi: [`e-${nome}`] });
+  it('sposta di più anni, anche all\'indietro, e il 29 febbraio diventa il 28', () => {
+    expect(spostaDiAnni('2026-12-08', 2)).toBe('2028-12-08');
+    expect(spostaDiAnni('2028-02-29', -1)).toBe('2027-02-28');
+  });
+  it('copia dalla stagione precedente: un anno dopo, solo ciò che cade dentro e non c\'è già', () => {
+    const vecchie = [v('Vacanze di Natale', '2025-12-25', '2025-12-26'), v('Ferragosto', '2026-08-15', '2026-08-15'), v('Già segnata', '2025-11-01', '2025-11-01')];
+    const nuove = chiusureDaCopiare(vecchie, { dal: '2025-09-01' }, { dal: '2026-09-01', al: '2027-08-31' }, [v('Già segnata', '2026-11-01', '2026-11-01')]);
+    expect(nuove.map((x) => [x.nome, x.dal, x.al])).toEqual([['Vacanze di Natale', '2026-12-25', '2026-12-26'], ['Ferragosto', '2027-08-15', '2027-08-15']]);
+  });
+  it('da una stagione di due anni prima sposta di due anni', () => {
+    const nuove = chiusureDaCopiare([v('Natale', '2024-12-25', '2024-12-25')], { dal: '2024-09-01' }, { dal: '2026-09-01', al: '2027-08-31' }, []);
+    expect(nuove[0].dal).toBe('2026-12-25');
+  });
+  it('niente da copiare: elenco vuoto', () => {
+    expect(chiusureDaCopiare([], { dal: '2025-09-01' }, { dal: '2026-09-01', al: '2027-08-31' }, [])).toEqual([]);
+  });
+});
+
+describe('chiusureDaCopiare – festività', () => {
+  const v = (nome: string, dal: string, al: string): Voce => ({ nome, dal, al, tipo: 'chiuso', apre: null, chiude: null, eventi: [`e-${nome}`] });
+  it('Pasqua e Pasquetta si ricalcolano per la stagione di arrivo, non si spostano di un anno', () => {
+    // 2026: Pasqua il 5 aprile; 2027: il 28 marzo (Pasquetta il 29)
+    const nuove = chiusureDaCopiare([v('Pasqua e Pasquetta', pasqua(2026), '2026-04-06')], { dal: '2025-09-01' }, { dal: '2026-09-01', al: '2027-08-31' }, []);
+    expect(nuove.map((x) => [x.nome, x.dal, x.al])).toEqual([['Pasqua e Pasquetta', pasqua(2027), '2027-03-29']]);
+    expect(nuove[0].dal).not.toBe('2027-04-05');
+  });
+  it('dopo «Aggiungi le festività nazionali» la copia non porta una seconda Pasqua', () => {
+    const gia = [v('Pasqua e Pasquetta', pasqua(2027), '2027-03-29'), v('Natale', '2026-12-25', '2026-12-25')];
+    const vecchie = [v('Pasqua e Pasquetta', pasqua(2026), '2026-04-06'), v('Natale', '2025-12-25', '2025-12-25'), v('Gita sociale', '2026-05-10', '2026-05-10')];
+    const nuove = chiusureDaCopiare(vecchie, { dal: '2025-09-01' }, { dal: '2026-09-01', al: '2027-08-31' }, gia);
+    expect(nuove.map((x) => x.nome)).toEqual(['Gita sociale']);
+  });
+  it('una voce con il nome di una festività fissa prende la data della festività', () => {
+    const nuove = chiusureDaCopiare([v('Ferragosto', '2026-08-14', '2026-08-14')], { dal: '2025-09-01' }, { dal: '2026-09-01', al: '2027-08-31' }, []);
+    expect(nuove[0].dal).toBe('2027-08-15');
   });
 });

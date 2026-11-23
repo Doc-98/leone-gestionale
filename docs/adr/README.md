@@ -32,4 +32,4 @@ Ogni decisione importante ha un file breve: contesto, decisione, conseguenze.
 | [0026](0026-campagne-di-iscrizione.md) | Campagne di iscrizione: riconferme, graduatoria, assegnazione dei turni, area per le famiglie | proposta |
 | [0027](0027-area-famiglie-e-vetrina-demo.md) | App delle famiglie accanto al gestionale, pubblicata da sola con un tunnel; vetrina della demo | accettata |
 | [0028](0028-componenti-comuni-interfaccia.md) | Componenti comuni dell'interfaccia; cose con storico eliminabili se lo storico ne tiene una copia | accettata |
-| [0029](0029-eliminare-senza-copia-nello-storico.md) | Eliminare ciò che lo storico usa senza tenerne una copia: si elimina se mai usato, altrimenti si blocca e si spegne | accettata (applicata a serie delle ricevute e casse) |
+| [0029](0029-eliminare-senza-copia-nello-storico.md) | Eliminare ciò che lo storico usa senza tenerne una copia: si elimina se mai usato, altrimenti si blocca e si spegne | accettata (applicata a serie delle ricevute e casse, gruppi, stagioni e offerte) |

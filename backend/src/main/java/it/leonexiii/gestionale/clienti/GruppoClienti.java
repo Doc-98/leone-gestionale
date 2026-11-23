@@ -18,12 +18,18 @@ class GruppoClienti {
     private String descrizione;
     @Column(nullable = false)
     private boolean attivo;
-    /** Posizione nell'ordine dei gruppi con precedenza (1 = la più forte); null = nessuna precedenza (ADR 0026). */
+    /**
+     * Posizione tra i gruppi con precedenza, nell'ordine dell'elenco (1 = la più forte); null = nessuna precedenza
+     * (ADR 0026). Il valore si ricalcola dall'ordine dell'elenco: conta solo se è null o no.
+     */
     private Integer precedenza;
     @Column(name = "giorni_per_pagare")
     private Integer giorniPerPagare;
     @Column(nullable = false)
     private boolean dichiarabile;
+    /** Posizione nell'elenco (la maniglia): è anche l'ordine delle precedenze tra i gruppi che ne hanno una. */
+    @Column(nullable = false)
+    private int ordine;
     @Column(name = "frase_dichiarazione")
     private String fraseDichiarazione;
 
@@ -58,11 +64,14 @@ class GruppoClienti {
 
     void precedenza(Integer posizione) { this.precedenza = posizione; }
 
+    void ordina(int posizione) { this.ordine = posizione; }
+
     UUID getId() { return id; }
     String getNome() { return nome; }
     String getDescrizione() { return descrizione; }
     boolean isAttivo() { return attivo; }
     Integer getPrecedenza() { return precedenza; }
+    int getOrdine() { return ordine; }
     Integer getGiorniPerPagare() { return giorniPerPagare; }
     boolean isDichiarabile() { return dichiarabile; }
     String getFraseDichiarazione() { return fraseDichiarazione; }

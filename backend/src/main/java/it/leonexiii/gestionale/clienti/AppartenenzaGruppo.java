@@ -15,8 +15,11 @@ class AppartenenzaGruppo {
 
     @Id
     private UUID id;
-    @Column(name = "gruppo_id", nullable = false)
+    /** Null solo se il gruppo è stato eliminato: allora l'appartenenza è chiusa e {@code gruppoNome} ricorda il nome di allora. */
+    @Column(name = "gruppo_id")
     private UUID gruppoId;
+    @Column(name = "gruppo_nome")
+    private String gruppoNome;
     @Column(name = "persona_id", nullable = false)
     private UUID personaId;
     @Column(nullable = false)
@@ -62,12 +65,20 @@ class AppartenenzaGruppo {
         return false;
     }
 
+    /** Il gruppo viene eliminato: l'appartenenza (già chiusa) ne tiene il nome e non lo punta più. */
+    void gruppoEliminato(String nome) {
+        if (al == null) throw new IllegalStateException("Prima l'appartenenza va chiusa.");
+        this.gruppoNome = nome;
+        this.gruppoId = null;
+    }
+
     boolean attivaIl(LocalDate g) {
         return !g.isBefore(dal) && (al == null || !g.isAfter(al));
     }
 
     UUID getId() { return id; }
     UUID getGruppoId() { return gruppoId; }
+    String getGruppoNome() { return gruppoNome; }
     UUID getPersonaId() { return personaId; }
     LocalDate getDal() { return dal; }
     LocalDate getAl() { return al; }

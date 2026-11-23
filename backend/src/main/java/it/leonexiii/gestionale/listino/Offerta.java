@@ -99,7 +99,9 @@ class Offerta {
         if (in.validitaMesi() != null && in.validitaGiorni() != null) throw new IllegalArgumentException("La validità si dà in mesi oppure in giorni, non tutte e due.");
         List<Prezzo> nuovi = (in.prezzi() == null ? List.<Listino.Prezzo>of() : in.prezzi()).stream()
             .map(p -> new Prezzo(CORSO.equals(t) ? p.volte() : null, p.gruppoId(), p.importo())).toList();
-        if (nuovi.isEmpty()) throw new IllegalArgumentException("Dai almeno un prezzo.");
+        // un'offerta senza prezzi può esistere solo spenta (succede quando si elimina un gruppo che aveva gli unici prezzi)
+        if (nuovi.isEmpty() && (in.attiva() == null || in.attiva()))
+            throw new IllegalArgumentException("Dai almeno un prezzo: un'offerta senza prezzi non si può accendere.");
         Set<String> chiavi = new HashSet<>();
         for (Prezzo p : nuovi)
             if (!chiavi.add(p.volte() + "|" + p.gruppoId())) throw new IllegalArgumentException("Due prezzi per la stessa frequenza (e lo stesso gruppo).");
@@ -155,7 +157,28 @@ class Offerta {
             prezzi.stream().map(p -> new Listino.Prezzo(p.volte(), p.gruppoId(), p.importo()))
                 .sorted(java.util.Comparator.comparing((Listino.Prezzo p) -> p.gruppoId() == null ? "" : p.gruppoId().toString())
                     .thenComparing(p -> p.volte() == null ? -1 : p.volte() == 0 ? 99 : p.volte()))
-                .toList());
+                .toList(), null, null);
+    }
+
+    /** Quanti prezzi di questa offerta sono riservati al gruppo. */
+    int prezziDelGruppo(UUID gruppoId) {
+        return (int) prezzi.stream().filter(p -> gruppoId.equals(p.gruppoId())).count();
+    }
+
+    /** Tutti i prezzi dell'offerta sono riservati al gruppo: senza, l'offerta non avrebbe più prezzi. */
+    boolean soloPrezziDelGruppo(UUID gruppoId) {
+        return !prezzi.isEmpty() && prezzi.stream().allMatch(p -> gruppoId.equals(p.gruppoId()));
+    }
+
+    void spegni() { this.attiva = false; }
+
+    boolean senzaPrezzi() { return prezzi.isEmpty(); }
+
+    /** Toglie i prezzi riservati al gruppo; quanti erano. */
+    int togliPrezziDelGruppo(UUID gruppoId) {
+        int prima = prezzi.size();
+        prezzi.removeIf(p -> gruppoId.equals(p.gruppoId()));
+        return prima - prezzi.size();
     }
 
     UUID getId() { return id; }

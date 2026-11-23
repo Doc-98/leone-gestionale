@@ -19,7 +19,10 @@ export const VOCI_RICERCA: VoceRicerca[] = [
   { titolo: 'Quota associativa', dove: 'La società › Dati, stagioni e gruppi', sezione: 'societa', ancora: 'stagioni', parole: 'quota tesseramento associativa rimborsabile' },
   { titolo: 'Tesseramento della stagione nuova', dove: 'La società › Dati, stagioni e gruppi', sezione: 'societa', ancora: 'stagioni', parole: 'tesseramento rinnovo anticipo giorni prima' },
   { titolo: 'Gruppi di clienti', dove: 'La società › Dati, stagioni e gruppi', sezione: 'societa', ancora: 'gruppi', parole: 'gruppo convenzione alunni scuola squadra etichetta' },
+  { titolo: 'Ordine delle precedenze dei gruppi', dove: 'La società › Dati, stagioni e gruppi', sezione: 'societa', ancora: 'gruppi', parole: 'precedenza graduatoria ordine gruppi trascina riordina dichiarare famiglie' },
+  { titolo: 'Eliminare un gruppo o una stagione', dove: 'La società › Dati, stagioni e gruppi', sezione: 'societa', ancora: 'gruppi', parole: 'elimina eliminare cancella gruppo stagione cestino persone escono usata' },
   { titolo: 'Giorni di chiusura', dove: 'La società › Calendario della stagione', sezione: 'calendario', parole: 'chiusura chiuso festivo festa vacanze orario ridotto calendario' },
+  { titolo: 'Festività nazionali e copia delle chiusure', dove: 'La società › Calendario della stagione', sezione: 'calendario', parole: 'festività nazionali copia chiusure stagione precedente natale pasqua aggiungi' },
   // Prezzi e pagamenti
   { titolo: 'Listino', dove: 'Prezzi e pagamenti › Listino', sezione: 'listino', parole: 'listino prezzo offerta abbonamento carnet ingressi costo' },
   { titolo: 'Copiare il listino nella stagione nuova', dove: 'Prezzi e pagamenti › Listino', sezione: 'listino', parole: 'copia listino aumento stagione nuova' },

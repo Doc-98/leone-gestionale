@@ -37,4 +37,13 @@
   .tacche span.primo { color: var(--ink); }
   /* i mesi passati: stesso colore (il contrasto resta ≥ 4,5:1), solo meno marcati */
   .tacche span.passato { color: var(--muted); font-weight: 500; }
+  /* sul telefono la linea ha tutta la larghezza e le due date vanno sotto, una per lato: i mesi hanno posto per la loro sigla */
+  @media (max-width: 639px) {
+    .linea-t { grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-12); }
+    .corpo { grid-column: 1 / -1; grid-row: 1; }
+    .estremo { grid-row: 2; line-height: 1.4; }
+    .estremo:last-child { grid-column: 2; text-align: right; }
+    .tacche span { font-size: 10px; padding-left: var(--space-2); letter-spacing: 0; }
+  }
+  @media (max-width: 360px) { .tacche span { font-size: 9px; letter-spacing: -0.02em; padding-left: 1px; } }
 </style>

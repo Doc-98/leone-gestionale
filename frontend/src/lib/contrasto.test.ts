@@ -51,6 +51,8 @@ const TESTO: [string, string][] = [
   ['on-danger', 'danger'], ['on-warn', 'warn'], ['on-ok', 'ok'], ['on-passa', 'passa'],
   // esito del tornello
   ['passa-fg', 'passa-bg'], ['ferma-fg', 'ferma-bg'], ['oro-fg', 'oro-bg'],
+  // pillola «futura» della scelta della stagione
+  ['futura-fg', 'futura-bg'],
 ];
 
 /** Bordi dei controlli, segni e anello di focus: 3:1 (WCAG 1.4.11) */

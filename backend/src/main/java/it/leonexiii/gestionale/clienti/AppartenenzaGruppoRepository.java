@@ -21,4 +21,7 @@ interface AppartenenzaGruppoRepository extends JpaRepository<AppartenenzaGruppo,
 
     @Query("select a from AppartenenzaGruppo a where a.al is null and a.verificata = false order by a.dal")
     List<AppartenenzaGruppo> daVerificare();
+
+    /** Tutte le appartenenze del gruppo, anche chiuse. */
+    List<AppartenenzaGruppo> findByGruppoId(UUID gruppoId);
 }

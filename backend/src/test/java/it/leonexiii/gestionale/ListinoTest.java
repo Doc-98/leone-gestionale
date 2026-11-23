@@ -147,13 +147,46 @@ class ListinoTest extends ProvaApi {
         assertThat(json(segr.get("/api/borsellino/persone/" + persona)).get("saldo").toString()).contains("euro=112.5");
         assertThat(segr.get("/api/pagamenti/persone/" + persona).body()).contains("Da restituire in denaro");
 
-        // un'offerta già venduta non si elimina; il listino si copia nella stagione nuova con l'aumento
-        assertThat(admin.delete("/api/listino/offerte/" + offerta).statusCode()).isEqualTo(409);
+        // un'offerta già venduta non si elimina: si spegne (409 a due righe; ogni vendita conta una volta, non una per rata)
+        assertThat(segr.delete("/api/listino/offerte/" + offerta).statusCode()).isEqualTo(403);
+        var venduta = admin.delete("/api/listino/offerte/" + offerta);
+        assertThat(venduta.statusCode()).isEqualTo(409);
+        String bloccoCorso = "Non si può eliminare: «Prova listino» è stata venduta 2 volte.\n"
+            + "Puoi spegnerla: chi l'ha comprata la tiene com'è, ma non si vende più.";
+        assertThat(json(venduta)).containsEntry("detail", bloccoCorso);
+        assertThat(offertaDelListino(admin, stagione, offerta)).containsEntry("eliminabile", false).containsEntry("motivoBlocco", bloccoCorso);
+        // chi vende ma non gestisce le impostazioni non riceve né l'una né l'altra cosa
+        assertThat(offertaDelListino(segr, stagione, offerta)).containsEntry("eliminabile", null).containsEntry("motivoBlocco", null);
+
+        // venduta con un addebito (una quota «altri importi»): una volta sola; già spenta, la seconda riga lo dice
+        creaId(segr, "/api/pagamenti/addebiti", "{\"personaId\":\"" + persona + "\",\"descrizione\":\"Quota gara\",\"importo\":50,\"offertaId\":\"" + altro + "\"}");
+        assertThat(json(admin.delete("/api/listino/offerte/" + altro))).containsEntry("detail",
+            "Non si può eliminare: «Quota gara» è stata venduta 1 volta.\nPuoi spegnerla: chi l'ha comprata la tiene com'è, ma non si vende più.");
+        assertThat(admin.put("/api/listino/offerte/" + altro,
+            "{\"stagioneId\":\"" + stagione + "\",\"nome\":\"Quota gara\",\"tipo\":\"ALTRO\",\"attiva\":false,\"prezzi\":[{\"importo\":50}]}").statusCode()).isEqualTo(200);
+        var spenta = admin.delete("/api/listino/offerte/" + altro);
+        assertThat(spenta.statusCode()).isEqualTo(409);
+        assertThat(json(spenta).get("detail")).isEqualTo("Non si può eliminare: «Quota gara» è stata venduta 1 volta.\n"
+            + "È già spenta: chi l'ha comprata la tiene com'è e non si vende più.");
+        assertThat(spenta.body()).doesNotContain("disattiv");
+        // mai venduta: si elimina (e nel DTO era eliminabile)
+        String mai = creaId(admin, "/api/listino/offerte", "{\"stagioneId\":\"" + stagione + "\",\"nome\":\"Mai venduta\",\"tipo\":\"ALTRO\",\"prezzi\":[{\"importo\":5}]}");
+        assertThat(offertaDelListino(admin, stagione, mai)).containsEntry("eliminabile", true).containsEntry("motivoBlocco", null);
+        assertThat(admin.delete("/api/listino/offerte/" + mai).statusCode()).isEqualTo(204);
+        assertThat(admin.delete("/api/listino/offerte/" + mai).statusCode()).isEqualTo(404);
+
+        // il listino si copia nella stagione nuova con l'aumento
         String nuova = creaId(admin, "/api/stagioni", "{\"nome\":\"2051/52\",\"dal\":\"2051-09-01\",\"al\":\"2052-08-31\"}");
         var copia = admin.post("/api/listino/copia", "{\"da\":\"" + stagione + "\",\"a\":\"" + nuova + "\",\"aumentoPercentuale\":10}");
         assertThat(copia.statusCode()).as(copia.body()).isEqualTo(200);
         assertThat(json(copia)).containsEntry("offerte", 3);
         assertThat(admin.get("/api/listino?stagione=" + nuova).body()).contains("\"importo\":550.00").contains("\"importo\":143.00")
             .contains("{\"dal\":\"2051-11-01\",\"percentuale\":10}").contains("\"2051-09-15\"");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> offertaDelListino(ClientApi c, String stagione, String offerta) throws Exception {
+        return ((List<Map<String, Object>>) json(c.get("/api/listino?stagione=" + stagione)).get("offerte")).stream()
+            .filter(o -> offerta.equals(o.get("id"))).findFirst().orElseThrow();
     }
 }
