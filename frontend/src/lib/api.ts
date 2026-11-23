@@ -1027,6 +1027,7 @@ export const api = {
   modificaPromemoria: (id: string, r: { giorni: number; maxInvii: number | null; attivo: boolean; oggetto: string; testo: string }) =>
     richiesta<RegolaPromemoria>('PUT', `/api/promemoria/${id}`, r),
   eliminaPromemoria: (id: string) => richiesta<void>('DELETE', `/api/promemoria/${id}`),
+  accendiTipoPromemoria: (tipo: TipoPromemoria, attivo: boolean) => richiesta<RegolaPromemoria[]>('PUT', `/api/promemoria/tipi/${tipo}`, { attivo }),
   eseguiPromemoria: () => richiesta<{ email: number; inviate: number; nonInviate: number; senzaEmail: number; errori: number }>('POST', '/api/promemoria/esegui', {}),
   contatti: (personaId: string, c: { email: string | null; telefono: string | null }) => richiesta<{ email: string | null; telefono: string | null }>('PUT', `/api/clienti/${personaId}/contatti`, c),
   ruoli: () => richiesta<PaginaRuoli>('GET', '/api/ruoli'),
@@ -1082,6 +1083,10 @@ export const api = {
   servizi: () => richiesta<Servizio[]>('GET', '/api/servizi'),
   creaServizio: (s: NuovoServizio) => richiesta<Servizio>('POST', '/api/servizi', s),
   modificaServizio: (id: string, s: NuovoServizio) => richiesta<Servizio>('PUT', `/api/servizi/${id}`, s),
+  ordinaServizi: (ids: string[]) => richiesta<Servizio[]>('PUT', '/api/servizi/ordine', { ids }),
+  /** Risponde con i conteggi al momento dell'eliminazione (corpo vuoto se il server non li manda). */
+  eliminaServizio: (id: string) => richiesta<{ utilizzi: number | null; macchine?: number | null } | undefined>('DELETE', `/api/servizi/${id}`),
+  eliminaDispositivo: (id: string) => richiesta<{ utilizzi: number | null } | undefined>('DELETE', `/api/dispositivi/${id}`),
   dispositivi: () => richiesta<Dispositivo[]>('GET', '/api/dispositivi'),
   creaDispositivo: (d: NuovoDispositivo) => richiesta<DispositivoCreato>('POST', '/api/dispositivi', d),
   modificaDispositivo: (id: string, d: NuovoDispositivo) => richiesta<Dispositivo>('PUT', `/api/dispositivi/${id}`, d),
@@ -1978,6 +1983,12 @@ export interface Servizio {
   minuti: number | null;
   attivo: boolean;
   ordine: number;
+  /** Solo per chi ha IMPOSTAZIONI; `false`: c'è qualcosa in corso che lo usa e `motivoBlocco` dice cosa. */
+  eliminabile?: boolean | null;
+  motivoBlocco?: string | null;
+  /** Conteggi per chi ha IMPOSTAZIONI (altrimenti null): quante volte è stato usato e quante macchine ha. */
+  utilizzi?: number | null;
+  macchine?: number | null;
 }
 
 export interface NuovoServizio {
@@ -1986,7 +1997,6 @@ export interface NuovoServizio {
   gratuitiAlGiorno?: number;
   minuti?: number | null;
   attivo?: boolean;
-  ordine?: number;
 }
 
 export interface Dispositivo {
@@ -1999,6 +2009,10 @@ export interface Dispositivo {
   creatoIl: string;
   ultimoContatto: string | null;
   utilizziOggi: number;
+  eliminabile?: boolean | null;
+  motivoBlocco?: string | null;
+  /** Gli utilizzi nello storico, per chi ha IMPOSTAZIONI (altrimenti null). */
+  utilizzi?: number | null;
 }
 
 export interface NuovoDispositivo {
@@ -2027,7 +2041,7 @@ export interface RispostaMacchina {
 export interface Utilizzo {
   id: string;
   istante: string;
-  dispositivoId: string;
+  dispositivoId: string | null;
   dispositivo: string | null;
   servizio: string | null;
   codice: string;

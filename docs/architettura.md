@@ -261,6 +261,11 @@ erDiagram
   crediti, con scadenza per gli euro in entrata), `uscita` (soldi restituiti); cauzione del braccialetto come addebito.
 - Modulo `servizi` (parte 9): `servizio` (phon, doccia: crediti per uso, gratuiti al giorno), `dispositivo` (macchine e
   lettori del saldo, con l'impronta della chiave), `utilizzo` (ogni lettura, anche negata o simulata).
+  Un servizio e una macchina si eliminano sempre (ADR 0030, V36): `utilizzo` tiene la copia `dispositivo_nome` e
+  `servizio_nome` (compilate dal codice, e dal trigger `utilizzo_copia` per chi inserisce senza), mentre `dispositivo_id` e
+  `servizio_id` sono facoltativi con `on delete set null`. Anche `dispositivo.servizio_id` è facoltativo con `on delete set null`:
+  una macchina senza servizio risponde «Macchina non configurata» (esito `SERVIZIO_SPENTO`) e non scala crediti.
+  `servizio.ordine` è l'ordine dell'elenco (`PUT /api/servizi/ordine`).
 - Crediti sul braccialetto (ADR 0025, macchine non collegate): `regole_borsellino.crediti_su`, `saldo_braccialetto`
   (l'ultimo saldo visto), `scrittura_braccialetto` (ricarica in due tempi); il formato della memoria è un pezzo
   sostituibile (`servizi.FormatoBraccialetto`, scelto con `gestionale.braccialetti.formato`).

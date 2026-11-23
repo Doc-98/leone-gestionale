@@ -62,6 +62,9 @@ class Promemoria {
         this.testo = t;
     }
 
+    /** Accende o spegne senza toccare giorni e testi. */
+    void acceso(boolean attivo) { this.attivo = attivo; }
+
     Tipo tipo() { return Tipo.valueOf(tipo); }
     UUID getId() { return id; }
     int getGiorni() { return giorni; }

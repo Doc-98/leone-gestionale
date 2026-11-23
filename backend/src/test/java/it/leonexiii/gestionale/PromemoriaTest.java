@@ -114,4 +114,67 @@ class PromemoriaTest extends ProvaApi {
         assertThat(segr.delete(regola).statusCode()).isEqualTo(404);
         assertThat(segr.put(regola, "{\"giorni\":5,\"maxInvii\":2,\"attivo\":false,\"oggetto\":\"x\",\"testo\":\"y\"}").statusCode()).isEqualTo(404);
     }
+
+    @Test
+    void ilTipoSiAccendeESiSpegneConUnaChiamataSola() throws Exception {
+        var segr = come("segreteria@demo.leone");
+        assertThat(come("staff@demo.leone").put("/api/promemoria/tipi/CERTIFICATO", "{\"attivo\":false}").statusCode()).isEqualTo(403);
+        assertThat(segr.put("/api/promemoria/tipi/FRIGO", "{\"attivo\":false}").statusCode()).isEqualTo(400);
+        assertThat(segr.put("/api/promemoria/tipi/CERTIFICATO", "{}").statusCode()).isEqualTo(400);
+
+        var prima = elenco(json(segr.get("/api/promemoria")).get("regole"));
+        long certificati = prima.stream().filter(r -> "CERTIFICATO".equals(r.get("tipo"))).count();
+        assertThat(certificati).isGreaterThan(1);
+
+        var pagamenti = prima.stream().filter(x -> "PAGAMENTO".equals(x.get("tipo"))).toList();
+        assertThat(pagamenti).hasSize(1);
+        var p = pagamenti.get(0);
+
+        try {
+            // spegne tutte le regole del tipo (e solo quelle); giorni e testi restano; risponde con tutte le regole, nello stesso ordine
+            var r = segr.put("/api/promemoria/tipi/CERTIFICATO", "{\"attivo\":false}");
+            assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+            var dopo = elenco(lista(r));
+            assertThat(dopo).hasSameSizeAs(prima);
+            for (int i = 0; i < prima.size(); i++) {
+                var a = prima.get(i);
+                var b = dopo.get(i);
+                assertThat(b.get("id")).isEqualTo(a.get("id"));
+                assertThat(b.get("giorni")).isEqualTo(a.get("giorni"));
+                assertThat(b.get("oggetto")).isEqualTo(a.get("oggetto"));
+                assertThat(b.get("testo")).isEqualTo(a.get("testo"));
+                assertThat(b.get("attivo")).isEqualTo("CERTIFICATO".equals(a.get("tipo")) ? Boolean.FALSE : a.get("attivo"));
+            }
+            assertThat(elenco(json(segr.get("/api/promemoria")).get("regole"))).isEqualTo(dopo);
+
+            // e di nuovo accese
+            var accese = elenco(lista(segr.put("/api/promemoria/tipi/CERTIFICATO", "{\"attivo\":true}")));
+            assertThat(accese.stream().filter(x -> "CERTIFICATO".equals(x.get("tipo"))).map(x -> x.get("attivo"))).hasSize((int) certificati).containsOnly(true);
+
+            // un tipo senza regole: 404 (si toglie l'unica regola dei pagamenti e poi si rimette com'era)
+            assertThat(segr.delete("/api/promemoria/" + p.get("id")).statusCode()).isEqualTo(204);
+            var nonTrovato = segr.put("/api/promemoria/tipi/PAGAMENTO", "{\"attivo\":true}");
+            assertThat(nonTrovato.statusCode()).isEqualTo(404);
+            assertThat(nonTrovato.body()).contains("Nessun promemoria di questo tipo.");
+        } finally {
+            // com'era prima, anche se il test è fallito a metà: certificati come erano e la regola dei pagamenti rimessa
+            for (var x : prima) {
+                if ("CERTIFICATO".equals(x.get("tipo"))) assertThat(segr.put("/api/promemoria/" + x.get("id"), corpoRegola(x)).statusCode()).isEqualTo(200);
+            }
+            boolean pagamentiPresenti = elenco(json(segr.get("/api/promemoria")).get("regole")).stream().anyMatch(x -> "PAGAMENTO".equals(x.get("tipo")));
+            if (!pagamentiPresenti) {
+                String nuova = creaId(segr, "/api/promemoria", "{\"tipo\":\"PAGAMENTO\"}");
+                assertThat(segr.put("/api/promemoria/" + nuova, corpoRegola(p)).statusCode()).isEqualTo(200);
+            }
+        }
+    }
+
+    private static String corpoRegola(Map<String, Object> x) {
+        return "{\"giorni\":" + x.get("giorni") + ",\"maxInvii\":" + x.get("maxInvii") + ",\"attivo\":" + x.get("attivo")
+            + ",\"oggetto\":" + testoJson((String) x.get("oggetto")) + ",\"testo\":" + testoJson((String) x.get("testo")) + "}";
+    }
+
+    private static String testoJson(String t) {
+        return "\"" + t.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\"";
+    }
 }

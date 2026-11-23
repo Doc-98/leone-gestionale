@@ -2,6 +2,7 @@ package it.leonexiii.gestionale.clienti;
 
 import it.leonexiii.gestionale.identita.Utente;
 import it.leonexiii.gestionale.notifiche.Posta;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -56,6 +57,12 @@ class ScadenzeController {
     @PutMapping("/promemoria/{id}")
     PromemoriaService.RegolaDto modifica(@PathVariable UUID id, @RequestBody PromemoriaService.ModificaRegola in) {
         return promemoria.modifica(id, in);
+    }
+
+    /** {"attivo": true|false}: accende o spegne tutte le regole del tipo. Risponde con l'elenco di tutte le regole. */
+    @PutMapping("/promemoria/tipi/{tipo}")
+    List<PromemoriaService.RegolaDto> accendiTipo(@PathVariable String tipo, @RequestBody PromemoriaService.AccensioneTipo in) {
+        return promemoria.accendiTipo(tipo, in == null ? null : in.attivo());
     }
 
     @DeleteMapping("/promemoria/{id}")

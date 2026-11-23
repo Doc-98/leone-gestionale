@@ -27,8 +27,11 @@ class Servizio {
 
     protected Servizio() {}
 
-    Servizio(ServiziService.NuovoServizio in) {
+    /** Un servizio nuovo va in fondo all'elenco («ordine» lo dà chi lo crea) e, se non si dice altro, è acceso. */
+    Servizio(ServiziService.NuovoServizio in, int ordine) {
         this.id = UUID.randomUUID();
+        this.attivo = true;
+        this.ordine = ordine;
         modifica(in);
     }
 
@@ -41,13 +44,11 @@ class Servizio {
         this.crediti = in.crediti();
         this.gratuitiAlGiorno = in.gratuitiAlGiorno() == null ? 0 : in.gratuitiAlGiorno();
         this.minuti = in.minuti();
-        this.attivo = in.attivo() == null || in.attivo();
-        this.ordine = in.ordine() == null ? 0 : in.ordine();
+        // «attivo» assente = resta com'è; l'ordine non si cambia da qui (c'è «ordina»)
+        if (in.attivo() != null) this.attivo = in.attivo();
     }
 
-    ServiziService.ServizioDto dto() {
-        return new ServiziService.ServizioDto(id, nome, crediti, gratuitiAlGiorno, minuti, attivo, ordine);
-    }
+    void ordina(int ordine) { this.ordine = ordine; }
 
     UUID getId() { return id; }
     String getNome() { return nome; }
@@ -55,4 +56,5 @@ class Servizio {
     int getGratuitiAlGiorno() { return gratuitiAlGiorno; }
     Integer getMinuti() { return minuti; }
     boolean isAttivo() { return attivo; }
+    int getOrdine() { return ordine; }
 }

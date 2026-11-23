@@ -37,7 +37,7 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
   finché un campo non è valido. Vale per le impostazioni di pagina e per i parametri di una regola (scaglioni, rate).
   Le cose con un'identità (gruppi, casse, serie, postazioni, servizi, macchine, offerte) non usano la barra: si salvano
   nel loro foglio con il loro «Salva …» e l'interruttore, mentre interruttore, riordino e cestino nella riga agiscono
-  subito, come in Metodi di pagamento. Promemoria resta un editor in pagina con «Salva il promemoria». «Pagamenti di
+  subito, come in Metodi di pagamento. Promemoria resta un editor in pagina con «Salva il promemoria»; l'interruttore di un tipo di promemoria è immediato e cambia tutte le sue email con una chiamata sola (`PUT /api/promemoria/tipi/{tipo}`), il riquadro «Acceso» dell'editor è immediato sulla singola email, e i giorni della lista d'attesa passano dalla barra (blocco 7, lotto 4). «Pagamenti di
   famiglia» passa alla barra. Il «quando vale» sta in un fumetto accanto al titolo, non nella barra.
 - **Regole di prezzo.** La stagione su una linea, con le corsie di riduzione e recesso, la linea di oggi (si tocca per
   tornarci) e la scadenza delle rate in rosso (l'etichetta compare passandoci sopra). Toccando o trascinando la linea si

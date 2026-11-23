@@ -16,10 +16,16 @@ class Utilizzo {
 
     @Id
     private UUID id;
-    @Column(name = "dispositivo_id", nullable = false)
+    /** Vuoto se la macchina è stata eliminata: resta la copia del nome. */
+    @Column(name = "dispositivo_id")
     private UUID dispositivoId;
+    @Column(name = "dispositivo_nome", nullable = false)
+    private String dispositivoNome;
+    /** Vuoto se il servizio è stato eliminato (o la macchina non ne aveva): resta la copia del nome. */
     @Column(name = "servizio_id")
     private UUID servizioId;
+    @Column(name = "servizio_nome")
+    private String servizioNome;
     @Column(nullable = false)
     private String codice;
     @Column(name = "persona_id")
@@ -36,10 +42,12 @@ class Utilizzo {
 
     protected Utilizzo() {}
 
-    Utilizzo(UUID id, UUID dispositivoId, UUID servizioId, String codice, UUID personaId, Instant istante, Esito esito, int crediti, String postazione, boolean simulato) {
+    Utilizzo(UUID id, Dispositivo d, Servizio s, String codice, UUID personaId, Instant istante, Esito esito, int crediti, String postazione, boolean simulato) {
         this.id = id;
-        this.dispositivoId = dispositivoId;
-        this.servizioId = servizioId;
+        this.dispositivoId = d.getId();
+        this.dispositivoNome = d.getNome();
+        this.servizioId = s == null ? null : s.getId();
+        this.servizioNome = s == null ? null : s.getNome();
         this.codice = codice.length() > 40 ? codice.substring(0, 40) : codice;
         this.personaId = personaId;
         this.istante = istante;
@@ -51,7 +59,9 @@ class Utilizzo {
 
     UUID getId() { return id; }
     UUID getDispositivoId() { return dispositivoId; }
+    String getDispositivoNome() { return dispositivoNome; }
     UUID getServizioId() { return servizioId; }
+    String getServizioNome() { return servizioNome; }
     String getCodice() { return codice; }
     UUID getPersonaId() { return personaId; }
     Instant getIstante() { return istante; }
