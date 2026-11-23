@@ -33,12 +33,27 @@ class ServiziService {
 
     static final ZoneId FUSO = ZoneId.of("Europe/Rome");
 
-    record ServizioDto(UUID id, String nome, int crediti, int gratuitiAlGiorno, Integer minuti, boolean attivo, int ordine) {}
+    /**
+     * «eliminabile» (sempre vero: un servizio si elimina anche se è stato usato, ADR 0030), «motivoBlocco» (sempre vuoto:
+     * non c'è niente «in corso» che lo fermi), «utilizzi» e «macchine» (quanti ne ha adesso, per il messaggio dopo
+     * l'eliminazione) li ha solo chi gestisce le impostazioni; per gli altri sono vuoti.
+     */
+    record ServizioDto(UUID id, String nome, int crediti, int gratuitiAlGiorno, Integer minuti, boolean attivo, int ordine,
+                       Boolean eliminabile, String motivoBlocco, Long utilizzi, Long macchine) {}
 
-    record NuovoServizio(String nome, Integer crediti, Integer gratuitiAlGiorno, Integer minuti, Boolean attivo, Integer ordine) {}
+    record NuovoServizio(String nome, Integer crediti, Integer gratuitiAlGiorno, Integer minuti, Boolean attivo) {}
 
+    /** Cosa c'era al momento dell'eliminazione («macchine» solo per un servizio): per il messaggio dopo. */
+    record Eliminato(long utilizzi, Long macchine) {}
+
+    record Ordine(List<UUID> ids) {}
+
+    /**
+     * Una macchina senza servizio («servizioId» vuoto, tipo SERVIZIO) ha perso il suo servizio: non lascia partire nessuno.
+     * «eliminabile», «motivoBlocco» e «utilizzi» come per il servizio.
+     */
     record DispositivoDto(UUID id, String nome, String tipo, UUID servizioId, String servizio, boolean attivo, Instant creatoIl, Instant ultimoContatto,
-                          long utilizziOggi) {}
+                          long utilizziOggi, Boolean eliminabile, String motivoBlocco, Long utilizzi) {}
 
     record NuovoDispositivo(String nome, String tipo, UUID servizioId, Boolean attivo) {}
 
@@ -55,6 +70,7 @@ class ServiziService {
      */
     record Risposta(boolean via, String esito, String messaggio, String nome, Integer crediti, int creditiUsati, Integer minuti, BigDecimal euro) {}
 
+    /** «dispositivoId» è vuoto se la macchina è stata eliminata: «dispositivo» e «servizio» sono i nomi di allora. */
     record UtilizzoDto(UUID id, Instant istante, UUID dispositivoId, String dispositivo, String servizio, String codice, UUID personaId, String persona,
                        String esito, int crediti, String postazione, boolean simulato) {}
 
@@ -96,37 +112,45 @@ class ServiziService {
     @Transactional
     Risposta usa(Dispositivo d, Lettura in, boolean simulato) {
         if (d.tipo() != Dispositivo.Tipo.SERVIZIO) return saldo(d, in.codice());
-        Servizio s = servizi.findById(d.getServizioId()).orElseThrow();
         String codice = braccialetti.normalizza(in.codice());
         Instant ora = orologio.instant();
         UUID id = UUID.randomUUID();
-        if (!d.isAttivo() || !s.isAttivo()) return registra(new Utilizzo(id, d.getId(), s.getId(), codice, null, ora, Utilizzo.Esito.SERVIZIO_SPENTO, 0, in.postazione(), simulato),
+        // il servizio della macchina è stato eliminato: non scala crediti e non lascia partire nessuno (esito «servizio spento»)
+        if (d.getServizioId() == null) return registra(new Utilizzo(id, d, null, codice, null, ora, Utilizzo.Esito.SERVIZIO_SPENTO, 0, in.postazione(), simulato),
+            "Macchina non configurata", null, null, null);
+        Servizio s = servizi.findById(d.getServizioId()).orElseThrow();
+        if (!d.isAttivo() || !s.isAttivo()) return registra(new Utilizzo(id, d, s, codice, null, ora, Utilizzo.Esito.SERVIZIO_SPENTO, 0, in.postazione(), simulato),
             "Servizio non disponibile", null, null, s);
         var t = braccialetti.titolare(in.codice());
-        if (t.isEmpty()) return registra(new Utilizzo(id, d.getId(), s.getId(), codice, null, ora, Utilizzo.Esito.SCONOSCIUTO, 0, in.postazione(), simulato),
+        if (t.isEmpty()) return registra(new Utilizzo(id, d, s, codice, null, ora, Utilizzo.Esito.SCONOSCIUTO, 0, in.postazione(), simulato),
             "Braccialetto non registrato: chiedi in segreteria", null, null, s);
         var tit = t.get();
-        if (!tit.attivo()) return registra(new Utilizzo(id, d.getId(), s.getId(), codice, tit.personaId(), ora, Utilizzo.Esito.NON_ATTIVO, 0, in.postazione(), simulato),
+        if (!tit.attivo()) return registra(new Utilizzo(id, d, s, codice, tit.personaId(), ora, Utilizzo.Esito.NON_ATTIVO, 0, in.postazione(), simulato),
             "Braccialetto non attivo: chiedi in segreteria", tit.nome(), null, s);
-        Instant inizioGiorno = LocalDate.now(orologio).atStartOfDay(FUSO).toInstant();
-        long oggi = utilizzi.contaDal(tit.personaId(), s.getId(), inizioGiorno, CONTANO);
+        long oggi = utilizzi.contaDal(tit.personaId(), s.getId(), inizioGiorno(), CONTANO);
         if (oggi < s.getGratuitiAlGiorno() || s.getCrediti() == 0) {
             int residui = borsellino.saldo(tit.personaId()).crediti();
-            return registra(new Utilizzo(id, d.getId(), s.getId(), codice, tit.personaId(), ora, Utilizzo.Esito.GRATIS, 0, in.postazione(), simulato),
+            return registra(new Utilizzo(id, d, s, codice, tit.personaId(), ora, Utilizzo.Esito.GRATIS, 0, in.postazione(), simulato),
                 s.getCrediti() == 0 ? s.getNome() + " gratis" : "Oggi " + s.getNome().toLowerCase() + " gratis", tit.nome(), residui, s);
         }
         String descr = (d.getNome().toLowerCase().contains(s.getNome().toLowerCase()) ? "" : s.getNome() + " · ") + d.getNome()
             + (in.postazione() == null || in.postazione().isBlank() ? "" : " " + in.postazione().strip());
         var c = borsellino.consuma(tit.personaId(), s.getCrediti(), descr, id);
-        if (!c.fatto()) return registra(new Utilizzo(id, d.getId(), s.getId(), codice, tit.personaId(), ora, Utilizzo.Esito.CREDITI_FINITI, 0, in.postazione(), simulato),
+        if (!c.fatto()) return registra(new Utilizzo(id, d, s, codice, tit.personaId(), ora, Utilizzo.Esito.CREDITI_FINITI, 0, in.postazione(), simulato),
             "Crediti finiti: ricarica in segreteria", tit.nome(), c.residui(), s);
-        return registra(new Utilizzo(id, d.getId(), s.getId(), codice, tit.personaId(), ora, Utilizzo.Esito.OK, s.getCrediti(), in.postazione(), simulato),
+        return registra(new Utilizzo(id, d, s, codice, tit.personaId(), ora, Utilizzo.Esito.OK, s.getCrediti(), in.postazione(), simulato),
             s.getNome() + " · restano " + c.residui() + " crediti", tit.nome(), c.residui(), s);
     }
 
     /** Solo il saldo (lettore all'ingresso, o il display di una macchina prima di scegliere). */
     @Transactional(readOnly = true)
     Risposta saldo(Dispositivo d, String codice) {
+        // una macchina spenta (di qualunque tipo) o senza servizio non mostra niente: né nome né crediti né euro
+        if (!d.isAttivo())
+            return new Risposta(false, Utilizzo.Esito.SERVIZIO_SPENTO.name(),
+                d.tipo() == Dispositivo.Tipo.SALDO ? "Lettore non disponibile" : "Servizio non disponibile", null, null, 0, null, null);
+        if (d.tipo() == Dispositivo.Tipo.SERVIZIO && d.getServizioId() == null)
+            return new Risposta(false, Utilizzo.Esito.SERVIZIO_SPENTO.name(), "Macchina non configurata", null, null, 0, null, null);
         var t = braccialetti.titolare(codice);
         if (t.isEmpty()) return new Risposta(false, Utilizzo.Esito.SCONOSCIUTO.name(), "Braccialetto non registrato", null, null, 0, null, null);
         var s = borsellino.saldo(t.get().personaId());
@@ -138,7 +162,7 @@ class ServiziService {
     private Risposta registra(Utilizzo u, String messaggio, String nome, Integer crediti, Servizio s) {
         utilizzi.saveAndFlush(u);
         boolean via = u.esito() == Utilizzo.Esito.OK || u.esito() == Utilizzo.Esito.GRATIS;
-        return new Risposta(via, u.esito().name(), messaggio, nome, crediti, u.getCrediti(), via ? s.getMinuti() : null, null);
+        return new Risposta(via, u.esito().name(), messaggio, nome, crediti, u.getCrediti(), via && s != null ? s.getMinuti() : null, null);
     }
 
     /** Il simulatore: come una macchina vera, ma da un utente collegato (gli utilizzi restano segnati come simulati). */
@@ -152,44 +176,94 @@ class ServiziService {
     // ── Gestione ────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    List<ServizioDto> servizi() {
-        return servizi.findAllByOrderByOrdineAscNomeAsc().stream().map(Servizio::dto).toList();
+    List<ServizioDto> servizi(boolean conBlocchi) {
+        Map<UUID, Long> usi = conBlocchi ? conteggi(utilizzi.contaPerServizio()) : Map.of();
+        Map<UUID, Long> macchine = conBlocchi ? conteggi(dispositivi.contaPerServizio()) : Map.of();
+        return servizi.findAllByOrderByOrdineAscNomeAsc().stream()
+            .map(s -> dto(s, conBlocchi, usi.getOrDefault(s.getId(), 0L), macchine.getOrDefault(s.getId(), 0L))).toList();
     }
 
     @Transactional
     ServizioDto creaServizio(NuovoServizio in) {
-        return servizi.saveAndFlush(new Servizio(in)).dto();
+        int ordine = servizi.findAll().stream().mapToInt(Servizio::getOrdine).max().orElse(-1) + 1;
+        return dtoCompleto(servizi.saveAndFlush(new Servizio(in, ordine)));
     }
 
     @Transactional
     ServizioDto modificaServizio(UUID id, NuovoServizio in) {
         Servizio s = servizi.findById(id).orElseThrow(() -> new NonTrovato("Servizio non trovato."));
         s.modifica(in);
-        return servizi.saveAndFlush(s).dto();
+        return dtoCompleto(servizi.saveAndFlush(s));
+    }
+
+    /** Il nuovo ordine dell'elenco: vanno elencati tutti i servizi, una volta sola. Risponde con l'elenco aggiornato. */
+    @Transactional
+    List<ServizioDto> ordinaServizi(Ordine in) {
+        List<Servizio> tutti = servizi.findAll();
+        List<UUID> ids = in == null || in.ids() == null ? List.of() : in.ids();
+        if (ids.size() != tutti.size() || new HashSet<>(ids).size() != ids.size() || !tutti.stream().map(Servizio::getId).allMatch(ids::contains))
+            throw new IllegalArgumentException("L'ordine deve contenere, una volta sola, tutti i servizi.");
+        Map<UUID, Servizio> perId = tutti.stream().collect(Collectors.toMap(Servizio::getId, x -> x));
+        for (int i = 0; i < ids.size(); i++) perId.get(ids.get(i)).ordina(i);
+        servizi.flush();
+        return servizi(true);
+    }
+
+    /**
+     * Un servizio si elimina sempre (ADR 0030): gli utilizzi tengono la copia del nome e le sue macchine restano senza
+     * servizio. Non c'è niente «in corso» che lo fermi: gli utilizzi sono registrazioni di fatti già avvenuti.
+     */
+    @Transactional
+    Eliminato eliminaServizio(UUID id) {
+        Servizio s = servizi.findById(id).orElseThrow(() -> new NonTrovato("Servizio non trovato."));
+        Eliminato eliminato = new Eliminato(utilizzi.countByServizioId(id), dispositivi.countByServizioId(id));
+        servizi.delete(s);
+        servizi.flush();
+        int n = 0;
+        for (Servizio x : servizi.findAllByOrderByOrdineAscNomeAsc()) x.ordina(n++);
+        return eliminato;
     }
 
     @Transactional(readOnly = true)
-    List<DispositivoDto> dispositivi() {
-        Map<UUID, String> nomi = servizi.findAll().stream().collect(Collectors.toMap(Servizio::getId, Servizio::getNome));
+    List<DispositivoDto> dispositivi(boolean conBlocchi) {
+        Map<UUID, String> nomi = nomiServizi();
         Map<UUID, Long> oggi = new HashMap<>();
-        utilizzi.perDispositivoDal(LocalDate.now(orologio).atStartOfDay(FUSO).toInstant()).forEach(r -> oggi.put((UUID) r[0], (Long) r[1]));
-        return dispositivi.findAllByOrderByNomeAsc().stream().map(d -> dto(d, nomi, oggi.getOrDefault(d.getId(), 0L))).toList();
+        utilizzi.perDispositivoDal(inizioGiorno()).forEach(r -> oggi.put((UUID) r[0], (Long) r[1]));
+        Map<UUID, Long> usi = conBlocchi ? conteggi(utilizzi.contaPerDispositivo()) : Map.of();
+        return dispositivi.perTipoENome().stream()
+            .map(d -> dto(d, nomi, oggi.getOrDefault(d.getId(), 0L), conBlocchi, usi.getOrDefault(d.getId(), 0L))).toList();
     }
 
     @Transactional
     DispositivoCreato creaDispositivo(NuovoDispositivo in) {
+        Dispositivo.Tipo tipo = tipo(in.tipo());
+        if (tipo == Dispositivo.Tipo.SERVIZIO && in.servizioId() == null) throw new IllegalArgumentException("Scegli il servizio della macchina (es. phon).");
         String chiave = nuovaChiave();
-        Dispositivo d = new Dispositivo(in.nome(), tipo(in.tipo()), servizio(in), impronta(chiave), orologio.instant());
+        Dispositivo d = new Dispositivo(in.nome(), tipo, servizio(in), in.attivo() == null || in.attivo(), impronta(chiave), orologio.instant());
         dispositivi.saveAndFlush(d);
-        return new DispositivoCreato(dto(d, nomiServizi(), 0), chiave);
+        return new DispositivoCreato(dtoCompleto(d), chiave);
     }
 
     @Transactional
     DispositivoDto modificaDispositivo(UUID id, NuovoDispositivo in) {
         Dispositivo d = dispositivi.findById(id).orElseThrow(() -> new NonTrovato("Dispositivo non trovato."));
-        d.modifica(in.nome(), in.tipo() == null ? d.tipo() : tipo(in.tipo()), in.servizioId() != null ? servizio(in) : d.getServizioId(),
-            in.attivo() == null ? d.isAttivo() : in.attivo());
-        return dto(dispositivi.saveAndFlush(d), nomiServizi(), 0);
+        Dispositivo.Tipo tipo = in.tipo() == null ? d.tipo() : tipo(in.tipo());
+        if (tipo != d.tipo()) throw new IllegalArgumentException("Il tipo di una macchina non si cambia: creane una nuova.");
+        d.modifica(in.nome(), tipo, in.servizioId() != null ? servizio(in) : d.getServizioId(), in.attivo() == null ? d.isAttivo() : in.attivo());
+        return dtoCompleto(dispositivi.saveAndFlush(d));
+    }
+
+    /**
+     * Una macchina si elimina sempre (ADR 0030), anche con utilizzi veri o simulati: ognuno tiene la copia del nome. Il
+     * lettore del saldo non scrive utilizzi. Non c'è niente «in corso» che la fermi.
+     */
+    @Transactional
+    Eliminato eliminaDispositivo(UUID id) {
+        Dispositivo d = dispositivi.findById(id).orElseThrow(() -> new NonTrovato("Dispositivo non trovato."));
+        Eliminato eliminato = new Eliminato(utilizzi.countByDispositivoId(id), null);
+        dispositivi.delete(d);
+        dispositivi.flush();
+        return eliminato;
     }
 
     /** Chiave nuova (es. la vecchia è finita in mani sbagliate): la macchina va riconfigurata. */
@@ -198,7 +272,7 @@ class ServiziService {
         Dispositivo d = dispositivi.findById(id).orElseThrow(() -> new NonTrovato("Dispositivo non trovato."));
         String chiave = nuovaChiave();
         d.nuovaChiave(impronta(chiave));
-        return new DispositivoCreato(dto(dispositivi.saveAndFlush(d), nomiServizi(), 0), chiave);
+        return new DispositivoCreato(dtoCompleto(dispositivi.saveAndFlush(d)), chiave);
     }
 
     @Transactional(readOnly = true)
@@ -206,21 +280,44 @@ class ServiziService {
         var pagina = PageRequest.of(0, Math.clamp(quanti, 1, 200));
         var lista = personaId != null ? utilizzi.findByPersonaIdOrderByIstanteDesc(personaId, pagina)
             : dispositivoId != null ? utilizzi.findByDispositivoIdOrderByIstanteDesc(dispositivoId, pagina) : utilizzi.findAllByOrderByIstanteDesc(pagina);
-        Map<UUID, String> serv = nomiServizi();
-        Map<UUID, String> disp = dispositivi.findAll().stream().collect(Collectors.toMap(Dispositivo::getId, Dispositivo::getNome));
         Set<UUID> ids = new HashSet<>();
         lista.forEach(u -> { if (u.getPersonaId() != null) ids.add(u.getPersonaId()); });
         Map<UUID, String> nomi = ids.isEmpty() ? Map.of() : persone.nomiCompleti(ids);
-        return lista.stream().map(u -> new UtilizzoDto(u.getId(), u.getIstante(), u.getDispositivoId(), disp.get(u.getDispositivoId()),
-            u.getServizioId() == null ? null : serv.get(u.getServizioId()), u.getCodice(), u.getPersonaId(), u.getPersonaId() == null ? null : nomi.get(u.getPersonaId()),
+        // i nomi della macchina e del servizio sono la copia presa all'utilizzo: reggono anche se poi sono stati eliminati
+        return lista.stream().map(u -> new UtilizzoDto(u.getId(), u.getIstante(), u.getDispositivoId(), u.getDispositivoNome(),
+            u.getServizioNome(), u.getCodice(), u.getPersonaId(), u.getPersonaId() == null ? null : nomi.get(u.getPersonaId()),
             u.esito().name(), u.getCrediti(), u.getPostazione(), u.isSimulato())).toList();
     }
 
     // ── Aiuti ───────────────────────────────────────────────────────────────
 
-    private DispositivoDto dto(Dispositivo d, Map<UUID, String> servizi, long oggi) {
+    private ServizioDto dto(Servizio s, boolean conBlocchi, long usi, long macchine) {
+        return new ServizioDto(s.getId(), s.getNome(), s.getCrediti(), s.getGratuitiAlGiorno(), s.getMinuti(), s.isAttivo(), s.getOrdine(),
+            conBlocchi ? true : null, null, conBlocchi ? usi : null, conBlocchi ? macchine : null);
+    }
+
+    /** Per le risposte a chi modifica (sempre con IMPOSTAZIONI): con i numeri veri. */
+    private ServizioDto dtoCompleto(Servizio s) {
+        return dto(s, true, utilizzi.countByServizioId(s.getId()), dispositivi.countByServizioId(s.getId()));
+    }
+
+    private DispositivoDto dto(Dispositivo d, Map<UUID, String> servizi, long oggi, boolean conBlocchi, long usi) {
         return new DispositivoDto(d.getId(), d.getNome(), d.tipo().name(), d.getServizioId(), d.getServizioId() == null ? null : servizi.get(d.getServizioId()),
-            d.isAttivo(), d.getCreatoIl(), d.getUltimoContatto(), oggi);
+            d.isAttivo(), d.getCreatoIl(), d.getUltimoContatto(), oggi, conBlocchi ? true : null, null, conBlocchi ? usi : null);
+    }
+
+    private DispositivoDto dtoCompleto(Dispositivo d) {
+        return dto(d, nomiServizi(), utilizzi.countByDispositivoIdAndIstanteGreaterThanEqual(d.getId(), inizioGiorno()), true, utilizzi.countByDispositivoId(d.getId()));
+    }
+
+    private Instant inizioGiorno() {
+        return LocalDate.now(orologio).atStartOfDay(FUSO).toInstant();
+    }
+
+    private static Map<UUID, Long> conteggi(List<Object[]> righe) {
+        Map<UUID, Long> m = new HashMap<>();
+        righe.forEach(r -> m.put((UUID) r[0], (Long) r[1]));
+        return m;
     }
 
     private Map<UUID, String> nomiServizi() {

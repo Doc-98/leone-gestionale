@@ -256,6 +256,14 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
 - **Scadenze e promemoria** (ADR 0012, 0013): pagina «Scadenze» (certificati, abbonamenti, tesseramento mancante) e
   promemoria email automatici con testi modificabili; senza server di posta le email si registrano ma non partono.
   Account dello staff con password temporanea.
+- **Promemoria nelle Impostazioni** (da `admin@demo.leone` o dalla segreteria, permesso CLIENTI): «Quando partono» è una linea dei giorni con
+  una riga per tipo e le email come pillole; la linea scorre di lato dentro la card e i nomi restano fermi. Di partenza sono accesi
+  «Certificato medico» (30 e 7 giorni prima), «Abbonamento» (15 giorni prima) e «Tesseramento mancante» (ogni 7 giorni, 3 volte);
+  «Tesseramento in scadenza» e «Pagamento scaduto» sono spenti. L'interruttore di un tipo agisce subito su tutte le sue email.
+  Tocca una pillola per aprire l'editor (in cima il riquadro «Acceso», che cambia subito lo stato; poi giorni, oggetto e testo, e
+  un solo «Salva il promemoria»); il «+» ne aggiunge una, e un testo nuovo con dei «…» da completare mostra l'avviso ambra. «Manda i
+  promemoria di oggi» fa il giro delle 9 (senza server di posta le email si registrano nelle «Ultime email» e non partono; non
+  rimanda ciò che è già partito). I giorni di «Chi è avvisato ha tempo» si salvano dalla barra «1 modifica da salvare».
 - **Scheda cliente completa** (ADR 0014): anagrafica con codice fiscale (anche nella ricerca), tutori con «riceve le
   comunicazioni» e «può venire a prenderlo», fratelli, consensi privacy. Prova Tommaso Neri (`D0000002`): la madre
   Paola riceve i promemoria e la sorella Sara compare tra i fratelli.
@@ -287,6 +295,15 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   perdere se la regola lo dice. Pagina «Phon e docce» con un **simulatore** delle macchine (scrivi o leggi il codice,
   anche col telefono): prova Leonardo Ferri (`0C7A5CAE`, 37 crediti; la prima doccia del giorno è gratis). Regole in
   «Impostazioni → Macchine e crediti» (regole del borsellino e del braccialetto, servizi e dispositivi).
+- **Macchine e crediti nelle Impostazioni** (ADR 0030, da `admin@demo.leone`): «Servizi» sono un elenco con foglio: «Phon» («1 credito · 5 minuti») e
+  «Doccia» («1 credito · 1 gratis al giorno · 4 minuti»); si riordinano con la maniglia e si spengono con l'interruttore, subito. «Macchine»
+  elenca le cinque macchine con il servizio sotto il nome (tre phon, due docce) e il lettore «Saldo all'ingresso» (mostra il saldo). Il tocco apre il foglio
+  della macchina: l'interruttore «acceso», il servizio, «Nuova chiave». Il tipo non si cambia dopo la creazione. Una macchina o un
+  servizio si eliminano sempre, anche se usati: gli utilizzi restano nello storico con il nome di allora, e dopo l'eliminazione la pagina lo dice
+  («… eliminata: i suoi N utilizzi restano nello storico.»). Eliminando un servizio le sue macchine restano «Senza servizio» (tag ambra) e,
+  se qualcuno passa il braccialetto, rispondono «Macchina non configurata» senza scalare crediti, finché non se ne sceglie uno nel foglio.
+  Per provare il cestino usa elementi tuoi: «Aggiungi un servizio…» e «Aggiungi una macchina…», poi il cestino sul nuovo
+  (due tocchi); le macchine e i servizi demo hanno utilizzi nello storico, quindi il messaggio dopo l'eliminazione ne dà il numero.
 - **Impostazioni** (dati, stagioni e gruppi, listino, regole di prezzo, metodi di pagamento, ricevute, cassa, promemoria,
   regole del tornello, macchine e crediti, mansioni e tariffe, account e ruoli, aspetto): tutte sotto la voce «Impostazioni»
   in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area («← Impostazioni» torna
@@ -550,6 +567,7 @@ la CI su Windows.
 | PUT | `/api/me/password` `{attuale, nuova}` | la propria password |
 | GET · POST | `/api/scadenze?entro=` · `/api/scadenze/promemoria` | scadenze; promemoria a mano (permesso CLIENTI) |
 | GET · POST · PUT · DELETE | `/api/promemoria` · `/{id}` · `/esegui` | regole e testi dei promemoria, giro adesso |
+| PUT | `/api/promemoria/tipi/{tipo}` | accende o spegne tutte le regole di un tipo (`{"attivo": true}`), risponde con tutte le regole (permesso CLIENTI) |
 | PUT | `/api/clienti/{id}/contatti` `{email, telefono}` | contatti del cliente |
 | PUT | `/api/clienti/{id}/anagrafica` | anagrafica (codice fiscale controllato e unico) |
 | POST · PUT | `/api/clienti/{id}/tutori` · `/api/clienti/legami/{id}` · `/legami/{id}/chiudi` | tutori: aggiungi (esistente o nuovo), modifica, togli |
@@ -580,7 +598,8 @@ la CI su Windows.
 | POST | `/api/borsellino/persone/{id}/restituzioni` · `/correzioni` | credito restituito in denaro; correzioni a mano (BORSELLINO_RIMBORSI) |
 | GET · PUT | `/api/borsellino/regole` | regole del borsellino e del braccialetto (modifica: IMPOSTAZIONI) |
 | PUT · POST | `/api/accessi/braccialetti/{id}/stato` · `/riconsegna` `{cauzione, crediti, metodoId}` | smarrito (crediti persi secondo la regola); riconsegna con cauzione e crediti |
-| GET · POST · PUT | `/api/servizi` · `/api/dispositivi` · `/{id}` · `/api/dispositivi/{id}/chiave` | servizi a crediti, dispositivi e chiavi (modifica: IMPOSTAZIONI) |
+| GET · POST · PUT · DELETE | `/api/servizi` · `/{id}` · `/ordine` | servizi a crediti: elenco nell'ordine voluto, ordine (`{"ids": [...]}`), eliminazione (sempre, risponde 200 `{utilizzi, macchine}` di quel momento; gli utilizzi tengono il nome, le macchine restano senza servizio); modifica: IMPOSTAZIONI |
+| GET · POST · PUT · DELETE | `/api/dispositivi` · `/{id}` · `/api/dispositivi/{id}/chiave` | dispositivi (macchine e lettori) e chiavi; eliminazione sempre (200 `{utilizzi}` di quel momento; gli utilizzi tengono il nome); il tipo non si cambia (modifica: IMPOSTAZIONI) |
 | POST · GET | `/api/dispositivi/{id}/prova` · `/api/utilizzi?personaId=&dispositivoId=` | simulatore; utilizzi |
 | POST · GET | `/api/macchine/{id}/utilizzi` · `/api/macchine/{id}/saldo?codice=` | le macchine, con la chiave (vedi «Macchine di phon e docce») |
 | GET · POST · PUT · DELETE | `/api/ruoli` · `/{codice}` · `/{codice}/assegnazioni` · `/api/assegnazioni/{id}` | ruoli e permessi (permesso RUOLI) |
@@ -618,8 +637,12 @@ curl.exe "http://localhost:8080/api/macchine/00000000-0000-0000-0000-000000000a1
 
 Risposta: `{"via": true, "esito": "OK", "messaggio": "Phon · restano 36 crediti", "nome": "Leonardo", "crediti": 36,
 "creditiUsati": 1, "minuti": 5}`. Esiti: `OK`, `GRATIS` (usi gratuiti del giorno), `CREDITI_FINITI`, `SCONOSCIUTO`,
-`NON_ATTIVO` (braccialetto smarrito, disattivato o riconsegnato), `SERVIZIO_SPENTO`; `via` dice se accendere il phon o
-aprire la doccia. Chiave sbagliata: 401. Sul display solo il nome di battesimo, mai il cognome.
+`NON_ATTIVO` (braccialetto smarrito, disattivato o riconsegnato), `SERVIZIO_SPENTO` (macchina o servizio spenti, o macchina
+senza servizio: «Macchina non configurata»); `via` dice se accendere il phon o aprire la doccia. Una macchina **spenta**, di qualunque tipo, risponde anche al solo saldo (`GET …/saldo`, simulatore) con `SERVIZIO_SPENTO`
+e senza nome, crediti né euro: «Lettore non disponibile» per il lettore del saldo, «Servizio non disponibile» per le altre; una
+macchina senza servizio risponde «Macchina non configurata», pure senza dati. Una macchina e un servizio si
+eliminano sempre (ADR 0030): gli utilizzi restano nello storico con il nome di allora, e le macchine di un servizio eliminato
+restano senza servizio finché non se ne sceglie un altro. Chiave sbagliata: 401. Sul display solo il nome di battesimo, mai il cognome.
 
 ## Posta (promemoria)
 

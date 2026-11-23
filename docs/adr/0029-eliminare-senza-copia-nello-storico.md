@@ -1,6 +1,6 @@
 # 0029 · Eliminare ciò che lo storico usa senza tenerne una copia
 
-**Stato:** accettata (applicata a serie delle ricevute e casse, blocco 7 lotto 2, e a gruppi, stagioni e offerte, lotto 3; le altre aree seguono nei lotti successivi)
+**Stato:** accettata, sostituita in parte da 0030 (la regola «si elimina solo ciò che non è mai stato usato» è sostituita dall'ADR 0030; resta in vigore per serie delle ricevute, offerte vendute e stagioni usate, e finché le casse non sono riviste). Applicata a serie delle ricevute e casse (blocco 7 lotto 2) e a gruppi, stagioni e offerte (lotto 3)
 
 ## Contesto
 

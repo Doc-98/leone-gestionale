@@ -18,6 +18,18 @@ interface UtilizzoRepository extends JpaRepository<Utilizzo, UUID> {
 
     List<Utilizzo> findAllByOrderByIstanteDesc(Pageable pagina);
 
-    @Query("select u.dispositivoId, count(u) from Utilizzo u where u.istante >= :dal group by u.dispositivoId")
+    @Query("select u.dispositivoId, count(u) from Utilizzo u where u.dispositivoId is not null and u.istante >= :dal group by u.dispositivoId")
     List<Object[]> perDispositivoDal(Instant dal);
+
+    long countByDispositivoId(UUID dispositivoId);
+
+    long countByServizioId(UUID servizioId);
+
+    long countByDispositivoIdAndIstanteGreaterThanEqual(UUID dispositivoId, Instant dal);
+
+    @Query("select u.dispositivoId, count(u) from Utilizzo u where u.dispositivoId is not null group by u.dispositivoId")
+    List<Object[]> contaPerDispositivo();
+
+    @Query("select u.servizioId, count(u) from Utilizzo u where u.servizioId is not null group by u.servizioId")
+    List<Object[]> contaPerServizio();
 }

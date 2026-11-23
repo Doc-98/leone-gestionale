@@ -36,6 +36,8 @@ class PromemoriaService {
 
     record NuovaRegola(Promemoria.Tipo tipo) {}
 
+    record AccensioneTipo(Boolean attivo) {}
+
     record Pagina(List<RegolaDto> regole, List<Posta.EmailBreve> ultimeEmail, boolean postaConfigurata, String orario) {}
 
     record Resoconto(int email, int inviate, int nonInviate, int senzaEmail, int errori) {}
@@ -75,11 +77,16 @@ class PromemoriaService {
 
     @Transactional(readOnly = true)
     Pagina pagina() {
-        List<RegolaDto> r = regole.findAll().stream()
-            .sorted(Comparator.comparing((Promemoria p) -> p.tipo().ordinal()).thenComparing(Comparator.comparingInt(Promemoria::getGiorni).reversed()))
-            .map(PromemoriaService::dto).toList();
+        List<RegolaDto> r = tutteLeRegole();
         String ora = orario.matches("0 0 \\d{1,2} \\* \\* \\*") ? "ogni giorno alle " + orario.split(" ")[2] + ":00" : orario.equals("-") ? "spento" : orario;
         return new Pagina(r, posta.ultime(50), posta.configurata(), ora);
+    }
+
+    /** Nell'ordine della pagina: per tipo, poi dai giorni più lontani ai più vicini. */
+    private List<RegolaDto> tutteLeRegole() {
+        return regole.findAll().stream()
+            .sorted(Comparator.comparing((Promemoria p) -> p.tipo().ordinal()).thenComparing(Comparator.comparingInt(Promemoria::getGiorni).reversed()))
+            .map(PromemoriaService::dto).toList();
     }
 
     private static RegolaDto dto(Promemoria p) {
@@ -99,6 +106,23 @@ class PromemoriaService {
         Promemoria p = regole.findById(id).orElseThrow(() -> new NonTrovato("Promemoria non trovato."));
         p.modifica(in.giorni(), in.maxInvii(), in.attivo(), in.oggetto(), in.testo());
         return dto(p);
+    }
+
+    /** Accende o spegne tutte le regole di un tipo, in una volta sola, senza toccare giorni e testi. Risponde con tutte le regole. */
+    @Transactional
+    List<RegolaDto> accendiTipo(String tipo, Boolean attivo) {
+        Promemoria.Tipo t;
+        try {
+            t = Promemoria.Tipo.valueOf(String.valueOf(tipo));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Tipo di promemoria non valido: scegli uno di quelli della pagina.");
+        }
+        if (attivo == null) throw new IllegalArgumentException("Dì se il promemoria va acceso o spento.");
+        List<Promemoria> sue = regole.findAll().stream().filter(p -> p.tipo() == t).toList();
+        if (sue.isEmpty()) throw new NonTrovato("Nessun promemoria di questo tipo.");
+        sue.forEach(p -> p.acceso(attivo));
+        regole.flush();
+        return tutteLeRegole();
     }
 
     @Transactional

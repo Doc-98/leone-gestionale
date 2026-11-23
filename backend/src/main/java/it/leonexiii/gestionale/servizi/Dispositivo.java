@@ -33,17 +33,15 @@ class Dispositivo {
 
     protected Dispositivo() {}
 
-    Dispositivo(String nome, Tipo tipo, UUID servizioId, String chiaveHash, Instant ora) {
+    Dispositivo(String nome, Tipo tipo, UUID servizioId, boolean attivo, String chiaveHash, Instant ora) {
         this.id = UUID.randomUUID();
         this.chiaveHash = chiaveHash;
-        this.attivo = true;
         this.creatoIl = ora;
-        modifica(nome, tipo, servizioId, true);
+        modifica(nome, tipo, servizioId, attivo);
     }
 
     void modifica(String nome, Tipo tipo, UUID servizioId, boolean attivo) {
         if (nome == null || nome.isBlank() || nome.strip().length() > 80) throw new IllegalArgumentException("Dai un nome al dispositivo (al massimo 80 caratteri).");
-        if (tipo == Tipo.SERVIZIO && servizioId == null) throw new IllegalArgumentException("Scegli il servizio della macchina (es. phon).");
         this.nome = nome.strip();
         this.tipo = tipo.name();
         this.servizioId = tipo == Tipo.SERVIZIO ? servizioId : null;
