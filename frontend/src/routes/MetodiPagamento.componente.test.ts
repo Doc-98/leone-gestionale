@@ -71,7 +71,7 @@ describe('Metodi di pagamento – pagina', () => {
     await attese();
     await userEvent.click(screen.getByText('Carta'));
     const foglio = await screen.findByRole('dialog');
-    const nelFoglio = () => within(foglio).getByRole('switch');
+    const nelFoglio = () => within(foglio).getByRole('switch', { name: /^Acceso/ });
     expect(nelFoglio()).toHaveAttribute('aria-checked', 'true');
     await userEvent.click(nelFoglio());
     await waitFor(() => expect(interruttore('Carta')).toHaveAttribute('aria-checked', 'false'));
@@ -100,7 +100,7 @@ describe('Metodi di pagamento – pagina', () => {
     await attese();
     await userEvent.click(screen.getByText('Carta'));
     const foglio = await screen.findByRole('dialog');
-    await userEvent.click(within(foglio).getByRole('switch'));
+    await userEvent.click(within(foglio).getByRole('switch', { name: /^Acceso/ }));
     expect(await within(foglio).findByRole('alert')).toBeTruthy();
   });
 
@@ -146,5 +146,36 @@ describe('Metodi di pagamento – pagina', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByText("Il metodo non c'è più.")).toBeTruthy();
     expect(screen.queryByText('Nuovo metodo')).toBeNull();
+  });
+
+  describe('riscontro con il POS nel foglio del metodo', () => {
+    it('c\'è solo per «Incassato subito» e si salva con il foglio', async () => {
+      render(MetodiPagamento);
+      await attese();
+      await userEvent.click(screen.getByText('Carta'));
+      const foglio = await screen.findByRole('dialog');
+      const riscontro = within(foglio).getByRole('switch', { name: 'Riscontro con il POS' });
+      expect(riscontro).toHaveAttribute('aria-checked', 'false');
+      await userEvent.click(riscontro);
+      await userEvent.click(within(foglio).getByRole('button', { name: /Salva/ }));
+      await waitFor(() => expect(chiamate.some((c) => c.metodo === 'PUT')).toBe(true));
+      expect(chiamate.find((c) => c.metodo === 'PUT')!.corpo.riscontro).toBe(true);
+    });
+
+    it('per «Nel cassetto» e «Da incassare» non c\'è e il riscontro parte spento', async () => {
+      metodi[1] = { ...metodi[1], riscontro: true };
+      render(MetodiPagamento);
+      await attese();
+      await userEvent.click(screen.getByText('Carta'));
+      const foglio = await screen.findByRole('dialog');
+      expect(within(foglio).getByRole('switch', { name: 'Riscontro con il POS' })).toHaveAttribute('aria-checked', 'true');
+      await userEvent.click(within(foglio).getByRole('button', { name: 'Nel cassetto' }));
+      expect(within(foglio).queryByRole('switch', { name: 'Riscontro con il POS' })).toBeNull();
+      await userEvent.click(within(foglio).getByRole('button', { name: /Salva/ }));
+      await waitFor(() => expect(chiamate.some((c) => c.metodo === 'PUT')).toBe(true));
+      const put = chiamate.find((c) => c.metodo === 'PUT')!;
+      expect(put.corpo.contanti).toBe(true);
+      expect(put.corpo.riscontro).toBe(false);
+    });
   });
 });

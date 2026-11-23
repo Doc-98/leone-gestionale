@@ -45,8 +45,14 @@ class Cassa {
 
     void ordine(int ordine) { this.ordine = ordine; }
 
+    /** Senza sapere se si può eliminare (per chi non gestisce le impostazioni e per gli stati). */
     CassaService.CassaDto dto() {
-        return new CassaService.CassaDto(id, nome, attiva, principale, ordine);
+        return new CassaService.CassaDto(id, nome, attiva, principale, ordine, null, null);
+    }
+
+    /** Con se si può eliminare adesso: «blocco» è il perché (due righe), o null se si può. */
+    CassaService.CassaDto dto(String blocco) {
+        return new CassaService.CassaDto(id, nome, attiva, principale, ordine, blocco == null, blocco);
     }
 
     UUID getId() { return id; }

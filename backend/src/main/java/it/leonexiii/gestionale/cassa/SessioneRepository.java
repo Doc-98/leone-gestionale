@@ -15,6 +15,9 @@ interface SessioneRepository extends JpaRepository<Sessione, UUID> {
 
     boolean existsByChiusaIlIsNull();
 
+    /** Quante volte una cassa è stata aperta (le sessioni dello storico, anche quella in corso). */
+    long countByCassaId(UUID cassaId);
+
     List<Sessione> findByChiusaIlIsNull();
 
     long countByDaControllareTrueAndControllataIlIsNullAndChiusaIlIsNotNull();

@@ -825,6 +825,11 @@ export interface SerieRicevute {
   emesse: number;
   /** il numero della prossima ricevuta */
   prossima: string;
+  /** solo per chi ha il permesso «Impostazioni»: se si può eliminare adesso (mai emessa una ricevuta) e, se no, perché */
+  eliminabile?: boolean | null;
+  motivoBlocco?: string | null;
+  /** è l'ultima serie accesa di ricevute: serve al sistema, non si spegne né si elimina */
+  richiesta?: boolean;
 }
 
 export interface ModificaSerieRicevute {
@@ -1115,6 +1120,10 @@ export const api = {
   modificaImpostazioniRicevute: (i: ImpostazioniRicevute) => richiesta<ImpostazioniRicevute>('PUT', '/api/ricevute/impostazioni', i),
   creaSerieRicevute: (nome: string, tipo: TipoSerie) => richiesta<SerieRicevute>('POST', '/api/ricevute/serie', { nome, tipo }),
   modificaSerieRicevute: (id: string, s: ModificaSerieRicevute) => richiesta<SerieRicevute>('PUT', `/api/ricevute/serie/${id}`, s),
+  /** Il nuovo ordine di tutte le serie, in una chiamata sola (400 se gli id non sono esattamente tutte le serie). */
+  ordinaSerieRicevute: (ids: string[]) => richiesta<SerieRicevute[]>('PUT', '/api/ricevute/serie/ordine', { ids }),
+  /** 204; 409 se la serie ha già emesso ricevute (il messaggio dice cosa fare), 404 se non c'è. */
+  eliminaSerieRicevute: (id: string) => richiesta<void>('DELETE', `/api/ricevute/serie/${id}`),
   emettiRicevute: (pagamentoId: string, modo?: 'FAMIGLIA' | 'PERSONA') => richiesta<Ricevuta[]>('POST', '/api/ricevute', { pagamentoId, modo: modo ?? null }),
   ricevuteDiPagamento: (pagamentoId: string) => richiesta<Ricevuta[]>('GET', `/api/ricevute?pagamentoId=${pagamentoId}`),
   ricevuteDiPersona: (personaId: string) => richiesta<Ricevuta[]>('GET', `/api/ricevute?personaId=${personaId}`),
@@ -1131,6 +1140,10 @@ export const api = {
   modificaImpostazioniCassa: (i: ImpostazioniCassa) => richiesta<ImpostazioniCassa>('PUT', '/api/cassa/impostazioni', i),
   creaCassa: (nome: string) => richiesta<Cassa>('POST', '/api/cassa/casse', { nome }),
   modificaCassa: (id: string, m: { nome?: string; attiva?: boolean; principale?: boolean; ordine?: number }) => richiesta<Cassa>('PUT', `/api/cassa/casse/${id}`, m),
+  /** Il nuovo ordine di tutte le casse, in una chiamata sola (400 se gli id non sono esattamente tutte le casse). */
+  ordinaCasse: (ids: string[]) => richiesta<Cassa[]>('PUT', '/api/cassa/casse/ordine', { ids }),
+  /** 204; 409 se la cassa è stata aperta almeno una volta o è la principale, 404 se non c'è. */
+  eliminaCassa: (id: string) => richiesta<void>('DELETE', `/api/cassa/casse/${id}`),
   apriCassa: (id: string, fondo?: number) => richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/apri`, fondo == null ? {} : { fondo }),
   movimentoCassa: (id: string, tipo: TipoMovimentoCassa, importo: number, descrizione?: string) =>
     richiesta<SessioneCassa>('POST', `/api/cassa/casse/${id}/movimenti`, { tipo, importo, descrizione }),
@@ -2043,6 +2056,9 @@ export interface Cassa {
   attiva: boolean;
   principale: boolean;
   ordine: number;
+  /** solo per chi ha il permesso «Impostazioni»: se si può eliminare adesso (mai aperta) e, se no, perché */
+  eliminabile?: boolean | null;
+  motivoBlocco?: string | null;
 }
 
 /** Con la conta alla cieca, finché la cassa è aperta, entrati, usciti e attesi sono null (e perMetodo è vuoto). */

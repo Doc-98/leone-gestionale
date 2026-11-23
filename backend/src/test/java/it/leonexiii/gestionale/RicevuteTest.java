@@ -201,4 +201,102 @@ class RicevuteTest extends ProvaApi {
         assertThat(admin.post("/api/ricevute/serie", "{\"nome\":\"Senza tipo\"}").statusCode()).isEqualTo(400);
         assertThat(pagina.get("mancaIntestazione")).isNotNull();
     }
+
+    private static String corpoOrdine(List<String> ids) {
+        return "{\"ids\":[" + String.join(",", ids.stream().map(i -> "\"" + i + "\"").toList()) + "]}";
+    }
+
+    private static List<String> idSerie(List<Map<String, Object>> serie) {
+        return serie.stream().map(x -> (String) x.get("id")).toList();
+    }
+
+    @Test
+    void leSerieSiRiordinanoESiEliminanoSoloSeMaiUsate() throws Exception {
+        var admin = come("admin@demo.leone");
+        var segr = come("segreteria@demo.leone");
+        var anonimo = anonimo();
+        List<String> prima = idSerie(elenco(json(admin.get("/api/ricevute/impostazioni")).get("serie")));
+        assertThat(prima).hasSizeGreaterThanOrEqualTo(2);
+
+        // riordino: serve il permesso, e gli id di tutte le serie, ognuna una volta
+        List<String> rovesciato = new java.util.ArrayList<>(prima);
+        java.util.Collections.reverse(rovesciato);
+        assertThat(segr.put("/api/ricevute/serie/ordine", corpoOrdine(rovesciato)).statusCode()).isEqualTo(403);
+        assertThat(anonimo.put("/api/ricevute/serie/ordine", corpoOrdine(rovesciato)).statusCode()).isIn(401, 403);
+        assertThat(admin.put("/api/ricevute/serie/ordine", "{\"ids\":[]}").statusCode()).isEqualTo(400);
+        var manca = admin.put("/api/ricevute/serie/ordine", corpoOrdine(prima.subList(1, prima.size())));
+        assertThat(manca.statusCode()).isEqualTo(400);
+        assertThat(manca.body()).contains("L'elenco delle serie è cambiato");
+        List<String> sconosciuta = new java.util.ArrayList<>(prima);
+        sconosciuta.set(0, UUID.randomUUID().toString());
+        assertThat(admin.put("/api/ricevute/serie/ordine", corpoOrdine(sconosciuta)).statusCode()).isEqualTo(400);
+        List<String> doppione = new java.util.ArrayList<>(prima);
+        doppione.set(0, prima.get(1));
+        var doppio = admin.put("/api/ricevute/serie/ordine", corpoOrdine(doppione));
+        assertThat(doppio.statusCode()).isEqualTo(400);
+        assertThat(doppio.body()).contains("compare due volte");
+        assertThat(idSerie(elenco(json(admin.get("/api/ricevute/impostazioni")).get("serie")))).isEqualTo(prima);
+
+        var r = admin.put("/api/ricevute/serie/ordine", corpoOrdine(rovesciato));
+        assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+        assertThat(idSerie(lista(r).stream().map(ProvaApi::mappa).toList())).isEqualTo(rovesciato);
+        assertThat(idSerie(elenco(json(segr.get("/api/ricevute/impostazioni")).get("serie")))).isEqualTo(rovesciato);
+        assertThat(admin.put("/api/ricevute/serie/ordine", corpoOrdine(prima)).statusCode()).isEqualTo(200);
+        assertThat(idSerie(elenco(json(admin.get("/api/ricevute/impostazioni")).get("serie")))).isEqualTo(prima);
+
+        // una serie mai usata si elimina; chi non gestisce le impostazioni non lo sa né lo fa
+        var nuova = crea(admin, "/api/ricevute/serie", "{\"nome\":\"Serie di prova\",\"tipo\":\"FATTURA\"}");
+        assertThat(nuova).containsEntry("eliminabile", true).containsEntry("motivoBlocco", null).containsEntry("richiesta", false);
+        assertThat(elenco(json(segr.get("/api/ricevute/impostazioni")).get("serie"))).allSatisfy(x -> {
+            assertThat(x.get("eliminabile")).isNull();
+            assertThat(x.get("motivoBlocco")).isNull();
+        });
+        String urlNuova = "/api/ricevute/serie/" + nuova.get("id");
+        assertThat(segr.delete(urlNuova).statusCode()).isEqualTo(403);
+        assertThat(anonimo.delete(urlNuova).statusCode()).isIn(401, 403);
+        assertThat(admin.delete(urlNuova).statusCode()).isEqualTo(204);
+        assertThat(idSerie(elenco(json(admin.get("/api/ricevute/impostazioni")).get("serie")))).doesNotContain((String) nuova.get("id"));
+        assertThat(admin.delete(urlNuova).statusCode()).isEqualTo(404);
+
+        // l'ultima serie di ricevute accesa serve al sistema: non si elimina e non si spegne
+        var serie = elenco(json(admin.get("/api/ricevute/impostazioni")).get("serie"));
+        var ricevute = serie.stream().filter(x -> "Ricevute".equals(x.get("nome"))).findFirst().orElseThrow();
+        String urlRicevute = "/api/ricevute/serie/" + ricevute.get("id");
+        assertThat(ricevute).containsEntry("richiesta", true).containsEntry("eliminabile", false);
+        var ultima = admin.delete(urlRicevute);
+        assertThat(ultima.statusCode()).isEqualTo(409);
+        assertThat((String) json(ultima).get("detail")).contains("Non si può eliminare: «Ricevute» è l'ultima serie di ricevute accesa.").contains("\nPer eliminarla accendine prima un'altra");
+        String corpoSpenta = "{\"nome\":\"Ricevute\",\"attiva\":false,\"formato\":\"" + ricevute.get("formato") + "\",\"cifre\":" + ricevute.get("cifre")
+            + ",\"riparte\":\"" + ricevute.get("riparte") + "\"}";
+        var spegni = admin.put(urlRicevute, corpoSpenta);
+        assertThat(spegni.statusCode()).isEqualTo(409);
+        assertThat((String) json(spegni).get("detail")).contains("Non si può spegnere: «Ricevute» è l'ultima serie di ricevute accesa.").contains("\nAccendine prima un'altra");
+        // le serie di fatture non sono mai richieste
+        assertThat(serie.stream().filter(x -> "FATTURA".equals(x.get("tipo")))).allSatisfy(x -> assertThat(x).containsEntry("richiesta", false));
+
+        // con un'altra serie di ricevute accesa, «Ricevute» non è più l'ultima: se ha emesso ricevute si spegne ma non si elimina
+        var seconda = crea(admin, "/api/ricevute/serie", "{\"nome\":\"Seconda serie\",\"tipo\":\"RICEVUTA\"}");
+        String urlSeconda = "/api/ricevute/serie/" + seconda.get("id");
+        String corpoSeconda = "{\"nome\":\"Seconda serie\",\"attiva\":true,\"formato\":\"{stagione}-{numero}\",\"cifre\":4,\"riparte\":\"STAGIONE\"}";
+        var accesa = admin.put(urlSeconda, corpoSeconda);
+        assertThat(accesa.statusCode()).as(accesa.body()).isEqualTo(200);
+        assertThat(json(accesa)).containsEntry("richiesta", false).containsEntry("eliminabile", true);
+        orologio.alle("2028-03-10T10:00");
+        String marco = creaId(segr, "/api/clienti", "{\"nome\":\"Serie\",\"cognome\":\"Prova\",\"dataNascita\":\"1985-02-03\"}");
+        String pagamento = paga(segr, marco, 40, addebito(segr, marco, "Ingresso", 40));
+        var emesse = segr.post("/api/ricevute", "{\"pagamentoId\":\"" + pagamento + "\",\"serieId\":\"" + ricevute.get("id") + "\"}");
+        assertThat(emesse.statusCode()).as(emesse.body()).isEqualTo(201);
+
+        var usata = admin.delete(urlRicevute);
+        assertThat(usata.statusCode()).isEqualTo(409);
+        String dettaglio = (String) json(usata).get("detail");
+        assertThat(dettaglio).matches("(?s)Non si può eliminare: la serie «Ricevute» ha emesso \\d+ ricevut[ae]\\.\\n"
+            + "Puoi spegnerla: le ricevute restano con il loro numero, ma la serie non verrà più usata per le nuove\\.");
+        var conBlocco = elenco(json(admin.get("/api/ricevute/impostazioni")).get("serie")).stream().filter(x -> "Ricevute".equals(x.get("nome"))).findFirst().orElseThrow();
+        assertThat(conBlocco).containsEntry("richiesta", false).containsEntry("eliminabile", false).containsEntry("motivoBlocco", dettaglio);
+
+        // pulizia: la seconda serie (mai usata) si elimina, e «Ricevute» torna l'ultima accesa
+        assertThat(admin.delete(urlSeconda).statusCode()).isEqualTo(204);
+        assertThat(admin.put(urlRicevute, corpoSpenta).statusCode()).isEqualTo(409);
+    }
 }

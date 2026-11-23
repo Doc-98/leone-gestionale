@@ -34,9 +34,16 @@ class RicevuteService {
     record ImpostazioniDto(String intestata, boolean codiciFiscali, boolean bollo, BigDecimal bolloSoglia, BigDecimal bolloImporto, String dicitura,
                            boolean firma, String dopo, boolean email, String famiglia) {}
 
-    /** Una serie con il suo periodo in corso: quante ricevute ha e quale sarà la prossima. */
+    /**
+     * Una serie con il suo periodo in corso: quante ricevute ha e quale sarà la prossima. «richiesta»: è l'ultima serie di
+     * ricevute accesa, serve al sistema e non si spegne né si elimina. «eliminabile» e «motivoBlocco» (se no, perché: cosa
+     * fare, su due righe) li ha solo chi gestisce le impostazioni, gli altri li ricevono vuoti.
+     */
     record SerieDto(UUID id, String nome, Serie.Tipo tipo, boolean attiva, String formato, int cifre, Serie.Riparte riparte, Integer prossimoNumero,
-                    String periodo, long emesse, String prossima) {}
+                    String periodo, long emesse, String prossima, boolean richiesta, Boolean eliminabile, String motivoBlocco) {}
+
+    /** L'ordine voluto delle serie: gli id di tutte, uno per uno. */
+    record Ordine(List<UUID> ids) {}
 
     record ModificaSerie(String nome, Boolean attiva, String formato, Integer cifre, Serie.Riparte riparte, Integer prossimoNumero) {}
 
@@ -84,10 +91,16 @@ class RicevuteService {
         return impostazioni.findById((short) 1).orElseThrow();
     }
 
+    /** La pagina; «conBlocchi»: chi gestisce le impostazioni riceve anche se ogni serie si può eliminare (e, se no, perché). */
     @Transactional(readOnly = true)
-    Pagina pagina() {
+    Pagina pagina(boolean conBlocchi) {
+        return new Pagina(dto(imp()), elencoSerie(conBlocchi), mancaIntestazione());
+    }
+
+    private List<SerieDto> elencoSerie(boolean conBlocchi) {
         LocalDate oggi = LocalDate.now(orologio);
-        return new Pagina(dto(imp()), serie.findAllByOrderByOrdineAscNomeAsc().stream().map(s -> dto(s, oggi)).toList(), mancaIntestazione());
+        List<Serie> tutte = serie.findAllByOrderByOrdineAscNomeAsc();
+        return tutte.stream().map(s -> dto(s, oggi, tutte, conBlocchi)).toList();
     }
 
     @Transactional
@@ -99,16 +112,21 @@ class RicevuteService {
 
     @Transactional
     SerieDto modificaSerie(UUID id, ModificaSerie in) {
+        impostazioni.bloccata();
         Serie s = serie.bloccata(id).orElseThrow(() -> new NonTrovato("Serie non trovata."));
         LocalDate oggi = LocalDate.now(orologio);
-        s.modifica(in.nome(), !Boolean.FALSE.equals(in.attiva()), in.formato(), in.cifre() == null ? 4 : in.cifre(), in.riparte());
+        boolean accesa = !Boolean.FALSE.equals(in.attiva());
+        if (s.isAttiva() && !accesa && richiesta(s, serie.findAll()))
+            throw new Conflitto("Non si può spegnere: «" + s.getNome() + "» è l'ultima serie di ricevute accesa.\nAccendine prima un'altra: senza una serie accesa non si possono fare ricevute.");
+        s.modifica(in.nome(), accesa, in.formato(), in.cifre() == null ? 4 : in.cifre(), in.riparte());
         // il numero di partenza si sceglie solo finché il periodo non ha ricevute: dopo, la numerazione continua da sé
         if (!Objects.equals(in.prossimoNumero(), s.getProssimoNumero())) {
             if (ricevute.countBySerieIdAndPeriodo(s.getId(), periodo(s, oggi)) > 0)
                 throw new Conflitto("Il numero di partenza non si cambia: in questo periodo ci sono già ricevute.");
             s.prossimoNumero(in.prossimoNumero());
         }
-        return dto(s, oggi);
+        serie.flush();
+        return dto(s, oggi, serie.findAll(), true);
     }
 
     @Transactional
@@ -118,8 +136,57 @@ class RicevuteService {
         Serie s = new Serie(in.tipo(), (short) ordine);
         s.modifica(in.nome(), false, in.tipo() == Serie.Tipo.FATTURA ? "F{anno}/{numero}" : "{stagione}-{numero}", 4,
             in.tipo() == Serie.Tipo.FATTURA ? Serie.Riparte.ANNO : Serie.Riparte.STAGIONE);
-        serie.save(s);
-        return dto(s, LocalDate.now(orologio));
+        serie.saveAndFlush(s);
+        return dto(s, LocalDate.now(orologio), serie.findAll(), true);
+    }
+
+    /** Tutte le serie, nell'ordine voluto (una chiamata sola, in una transazione): servono gli id di tutte, ognuno una volta. */
+    @Transactional
+    List<SerieDto> ordinaSerie(Ordine in) {
+        if (in == null || in.ids() == null || in.ids().isEmpty()) throw new IllegalArgumentException("Nessuna serie da ordinare.");
+        if (Set.copyOf(in.ids()).size() != in.ids().size()) throw new IllegalArgumentException("Una serie compare due volte: ricarica la pagina e riprova.");
+        Map<UUID, Serie> tutte = serie.findAll().stream().collect(Collectors.toMap(Serie::getId, x -> x));
+        if (!tutte.keySet().equals(Set.copyOf(in.ids()))) throw new IllegalArgumentException("L'elenco delle serie è cambiato: ricarica la pagina.");
+        for (int i = 0; i < in.ids().size(); i++) tutte.get(in.ids().get(i)).ordina(i + 1);
+        serie.flush();
+        return elencoSerie(true);
+    }
+
+    /**
+     * Elimina una serie, solo se non ha mai emesso una ricevuta (anche annullata: il numero resta usato) e se non è l'ultima
+     * serie di ricevute accesa. Una serie che ha emesso si spegne: le ricevute restano con il loro numero.
+     */
+    @Transactional
+    void eliminaSerie(UUID id) {
+        impostazioni.bloccata();
+        Serie s = serie.bloccata(id).orElseThrow(() -> new NonTrovato("Serie non trovata."));
+        String blocco = blocco(s, serie.findAll());
+        if (blocco != null) throw new Conflitto(blocco);
+        serie.delete(s);
+        serie.flush();
+    }
+
+    /**
+     * Una serie è «richiesta» se è l'ultima accesa tra quelle di ricevute: senza, il pagamento non può fare ricevute
+     * (la serie di base è la prima accesa di tipo RICEVUTA). Le serie di fatture non sono mai richieste: si scelgono a mano.
+     */
+    private static boolean richiesta(Serie s, List<Serie> tutte) {
+        return s.isAttiva() && s.getTipo() == Serie.Tipo.RICEVUTA
+            && tutte.stream().noneMatch(x -> !x.getId().equals(s.getId()) && x.isAttiva() && x.getTipo() == Serie.Tipo.RICEVUTA);
+    }
+
+    /** Perché la serie non si elimina adesso (due righe: cosa è successo, cosa fare), o null se si può. */
+    private String blocco(Serie s, List<Serie> tutte) {
+        if (richiesta(s, tutte))
+            return "Non si può eliminare: «" + s.getNome() + "» è l'ultima serie di ricevute accesa.\nPer eliminarla accendine prima un'altra: senza una serie accesa non si possono fare ricevute.";
+        long emesse = ricevute.countBySerieId(s.getId());
+        if (emesse == 0) return null;
+        boolean fatture = s.getTipo() == Serie.Tipo.FATTURA;
+        String cosa = fatture ? (emesse == 1 ? "fattura" : "fatture") : (emesse == 1 ? "ricevuta" : "ricevute");
+        String loro = fatture ? "le fatture restano" : "le ricevute restano";
+        return "Non si può eliminare: la serie «" + s.getNome() + "» ha emesso " + emesse + " " + cosa + ".\n"
+            + (s.isAttiva() ? "Puoi spegnerla: " + loro + " con il loro numero, ma la serie non verrà più usata per le nuove."
+                : "È già spenta: " + loro + " con il loro numero e la serie non viene più usata per le nuove.");
     }
 
     /** Cosa manca ai dati della società perché l'intestazione sia completa. */
@@ -324,10 +391,12 @@ class RicevuteService {
             i.getDopo(), i.isEmail(), i.getFamiglia());
     }
 
-    private SerieDto dto(Serie s, LocalDate oggi) {
+    private SerieDto dto(Serie s, LocalDate oggi, List<Serie> tutte, boolean conBlocchi) {
         String periodo = periodo(s, oggi);
+        String blocco = conBlocchi ? blocco(s, tutte) : null;
         return new SerieDto(s.getId(), s.getNome(), s.getTipo(), s.isAttiva(), s.getFormato(), s.getCifre(), s.getRiparte(), s.getProssimoNumero(), periodo,
-            ricevute.countBySerieIdAndPeriodo(s.getId(), periodo), testo(s, stagioneDi(oggi), oggi, prossimo(s, periodo)));
+            ricevute.countBySerieIdAndPeriodo(s.getId(), periodo), testo(s, stagioneDi(oggi), oggi, prossimo(s, periodo)), richiesta(s, tutte),
+            conBlocchi ? blocco == null : null, blocco);
     }
 
     private static boolean vuoto(String s) {

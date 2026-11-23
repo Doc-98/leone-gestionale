@@ -442,7 +442,7 @@ public class Pagamenti {
         List<UUID> ids = new ArrayList<>();
         for (List<Addebito> gruppo : gruppi) {
             BigDecimal totale = gruppo.stream().map(a -> quote.get(a.getId())).reduce(ZERO, BigDecimal::add);
-            Pagamento p = new Pagamento(pagante, data, totale, in.note(), da, orologio.instant(), CassaDellaRichiesta.id());
+            Pagamento p = new Pagamento(pagante, data, totale, in.note(), da, orologio.instant(), cassaDellaRichiesta());
             BigDecimal manca = totale;
             for (int i = 0; i < in.metodi().size() && manca.signum() > 0; i++) {
                 BigDecimal parte = restiMetodi.get(i).min(manca);
@@ -502,6 +502,37 @@ public class Pagamenti {
         }
         lista.sort(Comparator.comparing(VoceCassa::istante));
         return lista;
+    }
+
+    /** Quanti pagamenti e quante uscite sono stati registrati su una cassa (anche annullati: restano nello storico). */
+    public record RegistratiCassa(long pagamenti, long uscite) {}
+
+    /** Per ogni cassa con qualcosa di registrato: quanti pagamenti e uscite. Serve alla cassa per sapere se si può eliminare. */
+    @Transactional(readOnly = true)
+    public Map<UUID, RegistratiCassa> registratiPerCassa() {
+        Map<UUID, long[]> conti = new HashMap<>();
+        pagamenti.perCassa().forEach(r -> conti.computeIfAbsent((UUID) r[0], k -> new long[2])[0] = (Long) r[1]);
+        uscite.perCassa().forEach(r -> conti.computeIfAbsent((UUID) r[0], k -> new long[2])[1] = (Long) r[1]);
+        Map<UUID, RegistratiCassa> out = new HashMap<>();
+        conti.forEach((id, c) -> out.put(id, new RegistratiCassa(c[0], c[1])));
+        return out;
+    }
+
+    /**
+     * La cassa su cui registrare un movimento nuovo: quella che il computer ha scelto, se esiste ed è accesa; altrimenti
+     * vuota, cioè la principale (come per una cassa spenta o eliminata). Le sessioni già chiuse non cambiano.
+     */
+    UUID cassaDellaRichiesta() {
+        UUID id = CassaDellaRichiesta.id();
+        if (id == null) return null;
+        var controllori = controlli.orderedStream().toList();
+        return controllori.isEmpty() || controllori.stream().allMatch(c -> c.cassaAccesa(id)) ? id : null;
+    }
+
+    /** Quanti pagamenti e uscite sono stati registrati su una sola cassa (per una cassa sola costa meno del raggruppamento di tutte). */
+    @Transactional(readOnly = true)
+    public RegistratiCassa registratiSuCassa(UUID cassaId) {
+        return new RegistratiCassa(pagamenti.countByCassaId(cassaId), uscite.countByCassaId(cassaId));
     }
 
     /** I metodi di pagamento, nell'ordine della società (per i totali della cassa). */

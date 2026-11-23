@@ -47,7 +47,11 @@ public class CassaService {
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2);
     private static final DateTimeFormatter QUANDO = DateTimeFormatter.ofPattern("dd/MM/yyyy 'alle' HH:mm").withZone(FUSO);
 
-    public record CassaDto(UUID id, String nome, boolean attiva, boolean principale, int ordine) {}
+    /** «eliminabile» e «motivoBlocco» (se no, perché: cosa fare, su due righe) li ha solo chi gestisce le impostazioni. */
+    public record CassaDto(UUID id, String nome, boolean attiva, boolean principale, int ordine, Boolean eliminabile, String motivoBlocco) {}
+
+    /** L'ordine voluto delle casse: gli id di tutte, uno per uno. */
+    record Ordine(List<UUID> ids) {}
 
     /** Le scelte della cassa; quelle dalla «cieca» in poi, se vuote in una modifica, restano come sono. */
     public record ImpostazioniDto(String casse, String fondo, BigDecimal importoFondo, String chiusura, Boolean cieca, BigDecimal tolleranza,
@@ -131,13 +135,15 @@ public class CassaService {
 
     // ── Pagina e impostazioni ───────────────────────────────────────────────
 
+    /** La pagina; «conBlocchi»: chi gestisce le impostazioni riceve anche se ogni cassa si può eliminare (e, se no, perché). */
     @Transactional(readOnly = true)
-    Pagina pagina() {
+    Pagina pagina(boolean conBlocchi) {
         ImpostazioniCassa imp = imp();
+        Map<UUID, Pagamenti.RegistratiCassa> registrati = conBlocchi ? pagamenti.registratiPerCassa() : Map.of();
         List<Cassa> tutte = casse.findAllByOrderByOrdineAscNomeAsc();
         List<StatoCassa> stati = tutte.stream().filter(c -> c.isAttiva() && (imp.perPostazione() || c.isPrincipale())).map(c -> stato(c, imp)).toList();
         List<MetodoBreve> riscontrare = pagamenti.elencoMetodi().stream().filter(m -> m.attivo() && m.riscontro()).map(m -> new MetodoBreve(m.id(), m.nome())).toList();
-        return new Pagina(imp.dto(), tutte.stream().map(Cassa::dto).toList(), stati, riscontrare, avvisi(imp));
+        return new Pagina(imp.dto(), tutte.stream().map(c -> conBlocchi ? c.dto(blocco(c, registrati.getOrDefault(c.getId(), NIENTE))) : c.dto()).toList(), stati, riscontrare, avvisi(imp));
     }
 
     @Transactional(readOnly = true)
@@ -160,7 +166,8 @@ public class CassaService {
         int ordine = casse.findAll().stream().mapToInt(Cassa::getOrdine).max().orElse(0) + 1;
         if (in == null) throw new IllegalArgumentException("Dai un nome alla cassa.");
         controllaNome(in.nome(), null);
-        return casse.saveAndFlush(new Cassa(in.nome(), ordine)).dto();
+        Cassa nuova = casse.saveAndFlush(new Cassa(in.nome(), ordine));
+        return nuova.dto(blocco(nuova, new Pagamenti.RegistratiCassa(0, 0)));
     }
 
     @Transactional
@@ -180,12 +187,67 @@ public class CassaService {
             c.principale(true);
         }
         if (in.attiva() != null && in.attiva() != c.isAttiva()) {
-            if (!in.attiva() && sessioni.findByCassaIdAndChiusaIlIsNull(id).isPresent())
+            // la principale non si spegne mai (nemmeno aperta): lo dice accendi(), con il messaggio giusto
+            if (!in.attiva() && !c.isPrincipale() && sessioni.findByCassaIdAndChiusaIlIsNull(id).isPresent())
                 throw new Conflitto("«" + c.getNome() + "» è aperta: chiudila prima di spegnerla.");
             c.accendi(in.attiva());
         }
         if (in.ordine() != null) c.ordine(in.ordine());
-        return casse.saveAndFlush(c).dto();
+        casse.saveAndFlush(c);
+        return c.dto(blocco(c, pagamenti.registratiSuCassa(c.getId())));
+    }
+
+    /** Tutte le casse, nell'ordine voluto (una chiamata sola, in una transazione): servono gli id di tutte, ognuno una volta. */
+    @Transactional
+    List<CassaDto> ordinaCasse(Ordine in) {
+        if (in == null || in.ids() == null || in.ids().isEmpty()) throw new IllegalArgumentException("Nessuna cassa da ordinare.");
+        if (Set.copyOf(in.ids()).size() != in.ids().size()) throw new IllegalArgumentException("Una cassa compare due volte: ricarica la pagina e riprova.");
+        Map<UUID, Cassa> tutte = casse.findAll().stream().collect(Collectors.toMap(Cassa::getId, x -> x));
+        if (!tutte.keySet().equals(Set.copyOf(in.ids()))) throw new IllegalArgumentException("L'elenco delle casse è cambiato: ricarica la pagina.");
+        for (int i = 0; i < in.ids().size(); i++) tutte.get(in.ids().get(i)).ordine(i + 1);
+        casse.flush();
+        var registrati = pagamenti.registratiPerCassa();
+        return casse.findAllByOrderByOrdineAscNomeAsc().stream().map(c -> c.dto(blocco(c, registrati.getOrDefault(c.getId(), NIENTE)))).toList();
+    }
+
+    /**
+     * Elimina una cassa mai aperta (nessuna sessione nello storico). Non la principale. Una cassa che ha un passato si
+     * spegne: le sue sessioni restano com'erano.
+     */
+    @Transactional
+    void eliminaCassa(UUID id) {
+        Cassa c = casse.bloccata(id).orElseThrow(() -> new NonTrovato("Cassa non trovata."));
+        String blocco = blocco(c, pagamenti.registratiSuCassa(c.getId()));
+        if (blocco != null) throw new Conflitto(blocco);
+        casse.delete(c);
+        casse.flush();
+    }
+
+    private static final Pagamenti.RegistratiCassa NIENTE = new Pagamenti.RegistratiCassa(0, 0);
+
+    /** Perché la cassa non si elimina adesso (due righe: cosa è successo, cosa fare), o null se si può. */
+    private String blocco(Cassa c, Pagamenti.RegistratiCassa r) {
+        if (c.isPrincipale())
+            return "Non si può eliminare: «" + c.getNome() + "» è la cassa principale.\nPer eliminarla scegli prima un'altra cassa come principale.";
+        long n = sessioni.countByCassaId(c.getId());
+        if (n == 0 && r.pagamenti() == 0 && r.uscite() == 0) return null;
+        List<String> parti = new ArrayList<>();
+        if (n > 0) parti.add(n + (n == 1 ? " sessione nello storico" : " sessioni nello storico"));
+        if (r.pagamenti() > 0) parti.add(r.pagamenti() + (r.pagamenti() == 1 ? " pagamento registrato" : " pagamenti registrati"));
+        if (r.uscite() > 0) parti.add(r.uscite() + (r.uscite() == 1 ? " uscita registrata" : " uscite registrate"));
+        List<String> cose = new ArrayList<>();
+        if (n > 0) cose.add("le sessioni");
+        if (r.pagamenti() > 0) cose.add("i pagamenti");
+        if (r.uscite() > 0) cose.add("le uscite");
+        String cosa = cose.size() == 1 ? cose.getFirst()
+            : String.join(", ", cose.subList(0, cose.size() - 1)) + " e " + cose.getLast();
+        String nuovi = r.pagamenti() > 0 ? "i nuovi pagamenti" : r.uscite() > 0 ? "i nuovi movimenti" : "le nuove";
+        String storico = "la cassa «" + c.getNome() + "» ha " + String.join(" e ", parti) + ".\n";
+        if (sessioni.findByCassaIdAndChiusaIlIsNull(c.getId()).isPresent())
+            return "Non si può eliminare: " + storico + "Chiudila e poi puoi spegnerla: " + cosa + " restano com'erano, ma la cassa non verrà più proposta per " + nuovi + ".";
+        return "Non si può eliminare: " + storico + (c.isAttiva()
+            ? "Puoi spegnerla: " + cosa + " restano com'erano, ma la cassa non verrà più proposta per " + nuovi + "."
+            : "È già spenta: " + cosa + " restano com'erano e la cassa non viene più proposta per " + nuovi + ".");
     }
 
     // ── Aprire, muovere, confrontare, chiudere ──────────────────────────────
@@ -511,6 +573,12 @@ public class CassaService {
             for (var v : vociDi(dal, fine, c, imp)) if (v.metodoId() != null) out.putIfAbsent(v.metodoId(), c.getNome());
         }
         return out;
+    }
+
+    /** La cassa esiste ed è accesa. */
+    @Transactional(readOnly = true)
+    boolean cassaAccesa(UUID id) {
+        return casse.findById(id).map(Cassa::isAttiva).orElse(false);
     }
 
     /** C'è una sessione di cassa non ancora chiusa (di qualunque cassa). */

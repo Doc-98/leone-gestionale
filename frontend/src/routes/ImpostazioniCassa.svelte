@@ -1,32 +1,37 @@
 <script lang="ts">
-  import Azione from '../components/Azione.svelte';
   import BarraSalva from '../components/BarraSalva.svelte';
+  import ElencoModificabile from '../components/ElencoModificabile.svelte';
+  import Foglio from '../components/Foglio.svelte';
   import Fumetto from '../components/Fumetto.svelte';
   import Icona from '../components/Icona.svelte';
-  import { api, messaggioErrore, type Cassa, type ChiusuraModo, type FondoModo, type ImpostazioniCassa, type MetodoPagamento, type PaginaCassa } from '../lib/api';
-  import { CONTROLLI, spiegaFondo } from '../lib/cassa';
+  import RiquadroAcceso from '../components/RiquadroAcceso.svelte';
+  import { api, ErroreApi, messaggioErrore, type Cassa, type ChiusuraModo, type FondoModo, type ImpostazioniCassa, type MetodoPagamento, type PaginaCassa } from '../lib/api';
+  import { CONTROLLI, metodiRiscontrati, spiegaFondo, testoRiscontro } from '../lib/cassa';
+  import { creaCoda } from '../lib/coda';
+  import { impila } from '../lib/impila';
   import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
   import { contaModifiche } from '../lib/salvataggio';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
    * Impostazioni della cassa (ADR 0018, parte 11): una cassa o una per postazione, come funziona il fondo e quando si
-   * chiude. Le casse si aggiungono e si cambiano subito; le scelte si salvano dalla barra in basso.
+   * chiude. Le casse sono un elenco modificabile: ognuna si corregge nel suo foglio, con il suo «Salva la cassa»;
+   * interruttore, riordino e cestino agiscono subito. Le scelte della pagina si salvano dalla barra in basso.
    */
   type Bozza = Omit<ImpostazioniCassa, 'importoFondo' | 'tolleranza' | 'oreAvviso'> & { importoFondo: string; tolleranza: string; oreAvviso: string };
   let pagina = $state<PaginaCassa | null>(null);
+  let casse = $state<Cassa[]>([]);
   let metodi = $state<MetodoPagamento[]>([]);
   let bozza = $state<Bozza | null>(null);
   let originale = $state('');
   let errore = $state('');
   let messaggio = $state('');
-  let nuova = $state<string | null>(null);
-  let rinomina = $state<{ id: string; nome: string } | null>(null);
   const puo = $derived(sessione.puo('IMPOSTAZIONI'));
 
   async function carica() {
     try {
       [pagina, metodi] = await Promise.all([api.cassa(), api.metodiPagamento()]);
+      casse = pagina.casse;
       const i = pagina.impostazioni;
       bozza = { ...i, importoFondo: perCampo(i.importoFondo), tolleranza: perCampo(i.tolleranza), oreAvviso: String(i.oreAvviso) };
       originale = JSON.stringify(bozza);
@@ -36,15 +41,21 @@
   }
   carica();
 
-  const sporco = $derived(!!bozza && JSON.stringify(bozza) !== originale);
+  /** Rilegge le casse e il loro stato (chi è principale, quali sono aperte); le scelte della barra non salvate restano. */
+  async function caricaCasse() {
+    const p = await api.cassa();
+    pagina = { ...p, impostazioni: pagina?.impostazioni ?? p.impostazioni };
+    casse = p.casse;
+  }
+
   const modifiche = $derived(bozza && originale ? contaModifiche(JSON.parse(originale), bozza) : 0);
   const fondoN = $derived(bozza ? numeroDa(bozza.importoFondo) : null);
   const tolleranzaN = $derived(bozza ? numeroDa(bozza.tolleranza) : null);
   const oreN = $derived(bozza && /^\d{1,2}$/.test(bozza.oreAvviso.trim()) ? Number(bozza.oreAvviso) : null);
   const valida = $derived(fondoN != null && fondoN >= 0 && tolleranzaN != null && tolleranzaN >= 0 && oreN != null && oreN <= 72);
-  const pagabili = $derived(metodi.filter((m) => m.attivo && !m.contanti && !m.daIncassare && !m.borsellino));
   const aperte = $derived(pagina?.stati.filter((s) => s.aperta).map((s) => s.cassa.nome) ?? []);
   const nelCassetto = $derived(metodi.filter((m) => m.contanti && m.attivo).map((m) => m.nome));
+  const riscontrati = $derived(metodiRiscontrati(metodi));
 
   async function salva() {
     if (!bozza) return;
@@ -59,24 +70,142 @@
     }
   }
 
-  async function esegui(azione: () => Promise<unknown>, fatto: string) {
+  // ── le casse ──
+  const inCoda = creaCoda();
+  const tocchi: Record<string, number> = {};
+  const sostituisci = (nuova: Cassa) => (casse = casse.map((x) => (x.id === nuova.id ? { ...x, ...nuova } : x)));
+
+  /** Acceso o spento: dalla riga e dal foglio, subito. La principale non si spegne. Dopo un errore si rileggono le casse. */
+  async function accendi(c: Cassa, attiva: boolean) {
+    if (c.principale) return;
     errore = '';
     messaggio = '';
+    erroreFoglio = '';
+    const n = (tocchi[c.id] = (tocchi[c.id] ?? 0) + 1);
+    sostituisci({ ...c, attiva });
     try {
-      await azione();
-      const b = bozza;
-      await carica();
-      if (b && sporco) bozza = b; // le scelte non salvate restano
-      messaggio = fatto;
-      return true;
+      const risposta = await inCoda(() => api.modificaCassa(c.id, { attiva }));
+      if (tocchi[c.id] === n) sostituisci(risposta);
     } catch (e) {
-      errore = messaggioErrore(e);
-      return false;
+      if (tocchi[c.id] !== n) return;
+      if (foglio?.id === c.id) erroreFoglio = messaggioErrore(e);
+      else errore = messaggioErrore(e);
+      await caricaCasse().catch(() => {});
     }
   }
 
-  const aggiungi = () => esegui(() => api.creaCassa(nuova!.trim()), `«${nuova!.trim()}» aggiunta.`).then((ok) => ok && (nuova = null));
-  const cambia = (c: Cassa, m: Parameters<typeof api.modificaCassa>[1], fatto: string) => esegui(() => api.modificaCassa(c.id, m), fatto);
+  const eElencoCambiato = (e: unknown) => e instanceof ErroreApi && e.status === 400 && /ricarica/i.test(e.message);
+
+  /** Il nuovo ordine in una chiamata sola; se fallisce rilancia l'errore e l'elenco torna da sé a com'era. */
+  async function riordina(ids: string[]) {
+    errore = '';
+    messaggio = '';
+    try {
+      const nuove = await inCoda(() => api.ordinaCasse(ids));
+      const per = new Map(casse.map((x) => [x.id, x]));
+      // lo stato acceso/spento resta quello dei tocchi (la risposta può essere più vecchia); l'ordine è quello nuovo
+      casse = nuove.map((n) => ({ ...n, attiva: per.get(n.id)?.attiva ?? n.attiva }));
+    } catch (e) {
+      if (eElencoCambiato(e)) {
+        await caricaCasse().catch(() => {});
+        messaggio = "L'elenco era cambiato: l'ho ricaricato.";
+      } else errore = messaggioErrore(e);
+      throw e;
+    }
+  }
+
+  /** Elimina: se il backend dice 409 si ferma e il messaggio a due righe sta sotto la riga (lo mostra l'elenco). */
+  async function elimina(c: Cassa): Promise<string | undefined> {
+    errore = '';
+    messaggio = '';
+    try {
+      await inCoda(() => api.eliminaCassa(c.id));
+      casse = casse.filter((x) => x.id !== c.id);
+      messaggio = `Cassa «${c.nome}» eliminata.`;
+    } catch (e) {
+      if (e instanceof ErroreApi && e.status === 409) return e.message;
+      errore = messaggioErrore(e);
+    }
+  }
+
+  // ── il foglio: «Nuova cassa» e la modifica di una esistente ──
+  let foglio = $state<{ id: string | null } | null>(null);
+  let bozzaC = $state<{ nome: string; principale: boolean }>({ nome: '', principale: false });
+  /** acceso o spento di una cassa che non c'è ancora (per una che c'è vale quello dell'elenco, uguale alla riga) */
+  let nuovoAcceso = $state(true);
+  let erroreFoglio = $state('');
+  let inSalvataggio = $state(false);
+  const aperta = $derived(foglio?.id ? casse.find((c) => c.id === foglio!.id) ?? null : null);
+  const accesoFoglio = $derived(aperta ? aperta.attiva : nuovoAcceso);
+
+  // la cassa aperta è sparita dall'elenco (eliminata altrove): si chiude il foglio e lo si dice
+  $effect(() => {
+    if (foglio?.id && !aperta) {
+      foglio = null;
+      messaggio = 'La cassa non c\'è più.';
+    }
+  });
+
+  function nuovaCassa() {
+    bozzaC = { nome: '', principale: false };
+    nuovoAcceso = true;
+    erroreFoglio = '';
+    foglio = { id: null };
+  }
+  function apri(c: Cassa) {
+    bozzaC = { nome: c.nome, principale: c.principale };
+    erroreFoglio = '';
+    foglio = { id: c.id };
+  }
+  const chiudi = () => (foglio = null);
+  /** Una principale non si spegne: sceglierla accende la cassa (e il riquadro «Acceso» resta bloccato finché è scelta). */
+  function scegliPrincipale() {
+    bozzaC.principale = !bozzaC.principale;
+    if (!bozzaC.principale) return;
+    if (aperta) {
+      if (!aperta.attiva) accendi(aperta, true);
+    } else nuovoAcceso = true;
+  }
+  function accendiDalFoglio(v: boolean) {
+    if (aperta) accendi(aperta, v);
+    else nuovoAcceso = v;
+  }
+
+  async function salvaFoglio(e: SubmitEvent) {
+    e.preventDefault();
+    const nome = bozzaC.nome.trim();
+    if (!nome || inSalvataggio) return;
+    inSalvataggio = true;
+    erroreFoglio = '';
+    errore = '';
+    let creata: Cassa | null = null;
+    try {
+      if (aperta) {
+        const base = aperta;
+        const rendiPrincipale = bozzaC.principale && !base.principale;
+        await inCoda(() => api.modificaCassa(base.id, rendiPrincipale ? { nome, principale: true } : { nome }));
+        await caricaCasse();
+        messaggio = rendiPrincipale ? `«${nome}» è la principale.` : `Cassa «${nome}» salvata.`;
+      } else {
+        creata = await inCoda(() => api.creaCassa(nome));
+        const nuova = creata;
+        // nasce accesa e non principale: gli altri valori scelti nel foglio si applicano subito dopo
+        if (bozzaC.principale || !nuovoAcceso) await inCoda(() => api.modificaCassa(nuova.id, { ...(nuovoAcceso ? {} : { attiva: false }), ...(bozzaC.principale ? { principale: true } : {}) }));
+        await caricaCasse();
+        messaggio = `Cassa «${nome}» aggiunta.`;
+      }
+      chiudi();
+    } catch (err) {
+      erroreFoglio = messaggioErrore(err);
+      // creata ma non ancora a posto: il foglio resta aperto sulla cassa vera, così si riprova senza farne una seconda
+      if (creata) {
+        await caricaCasse().catch(() => {});
+        foglio = { id: creata.id };
+      }
+    } finally {
+      inSalvataggio = false;
+    }
+  }
 
   /** Una spiegazione lunga: in pagina una riga corta, il testo intero nel fumetto «i». */
   type Spiega = { corta: string; tema: string; lunga: string };
@@ -101,44 +230,24 @@
             <p class="hint nomargin avviso-r"><span>Per cambiare prima si chiude: {aperte.length === 1 ? `è aperta «${aperte[0]}»` : `sono aperte ${aperte.map((x) => `«${x}»`).join(', ')}`}.</span></p>
           {/if}
           {#if bozza.casse === 'PER_POSTAZIONE'}
-            <ul class="casse">
-              {#each pagina.casse as c (c.id)}
-                <li class:spenta={!c.attiva}>
-                  {#if rinomina?.id === c.id}
-                    <form class="riga-c" onsubmit={(e) => { e.preventDefault(); cambia(c, { nome: rinomina!.nome.trim() }, 'Nome cambiato.').then((ok) => ok && (rinomina = null)); }}>
-                      <input class="inp grow" bind:value={rinomina.nome} maxlength="40" aria-label="Nome della cassa" />
-                      <Azione type="submit" icona="check" tono="cloro" etichetta="Salva il nome" disabled={!rinomina.nome.trim()} />
-                      <Azione icona="chiudi" etichetta="Annulla" onclick={() => (rinomina = null)} />
-                    </form>
-                  {:else}
-                    <span class="ico-c" aria-hidden="true"><Icona nome="incassi" /></span>
-                    <span class="t grow"><b>{c.nome}</b><span>{c.principale ? 'Principale: prende i pagamenti dei computer che non hanno scelto' : c.attiva ? 'In uso' : 'Spenta'}</span></span>
-                    {#if c.principale}<span class="pill passa">Principale</span>{/if}
-                    {#if puo}
-                      <span class="gruppo-azioni">
-                        <Azione icona="matita" etichetta={`Rinomina «${c.nome}»`} onclick={() => (rinomina = { id: c.id, nome: c.nome })} />
-                        {#if !c.principale}
-                          <button type="button" class="mini-btn" onclick={() => cambia(c, { principale: true }, `«${c.nome}» è la principale.`)}>Rendi principale</button>
-                          <button type="button" class="switch" role="switch" aria-checked={c.attiva} aria-label={c.attiva ? `Spegni «${c.nome}»` : `Accendi «${c.nome}»`}
-                            onclick={() => cambia(c, { attiva: !c.attiva }, c.attiva ? `«${c.nome}» spenta.` : `«${c.nome}» accesa.`)}><span></span></button>
-                        {/if}
-                      </span>
-                    {/if}
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-            {#if puo}
-              {#if nuova === null}
-                <div class="aggiungi"><button type="button" class="mini-btn" onclick={() => (nuova = '')}><Icona nome="piu" />Nuova cassa…</button></div>
-              {:else}
-                <form class="aggiungi" onsubmit={(e) => { e.preventDefault(); aggiungi(); }}>
-                  <input class="inp grow" bind:value={nuova} maxlength="40" placeholder="Nome (es. Segreteria piscina)" aria-label="Nome della nuova cassa" />
-                  <button class="btn btn-primary" disabled={!nuova.trim()}>Aggiungi la cassa</button>
-                  <button type="button" class="btn btn-secondary" onclick={() => (nuova = null)}>Annulla</button>
-                </form>
-              {/if}
-            {/if}
+            <div class="elenco">
+              <ElencoModificabile
+                elementi={casse}
+                modificabile={puo}
+                nome={(c) => c.nome}
+                nomeElemento="cassa"
+                articolo="una"
+                riga={contenuto}
+                acceso={(c) => c.attiva}
+                haCestino={(c) => !c.principale}
+                haInterruttore={(c) => !c.principale}
+                onriordina={riordina}
+                onaggiungi={nuovaCassa}
+                onapri={apri}
+                onacceso={accendi}
+                onelimina={elimina}
+              />
+            </div>
           {/if}
         </section>
 
@@ -160,15 +269,15 @@
             : 'Una chiusura a fine giornata, senza apertura (tranne con il fondo da contare). I pagamenti dopo la chiusura vanno nel giorno dopo.' },
             seg(bozza.chiusura, CHIUSURE, (v) => (bozza!.chiusura = v)))}
           <div class="riga-imp"><span class="t"><b>Cosa finisce nel cassetto</b>
-            <span class="corta"><span class="t-c">{#if nelCassetto.length}Contano solo i metodi «nel cassetto».{:else}<strong class="manca">Nessun metodo è «nel cassetto».</strong>{/if}</span><Fumetto tema="il cassetto">Contano nei contanti attesi solo i metodi segnati «nel cassetto».{#if !nelCassetto.length}{' '}<strong class="manca">Nessuno lo è.</strong>{/if}</Fumetto></span></span>
-            <span class="ctl"><span class="esempio">{nelCassetto.join(', ') || '—'}</span><a class="mini-btn" href="#/metodi">Metodi di pagamento →</a></span></div>
+            <span class="corta"><span class="t-c">{#if nelCassetto.length}{nelCassetto.join(', ')}{:else}<strong class="manca">Nessun metodo è «nel cassetto».</strong>{/if}</span><Fumetto tema="il cassetto">Contano nei contanti attesi solo i metodi segnati «nel cassetto».{#if !nelCassetto.length}{' '}<strong class="manca">Nessuno lo è.</strong>{/if}</Fumetto></span></span>
+            <span class="ctl"><a class="btn btn-secondary btn-sm" href="#/metodi"><Icona nome="freccia" />Scegli i metodi</a></span></div>
         </section>
 
         <section class="card sez" id="imp-conteggio" aria-label="Il conteggio e il controllo">
           <div class="sez-t"><h2 class="grow">Il conteggio e il controllo</h2><span class="spiega">come si usa nel settore</span></div>
           <div class="riga-imp"><span class="t"><b>Conta alla cieca</b>
             {@render spiega({ corta: 'Chi chiude non vede gli attesi.', tema: 'il conteggio alla cieca', lunga: 'Chi chiude conta senza vedere i contanti attesi; il confronto arriva dopo. È la pratica consigliata: il conto non si «aggiusta» sul numero atteso.' })}</span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.cieca} aria-label="Conta alla cieca" disabled={!puo} onclick={() => (bozza!.cieca = !bozza!.cieca)}><span></span></button></span></div>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.cieca} aria-label="Conta alla cieca" disabled={!puo} onclick={() => (bozza!.cieca = !bozza!.cieca)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Differenza tollerata</b>
             {@render spiega({ corta: 'Fino a qui si chiude e basta.', tema: 'la differenza tollerata', lunga: 'Fino a questa cifra, in più o in meno, si chiude e basta. Oltre: si propone di ricontare, la nota diventa obbligatoria e la chiusura può andare controllata. 0 = ogni differenza.' })}</span>
             <span class="ctl"><input class="inp m corto" inputmode="decimal" bind:value={bozza.tolleranza} disabled={!puo} aria-label="Differenza tollerata" aria-invalid={tolleranzaN == null || tolleranzaN < 0} /><span class="unita">€</span></span>
@@ -176,24 +285,18 @@
           {@render scelte('Chiusure da controllare', { corta: 'Le segna chi annulla i pagamenti.', tema: 'il controllo delle chiusure', lunga: 'Chi può annullare i pagamenti le segna come controllate (non chi le ha chiuse); sul riepilogo stampato compare chi e quando.' },
             seg(bozza.controllo, CONTROLLI, (v) => (bozza!.controllo = v)))}
           <div class="riga-imp"><span class="t"><b>Riscontro con il POS</b>
-            {@render spiega({ corta: 'Si cambia subito, senza salvare.', tema: 'il riscontro con il POS', lunga: 'Per i metodi scelti, alla chiusura si scrive il totale dello scontrino di chiusura del POS e si vede se torna con i pagamenti registrati. Si cambia subito, senza salvare.' })}</span>
-            <span class="ctl chips-m">
-              {#each pagabili as m (m.id)}
-                <button type="button" class="chip" aria-pressed={m.riscontro} disabled={!puo}
-                  onclick={() => esegui(() => api.modificaMetodoPagamento(m.id, { nome: m.nome, daIncassare: m.daIncassare, contanti: m.contanti, attivo: m.attivo, ordine: m.ordine, riscontro: !m.riscontro }),
-                    m.riscontro ? `${m.nome}: non si riscontra più.` : `${m.nome}: si riscontra con il POS.`)}>{m.nome}</button>
-              {:else}<span class="muted small">Nessun metodo con carta o app.</span>{/each}
-            </span></div>
+            <span class="corta"><span class="t-c">{testoRiscontro(riscontrati)}</span><Fumetto tema="il riscontro con il POS">Alla chiusura si scrive il totale dello scontrino del POS e si vede se torna con i pagamenti registrati. Si sceglie nel foglio di ogni metodo, in Prezzi e pagamenti › Metodi di pagamento.</Fumetto></span></span>
+            <span class="ctl"><a class="btn btn-secondary btn-sm" href="#/metodi"><Icona nome="freccia" />Metodi di pagamento</a></span></div>
         </section>
 
         <section class="card sez" id="imp-tolti" aria-label="I soldi tolti dal cassetto">
           <div class="sez-t"><h2 class="grow">I soldi tolti dal cassetto</h2><span class="spiega">spese, cassaforte, banca</span></div>
           <div class="riga-imp"><span class="t"><b>Spese pagate con la cassa</b>
             {@render spiega({ corta: 'Spento, le spese stanno fuori cassa.', tema: 'le spese', lunga: 'Spento, il cassetto serve solo per incassi e resto: le piccole spese passano da una cassa a parte (come si consiglia di solito).' })}</span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.spese} aria-label="Spese pagate con la cassa" disabled={!puo} onclick={() => (bozza!.spese = !bozza!.spese)}><span></span></button></span></div>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.spese} aria-label="Spese pagate con la cassa" disabled={!puo} onclick={() => (bozza!.spese = !bozza!.spese)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Conto di cassaforte e banca</b>
             {@render spiega({ corta: 'Dalla cassaforte alla banca.', tema: 'il conto della cassaforte e della banca', lunga: 'Quello versato alle chiusure resta «in cassaforte» finché qualcuno non segna che è stato portato in banca, con il giorno e la distinta. Il conto parte da quando si accende.' })}</span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.banca} aria-label="Conto della cassaforte e della banca" disabled={!puo} onclick={() => (bozza!.banca = !bozza!.banca)}><span></span></button></span></div>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.banca} aria-label="Conto della cassaforte e della banca" disabled={!puo} onclick={() => (bozza!.banca = !bozza!.banca)}><span></span></button></span></div>
           <div class="riga-imp"><span class="t"><b>Avvisa se una cassa resta aperta</b>
             {@render spiega({ corta: 'Dopo quante ore dall\'apertura. 0 = mai.', tema: 'l\'avviso di cassa aperta', lunga: 'Dopo queste ore dall\'apertura, un avviso a chi entra in cassa e, sulla voce Incassi, a chi usa la cassa. 0 = mai.' })}</span>
             <span class="ctl"><input class="inp m corto" inputmode="numeric" bind:value={bozza.oreAvviso} disabled={!puo} aria-label="Ore dopo cui avvisare" /><span class="unita">ore</span></span></div>
@@ -212,14 +315,16 @@
             <span class="r"><span>Contati</span><span class="m">{euroColonna((fondoN ?? 0) + 198)}</span></span>
             <span class="r meno"><span>Differenza</span><span class="m">−{euroColonna(2)}</span></span>
           </div>
-          <ul class="cosa">
-            <li>{bozza.cieca ? 'Si conta alla cieca: gli attesi compaiono dopo il conteggio, e resta il primo conteggio se si riconta.' : 'Gli attesi si vedono mentre si conta.'}</li>
-            <li>{tolleranzaN ? `Fino a ${euro(tolleranzaN)} di differenza si chiude e basta; oltre serve la nota.` : 'Ogni differenza chiede la nota.'}
-              {bozza.controllo === 'TUTTE' ? ' Ogni chiusura va controllata da un responsabile.' : bozza.controllo === 'OLTRE' ? ' Quelle oltre vanno controllate da un responsabile.' : ''}</li>
-            {#if pagabili.some((m) => m.riscontro)}<li>Si riscontrano con il POS: {pagabili.filter((m) => m.riscontro).map((m) => m.nome).join(', ')}.</li>{/if}
-          </ul>
-          <p class="muted small nomargin">Alla chiusura si dice quanto si lascia per la volta dopo; il resto è da versare. Il riepilogo si stampa da firmare. L'ultima chiusura si può riaprire, con il motivo, da chi può annullare i pagamenti.</p>
-          <p class="muted small nomargin">Il gestionale non sostituisce il registratore telematico: il riepilogo della chiusura è un documento interno.</p>
+          <div class="cosa">
+            {@render spiega({ corta: bozza.cieca ? 'Si conta alla cieca.' : 'Gli attesi si vedono mentre si conta.', tema: 'il conteggio',
+              lunga: bozza.cieca ? 'Si conta alla cieca: gli attesi compaiono dopo il conteggio, e resta il primo conteggio se si riconta.' : 'Gli attesi si vedono mentre si conta.' })}
+            {@render spiega({ corta: tolleranzaN ? `Fino a ${euro(tolleranzaN)} si chiude e basta.` : 'Ogni differenza chiede la nota.', tema: 'la differenza',
+              lunga: `${tolleranzaN ? `Fino a ${euro(tolleranzaN)} di differenza si chiude e basta; oltre serve la nota.` : 'Ogni differenza chiede la nota.'}${bozza.controllo === 'TUTTE' ? ' Ogni chiusura va controllata da un responsabile.' : bozza.controllo === 'OLTRE' ? ' Quelle oltre vanno controllate da un responsabile.' : ''}` })}
+            {@render spiega({ corta: 'Quanto si lascia e il riepilogo.', tema: 'la chiusura',
+              lunga: 'Alla chiusura si dice quanto si lascia per la volta dopo; il resto è da versare. Il riepilogo si stampa da firmare. L\'ultima chiusura si può riaprire, con il motivo, da chi può annullare i pagamenti.' })}
+            {@render spiega({ corta: 'Non sostituisce il registratore telematico.', tema: 'il registratore telematico',
+              lunga: 'Il gestionale non sostituisce il registratore telematico: il riepilogo della chiusura è un documento interno.' })}
+          </div>
         </section>
       </aside>
     </div>
@@ -234,40 +339,83 @@
 
 {#snippet scelte(titolo: string, spiega_: Spiega, s: Scelte)}
   <div class="riga-imp"><span class="t"><b>{titolo}</b>{@render spiega(spiega_)}</span>
-    <span class="ctl"><span class="seg" style:grid-template-columns={`repeat(${s.opzioni.length}, minmax(0, 1fr))`} role="group" aria-label={titolo}>
+    <span class="ctl"><span class="seg" style:--n={s.opzioni.length} use:impila role="group" aria-label={titolo}>
       {#each s.opzioni as o (o.id)}<button type="button" aria-pressed={s.valore === o.id} disabled={!puo} onclick={() => s.scegli(o.id)}>{o.nome}</button>{/each}
     </span></span></div>
 {/snippet}
+
+{#snippet contenuto(c: Cassa)}
+  <span class="col">
+    <span class="nome-r">
+      <strong class="nome" class:tenue={!c.attiva}>{c.nome}</strong>
+      {#if c.principale}<span class="tag t-soft">Principale</span>{/if}
+    </span>
+    {#if c.principale}<span class="sotto">Per i computer che non hanno scelto</span>{/if}
+  </span>
+{/snippet}
+
+{#snippet pillolaSpento()}
+  {#if !accesoFoglio}<span class="pill">spento</span>{/if}
+{/snippet}
+
+{#if foglio && puo}
+  <Foglio titolo={aperta ? aperta.nome : 'Nuova cassa'} {chiudi} troncaTitolo dopoTitolo={pillolaSpento}>
+    <form class="modulo" onsubmit={salvaFoglio}>
+      {#if !aperta?.principale}<RiquadroAcceso acceso={accesoFoglio} onacceso={accendiDalFoglio} nome={aperta?.nome ?? bozzaC.nome.trim()} disabled={bozzaC.principale} />{/if}
+
+      <label class="field"><span class="lbl">Nome</span>
+        <input class="inp" bind:value={bozzaC.nome} maxlength="40" autocomplete="off" placeholder="es. Segreteria piscina" />
+      </label>
+
+      <div class="riga-sw"><span class="lbl-i"><b>Cassa principale</b>
+        <Fumetto tema="la cassa principale">{aperta?.principale ? 'È la principale: prende i pagamenti dei computer che non hanno scelto la loro cassa. Per cambiarla, rendi principale un\'altra cassa.' : 'La principale prende i pagamenti dei computer che non hanno scelto la loro cassa. Ce n\'è una sola: scegliendo questa, la principale di ora diventa una cassa come le altre.'}</Fumetto></span>
+        <button type="button" class="switch tap44" role="switch" aria-checked={bozzaC.principale} aria-label="Cassa principale" disabled={!!aperta?.principale} onclick={scegliPrincipale}><span></span></button></div>
+
+      {#if erroreFoglio}<p class="msg err nomargin" role="alert">{erroreFoglio}</p>{/if}
+
+      <div class="azioni-foglio">
+        <button type="button" class="btn btn-secondary" onclick={chiudi}>Annulla</button>
+        <button type="submit" class="btn btn-accent" disabled={!bozzaC.nome.trim() || inSalvataggio}>
+          {#if aperta}<Icona nome="salva" />Salva la cassa{:else}<Icona nome="piu" />Aggiungi la cassa{/if}
+        </button>
+      </div>
+    </form>
+  </Foglio>
+{/if}
 
 <style>
   .pagina { display: flex; flex-direction: column; gap: var(--space-14); }
   .colonne { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: flex-start; }
   .princ { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-14); }
-  .lato { flex: 1 1 300px; max-width: 380px; position: sticky; top: var(--space-16); }
+  .lato { flex: 1 1 300px; min-width: 0; max-width: 380px; position: sticky; top: var(--space-16); }
+  /* quando i controlli vanno a capo sotto il testo, 20 px tra le righe: l'area di tocco della «i» e quella dell'interruttore non si sovrappongono */
+  .pagina :global(.riga-imp) { row-gap: var(--space-20); }
   .ctl .inp { height: 40px; }
   .corto { width: 110px; text-align: right; }
-  .seg { min-width: 280px; }
-  .cosa { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: var(--space-6); font-size: var(--text-sm); }
-  .chips-m { display: flex; gap: var(--space-6); flex-wrap: wrap; justify-content: flex-end; max-width: 360px; }
-  .esempio { font-size: var(--text-md); font-weight: 600; padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--carta); }
+  /* i segmenti: stessa larghezza per tutte le voci di un selettore, alti 44; se non ci stanno in fila vanno uno sotto l'altro */
+  .seg { grid-template-columns: repeat(var(--n), var(--col, 1fr)); }
+  .seg button { min-height: 44px; }
+  .seg:global([data-impilato]) { grid-template-columns: 1fr; }
+  .cosa { display: flex; flex-direction: column; gap: var(--space-8); font-size: var(--text-sm); }
+  .btn-sm { text-decoration: none; }
   .manca { color: var(--warn); font-weight: 600; }
   /* la riga corta: non va a capo, la «i» sta in fondo e non allarga la riga */
   .corta { display: flex; align-items: center; gap: var(--space-4); white-space: nowrap; min-width: 0; }
   /* a 320 px il testo si accorcia con i puntini (il testo intero resta nel fumetto), la «i» si vede sempre */
   .t-c { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .avviso-r { margin: 0 var(--space-16) var(--space-12); }
-  .casse { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-soft); }
-  .casse li { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line-soft); }
-  .casse li:first-child { border-top: none; }
-  .casse li.spenta .t b { color: var(--muted); }
-  .ico-c { width: 38px; height: 38px; border-radius: var(--radius-sm); display: grid; place-items: center; background: var(--carta); color: var(--seg-fg); flex-shrink: 0; }
-  .casse .t { display: flex; flex-direction: column; gap: 1px; min-width: 200px; }
-  .casse .t span { font-size: var(--text-sm); color: var(--muted); }
-  .riga-c { display: flex; gap: var(--space-8); align-items: center; flex: 1 1 auto; }
-  .riga-c .inp, .aggiungi .inp { height: 40px; }
+  .elenco { padding: var(--space-6) var(--space-16) var(--space-10); border-top: 1px solid var(--line-soft); }
+  .col { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+  .nome-r { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4) var(--space-8); min-width: 0; }
+  .nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .nome.tenue { opacity: 0.7; }
+  .sotto { font-size: var(--text-sm); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .modulo { display: flex; flex-direction: column; gap: var(--space-14); }
+  .modulo .inp { height: 44px; }
+  .lbl-i { display: flex; align-items: center; gap: var(--space-4); font-weight: 600; }
+  .riga-sw { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); min-height: 44px; }
+  .azioni-foglio { display: flex; justify-content: flex-end; gap: var(--space-10); flex-wrap: wrap; }
   .grow { flex: 1 1 auto; min-width: 0; }
-  .gruppo-azioni { display: flex; gap: var(--space-6); } /* più largo del .gruppo-azioni globale (4px, inline-flex) */
-  .aggiungi { display: flex; gap: var(--space-8); flex-wrap: wrap; padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line-soft); }
   .pann { gap: var(--space-10); } /* un po' più stretto del .pann globale (12px) */
   .conto { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-14); border-radius: var(--radius-md); background: var(--surface-sunken); font-size: var(--text-sm); }
   .conto .r { display: flex; justify-content: space-between; gap: var(--space-10); }

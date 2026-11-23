@@ -1,32 +1,40 @@
 <script lang="ts">
   import BarraSalva from '../components/BarraSalva.svelte';
+  import ElencoModificabile from '../components/ElencoModificabile.svelte';
+  import ErroreCampo from '../components/ErroreCampo.svelte';
+  import Foglio from '../components/Foglio.svelte';
+  import Fumetto from '../components/Fumetto.svelte';
   import Icona from '../components/Icona.svelte';
-  import { api, messaggioErrore, type ImpostazioniRicevute, type PaginaRicevute, type SerieRicevute, type TipoSerie } from '../lib/api';
+  import RiquadroAcceso from '../components/RiquadroAcceso.svelte';
+  import { api, ErroreApi, messaggioErrore, type ImpostazioniRicevute, type ModificaSerieRicevute, type PaginaRicevute, type RiparteSerie, type SerieRicevute, type TipoSerie } from '../lib/api';
+  import { creaCoda } from '../lib/coda';
+  import { impila } from '../lib/impila';
   import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
-  import { anteprimaNumero, FORMATI_PRONTI, RIPARTE } from '../lib/ricevute';
+  import { anteprimaNumero, FORMATI_PRONTI, predefinitiSerie, riepilogoSerie, RIPARTE, serieDiBase, serieRichiesta } from '../lib/ricevute';
   import { contaModifiche } from '../lib/salvataggio';
   import { cifreNonValide as cifreKo, MSG_CIFRE } from '../lib/validita';
-  import ErroreCampo from '../components/ErroreCampo.svelte';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
-   * Impostazioni delle ricevute (ADR 0018, parte 10): le serie con la loro numerazione, cosa c'è scritto e come si
-   * consegnano. Le modifiche si salvano tutte insieme dalla barra in basso, come nelle altre impostazioni.
+   * Impostazioni delle ricevute (ADR 0018, parte 10). Le serie sono un elenco modificabile: ognuna si corregge nel suo
+   * foglio, con il suo «Salva la serie»; interruttore, riordino e cestino agiscono subito. Ciò che riguarda tutta la pagina
+   * (cosa c'è scritto, come si consegna) si salva dalla barra in basso.
    */
-  type Bozza = { imp: Omit<ImpostazioniRicevute, 'bolloSoglia' | 'bolloImporto'> & { bolloSoglia: string; bolloImporto: string }; serie: SerieRicevute[] };
+  type Bozza = Omit<ImpostazioniRicevute, 'bolloSoglia' | 'bolloImporto'> & { bolloSoglia: string; bolloImporto: string };
   let pagina = $state<PaginaRicevute | null>(null);
+  let serie = $state<SerieRicevute[]>([]);
   let bozza = $state<Bozza | null>(null);
   let originale = $state('');
-  let scelta = $state(0);
   let errore = $state('');
   let messaggio = $state('');
-  let nuova = $state<{ nome: string; tipo: TipoSerie } | null>(null);
   const puo = $derived(sessione.puo('IMPOSTAZIONI'));
 
   async function carica() {
     try {
       pagina = await api.impostazioniRicevute();
-      bozza = { imp: { ...pagina.impostazioni, bolloSoglia: perCampo(pagina.impostazioni.bolloSoglia), bolloImporto: perCampo(pagina.impostazioni.bolloImporto) }, serie: pagina.serie.map((s) => ({ ...s })) };
+      serie = pagina.serie;
+      const i = pagina.impostazioni;
+      bozza = { ...i, bolloSoglia: perCampo(i.bolloSoglia), bolloImporto: perCampo(i.bolloImporto) };
       originale = JSON.stringify(bozza);
     } catch (e) {
       errore = messaggioErrore(e);
@@ -34,37 +42,28 @@
   }
   carica();
 
+  /** Dopo un errore o una creazione: rilegge solo le serie, le scelte della barra non salvate restano. */
+  async function caricaSerie() {
+    const p = await api.impostazioniRicevute();
+    serie = p.serie;
+    if (pagina) pagina = { ...pagina, mancaIntestazione: p.mancaIntestazione };
+  }
+
   const erroreBollo = $derived.by(() => {
     if (!bozza) return '';
-    const { bollo, bolloSoglia, bolloImporto } = bozza.imp;
+    const { bollo, bolloSoglia, bolloImporto } = bozza;
     if (importoNonValido(bolloSoglia) || importoNonValido(bolloImporto) || (bollo && (numeroDa(bolloSoglia) == null || numeroDa(bolloImporto) == null)))
       return 'Scrivi la soglia e l\'importo della marca in euro, es. 77,47 e 2';
     return '';
   });
-  const cifreNonValide = (s: SerieRicevute | undefined) => !!s && cifreKo(s.cifre);
   const modifiche = $derived(bozza ? contaModifiche(JSON.parse(originale), bozza) : 0);
-  const serie = $derived(bozza?.serie[scelta]);
-  const anno = new Date().getFullYear();
-  /** La stagione per l'anteprima: quella del periodo della serie, se la serie riparte a ogni stagione. */
-  const stagione = $derived(bozza?.serie.find((s) => s.riparte === 'STAGIONE')?.periodo ?? `${anno}/${String(anno + 1).slice(2)}`);
-  const prossimoN = (s: SerieRicevute) => (s.emesse > 0 ? null : s.prossimoNumero) ?? (s.emesse + 1);
-  const anteprima = (s: SerieRicevute) => (s.emesse > 0 && JSON.stringify(s) === JSON.stringify(pagina?.serie.find((x) => x.id === s.id)) ? s.prossima
-    : anteprimaNumero(s.formato, s.cifre, stagione, anno, prossimoN(s)));
 
   async function salva() {
-    if (!bozza || !pagina) return;
+    if (!bozza) return;
     errore = '';
     messaggio = '';
-    const prima = JSON.parse(originale) as Bozza;
     try {
-      for (const s of bozza.serie) {
-        const p = prima.serie.find((x) => x.id === s.id);
-        if (JSON.stringify(p) !== JSON.stringify(s))
-          await api.modificaSerieRicevute(s.id, { nome: s.nome.trim(), attiva: s.attiva, formato: s.formato.trim(), cifre: Number(s.cifre), riparte: s.riparte,
-            prossimoNumero: s.prossimoNumero ? Number(s.prossimoNumero) : null });
-      }
-      if (JSON.stringify(prima.imp) !== JSON.stringify(bozza.imp))
-        await api.modificaImpostazioniRicevute({ ...bozza.imp, bolloSoglia: numeroDa(bozza.imp.bolloSoglia) ?? 0, bolloImporto: numeroDa(bozza.imp.bolloImporto) ?? 0 });
+      await api.modificaImpostazioniRicevute({ ...bozza, bolloSoglia: numeroDa(bozza.bolloSoglia) ?? 0, bolloImporto: numeroDa(bozza.bolloImporto) ?? 0 });
       await carica();
       messaggio = 'Salvato: vale dalla prossima ricevuta.';
     } catch (e) {
@@ -72,19 +71,170 @@
     }
   }
 
-  async function creaSerie() {
+  // ── le serie ──
+  const anno = new Date().getFullYear();
+  /** La stagione per l'anteprima: quella del periodo della serie, se la serie riparte a ogni stagione. */
+  const stagione = $derived(serie.find((s) => s.riparte === 'STAGIONE')?.periodo ?? `${anno}/${String(anno + 1).slice(2)}`);
+  type Campi = { formato: string; cifre: number | string | null; riparte: RiparteSerie; prossimoNumero: number | null };
+  /** Il numero della prossima ricevuta: quello del server se la serie non è stata toccata, altrimenti come uscirebbe. */
+  function anteprima(c: Campi, base?: SerieRicevute): string {
+    const emesse = base?.emesse ?? 0;
+    if (base && emesse > 0 && c.formato === base.formato && Number(c.cifre) === base.cifre && c.riparte === base.riparte) return base.prossima;
+    const cifre = cifreKo(c.cifre) ? 4 : Number(c.cifre);
+    return anteprimaNumero(c.formato, cifre, stagione, anno, (emesse > 0 ? null : c.prossimoNumero) ?? emesse + 1);
+  }
+
+  const inCoda = creaCoda();
+  const tocchi: Record<string, number> = {};
+  /** La fonte è il server (`richiesta`); senza, il conteggio locale delle serie accese di ricevute. */
+  const richiesta = (s: SerieRicevute) => s.richiesta ?? serieRichiesta(serie, s.id);
+  /** La serie «di base»: la prima di ricevute accesa dell'elenco. Cambia con l'ordine e con gli interruttori. */
+  const diBase = $derived(serieDiBase(serie));
+  const sostituisci = (nuova: SerieRicevute) => (serie = serie.map((x) => (x.id === nuova.id ? nuova : x)));
+  /** Il corpo di una modifica: tutti i campi della serie com'è adesso, con i cambi. */
+  const corpo = (s: SerieRicevute, cambi: Partial<ModificaSerieRicevute> = {}): ModificaSerieRicevute =>
+    ({ nome: s.nome, attiva: s.attiva, formato: s.formato, cifre: s.cifre, riparte: s.riparte, prossimoNumero: s.prossimoNumero, ...cambi });
+
+  /** Acceso o spento: dalla riga e dal foglio, subito. Dopo un errore si rileggono le serie. */
+  async function accendi(s: SerieRicevute, attiva: boolean) {
+    if (!attiva && richiesta(s)) return;
     errore = '';
+    messaggio = '';
+    erroreFoglio = '';
+    const n = (tocchi[s.id] = (tocchi[s.id] ?? 0) + 1);
+    sostituisci({ ...s, attiva });
     try {
-      await api.creaSerieRicevute(nuova!.nome.trim(), nuova!.tipo);
-      nuova = null;
-      await carica();
-      scelta = (bozza?.serie.length ?? 1) - 1;
-      messaggio = 'Serie aggiunta, spenta: accendila quando è pronta.';
+      const risposta = await inCoda(() => api.modificaSerieRicevute(s.id, corpo(s, { attiva })));
+      if (tocchi[s.id] === n) {
+        sostituisci(risposta);
+        await caricaSerie(); // accendere una serie cambia quale è «richiesta»
+      }
     } catch (e) {
+      if (tocchi[s.id] !== n) return;
+      if (foglio?.id === s.id) erroreFoglio = messaggioErrore(e);
+      else errore = messaggioErrore(e);
+      await caricaSerie().catch(() => {});
+    }
+  }
+
+  const eElencoCambiato = (e: unknown) => e instanceof ErroreApi && e.status === 400 && /ricarica/i.test(e.message);
+
+  /** Il nuovo ordine in una chiamata sola; se fallisce rilancia l'errore e l'elenco torna da sé a com'era. */
+  async function riordina(ids: string[]) {
+    errore = '';
+    messaggio = '';
+    try {
+      const nuove = await inCoda(() => api.ordinaSerieRicevute(ids));
+      const per = new Map(serie.map((x) => [x.id, x]));
+      // lo stato acceso/spento resta quello dei tocchi (la risposta può essere più vecchia); l'ordine è quello nuovo
+      serie = nuove.map((n) => ({ ...n, attiva: per.get(n.id)?.attiva ?? n.attiva }));
+    } catch (e) {
+      if (eElencoCambiato(e)) {
+        await caricaSerie().catch(() => {});
+        messaggio = "L'elenco era cambiato: l'ho ricaricato.";
+      } else errore = messaggioErrore(e);
+      throw e;
+    }
+  }
+
+  /** Elimina: se il backend dice 409 si ferma e il messaggio a due righe sta sotto la riga (lo mostra l'elenco). */
+  async function elimina(s: SerieRicevute): Promise<string | undefined> {
+    errore = '';
+    messaggio = '';
+    try {
+      await inCoda(() => api.eliminaSerieRicevute(s.id));
+      serie = serie.filter((x) => x.id !== s.id);
+      messaggio = `Serie «${s.nome}» eliminata.`;
+      await caricaSerie().catch(() => {}); // una serie può essere diventata «richiesta»: perde subito cestino e interruttore
+    } catch (e) {
+      if (e instanceof ErroreApi && e.status === 409) return e.message;
       errore = messaggioErrore(e);
     }
   }
 
+  // ── il foglio: «Nuova serie» e la modifica di una esistente ──
+  let foglio = $state<{ id: string | null } | null>(null);
+  type BozzaSerie = { nome: string; tipo: TipoSerie; formato: string; cifre: number | string | null; riparte: RiparteSerie; prossimoNumero: number | null };
+  let bozzaS = $state<BozzaSerie>({ nome: '', tipo: 'RICEVUTA', ...predefinitiSerie('RICEVUTA'), prossimoNumero: null });
+  /** acceso o spento di una serie che non c'è ancora (per una che c'è vale quello dell'elenco, uguale alla riga) */
+  let nuovoAcceso = $state(false);
+  let erroreFoglio = $state('');
+  let inSalvataggio = $state(false);
+  const aperta = $derived(foglio?.id ? serie.find((s) => s.id === foglio!.id) ?? null : null);
+  const accesoFoglio = $derived(aperta ? aperta.attiva : nuovoAcceso);
+  const cifreSbagliate = $derived(cifreKo(bozzaS.cifre));
+
+  // la serie aperta è sparita dall'elenco (eliminata altrove): si chiude il foglio e lo si dice
+  $effect(() => {
+    if (foglio?.id && !aperta) {
+      foglio = null;
+      messaggio = 'La serie non c\'è più.';
+    }
+  });
+
+  function nuovaSerie() {
+    bozzaS = { nome: '', tipo: 'RICEVUTA', ...predefinitiSerie('RICEVUTA'), prossimoNumero: null };
+    nuovoAcceso = false;
+    erroreFoglio = '';
+    foglio = { id: null };
+  }
+  function apri(s: SerieRicevute) {
+    bozzaS = { nome: s.nome, tipo: s.tipo, formato: s.formato, cifre: s.cifre, riparte: s.riparte, prossimoNumero: s.prossimoNumero };
+    erroreFoglio = '';
+    foglio = { id: s.id };
+  }
+  const chiudi = () => (foglio = null);
+  /** Cambiare il tipo di una serie nuova porta con sé il formato e la ripartenza giusti per quel tipo. */
+  function scegliTipo(tipo: TipoSerie) {
+    bozzaS = { ...bozzaS, tipo, ...predefinitiSerie(tipo) };
+  }
+  function accendiDalFoglio(v: boolean) {
+    if (aperta) accendi(aperta, v);
+    else nuovoAcceso = v;
+  }
+
+  async function salvaFoglio(e: SubmitEvent) {
+    e.preventDefault();
+    const nome = bozzaS.nome.trim();
+    if (!nome || cifreSbagliate || inSalvataggio) return;
+    inSalvataggio = true;
+    erroreFoglio = '';
+    errore = '';
+    const campi = { formato: bozzaS.formato.trim(), cifre: Number(bozzaS.cifre), riparte: bozzaS.riparte, prossimoNumero: bozzaS.prossimoNumero };
+    let creata: SerieRicevute | null = null;
+    try {
+      if (aperta) {
+        const base = aperta;
+        sostituisci(await inCoda(() => api.modificaSerieRicevute(base.id, corpo(base, { nome, ...campi, prossimoNumero: base.emesse > 0 ? base.prossimoNumero : campi.prossimoNumero }))));
+        messaggio = `Serie «${nome}» salvata.`;
+      } else {
+        // la serie nasce con i valori del server; poi si applica quanto scritto nel foglio
+        creata = await inCoda(() => api.creaSerieRicevute(nome, bozzaS.tipo));
+        const nuova = creata;
+        await inCoda(() => api.modificaSerieRicevute(nuova.id, { nome, attiva: nuovoAcceso, ...campi }));
+        await caricaSerie();
+        messaggio = `Serie «${nome}» aggiunta${nuovoAcceso ? '' : ', spenta: accendila quando è pronta'}.`;
+      }
+      chiudi();
+    } catch (err) {
+      erroreFoglio = messaggioErrore(err);
+      // creata ma non ancora a posto: il foglio resta aperto sulla serie vera, così si riprova senza farne una seconda
+      if (creata) {
+        await caricaSerie().catch(() => {});
+        foglio = { id: creata.id };
+      }
+    } finally {
+      inSalvataggio = false;
+    }
+  }
+
+  /** Il pezzo che dà più peso all'anteprima: la serie aperta nel foglio o, senza, la prima accesa di ricevute. */
+  const inAnteprima = $derived(aperta ?? serie.find((s) => s.attiva && s.tipo === 'RICEVUTA') ?? serie[0]);
+  const tipoAnteprima = $derived(foglio ? bozzaS.tipo : inAnteprima?.tipo);
+  const numeroAnteprima = $derived(foglio ? anteprima(bozzaS, aperta ?? undefined) : inAnteprima ? inAnteprima.prossima : '');
+
+  /** Una spiegazione lunga: in pagina una riga corta, il testo intero nel fumetto «i». */
+  type Spiega = { corta: string; tema: string; lunga: string };
   type Scelte = { valore: string; opzioni: { id: string; nome: string }[]; scegli: (v: string) => void };
   const seg = <T extends string>(valore: T, opzioni: { id: T; nome: string }[], scegli: (v: T) => void): Scelte => ({ valore, opzioni, scegli: (v) => scegli(v as T) });
 </script>
@@ -97,85 +247,64 @@
     <div class="colonne">
       <div class="princ">
         <section class="card sez" id="imp-serie" aria-label="Serie e numerazione">
-          <div class="sez-t"><h2 class="grow">Serie e numerazione</h2>
-            {#if puo && !nuova}<button type="button" class="mini-btn" onclick={() => (nuova = { nome: '', tipo: 'RICEVUTA' })}><Icona nome="piu" />Nuova serie…</button>{/if}</div>
-          <p class="muted small nomargin spiega-s">Ogni serie ha la sua numerazione. Un numero usato non torna mai libero, nemmeno se la ricevuta si annulla.</p>
-          {#if nuova}
-            <form class="nuova" onsubmit={(e) => { e.preventDefault(); creaSerie(); }}>
-              <input class="inp" bind:value={nuova.nome} placeholder="Nome (es. Ricevute del campo estivo)" maxlength="60" aria-label="Nome della serie" />
-              <select class="inp" bind:value={nuova.tipo} aria-label="Tipo"><option value="RICEVUTA">Ricevute</option><option value="FATTURA">Fatture</option></select>
-              <button class="btn btn-primary" disabled={!nuova.nome.trim()}>Aggiungi la serie</button>
-              <button type="button" class="btn btn-secondary" onclick={() => (nuova = null)}>Annulla</button>
-            </form>
-          {/if}
-          <div class="serie" role="group" aria-label="Le serie">
-            {#each bozza.serie as s, i (s.id)}
-              <button type="button" class="serie-b" aria-pressed={i === scelta} onclick={() => (scelta = i)}>
-                <span class="ico-s" aria-hidden="true"><Icona nome="ricevuta" /></span>
-                <span class="t"><b>{s.nome || 'Senza nome'}</b><span>{s.tipo === 'FATTURA' ? 'Fatture' : 'Ricevute'} · {s.emesse === 1 ? '1 nel periodo' : `${s.emesse} nel periodo`} {s.periodo || ''}</span></span>
-                {#if cifreNonValide(s)}<span class="pill ferma">Da correggere</span>{/if}
-                <span class="pill {s.attiva ? 'passa' : ''}">{s.attiva ? 'In uso' : 'Spenta'}</span>
-                <span class="m num">{anteprima(s)}</span>
-              </button>
-            {/each}
+          <div class="sez-t"><h2>Serie e numerazione</h2>
+            <Fumetto tema="le serie">Ogni serie ha la sua numerazione. Un numero usato non torna mai libero, nemmeno se la ricevuta si annulla. Una serie che ha già emesso ricevute si spegne ma non si elimina. La prima serie di ricevute accesa dell'elenco è quella «di base»: la usano i nuovi pagamenti, quindi l'ordine conta.</Fumetto>
           </div>
-          {#if serie}
-            <div class="dettaglio">
-              <div class="riga-imp"><span class="t"><b>Nome e uso</b><span>Una serie spenta non fa ricevute; quelle già fatte restano.</span></span>
-                <span class="ctl"><input class="inp largo" bind:value={serie.nome} maxlength="60" disabled={!puo} aria-label="Nome della serie" />
-                  <button type="button" class="switch" role="switch" aria-checked={serie.attiva} aria-label="Serie in uso" disabled={!puo} onclick={() => (serie.attiva = !serie.attiva)}><span></span></button></span></div>
-              <div class="riga-imp"><span class="t"><b>Formato del numero</b><span>Con {'{stagione}'} o {'{anno}'} il numero dice anche quando è stata fatta; {'{numero}'} non può mancare.</span></span>
-                <span class="ctl colonna">
-                  <span class="chips" role="group" aria-label="Formati pronti">
-                    {#each FORMATI_PRONTI as f (f)}<button type="button" class="chip-f m" aria-pressed={serie.formato === f} disabled={!puo} onclick={() => (serie.formato = f)}>{f}</button>{/each}
-                  </span>
-                  <input class="inp m largo" bind:value={serie.formato} maxlength="40" disabled={!puo} aria-label="Formato del numero" />
-                </span></div>
-              <div class="riga-imp"><span class="t"><b>Il numero riparte da 1</b><span>Di solito a ogni stagione, come il tesseramento.</span></span>
-                <span class="ctl"><span class="seg tre" role="group" aria-label="Quando riparte">
-                  {#each RIPARTE as r (r.id)}<button type="button" aria-pressed={serie.riparte === r.id} disabled={!puo} onclick={() => (serie.riparte = r.id)}>{r.nome}</button>{/each}
-                </span></span></div>
-              <div class="riga-imp"><span class="t"><b>Cifre del numero</b><span>Con 4 cifre: 0001, 0002…</span></span>
-                <span class="ctl"><input class="inp m corto" type="number" min="1" max="8" bind:value={serie.cifre} disabled={!puo} aria-label="Cifre del numero" aria-invalid={cifreNonValide(serie)} aria-describedby={cifreNonValide(serie) ? 'err-cifre' : undefined} /><span class="unita">cifre</span></span>{#if cifreNonValide(serie)}<ErroreCampo id="err-cifre">{MSG_CIFRE}</ErroreCampo>{/if}</div>
-              <div class="riga-imp"><span class="t"><b>Partire da un numero</b>
-                <span>{serie.emesse > 0 ? 'In questo periodo ci sono già ricevute: la numerazione continua da sé.' : 'Per continuare la numerazione del gestionale di prima. Vuoto: da 1.'}</span></span>
-                <span class="ctl"><input class="inp m corto" type="number" min="1" placeholder="1" value={serie.prossimoNumero ?? ''} disabled={!puo || serie.emesse > 0} aria-label="Primo numero"
-                  oninput={(e) => (serie.prossimoNumero = e.currentTarget.value ? Number(e.currentTarget.value) : null)} /></span></div>
-              <div class="riga-imp"><span class="t"><b>La prossima sarà</b></span><span class="ctl"><span class="esempio m">{anteprima(serie)}</span></span></div>
-            </div>
-          {/if}
+          <div class="elenco">
+            <ElencoModificabile
+              elementi={serie}
+              modificabile={puo}
+              nome={(s) => s.nome || 'Senza nome'}
+              nomeElemento="serie"
+              articolo="una"
+              riga={contenuto}
+              acceso={(s) => s.attiva}
+              haCestino={(s) => !richiesta(s)}
+              haInterruttore={(s) => !richiesta(s)}
+              onriordina={riordina}
+              onaggiungi={nuovaSerie}
+              onapri={apri}
+              onacceso={accendi}
+              onelimina={elimina}
+            />
+          </div>
         </section>
 
         <section class="card sez" id="imp-scritto" aria-label="Cosa c'è scritto">
           <div class="sez-t"><h2 class="grow">Cosa c'è scritto</h2><span class="spiega">l'intestazione viene dai dati della società</span></div>
           <div class="riga-imp"><span class="t"><b>Intestazione</b>
-            <span>Ragione sociale, partita IVA o codice fiscale, indirizzo.{#if pagina.mancaIntestazione.length}{' '}<strong class="manca">Manca: {pagina.mancaIntestazione.join(', ')}.</strong>{/if}</span></span>
-            <span class="ctl"><a class="mini-btn" href="#/societa">Dati, stagioni e gruppi →</a></span></div>
-          {@render scelte('Intestata a', 'Per un minore paga quasi sempre un genitore: la ricevuta è sua, con il nome del figlio. Intestate a chi frequenta, sono una per persona.',
-            seg(bozza.imp.intestata, [{ id: 'PAGANTE', nome: 'A chi paga' }, { id: 'BENEFICIARIO', nome: 'A chi frequenta' }], (v) => (bozza!.imp.intestata = v)))}
-          <div class="riga-imp"><span class="t"><b>Codici fiscali</b><span>Di chi paga e di chi frequenta: servono per le detrazioni e per i rimborsi welfare.</span></span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.imp.codiciFiscali} aria-label="Codici fiscali sulla ricevuta" disabled={!puo}
-              onclick={() => (bozza!.imp.codiciFiscali = !bozza!.imp.codiciFiscali)}><span></span></button></span></div>
-          <div class="riga-imp"><span class="t"><b>Marca da bollo</b><span>Sopra la soglia la ricevuta ha il riquadro per la marca.</span></span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.imp.bollo} aria-label="Marca da bollo" disabled={!puo} onclick={() => (bozza!.imp.bollo = !bozza!.imp.bollo)}><span></span></button>
-              <span class="unita">sopra</span><input class="inp m corto" type="text" inputmode="decimal" bind:value={bozza.imp.bolloSoglia} aria-invalid={!!erroreBollo} disabled={!puo || !bozza.imp.bollo} aria-label="Soglia della marca da bollo in euro" />
-              <span class="unita">€, da</span><input class="inp m corto" type="text" inputmode="decimal" bind:value={bozza.imp.bolloImporto} aria-invalid={!!erroreBollo} disabled={!puo || !bozza.imp.bollo} aria-label="Importo della marca da bollo in euro" /><span class="unita">€</span></span>
+            <span class="corta"><span class="t-c">{#if pagina.mancaIntestazione.length}<strong class="manca">Manca: {pagina.mancaIntestazione.join(', ')}.</strong>{:else}Ragione sociale, partita IVA, indirizzo.{/if}</span><Fumetto tema="l'intestazione">Ragione sociale, partita IVA o codice fiscale, indirizzo: vengono dai dati della società.{#if pagina.mancaIntestazione.length}{' '}Manca: {pagina.mancaIntestazione.join(', ')}.{/if}</Fumetto></span></span>
+            <span class="ctl"><a class="btn btn-secondary btn-sm" href="#/societa"><Icona nome="freccia" />Dati, stagioni e gruppi</a></span></div>
+          {@render scelte('Intestata a', { corta: 'A chi è intestata la ricevuta.', tema: 'a chi è intestata', lunga: 'Per un minore paga quasi sempre un genitore: la ricevuta è sua, con il nome del figlio. Intestate a chi frequenta, sono una per persona.' },
+            seg(bozza.intestata, [{ id: 'PAGANTE', nome: 'A chi paga' }, { id: 'BENEFICIARIO', nome: 'A chi frequenta' }], (v) => (bozza!.intestata = v)))}
+          <div class="riga-imp"><span class="t"><b>Codici fiscali</b>
+            {@render spiega({ corta: 'Per detrazioni e rimborsi welfare.', tema: 'i codici fiscali', lunga: 'Di chi paga e di chi frequenta: servono per le detrazioni e per i rimborsi welfare.' })}</span>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.codiciFiscali} aria-label="Codici fiscali sulla ricevuta" disabled={!puo}
+              onclick={() => (bozza!.codiciFiscali = !bozza!.codiciFiscali)}><span></span></button></span></div>
+          <div class="riga-imp"><span class="t"><b>Marca da bollo</b>
+            {@render spiega({ corta: 'Sopra la soglia, il riquadro per la marca.', tema: 'la marca da bollo', lunga: 'Sopra la soglia la ricevuta ha il riquadro per la marca.' })}</span>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.bollo} aria-label="Marca da bollo" disabled={!puo} onclick={() => (bozza!.bollo = !bozza!.bollo)}><span></span></button>
+              <span class="pezzo"><span class="unita">sopra</span><input class="inp m corto" type="text" inputmode="decimal" bind:value={bozza.bolloSoglia} aria-invalid={!!erroreBollo} disabled={!puo || !bozza.bollo} aria-label="Soglia della marca da bollo in euro" /><span class="unita">€</span></span>
+              <span class="pezzo"><span class="unita">da</span><input class="inp m corto" type="text" inputmode="decimal" bind:value={bozza.bolloImporto} aria-invalid={!!erroreBollo} disabled={!puo || !bozza.bollo} aria-label="Importo della marca da bollo in euro" /><span class="unita">€</span></span></span>
             {#if erroreBollo}<span class="msg err" role="alert">{erroreBollo}</span>{/if}</div>
-          <div class="riga-imp colonna-imp"><span class="t"><b>Dicitura in fondo</b><span>Il testo per le detrazioni o per l'ente. Con {'{beneficiario}'} e {'{nascita}'} si inseriscono nome e data di nascita di chi frequenta.</span></span>
-            <textarea class="inp dicitura" rows="3" maxlength="1000" value={bozza.imp.dicitura ?? ''} disabled={!puo} aria-label="Dicitura in fondo alla ricevuta"
-              oninput={(e) => (bozza!.imp.dicitura = e.currentTarget.value || null)}></textarea></div>
-          <div class="riga-imp"><span class="t"><b>Spazio per la firma</b><span>Una riga «Per la società» in fondo, per firmare la copia stampata.</span></span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.imp.firma} aria-label="Spazio per la firma" disabled={!puo} onclick={() => (bozza!.imp.firma = !bozza!.imp.firma)}><span></span></button></span></div>
+          <div class="riga-imp colonna-imp"><span class="t"><b>Dicitura in fondo</b>
+            {@render spiega({ corta: 'Il testo per le detrazioni o per l\'ente.', tema: 'la dicitura', lunga: `Il testo per le detrazioni o per l'ente. Con {beneficiario} e {nascita} si inseriscono nome e data di nascita di chi frequenta.` })}</span>
+            <textarea class="inp dicitura" rows="3" maxlength="1000" value={bozza.dicitura ?? ''} disabled={!puo} aria-label="Dicitura in fondo alla ricevuta"
+              oninput={(e) => (bozza!.dicitura = e.currentTarget.value || null)}></textarea></div>
+          <div class="riga-imp"><span class="t"><b>Spazio per la firma</b>
+            {@render spiega({ corta: 'Una riga «Per la società» in fondo.', tema: 'lo spazio per la firma', lunga: 'Una riga «Per la società» in fondo, per firmare la copia stampata.' })}</span>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.firma} aria-label="Spazio per la firma" disabled={!puo} onclick={() => (bozza!.firma = !bozza!.firma)}><span></span></button></span></div>
         </section>
 
         <section class="card sez" id="imp-consegna" aria-label="Come si consegna">
           <div class="sez-t"><h2 class="grow">Come si consegna</h2><span class="spiega">quando si registra un pagamento</span></div>
-          {@render scelte('Dopo ogni pagamento', 'Chiedi: compare il pannello con stampa, PDF ed email. Stampa subito: la ricevuta si fa e si apre per la stampa. Niente: si fa quando serve, dal pagamento.',
-            seg(bozza.imp.dopo, [{ id: 'CHIEDI', nome: 'Chiedi' }, { id: 'STAMPA', nome: 'Stampa subito' }, { id: 'NIENTE', nome: 'Niente' }], (v) => (bozza!.imp.dopo = v)))}
-          <div class="riga-imp"><span class="t"><b>Manda per email a chi paga</b><span>Appena fatta, in allegato, all'indirizzo nella scheda. Senza email si stampa.</span></span>
-            <span class="ctl"><button type="button" class="switch" role="switch" aria-checked={bozza.imp.email} aria-label="Manda per email" disabled={!puo} onclick={() => (bozza!.imp.email = !bozza!.imp.email)}><span></span></button></span></div>
-          {@render scelte('Un genitore paga per più figli', 'Una ricevuta con una riga per figlio, o una per figlio (comodo per le detrazioni di ciascuno).',
-            seg(bozza.imp.famiglia, [{ id: 'CHIEDI', nome: 'Chiedi' }, { id: 'FAMIGLIA', nome: 'Per famiglia' }, { id: 'PERSONA', nome: 'Per figlio' }], (v) => (bozza!.imp.famiglia = v)))}
+          {@render scelte('Dopo ogni pagamento', { corta: 'Cosa succede appena si paga.', tema: 'cosa succede dopo il pagamento', lunga: 'Chiedi: compare il pannello con stampa, PDF ed email. Stampa subito: la ricevuta si fa e si apre per la stampa. Niente: si fa quando serve, dal pagamento.' },
+            seg(bozza.dopo, [{ id: 'CHIEDI', nome: 'Chiedi' }, { id: 'STAMPA', nome: 'Stampa subito' }, { id: 'NIENTE', nome: 'Niente' }], (v) => (bozza!.dopo = v)))}
+          <div class="riga-imp"><span class="t"><b>Manda per email a chi paga</b>
+            {@render spiega({ corta: 'In allegato, all\'indirizzo nella scheda.', tema: 'l\'invio per email', lunga: 'Appena fatta, in allegato, all\'indirizzo nella scheda. Senza email si stampa.' })}</span>
+            <span class="ctl"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.email} aria-label="Manda per email" disabled={!puo} onclick={() => (bozza!.email = !bozza!.email)}><span></span></button></span></div>
+          {@render scelte('Un genitore paga per più figli', { corta: 'Una ricevuta o una per figlio.', tema: 'il pagamento per più figli', lunga: 'Una ricevuta con una riga per figlio, o una per figlio (comodo per le detrazioni di ciascuno).' },
+            seg(bozza.famiglia, [{ id: 'CHIEDI', nome: 'Chiedi' }, { id: 'FAMIGLIA', nome: 'Per famiglia' }, { id: 'PERSONA', nome: 'Per figlio' }], (v) => (bozza!.famiglia = v)))}
         </section>
       </div>
 
@@ -185,62 +314,146 @@
           <div class="mini-r" aria-label="Anteprima della ricevuta">
             <span class="rs">{pagina.mancaIntestazione.includes('ragione sociale') ? 'Nome della società' : 'Intestazione della società'}</span>
             {#if pagina.mancaIntestazione.length}<span class="manca">Manca: {pagina.mancaIntestazione.join(', ')}</span>{/if}
-            <span class="n"><span>{serie?.tipo === 'FATTURA' ? 'Fattura' : 'Ricevuta'} n.</span><b class="m">{serie ? anteprima(serie) : ''}</b></span>
-            <span class="riga"><span>Ricevuto da</span><b>{bozza.imp.intestata === 'PAGANTE' ? 'il genitore che paga' : 'chi frequenta'}</b></span>
-            {#if bozza.imp.codiciFiscali}<span class="riga"><span>C.F.</span><span>sì</span></span>{/if}
+            <span class="n"><span>{tipoAnteprima === 'FATTURA' ? 'Fattura' : 'Ricevuta'} n.</span><b class="m">{numeroAnteprima}</b></span>
+            <span class="riga"><span>Ricevuto da</span><b>{bozza.intestata === 'PAGANTE' ? 'il genitore che paga' : 'chi frequenta'}</b></span>
+            {#if bozza.codiciFiscali}<span class="riga"><span>C.F.</span><span>sì</span></span>{/if}
             <span class="riga"><span>Corso di nuoto · 1ª rata</span><span>{euroColonna(320)}</span></span>
             <span class="tot"><span>Totale</span><span>{euroColonna(320)}</span></span>
-            {#if bozza.imp.bollo && 320 > (numeroDa(bozza.imp.bolloSoglia) ?? 0)}<span class="bollo">marca da bollo {euro(numeroDa(bozza.imp.bolloImporto) ?? 0)}</span>{/if}
-            {#if bozza.imp.dicitura}<span class="dic">{bozza.imp.dicitura}</span>{/if}
-            {#if bozza.imp.firma}<span class="firma">Per la società</span>{/if}
+            {#if bozza.bollo && 320 > (numeroDa(bozza.bolloSoglia) ?? 0)}<span class="bollo">marca da bollo {euro(numeroDa(bozza.bolloImporto) ?? 0)}</span>{/if}
+            {#if bozza.dicitura}<span class="dic">{bozza.dicitura}</span>{/if}
+            {#if bozza.firma}<span class="firma">Per la società</span>{/if}
           </div>
         </section>
       </aside>
     </div>
 
-    {#if puo}<BarraSalva {modifiche} valida={!erroreBollo && !bozza?.serie.some(cifreNonValide)} onannulla={() => (bozza = JSON.parse(originale))} onsalva={salva} />{/if}
+    {#if puo}<BarraSalva {modifiche} valida={!erroreBollo} onannulla={() => (bozza = JSON.parse(originale))} onsalva={salva} />{/if}
   {:else if !errore}
     <p class="muted small">Caricamento…</p>
   {/if}
 </div>
 
-{#snippet scelte(titolo: string, spiega: string, s: Scelte)}
-  <div class="riga-imp"><span class="t"><b>{titolo}</b><span>{spiega}</span></span>
-    <span class="ctl"><span class="seg" style:grid-template-columns={`repeat(${s.opzioni.length}, minmax(0, 1fr))`} role="group" aria-label={titolo}>
+{#snippet spiega(s: Spiega)}<span class="corta"><span class="t-c">{s.corta}</span><Fumetto tema={s.tema}>{s.lunga}</Fumetto></span>{/snippet}
+
+{#snippet scelte(titolo: string, spiega_: Spiega, s: Scelte)}
+  <div class="riga-imp"><span class="t"><b>{titolo}</b>{@render spiega(spiega_)}</span>
+    <span class="ctl"><span class="seg" style:--n={s.opzioni.length} use:impila role="group" aria-label={titolo}>
       {#each s.opzioni as o (o.id)}<button type="button" aria-pressed={s.valore === o.id} disabled={!puo} onclick={() => s.scegli(o.id)}>{o.nome}</button>{/each}
     </span></span></div>
 {/snippet}
+
+{#snippet contenuto(s: SerieRicevute)}
+  <span class="col">
+    <span class="nome-r">
+      <strong class="nome" class:tenue={!s.attiva}>{s.nome || 'Senza nome'}</strong>
+      {#if s.tipo === 'FATTURA'}<span class="tag t-soft">Fatture</span>{/if}
+      {#if richiesta(s)}<span class="tag t-soft">Richiesta dal sistema</span>{:else if s.id === diBase}<span class="tag t-soft">Di base</span>{/if}
+    </span>
+    <span class="sotto">{riepilogoSerie(s)}</span>
+  </span>
+{/snippet}
+
+{#snippet pillolaSpento()}
+  {#if !accesoFoglio}<span class="pill">spento</span>{/if}
+{/snippet}
+
+{#if foglio && puo}
+  <Foglio titolo={aperta ? aperta.nome || 'Senza nome' : 'Nuova serie'} {chiudi} troncaTitolo dopoTitolo={pillolaSpento}>
+    <form class="modulo" onsubmit={salvaFoglio}>
+      <RiquadroAcceso acceso={accesoFoglio} onacceso={accendiDalFoglio} nome={aperta?.nome ?? bozzaS.nome.trim()} disabled={!!aperta && richiesta(aperta)} />
+      <span class="corta"><span class="t-c muted small">Spenta, non fa ricevute.</span><Fumetto tema="lo stato della serie">Una serie spenta non fa ricevute; quelle già fatte restano.</Fumetto></span>
+      {#if aperta && richiesta(aperta)}<p class="muted small nomargin">È l'ultima serie accesa di ricevute: serve al sistema. Per spegnerla accendine prima un'altra.</p>{/if}
+
+      <label class="field"><span class="lbl">Nome</span>
+        <input class="inp" bind:value={bozzaS.nome} maxlength="60" autocomplete="off" placeholder="es. Ricevute del campo estivo" />
+      </label>
+      {#if aperta}
+        <p class="nomargin"><span class="tag t-soft">{aperta.tipo === 'FATTURA' ? 'Fatture' : 'Ricevute'}</span></p>
+      {:else}
+        <label class="field"><span class="lbl">Tipo</span>
+          <select class="inp" value={bozzaS.tipo} onchange={(e) => scegliTipo(e.currentTarget.value as TipoSerie)}><option value="RICEVUTA">Ricevute</option><option value="FATTURA">Fatture</option></select>
+        </label>
+      {/if}
+
+      <div class="field"><span class="lbl-i"><label class="lbl" for="formato-serie">Formato del numero</label>
+        <Fumetto tema="il formato del numero">Con {'{stagione}'} o {'{anno}'} il numero dice anche quando è stata fatta; {'{numero}'} non può mancare.</Fumetto></span>
+        <span class="chips" role="group" aria-label="Formati pronti">
+          {#each FORMATI_PRONTI as f (f)}<button type="button" class="chip-f m" aria-pressed={bozzaS.formato === f} onclick={() => (bozzaS.formato = f)}>{f}</button>{/each}
+        </span>
+        <input class="inp m" id="formato-serie" bind:value={bozzaS.formato} maxlength="40" />
+      </div>
+
+      <div class="field"><span class="lbl-i"><span class="lbl" id="riparte-serie">Il numero riparte da 1</span>
+        <Fumetto tema="quando riparte il numero">Di solito a ogni stagione, come il tesseramento.</Fumetto></span>
+        <span class="seg" style:--n={RIPARTE.length} use:impila role="group" aria-labelledby="riparte-serie">
+          {#each RIPARTE as r (r.id)}<button type="button" aria-pressed={bozzaS.riparte === r.id} onclick={() => (bozzaS.riparte = r.id)}>{r.nome}</button>{/each}
+        </span>
+      </div>
+
+      <div class="field"><span class="lbl-i"><label class="lbl" for="cifre-serie">Cifre del numero</label>
+        <Fumetto tema="le cifre del numero">Con 4 cifre: 0001, 0002…</Fumetto></span>
+        <span class="riga-c"><input class="inp m corto" id="cifre-serie" type="number" min="1" max="8" bind:value={bozzaS.cifre} aria-invalid={cifreSbagliate} aria-describedby={cifreSbagliate ? 'err-cifre' : undefined} /><span class="unita">cifre</span></span>
+        {#if cifreSbagliate}<ErroreCampo id="err-cifre">{MSG_CIFRE}</ErroreCampo>{/if}
+      </div>
+
+      <div class="field"><span class="lbl-i"><label class="lbl" for="primo-serie">Partire da un numero</label>
+        <Fumetto tema="il numero di partenza">Per continuare la numerazione del gestionale di prima. Vuoto: da 1. Si sceglie solo finché il periodo non ha ricevute.</Fumetto></span>
+        <input class="inp m corto" id="primo-serie" aria-describedby={aperta && aperta.emesse > 0 ? 'motivo-primo' : undefined} type="number" min="1" placeholder="1" value={bozzaS.prossimoNumero ?? ''} disabled={!!aperta && aperta.emesse > 0}
+          oninput={(e) => (bozzaS.prossimoNumero = e.currentTarget.value ? Number(e.currentTarget.value) : null)} />
+        {#if aperta && aperta.emesse > 0}<span class="muted small" id="motivo-primo">Ci sono già ricevute: la numerazione continua da sé.</span>{/if}
+      </div>
+
+      <div class="riga-c"><span class="lbl">La prossima sarà</span><span class="esempio m">{anteprima(bozzaS, aperta ?? undefined)}</span></div>
+
+      {#if erroreFoglio}<p class="msg err nomargin" role="alert">{erroreFoglio}</p>{/if}
+
+      <div class="azioni-foglio">
+        <button type="button" class="btn btn-secondary" onclick={chiudi}>Annulla</button>
+        <button type="submit" class="btn btn-accent" disabled={!bozzaS.nome.trim() || cifreSbagliate || inSalvataggio}>
+          {#if aperta}<Icona nome="salva" />Salva la serie{:else}<Icona nome="piu" />Aggiungi la serie{/if}
+        </button>
+      </div>
+    </form>
+  </Foglio>
+{/if}
 
 <style>
   .pagina { display: flex; flex-direction: column; gap: var(--space-14); }
   .colonne { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: flex-start; }
   .princ { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-14); }
-  .lato { flex: 1 1 300px; max-width: 380px; position: sticky; top: var(--space-16); }
-  .spiega-s { padding: var(--space-12) var(--space-16) 0; }
-  .nuova { display: flex; gap: var(--space-8); flex-wrap: wrap; padding: var(--space-12) var(--space-16) 0; }
-  .nuova .inp:first-child { flex: 1 1 240px; }
-  select.inp { appearance: auto; width: auto; }
-  .serie { display: flex; flex-direction: column; margin-top: var(--space-10); border-top: 1px solid var(--line-soft); }
-  .serie-b { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; padding: var(--space-12) var(--space-16); border: none; border-top: 1px solid var(--line-soft);
-    background: var(--surface); font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
-  .serie-b:first-child { border-top: none; }
-  .serie-b[aria-pressed='true'] { background: var(--cloro-soft); box-shadow: inset 3px 0 0 var(--cloro); }
-  .ico-s { width: 38px; height: 38px; border-radius: var(--radius-sm); display: grid; place-items: center; background: var(--carta); color: var(--seg-fg); flex-shrink: 0; }
-  .serie-b .t { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .serie-b .t span { font-size: var(--text-sm); color: var(--muted); }
-  .num { font-size: var(--text-md); }
-  .dettaglio { border-top: 1px solid var(--line); }
-  .ctl.colonna { flex-direction: column; align-items: flex-end; }
+  .lato { flex: 1 1 300px; min-width: 0; max-width: 380px; position: sticky; top: var(--space-16); }
+  /* quando i controlli vanno a capo sotto il testo, 20 px tra le righe: l'area di tocco della «i» e quella dell'interruttore non si sovrappongono */
+  .pagina :global(.riga-imp) { row-gap: var(--space-20); }
+  .elenco { padding: var(--space-6) var(--space-16) var(--space-10); }
+  select.inp { appearance: auto; width: auto; align-self: flex-start; }
+  .col { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; max-width: 100%; }
+  .nome-r { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4) var(--space-8); min-width: 0; }
+  .nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .nome.tenue { opacity: 0.7; }
+  .sotto { font-size: var(--text-sm); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .modulo { display: flex; flex-direction: column; gap: var(--space-14); }
+  .lbl-i { display: flex; align-items: center; gap: var(--space-4); }
+  .riga-c { display: flex; align-items: center; gap: var(--space-8); }
+  .modulo .inp { height: 44px; }
+  .azioni-foglio { display: flex; justify-content: flex-end; gap: var(--space-10); flex-wrap: wrap; }
+  .grow { flex: 1 1 auto; min-width: 0; }
+  /* la riga corta: non va a capo, la «i» sta in fondo e non allarga la riga; a 320 px il testo si accorcia con i puntini */
+  .corta { display: flex; align-items: center; gap: var(--space-4); white-space: nowrap; min-width: 0; }
+  .t-c { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .ctl .inp { height: 40px; }
-  .ctl .largo { width: 240px; max-width: 100%; }
-  .ctl .corto { width: 96px; }
-  .chips { gap: var(--space-6); justify-content: flex-end; } /* più stretto del .chips globale (8px) */
+  .corto { width: 96px; }
+  /* «sopra [importo] €» e «da [importo] €» vanno a capo come gruppi interi, mai spezzati né tagliati */
+  .pezzo { display: inline-flex; align-items: center; gap: var(--space-8); white-space: nowrap; }
+  .chips { gap: var(--space-12) var(--space-6); } /* 32 px di chip + 12 di spazio tra le righe: le aree di tocco da 44 non si sovrappongono */ /* più stretto del .chips globale (8px) */
   .chip-f { position: relative; min-height: 32px; padding: 0 var(--space-10); border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--surface); font-size: var(--text-xs);
     color: var(--seg-fg); cursor: pointer; }
   .chip-f::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   .chip-f[aria-pressed='true'] { background: var(--fill); border-color: var(--fill); color: var(--on-fill); }
-  .seg { min-width: 260px; }
-  .seg.tre { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* i segmenti: stessa larghezza per tutte le voci di un selettore, alti 44; se non ci stanno in fila vanno uno sotto l'altro */
+  .seg { grid-template-columns: repeat(var(--n), var(--col, 1fr)); }
+  .seg button { min-height: 44px; }
+  .seg:global([data-impilato]) { grid-template-columns: 1fr; }
+  .btn-sm { text-decoration: none; }
   .esempio { font-size: var(--text-base); font-weight: 500; padding: var(--space-6) var(--space-10); border-radius: var(--radius-sm); background: var(--carta); }
   .manca { color: var(--warn); font-weight: 600; }
   .colonna-imp { flex-direction: column; align-items: stretch; }

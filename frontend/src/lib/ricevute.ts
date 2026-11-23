@@ -1,4 +1,4 @@
-import type { ImpostazioniRicevute, Ricevuta, RiparteSerie } from './api';
+import type { ImpostazioniRicevute, Ricevuta, RiparteSerie, SerieRicevute, TipoSerie } from './api';
 import { dataBreve, dataDi } from './date';
 import { euro } from './numeri';
 
@@ -47,3 +47,30 @@ export function statoRicevuta(r: Pick<Ricevuta, 'annullataIl' | 'motivoAnnullame
 
 /** Il nome di una ricevuta o fattura, con il numero: «Ricevuta 2026/27-0142». */
 export const nomeRicevuta = (r: Pick<Ricevuta, 'tipo' | 'numero'>) => `${r.tipo === 'FATTURA' ? 'Fattura' : 'Ricevuta'} ${r.numero}`;
+
+/** Formato, cifre e ripartenza di una serie nuova, come li dà il server (così il foglio «Nuova serie» mostra la prossima giusta). */
+export function predefinitiSerie(tipo: TipoSerie): { formato: string; cifre: number; riparte: RiparteSerie } {
+  return tipo === 'FATTURA' ? { formato: 'F{anno}/{numero}', cifre: 4, riparte: 'ANNO' } : { formato: '{stagione}-{numero}', cifre: 4, riparte: 'STAGIONE' };
+}
+
+/**
+ * La serie che il sistema richiede: l'ultima serie accesa di ricevute (senza, non si può registrare una ricevuta). Non si
+ * spegne né si elimina; il backend la protegge comunque con un 409. Le fatture non sono richieste: si scelgono a mano.
+ */
+export function serieRichiesta(serie: Pick<SerieRicevute, 'id' | 'tipo' | 'attiva'>[], id: string): boolean {
+  const s = serie.find((x) => x.id === id);
+  if (!s || s.tipo !== 'RICEVUTA' || !s.attiva) return false;
+  return !serie.some((x) => x.id !== id && x.tipo === 'RICEVUTA' && x.attiva);
+}
+
+/** Quanto copre il conteggio delle ricevute di una serie: dipende da quando riparte il numero. */
+const QUANTE: Record<RiparteSerie, string> = { STAGIONE: 'nel periodo', ANNO: 'quest\'anno', MAI: 'in tutto' };
+
+/** La riga sotto il nome di una serie, corta e su una riga sola: «Prossima 2026/27-0413 · 412 nel periodo». Il resto sta nel foglio. */
+export function riepilogoSerie(s: Pick<SerieRicevute, 'emesse' | 'prossima' | 'riparte'>): string {
+  return `Prossima ${s.prossima} · ${s.emesse} ${QUANTE[s.riparte]}`;
+}
+
+/** La serie «di base»: la prima serie di ricevute accesa dell'elenco, quella che usano i nuovi pagamenti (l'ordine conta). */
+export const serieDiBase = (serie: Pick<SerieRicevute, 'id' | 'tipo' | 'attiva'>[]): string | null =>
+  serie.find((x) => x.tipo === 'RICEVUTA' && x.attiva)?.id ?? null;

@@ -21,6 +21,11 @@ class ControlloMetodiCassa implements ControlloMetodi {
     }
 
     @Override
+    public boolean cassaAccesa(UUID cassaId) {
+        return cassa.cassaAccesa(cassaId);
+    }
+
+    @Override
     public boolean cassaAperta() {
         return cassa.cassaAperta();
     }
