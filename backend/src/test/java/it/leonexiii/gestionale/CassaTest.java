@@ -199,7 +199,9 @@ class CassaTest extends ProvaApi {
             .isEqualTo(200);
         assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"FISSO\",\"importoFondo\":150,\"chiusura\":\"GIORNATA\"}").statusCode())
             .isEqualTo(409);
-        assertThat(admin.put("/api/cassa/casse/" + principale, "{\"attiva\":false}").statusCode()).isEqualTo(409);
+        var principaleAperta = admin.put("/api/cassa/casse/" + principale, "{\"attiva\":false}");
+        assertThat(principaleAperta.statusCode()).isEqualTo(400);
+        assertThat(principaleAperta.body()).contains("La cassa principale non si spegne");
         assertThat(num(json(segr.post("/api/cassa/casse/" + principale + "/chiudi", "{\"contati\":185}")).get("differenza"))).isEqualTo(0);
         // la principale non si spegne nemmeno chiusa (prima se ne sceglie un'altra)
         assertThat(admin.put("/api/cassa/casse/" + principale, "{\"attiva\":false}").statusCode()).isEqualTo(400);
@@ -492,5 +494,128 @@ class CassaTest extends ProvaApi {
         // si torna alle scelte di base
         assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\","
             + "\"cieca\":true,\"tolleranza\":5,\"controllo\":\"OLTRE\",\"spese\":true,\"banca\":false,\"oreAvviso\":14}").statusCode()).isEqualTo(200);
+    }
+
+    private static String corpoOrdine(List<String> ids) {
+        return "{\"ids\":[" + String.join(",", ids.stream().map(i -> "\"" + i + "\"").toList()) + "]}";
+    }
+
+    private static List<String> idCasse(ClientApi c) throws Exception {
+        return elenco(json(c.get("/api/cassa")).get("casse")).stream().map(x -> (String) x.get("id")).toList();
+    }
+
+    @Test
+    @Order(6)
+    void leCasseSiRiordinanoESiEliminanoSoloSeMaiAperte() throws Exception {
+        var admin = come("admin@demo.leone");
+        var segr = come("segreteria@demo.leone");
+        var anonimo = anonimo();
+        orologio.alle("2030-07-01T08:00");
+        String imp = "{\"casse\":\"PER_POSTAZIONE\",\"fondo\":\"FISSO\",\"importoFondo\":150,\"chiusura\":\"GIORNATA\",\"cieca\":false}";
+        assertThat(admin.put("/api/cassa/impostazioni", imp).statusCode()).isEqualTo(200);
+        String nomeUno = "Cassa uno " + java.util.UUID.randomUUID().toString().substring(0, 6);
+        var uno = crea(admin, "/api/cassa/casse", "{\"nome\":\"" + nomeUno + "\"}");
+        String nomeDue = "Cassa due " + java.util.UUID.randomUUID().toString().substring(0, 6);
+        var due = crea(admin, "/api/cassa/casse", "{\"nome\":\"" + nomeDue + "\"}");
+        assertThat(uno).containsEntry("eliminabile", true).containsEntry("motivoBlocco", null);
+        List<String> prima = idCasse(admin);
+        assertThat(prima).hasSizeGreaterThanOrEqualTo(3);
+
+        // riordino: serve il permesso, e gli id di tutte le casse, ognuna una volta
+        List<String> rovesciato = new java.util.ArrayList<>(prima);
+        java.util.Collections.reverse(rovesciato);
+        assertThat(segr.put("/api/cassa/casse/ordine", corpoOrdine(rovesciato)).statusCode()).isEqualTo(403);
+        assertThat(anonimo.put("/api/cassa/casse/ordine", corpoOrdine(rovesciato)).statusCode()).isIn(401, 403);
+        assertThat(admin.put("/api/cassa/casse/ordine", "{\"ids\":[]}").statusCode()).isEqualTo(400);
+        var manca = admin.put("/api/cassa/casse/ordine", corpoOrdine(prima.subList(1, prima.size())));
+        assertThat(manca.statusCode()).isEqualTo(400);
+        assertThat(manca.body()).contains("L'elenco delle casse è cambiato");
+        List<String> doppione = new java.util.ArrayList<>(prima);
+        doppione.set(0, prima.get(1));
+        var doppio = admin.put("/api/cassa/casse/ordine", corpoOrdine(doppione));
+        assertThat(doppio.statusCode()).isEqualTo(400);
+        assertThat(doppio.body()).contains("compare due volte");
+        assertThat(idCasse(admin)).isEqualTo(prima);
+        var r = admin.put("/api/cassa/casse/ordine", corpoOrdine(rovesciato));
+        assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+        assertThat(lista(r).stream().map(x -> (String) mappa(x).get("id")).toList()).isEqualTo(rovesciato);
+        assertThat(idCasse(segr)).isEqualTo(rovesciato);
+        assertThat(admin.put("/api/cassa/casse/ordine", corpoOrdine(prima)).statusCode()).isEqualTo(200);
+        assertThat(idCasse(admin)).isEqualTo(prima);
+
+        // chi non gestisce le impostazioni non sa se una cassa si elimina, e non la elimina
+        assertThat(elenco(json(segr.get("/api/cassa")).get("casse"))).allSatisfy(x -> {
+            assertThat(x.get("eliminabile")).isNull();
+            assertThat(x.get("motivoBlocco")).isNull();
+        });
+        String urlUno = "/api/cassa/casse/" + uno.get("id");
+        assertThat(segr.delete(urlUno).statusCode()).isEqualTo(403);
+        assertThat(anonimo.delete(urlUno).statusCode()).isIn(401, 403);
+
+        // la principale non si elimina
+        var principale = elenco(json(admin.get("/api/cassa")).get("casse")).stream().filter(x -> Boolean.TRUE.equals(x.get("principale"))).findFirst().orElseThrow();
+        assertThat(principale).containsEntry("eliminabile", false);
+        var no = admin.delete("/api/cassa/casse/" + principale.get("id"));
+        assertThat(no.statusCode()).isEqualTo(409);
+        assertThat((String) json(no).get("detail")).isEqualTo(principale.get("motivoBlocco"))
+            .startsWith("Non si può eliminare: «" + principale.get("nome") + "» è la cassa principale.\n");
+
+        // una cassa mai aperta si elimina; la seconda volta non c'è più
+        assertThat(admin.delete(urlUno).statusCode()).isEqualTo(204);
+        assertThat(idCasse(admin)).doesNotContain((String) uno.get("id"));
+        assertThat(admin.delete(urlUno).statusCode()).isEqualTo(404);
+        // il nome torna libero
+        assertThat(admin.post("/api/cassa/casse", "{\"nome\":\"" + nomeUno + "\"}").statusCode()).isEqualTo(201);
+
+        // una cassa che è stata aperta ha uno storico: non si elimina, si spegne
+        String idDue = (String) due.get("id");
+        String urlDue = "/api/cassa/casse/" + idDue;
+        assertThat(segr.post("/api/cassa/casse/" + idDue + "/apri", "{}").statusCode()).isEqualTo(200);
+        var aperta = admin.delete(urlDue);
+        assertThat(aperta.statusCode()).isEqualTo(409);
+        assertThat((String) json(aperta).get("detail")).startsWith("Non si può eliminare: la cassa «" + nomeDue + "» ha 1 sessione nello storico.\nChiudila e poi puoi spegnerla:");
+        var chiusuraDue = segr.post("/api/cassa/casse/" + idDue + "/chiudi", "{\"contati\":150,\"lasciato\":150}");
+        assertThat(chiusuraDue.statusCode()).isEqualTo(200);
+        String sessioneChiusa = (String) json(chiusuraDue).get("id");
+        var chiusa = admin.delete(urlDue);
+        assertThat(chiusa.statusCode()).isEqualTo(409);
+        assertThat((String) json(chiusa).get("detail")).isEqualTo("Non si può eliminare: la cassa «" + nomeDue + "» ha 1 sessione nello storico.\n"
+            + "Puoi spegnerla: le sessioni restano com'erano, ma la cassa non verrà più proposta per le nuove.");
+        var conBlocco = elenco(json(admin.get("/api/cassa")).get("casse")).stream().filter(x -> idDue.equals(x.get("id"))).findFirst().orElseThrow();
+        assertThat(conBlocco).containsEntry("eliminabile", false).containsEntry("motivoBlocco", json(chiusa).get("detail"));
+        assertThat(admin.put(urlDue, "{\"attiva\":false}").statusCode()).isEqualTo(200);
+        assertThat((String) json(admin.delete(urlDue)).get("detail")).contains("\nÈ già spenta: le sessioni restano com'erano");
+        assertThat(idCasse(admin)).contains(idDue);
+
+        // una cassa spenta non si propone più: un computer che l'aveva scelta paga lo stesso, e il movimento nuovo va nella principale;
+        // le sessioni già chiuse della cassa spenta non cambiano
+        orologio.alle("2030-11-03T09:00"); // dopo le chiusure delle altre prove: la principale conta da lì
+        String idPrincipale = (String) principale.get("id");
+        double entratiPrima = num(conti(stato(admin, idPrincipale)).get("entrati"));
+        var chiusaPrima = json(admin.get("/api/cassa/sessioni/" + sessioneChiusa));
+        paga(come("segreteria@demo.leone").dallaCassa(idDue), persona(segr, "Spenta"), "Contanti", 12);
+        assertThat(num(conti(stato(admin, idPrincipale)).get("entrati"))).isEqualTo(entratiPrima + 12);
+        assertThat(json(admin.get("/api/cassa/sessioni/" + sessioneChiusa))).isEqualTo(chiusaPrima);
+
+        // una cassa mai aperta ma con pagamenti registrati sopra non si elimina: i pagamenti restano com'erano
+        String nomeTre = "Cassa tre " + java.util.UUID.randomUUID().toString().substring(0, 6);
+        String idTre = (String) crea(admin, "/api/cassa/casse", "{\"nome\":\"" + nomeTre + "\"}").get("id");
+        var segr3 = come("segreteria@demo.leone").dallaCassa(idTre);
+        paga(segr3, persona(segr, "Tre"), "Contanti", 10);
+        var conPagamento = admin.delete("/api/cassa/casse/" + idTre);
+        assertThat(conPagamento.statusCode()).isEqualTo(409);
+        assertThat((String) json(conPagamento).get("detail")).isEqualTo("Non si può eliminare: la cassa «" + nomeTre + "» ha 1 pagamento registrato.\n"
+            + "Puoi spegnerla: i pagamenti restano com'erano, ma la cassa non verrà più proposta per i nuovi pagamenti.");
+        var tre = elenco(json(admin.get("/api/cassa")).get("casse")).stream().filter(x -> idTre.equals(x.get("id"))).findFirst().orElseThrow();
+        assertThat(tre).containsEntry("eliminabile", false).containsEntry("motivoBlocco", json(conPagamento).get("detail"));
+        assertThat(admin.put("/api/cassa/casse/" + idTre, "{\"attiva\":false}").statusCode()).isEqualTo(200);
+        assertThat((String) json(admin.delete("/api/cassa/casse/" + idTre)).get("detail")).contains("\nÈ già spenta: i pagamenti restano com'erano");
+
+        // pulizia: la cassa ricreata (mai aperta), e si torna alle scelte di base; «Cassa due prova» resta spenta con il suo storico
+        String ricreata = elenco(json(admin.get("/api/cassa")).get("casse")).stream().filter(x -> nomeUno.equals(x.get("nome"))).findFirst().orElseThrow()
+            .get("id").toString();
+        assertThat(admin.delete("/api/cassa/casse/" + ricreata).statusCode()).isEqualTo(204);
+        assertThat(admin.put("/api/cassa/impostazioni", "{\"casse\":\"UNICA\",\"fondo\":\"RIPORTATO\",\"importoFondo\":100,\"chiusura\":\"TURNO\"}").statusCode())
+            .isEqualTo(200);
     }
 }

@@ -14,6 +14,9 @@ interface RicevutaRepository extends JpaRepository<Ricevuta, UUID> {
 
     long countBySerieIdAndPeriodo(UUID serie, String periodo);
 
+    /** Tutte le ricevute emesse da una serie, di ogni periodo e anche annullate (il numero resta usato). */
+    long countBySerieId(UUID serie);
+
     /** Le ricevute di una persona: intestate a lei o con lei tra i beneficiari. */
     @Query(value = "select * from ricevuta where intestatario_id = :persona or beneficiari @> cast(:cerca as jsonb) order by creata_il desc limit :quante",
         nativeQuery = true)

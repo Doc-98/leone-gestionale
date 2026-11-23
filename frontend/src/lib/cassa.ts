@@ -258,3 +258,10 @@ export const CONTROLLI: { id: ControlloModo; nome: string }[] = [
   { id: 'TUTTE', nome: 'Tutte' },
 ];
 
+
+/** I metodi che alla chiusura si riscontrano con il POS (accesi e con il riscontro: lo si sceglie nel foglio del metodo). */
+export const metodiRiscontrati = (metodi: { nome: string; attivo: boolean; riscontro: boolean }[]): string[] =>
+  metodi.filter((m) => m.attivo && m.riscontro).map((m) => m.nome);
+
+/** La riga di sola lettura in Cassa: «Si riscontrano: Carta, Satispay» o «Si riscontrano: Nessun metodo». */
+export const testoRiscontro = (nomi: string[]): string => `Si riscontrano: ${nomi.length ? nomi.join(', ') : 'Nessun metodo'}`;

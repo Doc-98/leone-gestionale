@@ -62,6 +62,8 @@ class Serie {
         this.prossimoNumero = n;
     }
 
+    void ordina(int ordine) { this.ordine = (short) ordine; }
+
     UUID getId() { return id; }
     String getNome() { return nome; }
     Tipo getTipo() { return tipo; }

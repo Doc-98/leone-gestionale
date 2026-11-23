@@ -1,5 +1,7 @@
 package it.leonexiii.gestionale.cassa;
 
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -12,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,10 +37,12 @@ class CassaController {
 
     private final CassaService cassa;
     private final CassaforteService cassaforte;
+    private final Autorizzazioni autorizzazioni;
 
-    CassaController(CassaService cassa, CassaforteService cassaforte) {
+    CassaController(CassaService cassa, CassaforteService cassaforte, Autorizzazioni autorizzazioni) {
         this.cassa = cassa;
         this.cassaforte = cassaforte;
+        this.autorizzazioni = autorizzazioni;
     }
 
     @GetMapping("/avvisi")
@@ -79,8 +84,9 @@ class CassaController {
 
     @GetMapping
     @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI', 'IMPOSTAZIONI')")
-    CassaService.Pagina pagina() {
-        return cassa.pagina();
+    CassaService.Pagina pagina(@AuthenticationPrincipal Utente u) {
+        // se una cassa si può eliminare (e perché) lo vede solo chi gestisce le impostazioni
+        return cassa.pagina(autorizzazioni.puo(u, Permesso.IMPOSTAZIONI));
     }
 
     @PutMapping("/impostazioni")
@@ -94,6 +100,21 @@ class CassaController {
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
     CassaService.CassaDto creaCassa(@RequestBody CassaService.NuovaCassa in) {
         return cassa.creaCassa(in);
+    }
+
+    /** {"ids": [...]}: tutte le casse, nell'ordine voluto. Risponde con l'elenco aggiornato. */
+    @PutMapping("/casse/ordine")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    List<CassaService.CassaDto> ordinaCasse(@RequestBody CassaService.Ordine in) {
+        return cassa.ordinaCasse(in);
+    }
+
+    /** Elimina una cassa mai aperta; 409 se ha sessioni nello storico o è la principale. */
+    @DeleteMapping("/casse/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    void eliminaCassa(@PathVariable UUID id) {
+        cassa.eliminaCassa(id);
     }
 
     @PutMapping("/casse/{id}")

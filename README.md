@@ -292,6 +292,12 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   indietro); sul telefono da «Altro». Sotto il titolo di ogni pagina c'è una riga corta e il fumetto «i» con il resto. Le
   modifiche di una pagina si salvano insieme dalla barra «N modifiche da salvare»; in «Regole del tornello» accendi o
   spegni una regola o cambia un parametro e compare la stessa barra (da `admin@demo.leone`).
+- **Ricevute e Cassa nelle Impostazioni** (ADR 0029, da `admin@demo.leone`): in «Ricevute» le serie sono un elenco con foglio («Salva la serie»,
+  «Aggiungi la serie»). «Ricevute» (accesa) porta il tag «Richiesta dal sistema» e non ha cestino né interruttore: è l'ultima serie di ricevute accesa.
+  «Fatture» è spenta e non ha mai emesso: il cestino la elimina davvero. Prova a spegnere «Ricevute»: il programma si ferma con il messaggio su due righe. Aggiungi una serie di tipo ricevuta e accendila: ora «Ricevute» si può spegnere. In «Cassa» c'è
+  una sola cassa, «Segreteria», che è la principale e non ha cestino né interruttore; l'elenco delle casse compare scegliendo «Una per postazione» in «Quante casse». Aggiungi una cassa nuova («Aggiungi la cassa»): si elimina
+  subito. Il riscontro con il POS non si sceglie più in Cassa: la riga dice «Si riscontrano: Bancomat» e il pulsante «Metodi di pagamento» porta al foglio
+  del metodo (apri «Bancomat»: l'interruttore «Riscontro con il POS»; «Nel cassetto» e «Da incassare» non lo hanno).
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono
@@ -546,6 +552,8 @@ la CI su Windows.
 | POST | `/api/pagamenti/{id}/annulla` · `/api/pagamenti/addebiti/{id}/annulla` `{motivo}` | annullamenti (PAGAMENTI_ANNULLA) |
 | GET · POST | `/api/pagamenti/incassi?da=&a=` · `/api/pagamenti/da-incassare` · `/api/pagamenti/metodi-usati/{id}/incassa` | incassi e bonifici da incassare (PAGAMENTI) |
 | GET · POST · PUT · DELETE | `/api/pagamenti/metodi` · `/{id}` · `PUT /ordine` `{ids}` | metodi di pagamento; il riordino è una chiamata sola; l'eliminazione risponde 409 col motivo se c'è qualcosa di aperto o se è il borsellino; la modifica cambia anche il tipo (`daIncassare`, `contanti`) dal pagamento successivo, azzera `riscontro` per i metodi da incassare o nel cassetto e risponde 409 se una cassa è aperta e `contanti` cambia; il `detail` dei 409 dei metodi arriva su due righe separate da `\n` («Non si può cambiare adesso: c'è una cassa aperta.» / «Chiudi la cassa: poi potrai spostare «Nome» da o verso «Nel cassetto».») (modifica: IMPOSTAZIONI) |
+| GET · PUT · POST · DELETE | `/api/ricevute/impostazioni` · `/serie` · `/serie/{id}` · `PUT /serie/ordine` `{ids}` | impostazioni e serie delle ricevute (modifica: IMPOSTAZIONI); il riordino è una chiamata sola e risponde con l'array delle serie; ogni serie ha `richiesta` (ultima serie `RICEVUTA` accesa: non si spegne né si elimina), e per chi ha IMPOSTAZIONI `eliminabile` e `motivoBlocco`; una serie si elimina solo se non ha mai emesso ricevute: 409 su due righe («Non si può eliminare: la serie «X» ha emesso N ricevute.» / «Puoi spegnerla: …»); 409 anche per l'ultima serie `RICEVUTA` accesa (eliminare o spegnere) |
+| GET · PUT · POST · DELETE | `/api/cassa` · `/impostazioni` · `/casse` · `/casse/{id}` · `PUT /casse/ordine` `{ids}` | la cassa e le casse (modifica: IMPOSTAZIONI); il riordino risponde con l'array delle casse; ogni cassa ha, per chi ha IMPOSTAZIONI, `eliminabile` e `motivoBlocco`; una cassa si elimina solo se non ha sessioni né pagamenti o uscite registrati: 409 su due righe («Non si può eliminare: la cassa «X» ha 58 sessioni nello storico.» / «Puoi spegnerla: …»); 409 anche per la cassa principale |
 | GET | `/api/borsellino/persone/{id}` | saldi (euro e crediti), movimenti, a chi si può trasferire |
 | POST | `/api/borsellino/persone/{id}/ricariche` · `/trasferimenti` | ricarica dei crediti (pagata subito); euro a un familiare (BORSELLINO) |
 | POST | `/api/borsellino/persone/{id}/restituzioni` · `/correzioni` | credito restituito in denaro; correzioni a mano (BORSELLINO_RIMBORSI) |

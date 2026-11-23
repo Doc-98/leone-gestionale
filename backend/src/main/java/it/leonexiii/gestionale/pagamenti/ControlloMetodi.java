@@ -15,4 +15,7 @@ public interface ControlloMetodi {
 
     /** C'è almeno una sessione di cassa aperta (non chiusa): un metodo non può cambiare il suo essere «nel cassetto». */
     boolean cassaAperta();
+
+    /** La cassa esiste ed è accesa: un movimento che arriva da una cassa spenta o eliminata va nella principale. */
+    boolean cassaAccesa(UUID cassaId);
 }

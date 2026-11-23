@@ -1,5 +1,7 @@
 package it.leonexiii.gestionale.ricevute;
 
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
 import it.leonexiii.gestionale.identita.Utente;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,15 +33,18 @@ import org.springframework.web.bind.annotation.RestController;
 class RicevuteController {
 
     private final RicevuteService ricevute;
+    private final Autorizzazioni autorizzazioni;
 
-    RicevuteController(RicevuteService ricevute) {
+    RicevuteController(RicevuteService ricevute, Autorizzazioni autorizzazioni) {
         this.ricevute = ricevute;
+        this.autorizzazioni = autorizzazioni;
     }
 
     @GetMapping("/impostazioni")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'PAGAMENTI', 'IMPOSTAZIONI')")
-    RicevuteService.Pagina impostazioni() {
-        return ricevute.pagina();
+    RicevuteService.Pagina impostazioni(@AuthenticationPrincipal Utente u) {
+        // se una serie si può eliminare (e perché) lo vede solo chi gestisce le impostazioni
+        return ricevute.pagina(autorizzazioni.puo(u, Permesso.IMPOSTAZIONI));
     }
 
     @PutMapping("/impostazioni")
@@ -54,10 +60,25 @@ class RicevuteController {
         return ricevute.creaSerie(in);
     }
 
+    /** {"ids": [...]}: tutte le serie, nell'ordine voluto. Risponde con l'elenco aggiornato. */
+    @PutMapping("/serie/ordine")
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    List<RicevuteService.SerieDto> ordinaSerie(@RequestBody RicevuteService.Ordine in) {
+        return ricevute.ordinaSerie(in);
+    }
+
     @PutMapping("/serie/{id}")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
     RicevuteService.SerieDto modificaSerie(@PathVariable UUID id, @RequestBody RicevuteService.ModificaSerie in) {
         return ricevute.modificaSerie(id, in);
+    }
+
+    /** Elimina una serie mai usata; 409 se ha emesso ricevute o è l'ultima serie di ricevute accesa. */
+    @DeleteMapping("/serie/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
+    void eliminaSerie(@PathVariable UUID id) {
+        ricevute.eliminaSerie(id);
     }
 
     /** Le ricevute di un pagamento (le fa se non ci sono ancora). */

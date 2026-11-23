@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Ricevuta } from './api';
-import { anteprimaNumero, nomeRicevuta, perChi, serveScelta, statoRicevuta } from './ricevute';
+import { anteprimaNumero, nomeRicevuta, perChi, predefinitiSerie, riepilogoSerie, serieDiBase, serieRichiesta, serveScelta, statoRicevuta } from './ricevute';
 
 const persona = (nome: string, cognome = 'Bianchi') => ({ id: nome, nome, cognome, codiceFiscale: null, indirizzo: null, dataNascita: null, email: null });
 const riga = (importo: number) => ({ addebitoId: 'a', personaId: 'p', descrizione: 'Corso', per: 'Sofia Bianchi', importo });
@@ -41,5 +41,40 @@ describe('ricevute', () => {
   it('il nome con il numero', () => {
     expect(nomeRicevuta({ tipo: 'RICEVUTA', numero: '2026/27-0142' } as Ricevuta)).toBe('Ricevuta 2026/27-0142');
     expect(nomeRicevuta({ tipo: 'FATTURA', numero: 'F2026/0001' } as Ricevuta)).toBe('Fattura F2026/0001');
+  });
+});
+
+describe('serie delle ricevute', () => {
+  const s = (id: string, tipo: 'RICEVUTA' | 'FATTURA', attiva: boolean) => ({ id, tipo, attiva });
+
+  it('l\'ultima serie accesa di ricevute è richiesta dal sistema', () => {
+    expect(serieRichiesta([s('a', 'RICEVUTA', true), s('b', 'RICEVUTA', false)], 'a')).toBe(true);
+    expect(serieRichiesta([s('a', 'RICEVUTA', true), s('b', 'RICEVUTA', true)], 'a')).toBe(false);
+  });
+
+  it('una serie spenta o di fatture non è richiesta', () => {
+    expect(serieRichiesta([s('a', 'RICEVUTA', true), s('b', 'RICEVUTA', false)], 'b')).toBe(false);
+    expect(serieRichiesta([s('a', 'RICEVUTA', true), s('f', 'FATTURA', true)], 'f')).toBe(false);
+    // le fatture accese non salvano una serie di ricevute
+    expect(serieRichiesta([s('a', 'RICEVUTA', true), s('f', 'FATTURA', true)], 'a')).toBe(true);
+    expect(serieRichiesta([], 'x')).toBe(false);
+  });
+
+  it('i valori di una serie nuova seguono il tipo', () => {
+    expect(predefinitiSerie('RICEVUTA')).toEqual({ formato: '{stagione}-{numero}', cifre: 4, riparte: 'STAGIONE' });
+    expect(predefinitiSerie('FATTURA')).toEqual({ formato: 'F{anno}/{numero}', cifre: 4, riparte: 'ANNO' });
+  });
+
+  it('la riga sotto il nome dice quanto conta il numero, secondo quando riparte', () => {
+    expect(riepilogoSerie({ emesse: 412, prossima: '2026/27-0413', riparte: 'STAGIONE' })).toBe('Prossima 2026/27-0413 · 412 nel periodo');
+    expect(riepilogoSerie({ emesse: 3, prossima: 'F2026/0004', riparte: 'ANNO' })).toBe('Prossima F2026/0004 · 3 quest\'anno');
+    expect(riepilogoSerie({ emesse: 0, prossima: '0001', riparte: 'MAI' })).toBe('Prossima 0001 · 0 in tutto');
+  });
+
+  it('la serie di base è la prima serie di ricevute accesa, nell\'ordine dell\'elenco', () => {
+    const l = [s('f', 'FATTURA', true), s('a', 'RICEVUTA', false), s('b', 'RICEVUTA', true), s('c', 'RICEVUTA', true)];
+    expect(serieDiBase(l)).toBe('b');
+    expect(serieDiBase([l[3], l[2]])).toBe('c'); // riordinate: cambia la serie di base
+    expect(serieDiBase([l[0], l[1]])).toBeNull();
   });
 });

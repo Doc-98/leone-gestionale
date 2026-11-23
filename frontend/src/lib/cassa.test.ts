@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PagamentoRegistrato, VoceScadenza } from './api';
 import type { PaginaCassa, StatoCassa } from './api';
-import { andamento, chiaveMetodo, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, perGiornoScadenze, quando, registro, serveAprire, settimane, sommaTagli, statoDaMostrare, tipoBreve, urgenza } from './cassa';
+import { andamento, chiaveMetodo, conSegno, oltreTolleranza, perPersona, statoChiusura, contanti, esitoDifferenza, lasciatoProposto, nelFiltro, perGiornoScadenze, quando, registro, serveAprire, metodiRiscontrati, settimane, sommaTagli, testoRiscontro, statoDaMostrare, tipoBreve, urgenza } from './cassa';
 import { euro, numeroDa } from './numeri';
 
 const voce = (p: Partial<VoceScadenza>): VoceScadenza => ({
@@ -161,3 +161,17 @@ describe('controlli della chiusura', () => {
   });
 });
 
+
+describe('riscontro con il POS', () => {
+  const m = (nome: string, attivo: boolean, riscontro: boolean) => ({ nome, attivo, riscontro });
+
+  it('si riscontrano i metodi accesi con il riscontro, nell\'ordine dell\'elenco', () => {
+    expect(metodiRiscontrati([m('Carta', true, true), m('Contanti', true, false), m('Satispay', true, true), m('Buono', false, true)])).toEqual(['Carta', 'Satispay']);
+    expect(metodiRiscontrati([])).toEqual([]);
+  });
+
+  it('la riga di sola lettura', () => {
+    expect(testoRiscontro(['Carta', 'Satispay'])).toBe('Si riscontrano: Carta, Satispay');
+    expect(testoRiscontro([])).toBe('Si riscontrano: Nessun metodo');
+  });
+});

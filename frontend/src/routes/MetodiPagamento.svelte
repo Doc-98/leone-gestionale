@@ -47,7 +47,7 @@
   }
 
   /** Il corpo di una modifica: senza `ordine`, che il backend tiene com'è (un riordino in corso non va annullato). */
-  const corpo = (m: MetodoPagamento, cambi: { nome?: string; daIncassare?: boolean; contanti?: boolean; attivo?: boolean }) =>
+  const corpo = (m: MetodoPagamento, cambi: { nome?: string; daIncassare?: boolean; contanti?: boolean; attivo?: boolean; riscontro?: boolean }) =>
     ({ nome: m.nome, daIncassare: m.daIncassare, contanti: m.contanti, attivo: m.attivo, ...cambi });
   const sostituisci = (nuovo: MetodoPagamento) => (metodi = metodi.map((x) => (x.id === nuovo.id ? nuovo : x)));
 
@@ -117,7 +117,7 @@
 
   // ── il foglio: «Nuovo metodo» e la modifica di uno esistente ──
   let foglio = $state<{ id: string | null } | null>(null);
-  let bozza = $state<{ nome: string; tipo: TipoMetodo }>({ nome: '', tipo: 'subito' });
+  let bozza = $state<{ nome: string; tipo: TipoMetodo; riscontro: boolean }>({ nome: '', tipo: 'subito', riscontro: false });
   /** acceso o spento di un metodo che non c'è ancora (per uno che c'è vale quello dell'elenco, uguale alla riga) */
   let nuovoAcceso = $state(true);
   let erroreFoglio = $state('');
@@ -134,13 +134,13 @@
   });
 
   function nuovoMetodo() {
-    bozza = { nome: '', tipo: 'subito' };
+    bozza = { nome: '', tipo: 'subito', riscontro: false };
     nuovoAcceso = true;
     erroreFoglio = '';
     foglio = { id: null };
   }
   function apri(m: MetodoPagamento) {
-    bozza = { nome: m.nome, tipo: tipoMetodo(m) };
+    bozza = { nome: m.nome, tipo: tipoMetodo(m), riscontro: m.riscontro };
     erroreFoglio = '';
     foglio = { id: m.id };
   }
@@ -159,7 +159,8 @@
     erroreFoglio = '';
     errore = '';
     try {
-      const come = comeIncassa(bozza.tipo);
+      // il riscontro con il POS vale solo per «Incassato subito»: per gli altri tipi si azzera (lo fa anche il backend)
+      const come = { ...comeIncassa(bozza.tipo), riscontro: bozza.tipo === 'subito' && bozza.riscontro };
       if (aperto) {
         sostituisci(await inCoda(() => api.modificaMetodoPagamento(aperto.id, corpo(aperto, { nome, ...come }))));
         messaggio = `${nome} salvato.`;
@@ -255,7 +256,12 @@
             {/each}
           </div>
         </div>
-        {#if aperto?.riscontro}<p class="nomargin"><span class="tag t-soft">Riscontro POS</span></p>{/if}
+        {#if bozza.tipo === 'subito'}
+          <label class="riga-switch riscontro">
+            <span class="t"><b>Riscontro con il POS</b><span class="muted small">Si confronta alla chiusura.</span></span>
+            <button type="button" class="switch tap44" role="switch" aria-checked={bozza.riscontro} aria-label="Riscontro con il POS" onclick={() => (bozza.riscontro = !bozza.riscontro)}><span></span></button>
+          </label>
+        {/if}
       {/if}
 
       {#if erroreFoglio}<p class="msg err nomargin" role="alert">{erroreFoglio}</p>{/if}
@@ -285,5 +291,6 @@
   /* telefoni stretti: meno margine ai lati perché i nomi di tutti i giorni stiano interi */
   @media (max-width: 360px) { .elenco { padding-inline: var(--space-8); } }
   @container (max-width: 379px) { .seg.tre { grid-template-columns: 1fr; } }
+  .riscontro .t { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
   .azioni-foglio { display: flex; justify-content: flex-end; gap: var(--space-10); flex-wrap: wrap; }
 </style>
