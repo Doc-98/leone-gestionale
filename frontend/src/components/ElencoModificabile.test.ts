@@ -303,3 +303,45 @@ describe('ElencoModificabile – apertura', () => {
     expect(onapri).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }));
   });
 });
+
+describe('ElencoModificabile – cestinoApre', () => {
+  it('per la riga che apre il primo tocco chiama subito onelimina, senza «Elimina?», e l\'etichetta finisce con «…»', async () => {
+    const p = monta({ cestinoApre: (v: Voce) => v.id === 'a' });
+    expect(screen.getByLabelText('Elimina «Contanti»…')).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Elimina «Contanti»…'));
+    expect(p.onelimina).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Elimina?')).toBeNull();
+  });
+
+  it('le altre righe restano a due tocchi', async () => {
+    const p = monta({ cestinoApre: (v: Voce) => v.id === 'a' });
+    await userEvent.click(screen.getByLabelText('Elimina «Carta»'));
+    expect(p.onelimina).not.toHaveBeenCalled();
+    expect(screen.getByText('Elimina?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Elimina\?/ }));
+    expect(p.onelimina).toHaveBeenCalledTimes(1);
+  });
+
+  it('un testo restituito da onelimina compare sotto la riga', async () => {
+    monta({ cestinoApre: () => true, onelimina: vi.fn(async () => 'Non si può eliminare: ha persone.\nUsa la finestra.') });
+    await userEvent.click(screen.getByLabelText('Elimina «Contanti»…'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Non si può eliminare: ha persone.');
+  });
+});
+
+describe('ElencoModificabile – sotto e controlli', () => {
+  it('`sotto` compare sotto ogni riga, a tutta larghezza', () => {
+    const sotto = createRawSnippet((el: () => Voce) => ({ render: () => `<span class="tagprova">tag di ${el().nome}</span>` }));
+    monta({ sotto });
+    expect(screen.getByText('tag di Carta').closest('.sotto-riga')).toBeTruthy();
+    expect(document.querySelectorAll('.sotto-riga')).toHaveLength(4);
+  });
+
+  it('la colonna stretta si attiva solo con `soloCestino`, non da sola', () => {
+    monta({ haInterruttore: () => false });
+    expect(document.querySelectorAll('.ctl.solo-cestino').length).toBe(0);
+    cleanup();
+    monta({ haInterruttore: () => false, soloCestino: true });
+    expect(document.querySelectorAll('.ctl.solo-cestino').length).toBe(4);
+  });
+});

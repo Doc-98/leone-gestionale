@@ -19,6 +19,13 @@
    *   di prima. L'ordine locale resta finché il genitore non passa `elementi` nuovi.
    * - `onelimina` può restituire (anche in una promessa) un testo: è il motivo per cui non si può eliminare, e compare sotto la riga.
    *   Va su più righe (`\n`) e ogni riga comincia con un attacco in grassetto fino ai due punti (`righeBlocco`).
+   * - `cestinoApre`: per le righe per cui risponde `true` il cestino non chiede «Elimina?»: l'etichetta finisce con i
+   *   puntini («Elimina «Agonisti»…») e il primo tocco chiama subito `onelimina`, che apre la finestra
+   *   dell'eliminazione pesante. Se `onelimina` restituisce un testo, compare sotto la riga come sempre.
+   * - `sotto`: un pezzo sotto la riga, a tutta larghezza (i tag di un gruppo): così il nome ha la riga per sé e i tag vanno
+   *   a capo come tag interi. Se la riga ha la maniglia, il pezzo è allineato al nome.
+   * - `soloCestino`: la colonna dei controlli è larga quanto il cestino (per gli elenchi che non hanno mai l'interruttore,
+   *   come le chiusure): più spazio al nome. Non si attiva da sola, perché la larghezza non deve cambiare con le righe.
    * - Lo spostamento da tastiera o con il dito è annunciato in una regione `role="status"`.
    */
   let {
@@ -30,12 +37,15 @@
     articolo = 'un',
     apreFoglio = true,
     riga,
+    sotto,
+    soloCestino = false,
     onriordina,
     onaggiungi,
     onapri,
     onacceso,
     onelimina,
     haCestino = () => true,
+    cestinoApre = () => false,
     haInterruttore = () => true,
     acceso = () => true,
     testoAggiungi,
@@ -55,6 +65,10 @@
     /** «Aggiungi un metodo…» con i puntini quando apre un foglio */
     apreFoglio?: boolean;
     riga: Snippet<[T]>;
+    /** sotto la riga, a tutta larghezza */
+    sotto?: Snippet<[T]>;
+    /** colonna dei controlli stretta: solo il cestino, mai l'interruttore */
+    soloCestino?: boolean;
     onriordina?: (ids: string[]) => unknown;
     onaggiungi?: () => void;
     /** il tocco sul contenuto della riga (apre il foglio): senza, il contenuto non è un pulsante */
@@ -62,6 +76,8 @@
     onacceso?: (el: T, acceso: boolean) => unknown;
     onelimina?: (el: T) => unknown;
     haCestino?: (el: T) => boolean;
+    /** true: il cestino apre una finestra (eliminazione pesante) invece di chiedere «Elimina?» */
+    cestinoApre?: (el: T) => boolean;
     haInterruttore?: (el: T) => boolean;
     acceso?: (el: T) => boolean;
     testoAggiungi?: string;
@@ -271,7 +287,7 @@
         {#if modificabile}
           <!-- larghezza fissa (interruttore + cestino): gli interruttori restano in colonna anche senza cestino, e la
                domanda «Elimina?» prende il posto dei due controlli senza cambiare la larghezza del contenuto -->
-          <div class="ctl">
+          <div class="ctl" class:solo-cestino={soloCestino}>
             {#if haInterruttore(el)}
               <button
                 type="button"
@@ -283,7 +299,11 @@
               ><span></span></button>
             {/if}
             {#if haCestino(el)}
-              <Azione icona="cestino" tono="danger" etichetta={`${verbo} «${n}»`} {conferma} onclick={() => elimina(el)} />
+              {#if cestinoApre(el)}
+                <Azione icona="cestino" tono="danger" etichetta={`${verbo} «${n}»…`} onclick={() => elimina(el)} />
+              {:else}
+                <Azione icona="cestino" tono="danger" etichetta={`${verbo} «${n}»`} {conferma} onclick={() => elimina(el)} />
+              {/if}
             {:else}
               <span class="posto-azione" aria-hidden="true"></span>
             {/if}
@@ -292,6 +312,7 @@
           <span class="tag t-altro">Spento</span>
         {/if}
       </div>
+      {#if sotto}<div class="sotto-riga" class:con-maniglia={modificabile && riordinabile}>{@render sotto(el)}</div>{/if}
       {#if blocchi[el.id]}
         <p class="blocco" role="alert">{#each righeBlocco(blocchi[el.id]) as r, k (k)}<span class="riga-b">{#if r.attacco}<b>{r.attacco}</b>{' '}{/if}{r.resto}{' '}</span>{/each}</p>
       {/if}
@@ -316,6 +337,9 @@
   .contenuto { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4) var(--space-8); }
   /* riga spenta: a farla tenue è la pagina, solo sul nome (i tag restano al contrasto pieno); i controlli restano pieni */
   .ctl { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); width: calc(50px + var(--space-8) + 40px); flex-shrink: 0; }
+  .ctl.solo-cestino { width: 40px; }
+  .sotto-riga { padding: 0 0 var(--space-8); min-width: 0; }
+  .sotto-riga.con-maniglia { padding-left: calc(40px + var(--space-8)); }
   .ctl:has(:global(.azione.armata)) .switch { display: none; }
   .posto-azione { width: 40px; height: 40px; flex-shrink: 0; }
   .ctl :global(.azione.danger:hover:not(:disabled)) { background: var(--ferma-bg); color: var(--ferma-fg); }

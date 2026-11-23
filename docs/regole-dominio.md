@@ -17,6 +17,7 @@ rompere senza accorgersene. Se una regola cambia, si aggiorna qui e nell'ADR che
   disciplina: un altro sport si aggiunge senza riscrivere il sistema.
 - **Lo storico non si perde.** Le cose che durano si chiudono con una data di fine. Una cosa di cui lo storico conserva una copia presa alla registrazione (come un metodo di pagamento) si può eliminare (ADR 0028).
 - **Ciò che lo storico usa senza copia non si elimina.** Una cosa mai usata si elimina; una già usata (una serie che ha emesso ricevute, una cassa con sessioni) si spegne, e al secondo tocco del cestino il messaggio dice cosa la usa (ADR 0029).
+- **Un gruppo eliminato lascia il suo nome nello storico.** Le persone escono dal gruppo (l'ultimo giorno è ieri) e le loro appartenenze chiuse tengono la copia del nome; i prezzi del listino riservati al gruppo spariscono con lui, e la finestra di conferma lo dice (ADR 0029). Una stagione usata (offerte, vendite, tesseramenti, esiti dei livelli) e un'offerta venduta non si eliminano.
 
 ## Privacy e dati
 

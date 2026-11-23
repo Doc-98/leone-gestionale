@@ -1,10 +1,14 @@
 package it.leonexiii.gestionale.listino;
 
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
+import it.leonexiii.gestionale.identita.Utente;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,15 +30,18 @@ class ListinoController {
     record Copia(UUID da, UUID a, BigDecimal aumentoPercentuale) {}
 
     private final Listino listino;
+    private final Autorizzazioni autorizzazioni;
 
-    ListinoController(Listino listino) {
+    ListinoController(Listino listino, Autorizzazioni autorizzazioni) {
         this.listino = listino;
+        this.autorizzazioni = autorizzazioni;
     }
 
     @GetMapping
     @PreAuthorize("@autorizzazioni.ha(authentication, 'CLIENTI', 'IMPOSTAZIONI')")
-    Listino.PaginaListino pagina(@RequestParam UUID stagione) {
-        return listino.pagina(stagione);
+    Listino.PaginaListino pagina(@AuthenticationPrincipal Utente u, @RequestParam UUID stagione) {
+        // se un'offerta si può eliminare (e perché) lo vede solo chi gestisce le impostazioni
+        return listino.pagina(stagione, autorizzazioni.puo(u, Permesso.IMPOSTAZIONI));
     }
 
     @PostMapping("/offerte")
@@ -50,6 +57,7 @@ class ListinoController {
         return listino.modifica(id, in);
     }
 
+    /** Elimina un'offerta mai venduta; 409 se è stata venduta (si spegne). */
     @DeleteMapping("/offerte/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
@@ -65,7 +73,9 @@ class ListinoController {
 
     @PostMapping("/copia")
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")
-    Map<String, Integer> copia(@RequestBody Copia in) {
-        return Map.of("offerte", listino.copia(in.da(), in.a(), in.aumentoPercentuale()));
+    Map<String, Object> copia(@RequestBody Copia in) {
+        // «saltate»: le offerte rimaste senza prezzi (es. dopo l'eliminazione di un gruppo) non si copiano
+        Listino.EsitoCopia e = listino.copia(in.da(), in.a(), in.aumentoPercentuale());
+        return Map.of("offerte", e.offerte(), "saltate", e.saltate());
     }
 }

@@ -1,9 +1,16 @@
 package it.leonexiii.gestionale.societa;
 
+import it.leonexiii.gestionale.identita.Autorizzazioni;
+import it.leonexiii.gestionale.identita.Permesso;
+import it.leonexiii.gestionale.identita.Utente;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,10 +26,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 class SocietaController {
 
-    private final Societa societa;
+    /**
+     * Una stagione con, per chi gestisce le impostazioni, se si può eliminare e (se no) perché: cosa la usa e cosa fare, su
+     * due righe. Per gli altri «eliminabile» e «motivoBlocco» sono vuoti.
+     */
+    record StagioneDto(UUID id, String nome, LocalDate dal, LocalDate al, BigDecimal quota, boolean quotaRimborsabile,
+                       Boolean eliminabile, String motivoBlocco) {}
 
-    SocietaController(Societa societa) {
+    private final Societa societa;
+    private final Autorizzazioni autorizzazioni;
+
+    SocietaController(Societa societa, Autorizzazioni autorizzazioni) {
         this.societa = societa;
+        this.autorizzazioni = autorizzazioni;
     }
 
     @GetMapping("/societa")
@@ -37,8 +53,13 @@ class SocietaController {
     }
 
     @GetMapping("/stagioni")
-    List<Societa.Stagione> stagioni() {
-        return societa.stagioni();
+    List<StagioneDto> stagioni(@AuthenticationPrincipal Utente u) {
+        boolean conBlocchi = autorizzazioni.puo(u, Permesso.IMPOSTAZIONI);
+        return societa.stagioni().stream().map(s -> {
+            if (!conBlocchi) return new StagioneDto(s.id(), s.nome(), s.dal(), s.al(), s.quota(), s.quotaRimborsabile(), null, null);
+            Optional<String> blocco = societa.motivoBlocco(s);
+            return new StagioneDto(s.id(), s.nome(), s.dal(), s.al(), s.quota(), s.quotaRimborsabile(), blocco.isEmpty(), blocco.orElse(null));
+        }).toList();
     }
 
     @PostMapping("/stagioni")
@@ -54,6 +75,7 @@ class SocietaController {
         return societa.modificaStagione(id, in);
     }
 
+    /** Elimina una stagione che nessuno usa; 409 se qualcosa la usa (listino, vendite, tesseramenti, esiti dei livelli). */
     @DeleteMapping("/stagioni/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@autorizzazioni.ha(authentication, 'IMPOSTAZIONI')")

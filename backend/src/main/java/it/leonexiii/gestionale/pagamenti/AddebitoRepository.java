@@ -25,4 +25,8 @@ interface AddebitoRepository extends JpaRepository<Addebito, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Addebito a where a.id in :ids")
     List<Addebito> bloccati(Collection<UUID> ids);
+
+    /** Per ogni offerta, quanti addebiti di quell'origine la citano (anche annullati). */
+    @Query("select a.offertaId, count(a) from Addebito a where a.offertaId in :offerte and a.origine = :origine group by a.offertaId")
+    List<Object[]> contaPerOfferta(Collection<UUID> offerte, Pagamenti.Origine origine);
 }

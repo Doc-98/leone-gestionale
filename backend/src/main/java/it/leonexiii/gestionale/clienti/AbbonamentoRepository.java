@@ -1,6 +1,7 @@
 package it.leonexiii.gestionale.clienti;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,4 +16,8 @@ interface AbbonamentoRepository extends JpaRepository<Abbonamento, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Abbonamento a where a.id = :id")
     Optional<Abbonamento> bloccato(UUID id);
+
+    /** Per ogni offerta, quanti abbonamenti la citano (anche annullati). */
+    @Query("select a.offertaId, count(a) from Abbonamento a where a.offertaId in :offerte group by a.offertaId")
+    List<Object[]> contaPerOfferta(Collection<UUID> offerte);
 }

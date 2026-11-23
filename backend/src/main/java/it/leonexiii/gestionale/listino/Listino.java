@@ -1,5 +1,6 @@
 package it.leonexiii.gestionale.listino;
 
+import it.leonexiii.gestionale.condiviso.Conflitto;
 import it.leonexiii.gestionale.condiviso.NonTrovato;
 import it.leonexiii.gestionale.societa.Societa;
 import java.math.BigDecimal;
@@ -33,7 +34,22 @@ public class Listino {
 
     public record OffertaDto(UUID id, UUID stagioneId, String nome, String tipo, String descrizione, Integer ingressi, Integer validitaMesi,
                              Integer validitaGiorni, UUID corsoId, List<UUID> corsi, boolean riduzioneTardiva, boolean attiva, int ordine,
-                             List<Prezzo> prezzi) {}
+                             List<Prezzo> prezzi, Boolean eliminabile, String motivoBlocco) {
+        /**
+         * «eliminabile» e «motivoBlocco» (se no, perché: cosa fare, su due righe) li ha solo chi gestisce le impostazioni:
+         * per gli altri sono vuoti.
+         */
+        OffertaDto conBlocco(Boolean eliminabile, String motivoBlocco) {
+            return new OffertaDto(id, stagioneId, nome, tipo, descrizione, ingressi, validitaMesi, validitaGiorni, corsoId, corsi,
+                riduzioneTardiva, attiva, ordine, prezzi, eliminabile, motivoBlocco);
+        }
+    }
+
+    /** Quante offerte si sono copiate e i nomi di quelle saltate perché senza prezzi. */
+    record EsitoCopia(int offerte, List<String> saltate) {}
+
+    /** I prezzi del listino riservati a un gruppo di clienti (in tutte le stagioni) e i nomi distinti delle offerte che li hanno. */
+    public record PrezziDelGruppo(int prezzi, List<String> offerte, List<String> senzaPrezzi) {}
 
     public record NuovaOfferta(UUID stagioneId, String nome, String tipo, String descrizione, Integer ingressi, Integer validitaMesi,
                                Integer validitaGiorni, UUID corsoId, List<UUID> corsi, Boolean riduzioneTardiva, Boolean attiva, Integer ordine,
@@ -75,23 +91,31 @@ public class Listino {
     private final OffertaRepository offerte;
     private final RegolaPrezzoRepository regole;
     private final Societa societa;
+    private final List<VenditeOfferte> vendite;
 
-    Listino(OffertaRepository offerte, RegolaPrezzoRepository regole, Societa societa) {
+    Listino(OffertaRepository offerte, RegolaPrezzoRepository regole, Societa societa, List<VenditeOfferte> vendite) {
         this.offerte = offerte;
         this.regole = regole;
         this.societa = societa;
+        this.vendite = vendite;
     }
 
     // ── Lettura e proposta ─────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public PaginaListino pagina(UUID stagioneId) {
+        return pagina(stagioneId, false);
+    }
+
+    /** La pagina; «conBlocchi»: chi gestisce le impostazioni riceve anche se ogni offerta si può eliminare (e, se no, perché). */
+    @Transactional(readOnly = true)
+    public PaginaListino pagina(UUID stagioneId, boolean conBlocchi) {
         Societa.Stagione s = societa.stagione(stagioneId).orElseThrow(() -> new NonTrovato("Stagione non trovata."));
         Map<String, RegolaPrezzo> perTipo = new HashMap<>();
         regole.findByChiaveStagioneId(stagioneId).forEach(r -> perTipo.put(r.getChiave().tipo(), r));
         List<Regola> rr = REGOLE.stream().map(t -> perTipo.containsKey(t)
             ? new Regola(t, perTipo.get(t).isAttiva(), perTipo.get(t).getParametri()) : new Regola(t, false, Map.of())).toList();
-        return new PaginaListino(s, offerte.findByStagioneIdOrderByOrdineAscNomeAsc(stagioneId).stream().map(Offerta::dto).toList(), rr);
+        return new PaginaListino(s, conBlocchi(offerte.findByStagioneIdOrderByOrdineAscNomeAsc(stagioneId), conBlocchi), rr);
     }
 
     @Transactional(readOnly = true)
@@ -194,7 +218,7 @@ public class Listino {
     @Transactional
     OffertaDto crea(NuovaOfferta in) {
         if (in.stagioneId() == null || societa.stagione(in.stagioneId()).isEmpty()) throw new IllegalArgumentException("Scegli la stagione.");
-        return offerte.saveAndFlush(new Offerta(in.stagioneId(), in)).dto();
+        return conBlocchi(List.of(offerte.saveAndFlush(new Offerta(in.stagioneId(), in))), true).getFirst();
     }
 
     @Transactional
@@ -202,13 +226,71 @@ public class Listino {
         Offerta o = trova(id);
         o.modifica(in);
         offerte.flush();
-        return o.dto();
+        return conBlocchi(List.of(o), true).getFirst();
     }
 
+    /**
+     * Elimina un'offerta mai venduta. Una venduta (abbonamenti o addebiti, anche annullati) non si elimina: chi l'ha
+     * comprata ne tiene l'importo, e l'offerta si spegne (ADR 0029).
+     */
     @Transactional
     void elimina(UUID id) {
-        offerte.delete(trova(id));
+        Offerta o = trova(id);
+        String blocco = blocco(o, venduteVolte(List.of(o)).getOrDefault(o.getId(), 0L));
+        if (blocco != null) throw new Conflitto(blocco);
+        offerte.delete(o);
         offerte.flush();
+    }
+
+    /** Quante volte è stata venduta ognuna delle offerte (le assenti, mai). */
+    private Map<UUID, Long> venduteVolte(List<Offerta> elenco) {
+        List<UUID> ids = elenco.stream().map(Offerta::getId).toList();
+        Map<UUID, Long> out = new HashMap<>();
+        if (ids.isEmpty()) return out;
+        for (VenditeOfferte v : vendite) v.vendite(ids).forEach((k, n) -> out.merge(k, n, Long::sum));
+        return out;
+    }
+
+    /** Perché l'offerta non si elimina adesso (due righe: cosa è successo, cosa fare), o null se si può. */
+    private static String blocco(Offerta o, long vendute) {
+        if (vendute == 0) return null;
+        return "Non si può eliminare: «" + o.getNome() + "» è stata venduta " + (vendute == 1 ? "1 volta" : vendute + " volte") + ".\n"
+            + (o.isAttiva() ? "Puoi spegnerla: chi l'ha comprata la tiene com'è, ma non si vende più."
+                : "È già spenta: chi l'ha comprata la tiene com'è e non si vende più.");
+    }
+
+    private List<OffertaDto> conBlocchi(List<Offerta> elenco, boolean conBlocchi) {
+        if (!conBlocchi) return elenco.stream().map(Offerta::dto).toList();
+        Map<UUID, Long> vendute = venduteVolte(elenco);
+        return elenco.stream().map(o -> {
+            String b = blocco(o, vendute.getOrDefault(o.getId(), 0L));
+            return o.dto().conBlocco(b == null, b);
+        }).toList();
+    }
+
+    // ── Prezzi per i gruppi (li usa clienti quando un gruppo si elimina) ───
+
+    /** I prezzi del listino riservati al gruppo, in tutte le stagioni, e i nomi (distinti, nell'ordine del listino) delle offerte che li hanno;
+     * «senzaPrezzi»: quelle tra loro che hanno solo prezzi di quel gruppo e, tolti, resterebbero senza prezzi. */
+    @Transactional(readOnly = true)
+    public PrezziDelGruppo prezziDelGruppo(UUID gruppoId) {
+        List<Offerta> con = offerte.conPrezziDelGruppo(gruppoId);
+        int prezzi = con.stream().mapToInt(o -> o.prezziDelGruppo(gruppoId)).sum();
+        List<String> nomi = con.stream().map(Offerta::getNome).distinct().toList();
+        List<String> senza = con.stream().filter(o -> o.soloPrezziDelGruppo(gruppoId)).map(Offerta::getNome).distinct().toList();
+        return new PrezziDelGruppo(prezzi, nomi, senza);
+    }
+
+    /** Toglie dal listino (tutte le stagioni) i prezzi riservati al gruppo; quanti erano. */
+    @Transactional
+    public int eliminaPrezziDelGruppo(UUID gruppoId) {
+        int tolti = 0;
+        for (Offerta o : offerte.conPrezziDelGruppo(gruppoId)) {
+            tolti += o.togliPrezziDelGruppo(gruppoId);
+            if (o.senzaPrezzi()) o.spegni(); // senza prezzi non si vende: si spegne, e si riaccende quando ha un prezzo
+        }
+        offerte.flush();
+        return tolti;
     }
 
     @Transactional
@@ -227,7 +309,7 @@ public class Listino {
      * le date delle regole si spostano della distanza tra le due stagioni. Le offerte già presenti nella stagione nuova restano.
      */
     @Transactional
-    int copia(UUID da, UUID a, BigDecimal aumentoPercentuale) {
+    EsitoCopia copia(UUID da, UUID a, BigDecimal aumentoPercentuale) {
         Societa.Stagione sDa = societa.stagione(da).orElseThrow(() -> new NonTrovato("Stagione di partenza non trovata."));
         Societa.Stagione sA = societa.stagione(a).orElseThrow(() -> new NonTrovato("Stagione di arrivo non trovata."));
         if (da.equals(a)) throw new IllegalArgumentException("Scegli due stagioni diverse.");
@@ -235,7 +317,12 @@ public class Listino {
         if (fattore.signum() <= 0) throw new IllegalArgumentException("Aumento non valido.");
         Period salto = Period.between(sDa.dal(), sA.dal());
         int n = 0;
+        List<String> saltate = new ArrayList<>();
         for (Offerta o : offerte.findByStagioneIdOrderByOrdineAscNomeAsc(da)) {
+            if (o.senzaPrezzi()) { // spenta e senza prezzi: non c'è niente da copiare
+                saltate.add(o.getNome());
+                continue;
+            }
             OffertaDto d = o.dto();
             List<Prezzo> prezzi = d.prezzi().stream().map(p -> new Prezzo(p.volte(), p.gruppoId(), p.importo().multiply(fattore).setScale(2, RoundingMode.HALF_UP))).toList();
             offerte.save(new Offerta(a, new NuovaOfferta(a, d.nome(), d.tipo(), d.descrizione(), d.ingressi(), d.validitaMesi(), d.validitaGiorni(),
@@ -249,7 +336,7 @@ public class Listino {
             regole.save(nuova);
         }
         offerte.flush();
-        return n;
+        return new EsitoCopia(n, saltate);
     }
 
     // ── Regole ────────────────────────────────────────────────────────────

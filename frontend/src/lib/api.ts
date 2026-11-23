@@ -965,7 +965,11 @@ export const api = {
   gruppi: () => richiesta<GruppoClienti[]>('GET', '/api/gruppi'),
   creaGruppo: (g: NuovoGruppo) => richiesta<{ id: string }>('POST', '/api/gruppi', g),
   modificaGruppo: (id: string, g: NuovoGruppo & { attivo: boolean }) => richiesta<void>('PUT', `/api/gruppi/${id}`, g),
-  ordinaPrecedenze: (ordine: string[]) => richiesta<void>('PUT', '/api/gruppi/precedenze', { ordine }),
+  /** Il nuovo ordine dell'elenco (tutti gli id): risponde con i gruppi aggiornati, precedenze comprese. */
+  ordinaGruppi: (ids: string[]) => richiesta<GruppoClienti[]>('PUT', '/api/gruppi/ordine', { ids }),
+  eliminazioneGruppo: (id: string) => richiesta<EliminazioneGruppo>('GET', `/api/gruppi/${id}/eliminazione`),
+  /** `pesante`: conferma dalla finestra con le conseguenze; senza, un gruppo con persone o prezzi risponde 409. */
+  eliminaGruppo: (id: string, pesante = false) => richiesta<void>('DELETE', `/api/gruppi/${id}${pesante ? '?pesante=true' : ''}`),
   livelli: () => richiesta<PaginaLivelli>('GET', '/api/livelli'),
   turnoLivelli: (lezioneId: string) => richiesta<DettaglioLivelli>('GET', `/api/livelli/turni/${lezioneId}`),
   esitiLivello: (lezioneId: string, esiti: { personaId: string; esito: EsitoLivello | null }[]) =>
@@ -983,7 +987,7 @@ export const api = {
   eliminaOfferta: (id: string) => richiesta<void>('DELETE', `/api/listino/offerte/${id}`),
   modificaRegolaPrezzo: (stagioneId: string, tipo: TipoRegolaPrezzo, attiva: boolean, parametri: Record<string, unknown>) =>
     richiesta<RegolaPrezzo>('PUT', `/api/listino/regole/${stagioneId}/${tipo}`, { attiva, parametri }),
-  copiaListino: (da: string, a: string, aumentoPercentuale: number) => richiesta<{ offerte: number }>('POST', '/api/listino/copia', { da, a, aumentoPercentuale }),
+  copiaListino: (da: string, a: string, aumentoPercentuale: number) => richiesta<{ offerte: number; saltate?: string[] }>('POST', '/api/listino/copia', { da, a, aumentoPercentuale }),
   propostaPrezzo: (personaId: string, offertaId: string, volte: number | null, dal: string) =>
     richiesta<PropostaPrezzo>('GET', `/api/clienti/${personaId}/proposta?offertaId=${offertaId}${volte == null ? '' : `&volte=${volte}`}&dal=${dal}`),
   recesso: (abbonamentoId: string, data: string) => richiesta<Rimborso | undefined>('GET', `/api/clienti/abbonamenti/${abbonamentoId}/recesso?data=${data}`),
@@ -1506,6 +1510,9 @@ export interface Stagione {
   al: string;
   quota: number | null;
   quotaRimborsabile: boolean;
+  /** Solo per chi ha IMPOSTAZIONI: false = una stagione usata, non si elimina (`motivoBlocco` dice perché). */
+  eliminabile?: boolean | null;
+  motivoBlocco?: string | null;
 }
 export interface NuovaStagione {
   nome: string;
@@ -1528,10 +1535,31 @@ export interface GruppoClienti {
   dichiarabile: boolean;
   fraseDichiarazione: string | null;
   daVerificare: number;
+  /** Posto nell'elenco, che è anche l'ordine delle precedenze (l'elenco arriva già in quest'ordine). */
+  ordine: number;
+  /** Solo per chi ha IMPOSTAZIONI; per gli altri null. */
+  eliminabile: boolean | null;
+  motivoBlocco: string | null;
+  /** Ha persone attive o prezzi nel listino: l'eliminazione chiede la finestra con le conseguenze. */
+  eliminazionePesante: boolean | null;
+}
+/** Cosa succede eliminando un gruppo (`GET /api/gruppi/{id}/eliminazione`): le righe di `conseguenze` sono già col plurale giusto. */
+export interface EliminazioneGruppo {
+  gruppo: string;
+  pesante: boolean;
+  bloccata: boolean;
+  motivoBlocco: string | null;
+  persone: number;
+  daVerificare: number;
+  prezzi: number;
+  offerte: string[];
+  conseguenze: string[];
 }
 export interface NuovoGruppo {
   nome: string;
   descrizione: string | null;
+  /** In creazione: false = il gruppo nasce spento (default acceso). */
+  attivo?: boolean;
   conPrecedenza?: boolean;
   giorniPerPagare?: number | null;
   dichiarabile?: boolean;
@@ -1588,8 +1616,11 @@ export interface Offerta {
   attiva: boolean;
   ordine: number;
   prezzi: PrezzoOfferta[];
+  /** Solo per chi ha IMPOSTAZIONI: false = già venduta, non si elimina (`motivoBlocco` dice perché; si può spegnere). */
+  eliminabile: boolean | null;
+  motivoBlocco: string | null;
 }
-export type NuovaOfferta = Omit<Offerta, 'id'>;
+export type NuovaOfferta = Omit<Offerta, 'id' | 'eliminabile' | 'motivoBlocco'>;
 export type TipoRegolaPrezzo = 'RIDUZIONE_TARDIVA' | 'RATE' | 'RECESSO' | 'SOSPENSIONE';
 export interface RegolaPrezzo {
   tipo: TipoRegolaPrezzo;

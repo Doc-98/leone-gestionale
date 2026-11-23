@@ -91,6 +91,15 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 | `accessi` | Braccialetti, ban, golden pass, regole del tornello (controlli indipendenti), passaggi |
 | `notifiche` | Invio delle email (SMTP) e registro di tutte le email |
 
+**Chi usa cosa, tra moduli** (nessun modulo legge le tabelle di un altro). Per eliminare una cosa che altri moduli usano, il servizio chiede a loro attraverso un'interfaccia pubblica, e i moduli che la usano la implementano (ADR 0029):
+
+| Interfaccia | Definita in | Implementata da | A cosa serve |
+|---|---|---|---|
+| `UsiStagione` | `societa` | `UsiStagioneListino` (`listino`: offerte e vendite), `UsiStagioneTesseramenti` (`clienti`), `UsiStagioneLivelli` (`pianovasca`) | `Societa.eliminaStagione` e `Societa.motivoBlocco` sanno cosa usa una stagione; l'ordine nel messaggio è dato da `@Order` |
+| `VenditeOfferte` | `listino` | `VenditeAbbonamenti` (`clienti`), `VenditeAddebiti` (`pagamenti`) | `Listino.elimina` e il campo `eliminabile` sanno quante volte è stata venduta un'offerta; ogni vendita si conta una volta |
+
+Ogni implementazione è un componente del suo modulo, con la sua query. Anche `clienti` chiama `listino` (`Listino.prezziDelGruppo`, `Listino.eliminaPrezziDelGruppo`) quando un gruppo di clienti si elimina: la dipendenza va nella direzione che c'era già, `clienti` → `listino` → `societa`, senza cicli (lo controlla `ModuliTest`).
+
 Le impostazioni dell'interfaccia sono divise per area (la società; prezzi e pagamenti; clienti e accessi; staff;
 sistema), con una panoramica delle cose da sistemare, una ricerca condivisa in cima a ogni pagina e il salvataggio di
 tutte le modifiche di una pagina da una barra in basso, `BarraSalva` (ADR 0024); i gruppi, le casse e le altre cose con
@@ -231,6 +240,8 @@ erDiagram
 - `consenso`: trattamento, comunicazioni promozionali (con i canali), foto e video; chi ha firmato, validità, revoca.
 - `societa` (una riga: nome e dati per le ricevute), `stagione` (date e quota associativa), `gruppo_clienti` e
   `appartenenza_gruppo` (es. alunni dell'Istituto: prezzi e precedenza) — ADR 0018.
+  `gruppo_clienti.ordine` è l'ordine dell'elenco e anche delle precedenze (V35). Un gruppo eliminato lascia nelle sue
+  appartenenze, chiuse, la copia del nome (`appartenenza_gruppo.gruppo_nome`) e `gruppo_id` a null — ADR 0029.
 - `offerta` (listino per stagione: corsi con prezzo per frequenza, carnet, altri importi), `offerta_corso`,
   `offerta_prezzo` (anche per gruppo), `regola_prezzo` (riduzione tardiva, rate, recesso, sospensione); l'abbonamento
   ricorda offerta, importo proposto e motivo se cambiato.

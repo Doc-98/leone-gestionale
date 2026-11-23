@@ -1,7 +1,10 @@
 <script lang="ts">
+  import Azione from '../components/Azione.svelte';
   import BarraSalva from '../components/BarraSalva.svelte';
   import Fumetto from '../components/Fumetto.svelte';
   import Icona from '../components/Icona.svelte';
+  import SceltaStagione from '../components/SceltaStagione.svelte';
+  import StatoVuoto from '../components/StatoVuoto.svelte';
   import { api, messaggioErrore, type Offerta, type PaginaListino, type RegolaPrezzo, type Stagione, type TipoRegolaPrezzo } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
   import { dataIndice, giorniStagione, indiceGiorno, mesiStagione, posizione, rateDel, recessoDel, riduzioneDel, testoRate, type Scaglione } from '../lib/impostazioni';
@@ -16,7 +19,8 @@
   /**
    * Le regole di prezzo di una stagione (ADR 0018, 0024): riduzione per chi si iscrive tardi, rate, recesso e sospensione.
    * In alto la stagione su una linea: si tocca o si trascina per vedere cosa succede a chi si iscrive quel giorno.
-   * Le modifiche si salvano tutte insieme.
+   * Scaglioni e rate sono righe d'elenco dentro la bozza (cestino a due tocchi, riga «Aggiungi…»): le modifiche si salvano
+   * tutte insieme con la barra, che conta anche le righe aggiunte e tolte.
    */
   let stagioni = $state<Stagione[]>([]);
   let stagioneId = $state('');
@@ -34,11 +38,72 @@
   };
   let bozza = $state<Bozza | null>(null);
   let originale = $state('');
+  /**
+   * Una chiave per ogni riga (scaglioni di riduzione e di recesso, scadenze delle rate), per tenere ogni riga con i suoi
+   * campi quando se ne toglie una e per contare le modifiche per riga. Sta fuori dalla bozza: non si salva.
+   */
+  type Chiavi = { riduzione: number[]; recesso: number[]; rate: number[] };
+  let chiavi = $state<Chiavi>({ riduzione: [], recesso: [], rate: [] });
+  /** Le chiavi com'erano alla lettura: servono a riconoscere le righe aggiunte e quelle tolte. */
+  let chiaviOriginali: Chiavi = { riduzione: [], recesso: [], rate: [] };
+  let contatore = 0;
+  const nuoveChiavi = (n: number) => Array.from({ length: n }, () => ++contatore);
+  function azzeraChiavi() {
+    chiavi = { riduzione: nuoveChiavi(bozza?.riduzione.scaglioni.length ?? 0), recesso: nuoveChiavi(bozza?.recesso.scaglioni.length ?? 0), rate: nuoveChiavi(bozza?.rate.scadenze.length ?? 0) };
+    chiaviOriginali = { riduzione: [...chiavi.riduzione], recesso: [...chiavi.recesso], rate: [...chiavi.rate] };
+  }
+  function aggiungiRata() {
+    bozza!.rate.numero++;
+    bozza!.rate.scadenze = [...bozza!.rate.scadenze, ''];
+    chiavi.rate = [...chiavi.rate, ++contatore];
+  }
+  function togliRata(i: number) {
+    bozza!.rate.scadenze = bozza!.rate.scadenze.filter((_, j) => j !== i);
+    bozza!.rate.numero--;
+    chiavi.rate = chiavi.rate.filter((_, j) => j !== i);
+  }
+  /**
+   * Quante cose sono cambiate: una riga aggiunta, tolta o cambiata vale 1 (si confrontano per chiave, non per posizione),
+   * ogni altro campo vale 1.
+   */
+  function contaModificheRighe(): number {
+    if (!originale || !bozza) return 0;
+    const o = JSON.parse(originale) as Bozza;
+    const senza = (b: Bozza): Bozza => ({ ...b, riduzione: { ...b.riduzione, scaglioni: [] }, recesso: { ...b.recesso, scaglioni: [] }, rate: { ...b.rate, scadenze: [], numero: 0 } });
+    let n = contaModifiche(senza(o), senza(bozza));
+    const liste: [keyof Chiavi, unknown[], unknown[]][] = [
+      ['riduzione', o.riduzione.scaglioni, bozza.riduzione.scaglioni],
+      ['recesso', o.recesso.scaglioni, bozza.recesso.scaglioni],
+      ['rate', o.rate.scadenze, bozza.rate.scadenze],
+    ];
+    for (const [sez, prima, dopo] of liste) {
+      const vecchie = new Map(chiaviOriginali[sez].map((k, i) => [k, prima[i]]));
+      const attuali = new Map(chiavi[sez].map((k, i) => [k, dopo[i]]));
+      for (const [k, riga] of attuali) n += vecchie.has(k) ? (contaModifiche(vecchie.get(k), riga) > 0 ? 1 : 0) : 1;
+      for (const k of vecchie.keys()) if (!attuali.has(k)) n++;
+    }
+    return n;
+  }
+  function aggiungiScaglione(sez: 'riduzione' | 'recesso') {
+    bozza![sez].scaglioni = [...bozza![sez].scaglioni, { data: '', percentuale: '' }];
+    chiavi[sez] = [...chiavi[sez], ++contatore];
+  }
+  function togliScaglione(sez: 'riduzione' | 'recesso', i: number) {
+    bozza![sez].scaglioni = bozza![sez].scaglioni.filter((_, j) => j !== i);
+    chiavi[sez] = chiavi[sez].filter((_, j) => j !== i);
+  }
+  const annulla = () => {
+    bozza = JSON.parse(originale);
+    azzeraChiavi();
+  };
+  /** Il nome della riga per il cestino: con la data («dal 01/10/2026»), senza («2»). */
+  const nomeScaglione = (sez: 'riduzione' | 'recesso', s: { data: string }, i: number) =>
+    s.data ? `${sez === 'riduzione' ? 'dal' : 'fino al'} ${dataBreve(s.data)}` : String(i + 1);
 
   async function avvia() {
     try {
-      stagioni = [...(await api.stagioni())].sort((a, b) => a.dal.localeCompare(b.dal));
-      stagioneId = (stagioni.find((s) => s.dal <= oggi && oggi <= s.al) ?? stagioni.at(-1))?.id ?? '';
+      // la stagione di partenza la sceglie `SceltaStagione` (in corso, poi la futura più vicina, poi l'ultima finita)
+      stagioni = await api.stagioni();
     } catch (e) {
       errore = messaggioErrore(e);
     }
@@ -59,11 +124,12 @@
         riduzione: { attiva: rid.attiva, scaglioni: scaglioniDi(rid, 'dal') },
         recesso: { attiva: rec.attiva, scaglioni: scaglioniDi(rec, 'finoAl'), rimborso: String(rec.parametri.rimborso ?? (rec.parametri.nelBorsellino === true ? 'BORSELLINO' : 'DENARO')) },
         rate: { attiva: rate.attiva, numero: Number(rate.parametri.numero ?? 2), primaPercentuale: String(rate.parametri.primaPercentuale ?? 50),
-          scadenze: ((rate.parametri.scadenze as (string | null)[] | undefined) ?? []).map((s) => s ?? '') },
+          scadenze: Array.from({ length: Number(rate.parametri.numero ?? 2) - 1 }, (_, i) => ((rate.parametri.scadenze as (string | null)[] | undefined) ?? [])[i] ?? '') },
         sospensione: { attiva: sos.attiva, settimaneMinime: String(p.settimaneMinime ?? 6), settimaneCertificato: String(p.settimaneCertificato ?? 4),
           settimaneRestituite: String(p.settimaneRestituite ?? 'TUTTE'), restituzione: String(p.restituzione ?? 'ALLUNGA') },
       };
       originale = JSON.stringify(bozza);
+      azzeraChiavi();
       giorno = null;
       if (!opzioni.some((o) => o.chiave === scelta)) scelta = opzioni[0]?.chiave ?? '';
     } catch (e) {
@@ -170,6 +236,32 @@
     }
     return out.map((t) => ({ ...t, left: (t.da / n) * 100, width: ((t.a - t.da + 1) / n) * 100 }));
   }
+  /** Le fasce delle due corsie; la scritta sta nella fascia solo se ci entra, altrimenti va nella legenda sotto. */
+  const trattiRid = $derived(bozza ? (bozza.riduzione.attiva ? tratti(bozza.riduzione.scaglioni, 'dal') : [{ da: 0, a: n - 1, testo: 'regola spenta', cls: 'zero', left: 0, width: 100 }]) : []);
+  const trattiRec = $derived(bozza ? tratti(bozza.recesso.attiva ? bozza.recesso.scaglioni : [], 'finoAl') : []);
+  let largTracce = $state(0);
+  /** La larghezza della linea, seguita se cambia (senza ResizeObserver, come nei test, resta 0 e le scritte stanno nelle fasce). */
+  function misuraLarghezza(nodo: HTMLElement) {
+    const leggi = () => (largTracce = nodo.clientWidth);
+    leggi();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(leggi);
+    ro.observe(nodo);
+    return { destroy: () => ro.disconnect() };
+  }
+  const entra = (t: { testo: string; width: number }) => largTracce === 0 || (t.width / 100) * largTracce >= t.testo.length * 7.4 + 14;
+  const legenda = $derived.by(() => {
+    if (!stagione) return [] as { chiave: string; corsia: string; testo: string }[];
+    const d = (i: number) => dataBreve(dataIndice(stagione.dal, i));
+    const voce = (corsia: string, verso: 'dal' | 'finoAl', t: { da: number; a: number; testo: string; cls: string }) => ({
+      chiave: `${corsia}${t.da}`, corsia,
+      testo: t.cls === 'rec' || (verso === 'dal' && t.cls === 'zero') ? `${t.testo} fino al ${d(t.a)}` : verso === 'dal' ? `${t.testo} dal ${d(t.da)}` : t.testo,
+    });
+    return [
+      ...trattiRid.filter((t) => !entra(t)).map((t) => voce('Riduzione', 'dal', t)),
+      ...trattiRec.filter((t) => !entra(t)).map((t) => voce('Recesso', 'finoAl', t)),
+    ];
+  });
   const scadenzeRate = $derived(bozza?.rate.attiva ? bozza.rate.scadenze.slice(0, bozza.rate.numero - 1).filter(Boolean) : []);
 
   // ── L'esempio ─────────────────────────────────────────────────────────
@@ -212,9 +304,9 @@
 </script>
 
 <div class="barra">
-  <p class="muted nomargin grow">Tocca o trascina sulla linea per vedere un esempio in un giorno qualsiasi.{#if scadenzeRate.length}{' '}La linea rossa è la scadenza della 2ª rata: si imposta nella sezione <a href="#/prezzi/rate">Rate</a>.{/if}
-    <Fumetto tema="quando valgono le regole">Le modifiche alle regole valgono dopo il salvataggio, per le iscrizioni e i recessi da quel momento in poi.</Fumetto></p>
-  <select class="inp stagione" bind:value={stagioneId} aria-label="Stagione">{#each stagioni as s (s.id)}<option value={s.id}>{s.nome}</option>{/each}</select>
+  <SceltaStagione {stagioni} bind:valore={stagioneId} />
+  <span class="fumetti"><Fumetto tema="l'esempio">Tocca o trascina sulla linea per vedere un esempio in un giorno qualsiasi.{#if scadenzeRate.length} La linea rossa è la scadenza della 2ª rata: si imposta nella sezione Rate.{/if}</Fumetto>
+  <Fumetto tema="quando valgono le regole">Le modifiche alle regole valgono dopo il salvataggio, per le iscrizioni e i recessi da quel momento in poi.</Fumetto></span>
 </div>
 {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
 {#if messaggio && !cambiate.length}<p class="msg ok" role="status">{messaggio}</p>{/if}
@@ -234,13 +326,12 @@
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div class="tracce" role="slider" tabindex="0" aria-label="Giorno dell'esempio" aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={indiceGiorno(stagione.dal, riferimento)}
-         aria-valuetext={dataBreve(riferimento)} onpointerdown={giu} onpointermove={muovi} onpointerup={su} onpointercancel={su} onkeydown={tastiLinea}>
+         use:misuraLarghezza aria-valuetext={dataBreve(riferimento)} onpointerdown={giu} onpointermove={muovi} onpointerup={su} onpointercancel={su} onkeydown={tastiLinea}>
       <div class="corsia">
-        {#each tratti(bozza.riduzione.attiva ? bozza.riduzione.scaglioni : [], 'dal') as t (t.da)}<span class="tratto {t.cls}" style="left: {t.left}%; width: {t.width}%">{t.testo}</span>{/each}
-        {#if !bozza.riduzione.attiva}<span class="tratto zero" style="left: 0; width: 100%">regola spenta</span>{/if}
+        {#each trattiRid as t (t.da)}<span class="tratto {t.cls}" style="left: {t.left}%; width: {t.width}%" title={t.testo}>{entra(t) ? t.testo : ''}</span>{/each}
       </div>
       <div class="corsia">
-        {#each tratti(bozza.recesso.attiva ? bozza.recesso.scaglioni : [], 'finoAl') as t (t.da)}<span class="tratto {t.cls}" style="left: {t.left}%; width: {t.width}%">{t.testo}</span>{/each}
+        {#each trattiRec as t (t.da)}<span class="tratto {t.cls}" style="left: {t.left}%; width: {t.width}%" title={t.testo}>{entra(t) ? t.testo : ''}</span>{/each}
       </div>
       {#each scadenzeRate as d, i (d)}
         <span class="scad-l" style="left: {px(d)}"></span>
@@ -257,6 +348,10 @@
         <span class="scelto-e" style="left: {px(giorno)}">{dataBreve(giorno)}</span>
       {/if}
     </div>
+    {#if legenda.length}
+      <!-- le fasce troppo strette per la scritta non la portano: la dicono qui, per intero -->
+      <ul class="legenda" aria-label="Le fasce della linea">{#each legenda as l (l.chiave)}<li><b>{l.corsia}</b> {l.testo}</li>{/each}</ul>
+    {/if}
   </section>
 
   {#if esempio}
@@ -272,48 +367,33 @@
       </div>
     </section>
   {:else if pagina && !opzioni.length}
-    <p class="muted small nomargin">Per vedere l'esempio serve almeno un abbonamento nel <a href="#/listino">listino</a> di questa stagione.</p>
+    <section class="card pann" aria-label="Esempio">
+      <StatoVuoto testo="Nessun abbonamento nel listino." />
+      {#if modifica}<div class="az-vuoto"><a class="btn btn-secondary btn-sm" href="#/listino"><Icona nome="piu" />Aggiungi un abbonamento</a></div>{/if}
+    </section>
   {/if}
 
   <fieldset class="colonne-p" disabled={!modifica}>
     <div class="princ">
       <section class="card sez" id="imp-riduzione" aria-label="Riduzione tardiva">
-        <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.riduzione.attiva} aria-label="Riduzione tardiva accesa" onclick={() => (bozza!.riduzione.attiva = !bozza!.riduzione.attiva)}><span></span></button>
+        <div class="sez-t"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.riduzione.attiva} aria-label="Riduzione tardiva accesa" onclick={() => (bozza!.riduzione.attiva = !bozza!.riduzione.attiva)}><span></span></button>
           <h2 class="grow">Riduzione tardiva</h2><Fumetto tema="la riduzione tardiva">Per chi si iscrive a stagione iniziata. Vale solo sulle offerte segnate nel listino.</Fumetto></div>
-        <div class="passi">
-          {#each bozza.riduzione.scaglioni as s, i (i)}
-            <div class="passo"><span class="unita">Dal</span><input class="inp m" type="date" bind:value={s.data} min={stagione.dal} max={stagione.al} aria-label="Dal" />
-              <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale" aria-invalid={scaglioneNonValido(s)} aria-describedby={scaglioneNonValido(s) ? `err-rid-${i}` : undefined} /><span class="unita">%</span>
-              <button type="button" class="x-btn" aria-label="Elimina lo scaglione" onclick={() => (bozza!.riduzione.scaglioni = bozza!.riduzione.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
-            {#if scaglioneNonValido(s)}<ErroreCampo id="err-rid-{i}">{MSG_PERCENTUALE}</ErroreCampo>{/if}
-          {/each}
-          <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.riduzione.scaglioni = [...bozza!.riduzione.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
-        </div>
+        {@render scaglioni('riduzione')}
       </section>
 
       <section class="card sez" id="imp-recesso" aria-label="Rimborso in caso di recesso">
-        <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.recesso.attiva} aria-label="Rimborso per recesso acceso" onclick={() => (bozza!.recesso.attiva = !bozza!.recesso.attiva)}><span></span></button>
+        <div class="sez-t"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.recesso.attiva} aria-label="Rimborso per recesso acceso" onclick={() => (bozza!.recesso.attiva = !bozza!.recesso.attiva)}><span></span></button>
           <h2 class="grow">Recesso</h2><Fumetto tema="il recesso">Il rimborso in caso di recesso: quanto si restituisce di un abbonamento già pagato.</Fumetto></div>
-        <div class="passi">
-          {#each bozza.recesso.scaglioni as s, i (i)}
-            <div class="passo"><span class="unita">Fino al</span><input class="inp m" type="date" bind:value={s.data} min={stagione.dal} max={stagione.al} aria-label="Fino al" />
-              <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale rimborsata" aria-invalid={scaglioneNonValido(s)} aria-describedby={scaglioneNonValido(s) ? `err-rec-${i}` : undefined} /><span class="unita">%</span>
-              <button type="button" class="x-btn" aria-label="Elimina lo scaglione" onclick={() => (bozza!.recesso.scaglioni = bozza!.recesso.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
-            {#if scaglioneNonValido(s)}<ErroreCampo id="err-rec-{i}">{MSG_PERCENTUALE}</ErroreCampo>{/if}
-          {/each}
-          <div class="passo"><span class="unita">Dopo</span><span class="muted small">niente rimborso</span></div>
-          <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.recesso.scaglioni = [...bozza!.recesso.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
-        </div>
-        <div class="riga-imp"><span class="t"><b>Dove va il rimborso</b><span>sul prezzo pagato dell'abbonamento: la quota associativa non si rimborsa</span></span>
+        {@render scaglioni('recesso')}
+        <div class="riga-imp"><span class="t"><span class="con-i"><b>Dove va il rimborso</b><Fumetto tema="il rimborso">Sul prezzo pagato dell'abbonamento: la quota associativa non si rimborsa.</Fumetto></span></span>
           <span class="ctl"><select class="inp" bind:value={bozza.recesso.rimborso} aria-label="Dove va il rimborso"><option value="BORSELLINO">Nel borsellino del cliente</option><option value="DENARO">Restituito in denaro</option><option value="A_SCELTA">Lo sceglie il cliente</option></select></span></div>
       </section>
     </div>
 
     <aside class="lato-p">
       <section class="card sez" id="imp-sospensione" aria-label="Sospensione per malattia">
-        <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.sospensione.attiva} aria-label="Sospensione per malattia accesa" onclick={() => (bozza!.sospensione.attiva = !bozza!.sospensione.attiva)}><span></span></button>
-          <h2 class="grow">Sospensione</h2><Fumetto tema="la sospensione">La sospensione dell'abbonamento per malattia o infortunio.</Fumetto></div>
-        <div class="riga-imp"><span class="t"><span>Chi si ferma per malattia o infortunio riceve le settimane perse, se rispetta queste condizioni.</span></span></div>
+        <div class="sez-t"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.sospensione.attiva} aria-label="Sospensione per malattia accesa" onclick={() => (bozza!.sospensione.attiva = !bozza!.sospensione.attiva)}><span></span></button>
+          <h2 class="grow">Sospensione</h2><Fumetto tema="la sospensione">La sospensione dell'abbonamento per malattia o infortunio: chi si ferma riceve le settimane perse, se rispetta queste condizioni.</Fumetto></div>
         <div class="riga-imp"><span class="t"><b>Lo stop deve durare più di</b><span>sotto questa soglia non si restituisce niente</span></span>
           <span class="ctl"><input class="inp num" type="number" min="0" max="52" bind:value={bozza.sospensione.settimaneMinime} aria-label="Settimane minime" /><span class="unita">settimane</span></span></div>
         <div class="riga-imp"><span class="t"><b>Certificato medico entro</b><span>dall'inizio dello stop; dopo, lo stop non conta</span></span>
@@ -326,25 +406,46 @@
       </section>
 
       <section class="card sez" id="imp-rate" aria-label="Rate">
-        <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.rate.attiva} aria-label="Rate accese" onclick={() => (bozza!.rate.attiva = !bozza!.rate.attiva)}><span></span></button>
-          <h2 class="grow">Rate</h2></div>
+        <div class="sez-t"><button type="button" class="switch tap44" role="switch" aria-checked={bozza.rate.attiva} aria-label="Rate accese" onclick={() => (bozza!.rate.attiva = !bozza!.rate.attiva)}><span></span></button>
+          <h2 class="grow">Rate</h2><Fumetto tema="le rate">Il resto dopo la prima rata si divide in parti uguali.</Fumetto></div>
         <div class="riga-imp"><span class="t"><b>1ª rata</b><span>all'iscrizione</span></span>
           <span class="ctl"><input class="inp num" type="number" min="1" max="99" bind:value={bozza.rate.primaPercentuale} aria-label="Percentuale della 1ª rata" aria-invalid={primaRataNonValida(bozza.rate.primaPercentuale)} aria-describedby={primaRataNonValida(bozza.rate.primaPercentuale) ? 'err-rata' : undefined} /><span class="unita">%</span></span>{#if primaRataNonValida(bozza.rate.primaPercentuale)}<ErroreCampo id="err-rata">{MSG_PRIMA_RATA}</ErroreCampo>{/if}</div>
-        {#each Array.from({ length: bozza.rate.numero - 1 }) as _, i (i)}
+        {#each bozza.rate.scadenze.slice(0, bozza.rate.numero - 1) as _, i (chiavi.rate[i])}
           <div class="riga-imp"><span class="t"><b>{i + 2}ª rata entro il</b>{#if i === bozza.rate.numero - 2}<span>dopo questa data le rate non si offrono più</span>{/if}</span>
             <span class="ctl"><input class="inp m data" type="date" bind:value={bozza.rate.scadenze[i]} aria-label="Scadenza della {i + 2}ª rata" />
-              {#if bozza.rate.numero > 2}<button type="button" class="x-btn" aria-label="Elimina la {i + 2}ª rata" onclick={() => { bozza!.rate.scadenze = bozza!.rate.scadenze.filter((_, j) => j !== i); bozza!.rate.numero--; }}><Icona nome="chiudi" /></button>{/if}</span></div>
+              {#if bozza.rate.numero > 2 && modifica}
+                <Azione icona="cestino" tono="danger" etichetta="Elimina la {i + 2}ª rata" conferma="Elimina?" onclick={() => togliRata(i)} />
+              {:else}<span class="posto-azione" aria-hidden="true"></span>{/if}</span></div>
         {/each}
-        {#if bozza.rate.numero < 12}
-          <div class="riga-imp"><button type="button" class="mini-btn tratt" onclick={() => bozza!.rate.numero++}><Icona nome="piu" />Aggiungi una rata</button>
-            <span class="muted small">Il resto dopo la prima si divide in parti uguali.</span></div>
+        {#if bozza.rate.numero < 12 && modifica}
+          <div class="riga-imp riga-aggiungi"><button type="button" class="aggiungi" onclick={aggiungiRata}><Icona nome="piu" /><span>Aggiungi una rata</span></button></div>
         {/if}
       </section>
     </aside>
   </fieldset>
 
-  <BarraSalva {valida} modifiche={originale ? contaModifiche(JSON.parse(originale), bozza) : 0} onannulla={() => (bozza = JSON.parse(originale))} onsalva={salva} />
+  <BarraSalva {valida} modifiche={contaModificheRighe()} onannulla={annulla} onsalva={salva} />
 {/if}
+
+{#snippet scaglioni(sez: 'riduzione' | 'recesso')}
+  {@const lista = bozza![sez].scaglioni}
+  {@const nomeCampo = sez === 'riduzione' ? 'Dal' : 'Fino al'}
+  <ul class="passi">
+    {#each lista as s, i (chiavi[sez][i])}
+      {@const errato = scaglioneNonValido(s)}
+      <li class="passo">
+        <div class="riga-sc">
+          <label class="campo-d"><span class="unita">{nomeCampo}</span><input class="inp m" type="date" bind:value={s.data} min={stagione!.dal} max={stagione!.al} aria-label={nomeCampo} /></label>
+          <span class="campo-p"><input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label={sez === 'riduzione' ? 'Percentuale' : 'Percentuale rimborsata'} aria-invalid={errato} aria-describedby={errato ? `err-${sez}-${chiavi[sez][i]}` : undefined} /><span class="unita">%</span></span>
+          {#if modifica}<Azione icona="cestino" tono="danger" etichetta="Elimina lo scaglione {nomeScaglione(sez, s, i)}" conferma="Elimina?" onclick={() => togliScaglione(sez, i)} />{/if}
+        </div>
+        {#if errato}<ErroreCampo id="err-{sez}-{chiavi[sez][i]}">{MSG_PERCENTUALE}</ErroreCampo>{/if}
+      </li>
+    {/each}
+    {#if sez === 'recesso'}<li class="passo"><div class="riga-sc fissa"><span class="unita">Dopo</span><span class="muted small">niente rimborso</span></div></li>{/if}
+    {#if modifica}<li class="ultima"><button type="button" class="aggiungi" onclick={() => aggiungiScaglione(sez)}><Icona nome="piu" /><span>Aggiungi uno scaglione</span></button></li>{/if}
+  </ul>
+{/snippet}
 
 <style>
   /* il titolo di una sezione sta su una riga (si tronca se la colonna è stretta); fumetto e interruttore restano interi */
@@ -357,13 +458,17 @@
   }
   .passo :global(.muted) { min-width: 0; }
   .barra { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; }
-  .stagione { width: 150px; height: 40px; appearance: auto; }
+  .fumetti { display: inline-flex; align-items: center; gap: var(--space-8); flex-wrap: nowrap; }
+  .legenda { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); font-size: var(--text-sm); color: var(--muted); }
+  .legenda b { color: var(--ink); }
+  .az-vuoto { padding: var(--space-8) var(--space-12) var(--space-12); }
   select.inp { appearance: auto; }
   fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
   /* la stagione su una linea: un mese per colonna, una corsia per regola */
   .linea-s { display: grid; grid-template-columns: 200px minmax(0, 1fr); row-gap: var(--space-10); padding: var(--space-16) var(--space-16) var(--space-12); overflow: visible; }
-  .oggi-t { justify-self: start; align-self: center; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: none;
+  .oggi-t { position: relative; justify-self: start; align-self: center; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: none;
     background: var(--cloro); color: var(--on-cloro); font: inherit; font-size: var(--text-sm); font-weight: 700; white-space: nowrap; cursor: pointer; }
+  .oggi-t::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   .oggi-t::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--on-cloro); }
   .mesi { display: flex; min-width: 0; }
   .mesi button { flex: 1 1 0; min-width: 0; }
@@ -406,13 +511,29 @@
   .es { display: flex; flex-direction: column; gap: 4px; padding: var(--space-14); border-radius: var(--radius-md); background: var(--carta); }
   .es .v { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.1; }
   .es .n { font-size: var(--text-sm); color: var(--muted); }
-  .passi { display: flex; flex-direction: column; padding: var(--space-10) var(--space-16) var(--space-14); }
-  .passo { display: grid; grid-template-columns: 60px 170px 80px 20px 32px; gap: var(--space-10); align-items: center; padding: var(--space-8) 0; border-top: 1px solid var(--line-soft); }
+  /* scaglioni: righe d'elenco; data, percentuale e cestino stanno sempre sulla stessa riga */
+  .passi { list-style: none; margin: 0; display: flex; flex-direction: column; padding: var(--space-6) var(--space-16) var(--space-14); }
+  .passo { border-top: 1px solid var(--line-soft); padding: var(--space-6) 0; }
   .passo:first-child { border-top: none; }
-  .passo .inp { height: 38px; }
-  .perc { text-align: center; }
-  .passo :global(.muted) { grid-column: span 4; }
-  .sx { align-self: flex-start; margin-top: var(--space-6); }
+  .riga-sc { display: flex; align-items: center; gap: var(--space-8); min-height: 52px; min-width: 0; max-width: 480px; }
+  .campo-d { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: var(--space-10); max-width: 260px; }
+  .campo-d .unita { min-width: 52px; white-space: nowrap; }
+  .campo-d .inp { flex: 1 1 0; min-width: 0; height: 44px; }
+  .campo-p { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-6); margin-left: auto; }
+  .campo-p .unita { white-space: nowrap; }
+  .riga-sc.fissa .unita { min-width: 52px; }
+  .riga-sc > :global(.azione) { margin-left: 0; }
+  .perc { width: 64px; height: 44px; text-align: center; }
+  .ultima { list-style: none; padding: var(--space-8) 0 0; }
+  .aggiungi { display: flex; align-items: center; justify-content: center; gap: var(--space-8); width: 100%; min-height: 48px; padding: 0 var(--space-12); background: transparent;
+    border: 1px dashed var(--line-dashed); border-radius: var(--radius-md); color: var(--cloro-ink); font: inherit; font-weight: 600; font-size: var(--text-base); cursor: pointer; }
+  .aggiungi span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .aggiungi :global(svg) { color: var(--cloro); }
+  .aggiungi:hover { background: var(--cloro-soft); border-color: var(--cloro); }
+  .riga-aggiungi { padding-top: var(--space-6); }
+  .posto-azione { width: 40px; height: 40px; flex-shrink: 0; }
+  .con-i { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+  .riga-imp > .t > .con-i { color: var(--ink); font-size: var(--text-base); }
   .data { width: 160px; height: 40px; }
   .lato-p :global(.riga-imp .t) { flex-basis: 170px; }
   .lato-p :global(.riga-imp .ctl) { margin: 0 auto; justify-content: center; }
@@ -423,13 +544,19 @@
     .scegli { flex: 1 1 100%; flex-wrap: wrap; }
     .scegli select { field-sizing: fixed; width: 100%; }
   }
-  /* telefono (dopo la regola di .passo, che altrimenti vince): la riga di uno scaglione va a capo invece di uscire dalla scheda */
+  /* telefono: l'etichetta «Dal» / «Fino al» sale sopra la data, così data, percentuale e cestino restano sulla riga */
   @media (max-width: 480px) {
-    .passo { display: flex; flex-wrap: wrap; gap: var(--space-8); }
-    .passo .inp[type='date'] { flex: 1 1 100px; min-width: 0; width: auto; }
-    .passo .inp.perc { flex: 0 0 64px; width: 64px; }
-    .passo > .x-btn { margin-left: auto; }
+    .passi { padding-inline: var(--space-8); }
+    .riga-sc { gap: var(--space-6); }
+    .campo-d { flex-direction: column; align-items: stretch; gap: 0; max-width: none; }
+    .campo-d .unita { min-width: 0; font-size: var(--text-xs); color: var(--muted); }
+    .campo-d .inp { flex: 0 0 auto; padding-inline: var(--space-8); }
+    .perc { width: 56px; padding-inline: var(--space-4); }
+    /* col cestino armato («Elimina?») la riga non basta più: la percentuale si nasconde finché non si conferma o si lascia stare */
+    .riga-sc:has(:global(.azione.armata)) .campo-p { display: none; }
+    .mesi button { font-size: 10px; letter-spacing: 0; height: 44px; }
   }
+  @media (max-width: 360px) { .mesi button { font-size: 9px; letter-spacing: -0.02em; } }
   /* la percentuale ha 3 cifre al massimo: senza le frecce del campo numerico ci stanno anche a 64px */
   .inp.perc { -moz-appearance: textfield; appearance: textfield; }
   .inp.perc::-webkit-inner-spin-button, .inp.perc::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

@@ -6,4 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface TesseramentoRepository extends JpaRepository<Tesseramento, UUID> {
     List<Tesseramento> findByPersonaIdOrderByDalDesc(UUID personaId);
+
+    /** I tesseramenti di una stagione (per nome), anche annullati. */
+    long countByStagione(String stagione);
 }

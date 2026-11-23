@@ -581,7 +581,7 @@
   .voci-imp :global(.chev) { width: 18px; height: 18px; color: var(--chevron); }
   .voci-imp .grow { display: flex; flex-direction: column; min-width: 0; }
   .nome-imp { font-weight: 600; }
-  .indietro { color: var(--cloro-ink); text-decoration: none; font-weight: 600; display: inline-flex; min-height: 32px; align-items: center; gap: var(--space-2); margin-left: -4px; }
+  .indietro { color: var(--cloro-ink); text-decoration: none; font-weight: 600; display: inline-flex; min-height: 44px; align-items: center; gap: var(--space-2); margin-left: -4px; }
   .indietro :global(.ic) { color: var(--cloro); }
   .altro a.sep { border-top: 1px solid var(--line-soft); border-radius: 0; margin-top: var(--space-4); }
   .programma { font-size: var(--text-2xs); margin-top: var(--space-6); }

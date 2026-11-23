@@ -264,8 +264,9 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   prima in lista); dalla scheda si cambia turno scegliendo tra i turni del corso con i posti.
 - **Braccialetti nel formato dei chip NFC** (seriali di 4 e 7 byte), per le prove con il telefono: cerca in «Clienti»
   Chiara Venturi, Davide Colombi, Elisa Marchi, Federico Bernardi o Giada Rinaldi (verdi e rossi per motivi diversi).
-- **Impostazioni della società** (admin, ADR 0018): dati della società, stagioni con la quota associativa (demo: dal 1/9
-  al 31/8, 35 €), gruppi di clienti (demo: «Alunni dell'Istituto», «Squadra agonistica»); i gruppi si danno dalla scheda.
+- **Impostazioni della società** (admin, ADR 0018): «Impostazioni → Dati, stagioni e gruppi» con i dati della società, le stagioni con la quota
+  associativa (demo: la scorsa, quella in corso e la prossima, dal 1/9 al 31/8, 35 €) e i gruppi di clienti (demo: «Alunni dell'Istituto»,
+  «Squadra agonistica»); i gruppi si danno dalla scheda.
 - **Listino e regole di prezzo** (ADR 0018): «Impostazioni → Listino» con i prezzi della Leone (scuola nuoto mono 520 €, bi 795 €,
   alunni dell'Istituto 460 €, nuoto libero, carnet) e, in «Impostazioni → Regole di prezzo», le regole (riduzione tardiva, recesso, sospensione, rate). Cambia una percentuale: in fondo alla pagina compare la barra «1 modifica da salvare» con «Annulla» e «Salva»; scrivi 150 in una percentuale e «Salva» si spegne.
   Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
@@ -292,6 +293,25 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   indietro); sul telefono da «Altro». Sotto il titolo di ogni pagina c'è una riga corta e il fumetto «i» con il resto. Le
   modifiche di una pagina si salvano insieme dalla barra «N modifiche da salvare»; in «Regole del tornello» accendi o
   spegni una regola o cambia un parametro e compare la stessa barra (da `admin@demo.leone`).
+- **Gruppi, stagioni, calendario e listino: riordinare ed eliminare** (ADR 0029, da `admin@demo.leone`). In «Impostazioni → Dati, stagioni e gruppi»
+  i gruppi sono un elenco con foglio: l'ordine dell'elenco è anche l'ordine delle precedenze. «Alunni dell'Istituto» ha il tag «1ª precedenza» e
+  «1 da verificare» (la dichiarazione di Emma Fiore), «Squadra agonistica» la «2ª precedenza». Trascina «Squadra agonistica» sopra l'altro: i tag
+  cambiano subito (poi rimettili com'erano). Tocca il cestino di «Squadra agonistica»: non chiede «Elimina?», si apre la finestra con le
+  conseguenze (le sue due persone escono dal gruppo, e lo storico tiene il nome del gruppo). Lo stesso per «Alunni dell'Istituto»: in più «1 dichiarazione da verificare si chiude» e
+  «2 prezzi del listino per questo gruppo spariscono (Scuola nuoto e corsi tecnici)». Il pulsante rosso conta da 5; **per provare non confermare**:
+  «Annulla», Esc o il tocco fuori chiudono senza fare niente, e l'«Annulla» è già a fuoco. Per vedere la conferma a due tocchi usa un gruppo tuo: «Aggiungi un gruppo…»,
+  poi il cestino sul nuovo gruppo (vuoto, senza prezzi) chiede solo «Elimina?».
+  Sempre lì, tra le stagioni, il cestino della stagione in corso (e quello della prossima) non elimina: al secondo tocco il messaggio dice cosa
+  la usa («Non si può eliminare: la stagione … ha … offerte nel listino, … vendite dal listino e … tesseramenti», poi «Resta nello storico: una stagione già usata non si elimina.»);
+  la prossima ha solo le offerte («Svuota prima il listino: poi potrai eliminare la stagione.»). **Non provare il cestino della stagione scorsa**: non ha
+  niente che la usi e si eliminerebbe davvero. In «Impostazioni → Listino» scegli la stagione in corso e tocca due volte il cestino di «Scuola nuoto e corsi tecnici»
+  (nel suo foglio, «Elimina l'offerta»): è stata venduta, il messaggio dice quante volte e propone di spegnerla. Non farlo su offerte mai vendute (come «Quota squadra agonistica»): si eliminerebbero.
+- **Calendario, Listino e Regole di prezzo con la scelta della stagione**: in cima a tutte e tre una tendina con il nome della stagione e la pillola dello stato
+  («in corso» verde, «finita» grigia, «futura» azzurra). In «Impostazioni → Calendario della stagione» le chiusure sono un elenco con il cestino;
+  il menu «⋯» della card ha «Aggiungi le festività nazionali» e «Copia dalla stagione…»; tocca un giorno della griglia (o «Aggiungi una chiusura…») e si apre il foglio
+  «Nuova chiusura» (chiudilo senza aggiungere). In «Listino» i tipi di offerta sono schede e il tocco su un'offerta apre il foglio con
+  le frequenze e i gruppi come chip. In «Regole di prezzo» scaglioni e rate sono righe: «Aggiungi uno scaglione» fa comparire la barra «1 modifica da salvare»
+  (poi «Annulla»); scegli la stagione scorsa, che non ha un listino, per vedere «Nessun abbonamento nel listino.».
 - **Ricevute e Cassa nelle Impostazioni** (ADR 0029, da `admin@demo.leone`): in «Ricevute» le serie sono un elenco con foglio («Salva la serie»,
   «Aggiungi la serie»). «Ricevute» (accesa) porta il tag «Richiesta dal sistema» e non ha cestino né interruttore: è l'ultima serie di ricevute accesa.
   «Fatture» è spenta e non ha mai emesso: il cestino la elimina davvero. Prova a spegnere «Ricevute»: il programma si ferma con il messaggio su due righe. Aggiungi una serie di tipo ricevuta e accendila: ora «Ricevute» si può spegnere. In «Cassa» c'è
@@ -540,10 +560,11 @@ la CI su Windows.
 | POST · GET · DELETE | `/api/lettori` · `/{id}/letture?dopo=` · `/{id}` | il PC abbina un telefono come lettore e riceve i codici |
 | POST · GET | `/api/lettori/telefono/{token}/presente` · `/telefono/{token}/letture` `{codice}` · `/api/lettori/codice/{codice}` | il telefono (senza accesso, con il token) |
 | GET · PUT | `/api/societa` | dati della società (modifica: permesso IMPOSTAZIONI) |
-| GET · POST · PUT · DELETE | `/api/stagioni` · `/{id}` | stagioni e quota associativa (modifica: IMPOSTAZIONI) |
-| GET · POST · PUT | `/api/gruppi` · `/{id}` · `/{id}/persone` | gruppi di clienti (creazione: IMPOSTAZIONI) |
+| GET · POST · PUT · DELETE | `/api/stagioni` · `/{id}` | stagioni e quota associativa (modifica: IMPOSTAZIONI); l'elenco dice a IMPOSTAZIONI `eliminabile` e `motivoBlocco`; `DELETE` → 409 a due righe se la stagione ha offerte nel listino, vendite, tesseramenti o esiti dei livelli; le regole di prezzo se ne vanno con la stagione, le chiusure del calendario non bloccano (ADR 0029) |
+| GET · POST · PUT · DELETE | `/api/gruppi` · `/{id}` · `/{id}/persone` | gruppi di clienti (elenco e persone: CLIENTI o IMPOSTAZIONI; creazione, modifica ed eliminazione: IMPOSTAZIONI), nell'ordine dell'elenco (`ordine`), che è anche l'ordine delle precedenze |
+| PUT · GET · DELETE | `/api/gruppi/ordine` `{ids}` · `/api/gruppi/{id}/eliminazione` · `/api/gruppi/{id}?pesante=true` | riordino (risponde con l'elenco); cosa succede eliminando un gruppo; eliminazione: con persone o prezzi serve `pesante=true` (le persone escono, lo storico tiene il nome, i prezzi del gruppo spariscono dal listino), altrimenti 409 (IMPOSTAZIONI) |
 | POST | `/api/clienti/{id}/gruppi` `{gruppoId}` · `/api/clienti/appartenenze/{id}/chiudi` | mettere e togliere una persona da un gruppo (CLIENTI) |
-| GET · POST · PUT · DELETE | `/api/listino?stagione=` · `/api/listino/offerte` · `/offerte/{id}` | listino della stagione (modifica: IMPOSTAZIONI) |
+| GET · POST · PUT · DELETE | `/api/listino?stagione=` · `/api/listino/offerte` · `/offerte/{id}` | listino della stagione (modifica: IMPOSTAZIONI; l'elenco dice a IMPOSTAZIONI `eliminabile` e `motivoBlocco`); un'offerta venduta non si elimina: `DELETE` → 409 «Puoi spegnerla» (ADR 0029) |
 | PUT · POST | `/api/listino/regole/{stagione}/{tipo}` · `/api/listino/copia` `{da, a, aumentoPercentuale}` | regole di prezzo; copia del listino |
 | GET | `/api/clienti/{id}/proposta?offertaId=&volte=&dal=` · `/api/clienti/abbonamenti/{id}/recesso?data=` | importo proposto; rimborso per recesso |
 | POST | `/api/clienti/abbonamenti/{id}/termina` `{al, recesso}` | termina; con il recesso annulla le rate non pagate e accredita il rimborso |
