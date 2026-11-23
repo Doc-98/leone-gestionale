@@ -1,10 +1,12 @@
 <script lang="ts">
   import Azione from '../components/Azione.svelte';
+  import BarraSalva from '../components/BarraSalva.svelte';
   import Fumetto from '../components/Fumetto.svelte';
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Cassa, type ChiusuraModo, type FondoModo, type ImpostazioniCassa, type MetodoPagamento, type PaginaCassa } from '../lib/api';
   import { CONTROLLI, spiegaFondo } from '../lib/cassa';
   import { euro, euroColonna, numeroDa, perCampo } from '../lib/numeri';
+  import { contaModifiche } from '../lib/salvataggio';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -35,6 +37,7 @@
   carica();
 
   const sporco = $derived(!!bozza && JSON.stringify(bozza) !== originale);
+  const modifiche = $derived(bozza && originale ? contaModifiche(JSON.parse(originale), bozza) : 0);
   const fondoN = $derived(bozza ? numeroDa(bozza.importoFondo) : null);
   const tolleranzaN = $derived(bozza ? numeroDa(bozza.tolleranza) : null);
   const oreN = $derived(bozza && /^\d{1,2}$/.test(bozza.oreAvviso.trim()) ? Number(bozza.oreAvviso) : null);
@@ -221,13 +224,7 @@
       </aside>
     </div>
 
-    {#if sporco && puo}
-      <div class="salva-bar" role="status">
-        <span>Ci sono modifiche non salvate</span>
-        <button type="button" class="vuoto" onclick={() => (bozza = JSON.parse(originale))}>Annulla</button>
-        <button type="button" class="chiaro" disabled={!valida} onclick={salva}>Salva</button>
-      </div>
-    {/if}
+    {#if puo}<BarraSalva {modifiche} {valida} onannulla={() => (bozza = JSON.parse(originale))} onsalva={salva} />{/if}
   {:else if !errore}
     <p class="muted small">Caricamento…</p>
   {/if}

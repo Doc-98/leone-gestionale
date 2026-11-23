@@ -363,7 +363,7 @@ class CassaTest extends ProvaApi {
         // con la cassa aperta, e con un bonifico da incassare, non si elimina (e il messaggio dice cosa fare)
         var inCassa = admin.delete("/api/pagamenti/metodi/" + posId);
         assertThat(inCassa.statusCode()).isEqualTo(409);
-        assertThat(inCassa.body()).contains(pos).contains("cassa non ancora chiusa").contains("Segreteria");
+        assertThat((String) json(inCassa).get("detail")).startsWith("Non si può eliminare: «" + pos + "» è in una cassa non ancora chiusa («Segreteria»).\n").endsWith("Chiudi la cassa: poi potrai eliminarlo.");
         var daIncassare = admin.delete("/api/pagamenti/metodi/" + bancaId);
         assertThat(daIncassare.statusCode()).isEqualTo(409);
         assertThat(daIncassare.body()).contains("ha ancora 1 pagamento da incassare");
@@ -461,7 +461,7 @@ class CassaTest extends ProvaApi {
         assertThat(segr.post("/api/cassa/casse/" + cassa + "/apri", "{}").statusCode()).isEqualTo(200);
         var no = admin.put(url, corpo.formatted(true, false));
         assertThat(no.statusCode()).isEqualTo(409);
-        assertThat(no.body()).contains("Chiudi la cassa e poi cambia «" + nome + "» da o verso «Nel cassetto».");
+        assertThat(json(no).get("detail")).isEqualTo("Non si può cambiare adesso: c'è una cassa aperta.\nChiudi la cassa: poi potrai spostare «" + nome + "» da o verso «Nel cassetto».");
         assertThat(elenco(lista(admin.get("/api/pagamenti/metodi"))).stream().filter(m -> id.equals(m.get("id"))).findFirst().orElseThrow()).containsEntry("contanti", false);
 
         // …ma nome, acceso/spento e «da incassare» ↔ «incassato subito» si cambiano lo stesso

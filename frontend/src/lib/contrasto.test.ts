@@ -78,3 +78,11 @@ describe.each(Object.entries(temi))('tema %s', (_, t) => {
     expect(contrasto(t[fg], t[bg])).toBeGreaterThanOrEqual(3);
   });
 });
+
+/** Il filo attorno alla barra di salvataggio: nel chiaro è `var(--ink)` (già provato), nello scuro un colore suo, ≥ 3:1 su card e pagina. */
+describe('filo della barra di salvataggio (tema scuro)', () => {
+  it.each(['surface', 'carta'])('barra-bordo su %s ≥ 3:1', (bg) => {
+    expect(temi.scuro['barra-bordo'], '--barra-bordo manca').toBeDefined();
+    expect(contrasto(temi.scuro['barra-bordo'], temi.scuro[bg])).toBeGreaterThanOrEqual(3);
+  });
+});

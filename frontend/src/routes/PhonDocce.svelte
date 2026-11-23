@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BarraSalva from '../components/BarraSalva.svelte';
   import Icona from '../components/Icona.svelte';
   import Conferma from '../components/Conferma.svelte';
   import StatoVuoto from '../components/StatoVuoto.svelte';
@@ -6,6 +7,7 @@
   import { dataOra } from '../lib/date';
   import { euro, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { crediti as nCrediti } from '../lib/plurali';
+  import { contaModifiche } from '../lib/salvataggio';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -19,7 +21,7 @@
   let testi = $state({ valoreCredito: '', ricaricaMinima: '', cauzione: '' });
   let servizi = $state<(Servizio & { nuovo?: boolean })[]>([]);
   let dispositivi = $state<Dispositivo[]>([]);
-  let originale = '';
+  let originale = $state('');
   let errore = $state('');
   let messaggio = $state('');
   let chiave = $state<{ nome: string; id: string; chiave: string } | null>(null);
@@ -256,13 +258,7 @@
     </aside>
   </div>
 
-  {#if sporco}
-    <div class="salva-bar" role="status">
-      <span>Modifiche da salvare</span>
-      <button type="button" class="vuoto" onclick={carica}>Annulla</button>
-      <button type="button" class="chiaro" disabled={nonValido} onclick={salva}>Salva</button>
-    </div>
-  {/if}
+  <BarraSalva modifiche={sporco && originale ? contaModifiche(JSON.parse(originale), JSON.parse(istantanea())) : 0} valida={!nonValido} onannulla={carica} onsalva={salva} />
 {:else if !errore}
   <p class="muted">Caricamento…</p>
 {/if}
@@ -312,7 +308,5 @@
   .macc .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .macc .t b { font-size: var(--text-md); }
   .macc .t span { font-size: var(--text-xs); color: var(--muted); }
-  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
-  .salva-bar .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
   .piede { padding: var(--space-10) var(--space-16) var(--space-14); display: block; border-top: 1px solid var(--line-soft); }
 </style>

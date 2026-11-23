@@ -35,5 +35,6 @@
   .tacche span.g::before { height: 10px; }
   .tacche span.primo::before { height: 14px; width: 2px; background: var(--ink); }
   .tacche span.primo { color: var(--ink); }
-  .tacche span.passato { color: var(--line-strong); }
+  /* i mesi passati: stesso colore (il contrasto resta ≥ 4,5:1), solo meno marcati */
+  .tacche span.passato { color: var(--muted); font-weight: 500; }
 </style>

@@ -624,7 +624,7 @@ public class Pagamenti {
         // il tipo si cambia (vale dal pagamento successivo: lo storico tiene la sua copia), ma con una cassa aperta
         // un metodo non entra né esce dal cassetto: i contanti attesi della cassa cambierebbero a metà sessione
         if (contanti != m.isContanti() && controlli.orderedStream().anyMatch(ControlloMetodi::cassaAperta))
-            throw new Conflitto("Chiudi la cassa e poi cambia «" + m.getNome() + "» da o verso «Nel cassetto».");
+            throw new Conflitto("Non si può cambiare adesso: c'è una cassa aperta.\nChiudi la cassa: poi potrai spostare «" + m.getNome() + "» da o verso «Nel cassetto».");
         m.modifica(in.nome(), in.daIncassare() != null ? in.daIncassare() : m.isDaIncassare(), contanti, in.attivo() != null ? in.attivo() : m.isAttivo(),
             in.ordine() != null ? in.ordine() : m.getOrdine());
         if (in.riscontro() != null) m.riscontro(in.riscontro());
@@ -668,12 +668,13 @@ public class Pagamenti {
         for (MetodoPagamento m : metodi.findAll()) {
             String nome = "«" + m.getNome() + "»";
             if (m.isBorsellino())
-                blocchi.put(m.getId(), "Il borsellino non si elimina: è il credito in euro delle persone. Se non vuoi più proporlo, spegnilo.");
+                blocchi.put(m.getId(), "Non si può eliminare: il borsellino è il credito in euro delle persone.\nPuoi spegnerlo: non verrà più proposto per i nuovi pagamenti.");
             else if (daIncassare.containsKey(m.getId())) {
                 long n = daIncassare.get(m.getId());
-                blocchi.put(m.getId(), nome + " ha ancora " + n + (n == 1 ? " pagamento" : " pagamenti") + " da incassare: segnali incassati e poi eliminalo.");
+                blocchi.put(m.getId(), "Non si può eliminare: " + nome + " ha ancora " + n + (n == 1 ? " pagamento" : " pagamenti") + " da incassare.\n"
+                    + "Puoi spegnerlo: " + (n == 1 ? "quel pagamento resta da incassare" : "quei pagamenti restano da incassare") + " come prima, ma il metodo non verrà più proposto per i nuovi pagamenti.");
             } else if (inCassa.containsKey(m.getId()))
-                blocchi.put(m.getId(), nome + " è in una cassa non ancora chiusa («" + inCassa.get(m.getId()) + "»): chiudi la cassa e poi eliminalo.");
+                blocchi.put(m.getId(), "Non si può eliminare: " + nome + " è in una cassa non ancora chiusa («" + inCassa.get(m.getId()) + "»).\nChiudi la cassa: poi potrai eliminarlo.");
         }
         return blocchi;
     }

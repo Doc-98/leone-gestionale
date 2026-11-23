@@ -73,6 +73,8 @@
   --text-4xl: 32px;  /* la cifra grande delle ore */
   --text-5xl: 40px;  /* orario del turno principale */
   --shadow-seg: 0 1px 2px rgba(16, 33, 43, 0.12);
+  --shadow-barra: 0 8px 28px rgba(16, 33, 43, 0.25);
+  --barra-bordo: var(--ink);     /* filo attorno alla barra di salvataggio */
   --icona-avviso: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4 2.5 20h19z'/%3E%3Cpath d='M12 10v4.5M12 17.2v.1'/%3E%3C/svg%3E");
   /* Spaziatura: i valori che l'app usa davvero, in px. Gap, padding e margin passano da qui;
      restano scritti a mano solo i casi isolati (1px, 3px, 38px, 56px). */
@@ -160,6 +162,8 @@
   --ferma: #f07a6c; --ferma-bg: #3d1714; --ferma-fg: #f8cdc7;
   --oro: #e0b44a; --oro-bg: #3a2c0c; --oro-fg: #f3dea6;
   --shadow-seg: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-barra: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --barra-bordo: #5f8798;        /* la barra (hero) si stacca poco dalle card: un filo chiaro, 4:1 sulle card */
   color-scheme: dark;
 }
 
@@ -282,6 +286,8 @@ button.x-btn.conf-armata { height: 32px; padding: 0 var(--space-8); border-radiu
   -webkit-mask: var(--icona-avviso) center / contain no-repeat; mask: var(--icona-avviso) center / contain no-repeat;
 }
 .msg.ok { background: var(--cloro-soft); color: var(--cloro-ink); }
+/* un campo scritto male: bordo e fondo d'errore (il messaggio che dice cosa fare sta accanto, `ErroreCampo`) */
+.inp[aria-invalid='true'], select[aria-invalid='true'], textarea[aria-invalid='true'] { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); }
 .switch { width: 50px; height: 30px; border-radius: var(--radius-pill); border: none; background: var(--switch-off); padding: 3px; display: flex; cursor: pointer; flex-shrink: 0; }
 .switch[aria-checked='true'] { background: var(--cloro); justify-content: flex-end; }
 .switch span { width: 24px; height: 24px; border-radius: 50%; background: var(--knob); }
@@ -423,6 +429,8 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
   background: var(--cloro-soft); border-bottom: 1px solid color-mix(in srgb, var(--cloro) 28%, transparent); }
 .sez-t h2 { margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--cloro-ink); line-height: 1.2; }
 .sez-t .spiega { font-size: var(--text-sm); color: var(--cloro-ink); opacity: 0.85; }
+/* l'interruttore della sezione sta sempre a destra, dopo titolo, spiegazione e fumetto */
+.sez-t > .switch { order: 99; margin-left: auto; flex-shrink: 0; }
 .sez-c { padding: var(--space-14) var(--space-16); display: flex; flex-direction: column; gap: var(--space-12); }
 /* riga di un'impostazione: etichetta e spiegazione a sinistra, il controllo a destra (sotto, se non ci sta) */
 .riga-imp { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8) var(--space-16); padding: var(--space-14) var(--space-16); border-top: 1px solid var(--line-soft); }
@@ -434,16 +442,6 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
 .riga-imp > .ctl .inp.num { width: 76px; height: 40px; text-align: center; font-family: var(--font-mono); }
 .riga-imp > .ctl select.inp { width: auto; max-width: 100%; height: 40px; appearance: auto; }
 .unita { font-size: var(--text-md); color: var(--muted); }
-/* barra in basso: le modifiche di una pagina si salvano tutte insieme */
-.salva-bar { position: sticky; bottom: var(--space-16); align-self: center; z-index: 6; display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap;
-  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-16); border-radius: var(--radius-lg); background: var(--hero, var(--fill)); color: var(--on-ink);
-  box-shadow: 0 8px 28px rgba(16, 33, 43, 0.25); font-size: var(--text-md); }
-.salva-bar button { height: 38px; padding: 0 var(--space-16); border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); font-weight: 700; cursor: pointer; }
-.salva-bar .chiaro { border: none; background: var(--chiaro-su-hero); color: var(--on-chiaro-su-hero); }
-.salva-bar button:disabled { opacity: 0.5; cursor: default; }
-.salva-bar .vuoto { border: 1px solid color-mix(in srgb, var(--on-ink) 35%, transparent); background: transparent; color: var(--on-ink); font-weight: 600; }
-/* Sotto i 1024 px c'è la barra di navigazione in basso (60 px, fissa): la barra di salvataggio le sta sopra */
-@media (max-width: 1023.98px) { .salva-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 60px + var(--space-12)); } }
 /* pulsante piccolo, e pillola di stato */
 .mini-btn { position: relative; height: 32px; padding: 0 var(--space-12); border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font: inherit;
   font-size: var(--text-sm); font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-6); text-decoration: none; }
@@ -459,6 +457,7 @@ button.tile { font: inherit; text-align: left; color: var(--ink); cursor: pointe
 .pill.passa { background: var(--passa-bg); color: var(--passa-fg); }
 .pill.warn { background: var(--warn-bg); color: var(--warn); }
 .pill.ferma { background: var(--ferma-bg); color: var(--ferma-fg); }
+.pill.oro { background: var(--oro-bg); color: var(--oro-fg); }
 /* avviso delle novità di un aggiornamento: viola, per non confondersi con le intestazioni (cloro) né con gli avvisi (arancio) */
 .novita { display: flex; gap: var(--space-10); align-items: flex-start; padding: var(--space-10) var(--space-6) var(--space-10) var(--space-14); border-radius: var(--radius-md);
   background: var(--area-a-bg); color: var(--area-a-fg); border: 1px solid color-mix(in srgb, var(--area-a) 35%, transparent); font-size: var(--text-sm); }

@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cercaImpostazioni, dataIndice, giorniStagione, hrefVoce, indiceGiorno, mesiStagione, posizione, rateDel, recessoDel, riduzioneDel, testoRate } from './impostazioni';
+import { VOCI_RICERCA, cercaImpostazioni, dataIndice, giorniStagione, hrefVoce, indiceGiorno, mesiStagione, posizione, rateDel, recessoDel, riduzioneDel, testoRate } from './impostazioni';
 
 const tutte = ['societa', 'calendario', 'listino', 'prezzi', 'metodi', 'regole', 'promemoria', 'servizi', 'postazioni', 'account'];
 const euro = (n: number) => `${n} €`;
@@ -67,5 +68,22 @@ describe('regole di prezzo', () => {
     const r = rateDel(600, 3, 50, ['2026-10-01', '2027-01-15'], '2026-11-01');
     expect(r).toEqual({ subito: 450, dopo: [{ importo: 150, scadenza: '2027-01-15' }] });
     expect(testoRate(r, euro)).toBe('450 € + 1 × 150 €');
+  });
+});
+
+describe('le ancore della ricerca', () => {
+  // la pagina di ogni sezione che ha voci con un riquadro (la ricerca porta a `#/<sezione>/<ancora>`, la pagina ha `id="imp-<ancora>"`)
+  const PAGINE: Record<string, string> = {
+    societa: 'Societa', prezzi: 'RegolePrezzo', metodi: 'MetodiPagamento', ricevute: 'ImpostazioniRicevute', cassa: 'ImpostazioniCassa',
+    promemoria: 'Promemoria', servizi: 'PhonDocce', account: 'Ruoli',
+  };
+  const sorgente = (nome: string) => readFileSync(new URL(`../routes/${nome}.svelte`, import.meta.url), 'utf8');
+  const conAncora = VOCI_RICERCA.filter((v) => v.ancora);
+
+  it('ogni voce con un\'ancora sta in una sezione di cui si conosce la pagina', () => {
+    expect([...new Set(conAncora.map((v) => v.sezione))].filter((x) => !PAGINE[x])).toEqual([]);
+  });
+  it.each(conAncora.map((v) => [v.titolo, v.sezione, v.ancora!] as const))('«%s»: la pagina «%s» ha il riquadro imp-%s', (_, sezione, ancora) => {
+    expect(sorgente(PAGINE[sezione])).toContain(`id="imp-${ancora}"`);
   });
 });

@@ -162,6 +162,33 @@ describe('ElencoModificabile – cestino a due tocchi', () => {
     expect(screen.getByLabelText('Sposta «Satispay»')).toBeTruthy();
   });
 
+  it('il messaggio di blocco su due righe: ogni riga ha l\'attacco in grassetto', async () => {
+    monta({ onelimina: vi.fn().mockResolvedValue("Non si può eliminare: 120 turni nello storico usano Postazione 3.\nPuoi spegnerla: quei turni restano com'erano.") });
+    await userEvent.click(screen.getByRole('button', { name: 'Elimina «Satispay»' }));
+    await userEvent.click(screen.getByRole('button', { name: /Elimina\?/ }));
+    const avviso = await screen.findByRole('alert');
+    const grassetti = [...avviso.querySelectorAll('b')].map((b) => b.textContent);
+    expect(grassetti).toEqual(['Non si può eliminare:', 'Puoi spegnerla:']);
+    expect(avviso.querySelectorAll('.riga-b')).toHaveLength(2);
+    expect(avviso).toHaveTextContent("Non si può eliminare: 120 turni nello storico usano Postazione 3. Puoi spegnerla: quei turni restano com'erano.");
+  });
+
+  it('un messaggio di una riga senza «:» resta normale, senza grassetto', async () => {
+    monta({ onelimina: vi.fn().mockResolvedValue('Satispay ha ancora 2 pagamenti da incassare') });
+    await userEvent.click(screen.getByRole('button', { name: 'Elimina «Satispay»' }));
+    await userEvent.click(screen.getByRole('button', { name: /Elimina\?/ }));
+    const avviso = await screen.findByRole('alert');
+    expect(avviso.querySelector('b')).toBeNull();
+  });
+
+  it('con conferma «Rimuovi?» il cestino si chiama «Rimuovi «X»»', async () => {
+    const p = monta({ conferma: 'Rimuovi?' });
+    expect(screen.queryByRole('button', { name: 'Elimina «Carta»' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Rimuovi «Carta»' }));
+    await userEvent.click(screen.getByRole('button', { name: /Rimuovi\?/ }));
+    expect(p.onelimina).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }));
+  });
+
   it('il messaggio di blocco sparisce alla prossima azione nell\'elenco', async () => {
     monta({ onelimina: vi.fn().mockResolvedValue('Satispay ha ancora 2 pagamenti da incassare') });
     await userEvent.click(screen.getByRole('button', { name: 'Elimina «Satispay»' }));
@@ -238,6 +265,32 @@ describe('ElencoModificabile – aggiungere, vuoto, sola lettura', () => {
     monta({ elementi: [], modificabile: false });
     expect(screen.getByText('Nessun metodo.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Aggiungi/ })).toBeNull();
+  });
+});
+
+describe('ElencoModificabile – riordinabile', () => {
+  it('riordinabile false: niente maniglia né suggerimento delle frecce, il resto resta', () => {
+    monta({ riordinabile: false });
+    expect(screen.queryByLabelText(/^Sposta «/)).toBeNull();
+    expect(screen.queryByText('Frecce su e giù per spostare')).toBeNull();
+    expect(screen.getAllByRole('switch')).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'Elimina «Carta»' })).toBeTruthy();
+  });
+  it('di default si riordina (come nei metodi di pagamento)', () => {
+    monta();
+    expect(screen.getAllByLabelText(/^Sposta «/)).toHaveLength(4);
+  });
+});
+
+describe('ElencoModificabile – fuoco senza maniglie', () => {
+  it('riordinabile false: dopo un\'eliminazione il fuoco passa a un controllo della riga vicina, non si perde', async () => {
+    const { default: Prova } = await import('../prova/ElencoRiordinaProva.svelte');
+    render(Prova);
+    await userEvent.click(screen.getByRole('button', { name: 'Elimina «Contanti»' }));
+    await userEvent.click(screen.getByRole('button', { name: /Elimina\?/ }));
+    await waitFor(() => expect(screen.queryByText('Contanti')).toBeNull());
+    expect(document.body).not.toBe(document.activeElement);
+    expect(within(screen.getByRole('list')).getByText('Carta').closest('li')!.contains(document.activeElement)).toBe(true);
   });
 });
 

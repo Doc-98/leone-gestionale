@@ -1,8 +1,11 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
   import Azione from '../components/Azione.svelte';
+  import BarraSalva from '../components/BarraSalva.svelte';
+  import Fumetto from '../components/Fumetto.svelte';
   import Conferma from '../components/Conferma.svelte';
   import { api, messaggioErrore, type PaginaRuoli, type Permesso } from '../lib/api';
+  import { contaModifiche } from '../lib/salvataggio';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -48,6 +51,12 @@
   const gruppi = $derived(pagina ? [...new Set(pagina.permessi.map((p) => p.gruppo))].map((g) => ({ nome: g, permessi: pagina!.permessi.filter((p) => p.gruppo === g) })) : []);
   const cambiato = $derived(!!ruolo && !!bozza && (bozza.nome !== ruolo.nome || bozza.descrizione !== (ruolo.descrizione ?? '')
     || bozza.permessi.length !== ruolo.permessi.length || bozza.permessi.some((p) => !ruolo.permessi.includes(p))));
+  /** Quante cose sono cambiate nel ruolo scelto: nome, descrizione e ogni permesso acceso o spento. */
+  const modifiche = $derived.by(() => {
+    if (!ruolo || !bozza) return 0;
+    const come = (nome: string, descrizione: string, permessi: Permesso[]) => ({ nome, descrizione, ...Object.fromEntries((pagina?.permessi ?? []).map((p) => [p.codice, permessi.includes(p.codice)])) });
+    return contaModifiche(come(ruolo.nome, ruolo.descrizione ?? '', ruolo.permessi), come(bozza.nome, bozza.descrizione, bozza.permessi));
+  });
   const persone = (n: number) => (n ? `${n} ${n === 1 ? 'persona' : 'persone'}` : 'nessuno, ancora');
   const dove = (id: string | null) => (id ? `solo nell'impianto ${pagina?.impianti.find((i) => i.id === id)?.nome ?? ''}` : 'in tutti gli impianti');
   const haPermesso = (r: R, p: PaginaRuoli['permessi'][number]) => (!r.modificabile ? p.potere : r.permessi.includes(p.codice));
@@ -172,7 +181,7 @@
               <span class="nomina"><input class="inp" bind:value={bozza.nome} aria-label="Nome del ruolo" /><input class="inp" bind:value={bozza.descrizione} placeholder="Descrizione (facoltativa)" aria-label="Descrizione" /></span>
               <button type="button" class="mini-btn" onclick={() => (rinomina = false)}>Usa il nome</button>
             {:else}
-              <span class="titolo"><h2>{bozza.nome}</h2>{#if bozza.descrizione}<span class="spiega">{bozza.descrizione}</span>{/if}</span>
+              <span class="titolo"><span class="riga-t"><h2>{bozza.nome}</h2>{#if ruolo.modificabile}<Fumetto tema="quando valgono le modifiche">Le modifiche ai permessi valgono da subito per tutti quelli che hanno questo ruolo, appena salvate, senza rifare il login.</Fumetto>{/if}</span>{#if bozza.descrizione}<span class="spiega">{bozza.descrizione}</span>{/if}</span>
               {#if ruolo.modificabile}<Azione icona="matita" etichetta={`Rinomina il ruolo «${ruolo.nome}»`} onclick={() => (rinomina = true)} />{/if}
               <Azione icona="copia" etichetta={`Duplica il ruolo «${ruolo.nome}»`} onclick={duplica} />
               {#if !ruolo.diSistema}<Azione icona="cestino" tono="danger" etichetta={`Elimina il ruolo «${ruolo.nome}»`} onclick={() => (elimina = { sostituto: '' })} />{/if}
@@ -247,13 +256,7 @@
     {/if}
   </div>
 
-  {#if cambiato}
-    <div class="salva-bar" role="status">
-      <span>Ruolo «{ruolo.nome}» cambiato: vale da subito per tutti dopo il salvataggio</span>
-      <button type="button" class="vuoto" onclick={() => apri(ruolo)}>Annulla</button>
-      <button type="button" class="chiaro" disabled={!bozza.nome.trim()} onclick={salva}>Salva</button>
-    </div>
-  {/if}
+  <BarraSalva {modifiche} valida={!!bozza.nome.trim()} onannulla={() => apri(ruolo)} onsalva={salva} />
 {:else if !errore}
   <p class="muted">Caricamento…</p>
 {/if}
@@ -278,11 +281,10 @@
   .scelta.on { background: var(--cloro); border-color: var(--cloro); }
   .scelta.on :global(.ic) { visibility: visible; }
   .nessuno { margin: 0; padding: var(--space-10) var(--space-14); }
-  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
-  .salva-bar .vuoto { margin: 0; padding: var(--space-10) var(--space-14); }
   .piede-l { padding: var(--space-10) var(--space-12); border-top: 1px solid var(--line); display: flex; gap: var(--space-8); }
   .piede-l .mini-btn { justify-content: center; }
   .destra { display: flex; flex-direction: column; gap: var(--space-14); min-width: 0; }
+  .riga-t { display: flex; align-items: center; gap: var(--space-6); min-width: 0; }
   .titolo { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
   .nomina { display: flex; gap: var(--space-8); flex: 1; flex-wrap: wrap; }
   .nomina .inp { height: 38px; flex: 1 1 200px; }
