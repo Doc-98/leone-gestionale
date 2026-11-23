@@ -69,7 +69,9 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
   modificabile) sono **componenti comuni** in `src/components/`, che le pagine usano senza riscriverli. La logica
   sta in funzioni pure in `src/lib/` con i test Vitest; i comportamenti da tastiera dei componenti si provano con
   jsdom e `@testing-library/svelte`. La barra di pagina la disegna la pagina; ogni riordino si salva con una sola
-  chiamata `PUT …/ordine`. Vedi ADR 0028.
+  chiamata `PUT …/ordine`. Vedi ADR 0028. La barra di salvataggio delle impostazioni è un componente solo
+  (`BarraSalva.svelte`, con `lib/salvataggio.ts`). I messaggi di blocco di un'eliminazione (409) arrivano con le righe
+  separate da `\n` e `lib/blocco.ts` le mette in forma.
 - **Database**: PostgreSQL. Relazionale perché i dati sono fortemente collegati (bracciale → persona →
   iscrizioni → corso → lezioni → certificato → pagamenti) e servono vincoli e transazioni. Le parti
   meno strutturate (impostazioni, dettagli per disciplina) usano colonne JSONB.
@@ -91,7 +93,8 @@ ClockWork (l'app personale per il foglio ore) resta un progetto separato e invar
 
 Le impostazioni dell'interfaccia sono divise per area (la società; prezzi e pagamenti; clienti e accessi; staff;
 sistema), con una panoramica delle cose da sistemare, una ricerca condivisa in cima a ogni pagina e il salvataggio di
-tutte le modifiche di una pagina da una barra in basso (ADR 0024).
+tutte le modifiche di una pagina da una barra in basso, `BarraSalva` (ADR 0024); i gruppi, le casse e le altre cose con
+un'identità si salvano invece nel loro foglio.
 
 ## Permessi e accesso ai dati
 

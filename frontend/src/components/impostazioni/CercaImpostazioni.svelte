@@ -49,7 +49,8 @@
   const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 </script>
 
-<svelte:window onkeydown={globale} />
+<!-- cambiando pagina il testo cercato non resta nel campo -->
+<svelte:window onkeydown={globale} onhashchange={() => { q = ''; aperto = false; }} />
 
 <div class="cerca" class:telefono>
   <label class="campo">

@@ -1,8 +1,12 @@
 <script lang="ts">
+  import BarraSalva from '../components/BarraSalva.svelte';
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type ImpostazioniRicevute, type PaginaRicevute, type SerieRicevute, type TipoSerie } from '../lib/api';
   import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { anteprimaNumero, FORMATI_PRONTI, RIPARTE } from '../lib/ricevute';
+  import { contaModifiche } from '../lib/salvataggio';
+  import { cifreNonValide as cifreKo, MSG_CIFRE } from '../lib/validita';
+  import ErroreCampo from '../components/ErroreCampo.svelte';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -37,7 +41,8 @@
       return 'Scrivi la soglia e l\'importo della marca in euro, es. 77,47 e 2';
     return '';
   });
-  const sporco = $derived(!!bozza && JSON.stringify(bozza) !== originale);
+  const cifreNonValide = (s: SerieRicevute | undefined) => !!s && cifreKo(s.cifre);
+  const modifiche = $derived(bozza ? contaModifiche(JSON.parse(originale), bozza) : 0);
   const serie = $derived(bozza?.serie[scelta]);
   const anno = new Date().getFullYear();
   /** La stagione per l'anteprima: quella del periodo della serie, se la serie riparte a ogni stagione. */
@@ -108,6 +113,7 @@
               <button type="button" class="serie-b" aria-pressed={i === scelta} onclick={() => (scelta = i)}>
                 <span class="ico-s" aria-hidden="true"><Icona nome="ricevuta" /></span>
                 <span class="t"><b>{s.nome || 'Senza nome'}</b><span>{s.tipo === 'FATTURA' ? 'Fatture' : 'Ricevute'} · {s.emesse === 1 ? '1 nel periodo' : `${s.emesse} nel periodo`} {s.periodo || ''}</span></span>
+                {#if cifreNonValide(s)}<span class="pill ferma">Da correggere</span>{/if}
                 <span class="pill {s.attiva ? 'passa' : ''}">{s.attiva ? 'In uso' : 'Spenta'}</span>
                 <span class="m num">{anteprima(s)}</span>
               </button>
@@ -130,7 +136,7 @@
                   {#each RIPARTE as r (r.id)}<button type="button" aria-pressed={serie.riparte === r.id} disabled={!puo} onclick={() => (serie.riparte = r.id)}>{r.nome}</button>{/each}
                 </span></span></div>
               <div class="riga-imp"><span class="t"><b>Cifre del numero</b><span>Con 4 cifre: 0001, 0002…</span></span>
-                <span class="ctl"><input class="inp m corto" type="number" min="1" max="8" bind:value={serie.cifre} disabled={!puo} aria-label="Cifre del numero" /><span class="unita">cifre</span></span></div>
+                <span class="ctl"><input class="inp m corto" type="number" min="1" max="8" bind:value={serie.cifre} disabled={!puo} aria-label="Cifre del numero" aria-invalid={cifreNonValide(serie)} aria-describedby={cifreNonValide(serie) ? 'err-cifre' : undefined} /><span class="unita">cifre</span></span>{#if cifreNonValide(serie)}<ErroreCampo id="err-cifre">{MSG_CIFRE}</ErroreCampo>{/if}</div>
               <div class="riga-imp"><span class="t"><b>Partire da un numero</b>
                 <span>{serie.emesse > 0 ? 'In questo periodo ci sono già ricevute: la numerazione continua da sé.' : 'Per continuare la numerazione del gestionale di prima. Vuoto: da 1.'}</span></span>
                 <span class="ctl"><input class="inp m corto" type="number" min="1" placeholder="1" value={serie.prossimoNumero ?? ''} disabled={!puo || serie.emesse > 0} aria-label="Primo numero"
@@ -192,13 +198,7 @@
       </aside>
     </div>
 
-    {#if sporco && puo}
-      <div class="salva-bar" role="status">
-        <span>Ci sono modifiche non salvate</span>
-        <button type="button" class="vuoto" onclick={() => (bozza = JSON.parse(originale))}>Annulla</button>
-        <button type="button" class="chiaro" disabled={!!erroreBollo} onclick={salva}>Salva</button>
-      </div>
-    {/if}
+    {#if puo}<BarraSalva {modifiche} valida={!erroreBollo && !bozza?.serie.some(cifreNonValide)} onannulla={() => (bozza = JSON.parse(originale))} onsalva={salva} />{/if}
   {:else if !errore}
     <p class="muted small">Caricamento…</p>
   {/if}

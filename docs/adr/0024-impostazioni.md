@@ -32,6 +32,13 @@ serve in un modo (2 rate, rimborso nel borsellino, credito di sospensione su tut
 - **Salvataggio unico.** Le modifiche di una pagina si salvano insieme da una barra in basso («N modifiche da salvare»,
   Annulla, Salva) che compare solo se c'è qualcosa da salvare. Le azioni che non si possono «tenere in sospeso»
   (creare una macchina e vederne la chiave, eliminare, dare un ruolo) restano immediate.
+  *Aggiornamento (blocco 7, lotto 1).* La barra è un solo componente (`BarraSalva.svelte`, conteggio in
+  `lib/salvataggio.ts`): «N modifiche da salvare» («1 modifica da salvare»), «Annulla» e «Salva»; «Salva» resta spento
+  finché un campo non è valido. Vale per le impostazioni di pagina e per i parametri di una regola (scaglioni, rate).
+  Le cose con un'identità (gruppi, casse, serie, postazioni, servizi, macchine, offerte) non usano la barra: si salvano
+  nel loro foglio con il loro «Salva …» e l'interruttore, mentre interruttore, riordino e cestino nella riga agiscono
+  subito, come in Metodi di pagamento. Promemoria resta un editor in pagina con «Salva il promemoria». «Pagamenti di
+  famiglia» passa alla barra. Il «quando vale» sta in un fumetto accanto al titolo, non nella barra.
 - **Regole di prezzo.** La stagione su una linea, con le corsie di riduzione e recesso, la linea di oggi (si tocca per
   tornarci) e la scadenza delle rate in rosso (l'etichetta compare passandoci sopra). Toccando o trascinando la linea si
   sceglie un giorno qualsiasi e un riquadro mostra cosa succede a chi si iscrive quel giorno, per l'abbonamento scelto:

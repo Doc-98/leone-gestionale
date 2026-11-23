@@ -1,5 +1,10 @@
 <script lang="ts">
   import { api, messaggioErrore, type RegolaAccesso } from '../lib/api';
+  import BarraSalva from '../components/BarraSalva.svelte';
+  import Fumetto from '../components/Fumetto.svelte';
+  import ErroreCampo from '../components/ErroreCampo.svelte';
+  import { contaModifiche } from '../lib/salvataggio';
+  import { msgParametro, parametroRegolaNonValido } from '../lib/validita';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -32,12 +37,22 @@
   }
   carica();
 
+  /** Il nome senza l'ultima parola, e l'ultima: il fumetto resta attaccato a questa, mai a capo da solo. */
+  const testaNome = (n: string) => n.slice(0, n.lastIndexOf(' ') + 1);
+  const codaNome = (n: string) => n.slice(n.lastIndexOf(' ') + 1);
   const valore = (b: Bozza, nome: string) => (b.vuoti[nome] || b.valori[nome] === '' || b.valori[nome] == null ? null : Number(b.valori[nome]));
-  function cambiata(r: RegolaAccesso): boolean {
+  /** Una regola com'è salvata e com'è in pagina, nella stessa forma: acceso o spento e il valore di ogni parametro. */
+  const vistaSalvata = (r: RegolaAccesso) => ({ attiva: r.attiva, valori: Object.fromEntries(r.parametri.map((p) => [p.nome, p.valore])) });
+  const vistaBozza = (r: RegolaAccesso) => {
     const b = bozze[r.codice];
-    return !!b && (b.attiva !== r.attiva || r.parametri.some((p) => valore(b, p.nome) !== p.valore));
-  }
-  const cambiate = $derived(regole.filter(cambiata));
+    return { attiva: b.attiva, valori: Object.fromEntries(r.parametri.map((p) => [p.nome, valore(b, p.nome)])) };
+  };
+  const modificheDi = (r: RegolaAccesso) => (bozze[r.codice] ? contaModifiche(vistaSalvata(r), vistaBozza(r)) : 0);
+  const cambiate = $derived(regole.filter((r) => modificheDi(r) > 0));
+  const modifiche = $derived(regole.reduce((n, r) => n + modificheDi(r), 0));
+  /** Un parametro scritto male: da 0 al massimo (come il backend); vuoto solo se è facoltativo e «se vuoto» è spuntato. */
+  const parametroNonValido = (b: Bozza, p: RegolaAccesso['parametri'][number]) => parametroRegolaNonValido(b.valori[p.nome], b.vuoti[p.nome], p.facoltativo, p.max);
+  const valida = $derived(regole.every((r) => !bozze[r.codice] || r.parametri.every((p) => !parametroNonValido(bozze[r.codice], p))));
   const rosse = $derived(regole.filter((r) => !SOLO_AVVISO.includes(r.codice)));
   const avvisi = $derived(regole.filter((r) => SOLO_AVVISO.includes(r.codice)));
 
@@ -57,7 +72,6 @@
   }
 </script>
 
-{#if !admin}<p class="hint nomargin">Per cambiare le regole serve il permesso «Regole del tornello» (di base, gli admin).</p>{/if}
 {#if messaggio && !cambiate.length}<p class="msg ok" role="status">{messaggio}</p>{/if}
 {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
 
@@ -65,26 +79,27 @@
   {@const b = bozze[r.codice]}
   {#if b}
     <div class="regola" class:spenta={!b.attiva}>
-      <button type="button" class="switch" role="switch" aria-checked={b.attiva} aria-label={r.nome} disabled={!admin} onclick={() => (b.attiva = !b.attiva)}><span></span></button>
       <span class="t">
-        <b>{r.nome}{#if r.valeConGoldenPass}<span class="oro">vale anche con il golden pass</span>{/if}</b>
-        <span class="desc">{r.descrizione}</span>
+        <b><span class="nome-r">{testaNome(r.nome)}<span class="coda">{codaNome(r.nome)}<Fumetto tema={`la regola «${r.nome}»`}>{r.descrizione}</Fumetto></span></span>{#if r.valeConGoldenPass}<span class="pill oro">vale anche con il golden pass</span>{/if}</b>
         {#each r.parametri as p (p.nome)}
           <span class="par">
             <span class="unita">{p.etichetta}</span>
-            <span class="campo-u"><input class="inp" type="number" min="0" max={p.max} bind:value={b.valori[p.nome]} disabled={!admin || b.vuoti[p.nome]} aria-label={p.etichetta} />
+            <span class="campo-u"><input class="inp" type="number" min="0" max={p.max} bind:value={b.valori[p.nome]} disabled={!admin || b.vuoti[p.nome]} aria-label={p.etichetta} aria-invalid={parametroNonValido(b, p)} aria-describedby={parametroNonValido(b, p) ? `err-${r.codice}-${p.nome}` : undefined} />
               <span class="unita">{p.unita}</span></span>
+            {#if parametroNonValido(b, p)}<ErroreCampo id="err-{r.codice}-{p.nome}">{msgParametro(p.max)}</ErroreCampo>{/if}
             {#if p.facoltativo}<label class="se-vuoto"><input type="checkbox" bind:checked={b.vuoti[p.nome]} disabled={!admin} /> {p.seVuoto}</label>{/if}
           </span>
         {/each}
       </span>
+      <button type="button" class="switch" role="switch" aria-checked={b.attiva} aria-label={r.nome} disabled={!admin} onclick={() => (b.attiva = !b.attiva)}><span></span></button>
     </div>
   {/if}
 {/snippet}
 
 {#if regole.length}
   <section class="card sez" aria-label="Fanno diventare rosso">
-    <div class="sez-t"><h2 class="grow">Fanno diventare rosso</h2><span class="spiega">{rosse.filter((r) => bozze[r.codice]?.attiva).length} accese su {rosse.length}</span></div>
+    <div class="sez-t"><h2 class="grow">Fanno diventare rosso</h2><span class="spiega">{rosse.filter((r) => bozze[r.codice]?.attiva).length} accese su {rosse.length}</span>
+      <Fumetto tema="le regole del tornello">Si controllano tutte le regole accese e al banco si vedono tutti i motivi del rosso; un braccialetto sconosciuto dà sempre rosso. Le modifiche valgono dal prossimo passaggio, appena salvate.</Fumetto></div>
     <div class="griglia">{#each rosse as r (r.codice)}{@render regola(r)}{/each}</div>
   </section>
   {#if avvisi.length}
@@ -93,16 +108,9 @@
       <div class="griglia">{#each avvisi as r (r.codice)}{@render regola(r)}{/each}</div>
     </section>
   {/if}
-  <span class="muted small">Si controllano tutte le regole accese e al banco si vedono tutti i motivi del rosso; un braccialetto sconosciuto dà sempre rosso. Le modifiche valgono dal prossimo passaggio.</span>
 {/if}
 
-{#if cambiate.length}
-  <div class="salva-bar" role="status">
-    <span>{cambiate.length === 1 ? 'Una regola cambiata' : `${cambiate.length} regole cambiate`}: valgono dopo il salvataggio</span>
-    <button type="button" class="vuoto" onclick={carica}>Annulla</button>
-    <button type="button" class="chiaro" onclick={salva}>Salva</button>
-  </div>
-{/if}
+<BarraSalva {valida} {modifiche} onannulla={carica} onsalva={salva} />
 
 <style>
   /* le regole in due colonne: si leggono tutte senza scorrere */
@@ -110,19 +118,16 @@
   .regola { display: flex; align-items: flex-start; gap: var(--space-14); padding: var(--space-14) var(--space-16); border-top: 1px solid var(--line-soft); }
   .regola:nth-child(-n + 2) { border-top: none; }
   .regola:nth-child(odd):not(:last-child) { border-right: 1px solid var(--line-soft); }
-  .regola .switch { margin-top: 2px; }
+  .regola .switch { margin-top: 2px; flex-shrink: 0; }
   .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .t b { font-size: var(--text-base); font-weight: 600; display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
-  .desc { font-size: var(--text-sm); color: var(--muted); }
+  .coda { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-6); }
   .par { display: flex; align-items: center; gap: var(--space-8); margin-top: var(--space-6); flex-wrap: wrap; }
   .campo-u { display: inline-flex; align-items: center; gap: var(--space-8); white-space: nowrap; }
   .par .inp { width: 70px; height: 36px; text-align: center; font-family: var(--font-mono); }
   .se-vuoto { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
   .se-vuoto input { width: 18px; height: 18px; }
-  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
-  .salva-bar .vuoto { display: flex; align-items: center; gap: var(--space-6); font-size: var(--text-sm); }
   .spenta .t b, .spenta .par { opacity: 0.5; }
-  .oro { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--oro-bg); color: var(--oro-fg); font-size: 11px; font-weight: 700; }
   @media (max-width: 800px) {
     .griglia { grid-template-columns: 1fr; }
     .regola:nth-child(2) { border-top: 1px solid var(--line-soft); }

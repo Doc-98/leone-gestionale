@@ -47,7 +47,8 @@ voleva che le cose con storico (un metodo di pagamento già usato) si spegnesser
     metodo di pagamento: nome e tipo, cioè cassetto, da incassare, riscontro POS, borsellino), e lo storico legge la
     copia;
   - finché c'è qualcosa di **aperto** che le usa, l'eliminazione è bloccata con un messaggio che dice cosa manca
-    («Satispay ha ancora 2 pagamenti da incassare»);
+    e cosa si può fare invece, su due righe separate da `\n`, ognuna con l'attacco in grassetto («**Non si può eliminare:**
+    «Bonifico» ha ancora 57 pagamenti da incassare.» / «**Puoi spegnerlo:** …»; `lib/blocco.ts`);
   - niente stato «archiviato»: o la cosa c'è (accesa o spenta) o non c'è più;
   - le cose che il sistema stesso richiede non si eliminano mai (il borsellino) e la loro riga non ha il cestino.
 

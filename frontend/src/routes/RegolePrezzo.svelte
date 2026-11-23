@@ -1,4 +1,6 @@
 <script lang="ts">
+  import BarraSalva from '../components/BarraSalva.svelte';
+  import Fumetto from '../components/Fumetto.svelte';
   import Icona from '../components/Icona.svelte';
   import { api, messaggioErrore, type Offerta, type PaginaListino, type RegolaPrezzo, type Stagione, type TipoRegolaPrezzo } from '../lib/api';
   import { dataBreve, iso } from '../lib/date';
@@ -6,6 +8,9 @@
   import { etichettaVolte } from '../lib/listino';
   import { euro } from '../lib/numeri';
   import { quanti } from '../lib/plurali';
+  import { contaModifiche } from '../lib/salvataggio';
+  import { MSG_PERCENTUALE, MSG_PRIMA_RATA, primaRataNonValida, scaglioneNonValido } from '../lib/validita';
+  import ErroreCampo from '../components/ErroreCampo.svelte';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -28,7 +33,7 @@
     sospensione: { attiva: boolean; settimaneMinime: string; settimaneCertificato: string; settimaneRestituite: string; restituzione: string };
   };
   let bozza = $state<Bozza | null>(null);
-  let originale = '';
+  let originale = $state('');
 
   async function avvia() {
     try {
@@ -80,6 +85,10 @@
     if (JSON.stringify(bozza.sospensione) !== JSON.stringify(o.sospensione)) out.push('SOSPENSIONE');
     return out;
   });
+
+  /** Percentuali scritte male: negli scaglioni con una data (gli altri non si salvano) e nella 1ª rata (il backend la controlla sempre). */
+  const valida = $derived(!bozza || !(bozza.riduzione.scaglioni.some(scaglioneNonValido) || bozza.recesso.scaglioni.some(scaglioneNonValido)
+    || primaRataNonValida(bozza.rate.primaPercentuale)));
 
   async function salva() {
     const b = bozza!;
@@ -203,7 +212,8 @@
 </script>
 
 <div class="barra">
-  <p class="muted nomargin grow">Tocca o trascina sulla linea per vedere un esempio in un giorno qualsiasi.{#if scadenzeRate.length}{' '}La linea rossa è la scadenza della 2ª rata: si imposta nella sezione <a href="#/prezzi/rate">Rate</a>.{/if}</p>
+  <p class="muted nomargin grow">Tocca o trascina sulla linea per vedere un esempio in un giorno qualsiasi.{#if scadenzeRate.length}{' '}La linea rossa è la scadenza della 2ª rata: si imposta nella sezione <a href="#/prezzi/rate">Rate</a>.{/if}
+    <Fumetto tema="quando valgono le regole">Le modifiche alle regole valgono dopo il salvataggio, per le iscrizioni e i recessi da quel momento in poi.</Fumetto></p>
   <select class="inp stagione" bind:value={stagioneId} aria-label="Stagione">{#each stagioni as s (s.id)}<option value={s.id}>{s.nome}</option>{/each}</select>
 </div>
 {#if errore}<p class="msg err" role="alert">{errore}</p>{/if}
@@ -269,12 +279,13 @@
     <div class="princ">
       <section class="card sez" id="imp-riduzione" aria-label="Riduzione tardiva">
         <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.riduzione.attiva} aria-label="Riduzione tardiva accesa" onclick={() => (bozza!.riduzione.attiva = !bozza!.riduzione.attiva)}><span></span></button>
-          <h2 class="grow">Riduzione per iscrizione a stagione iniziata</h2><span class="spiega">solo sulle offerte segnate nel listino</span></div>
+          <h2 class="grow">Riduzione tardiva</h2><Fumetto tema="la riduzione tardiva">Per chi si iscrive a stagione iniziata. Vale solo sulle offerte segnate nel listino.</Fumetto></div>
         <div class="passi">
           {#each bozza.riduzione.scaglioni as s, i (i)}
             <div class="passo"><span class="unita">Dal</span><input class="inp m" type="date" bind:value={s.data} min={stagione.dal} max={stagione.al} aria-label="Dal" />
-              <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale" /><span class="unita">%</span>
+              <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale" aria-invalid={scaglioneNonValido(s)} aria-describedby={scaglioneNonValido(s) ? `err-rid-${i}` : undefined} /><span class="unita">%</span>
               <button type="button" class="x-btn" aria-label="Elimina lo scaglione" onclick={() => (bozza!.riduzione.scaglioni = bozza!.riduzione.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
+            {#if scaglioneNonValido(s)}<ErroreCampo id="err-rid-{i}">{MSG_PERCENTUALE}</ErroreCampo>{/if}
           {/each}
           <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.riduzione.scaglioni = [...bozza!.riduzione.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
         </div>
@@ -282,12 +293,13 @@
 
       <section class="card sez" id="imp-recesso" aria-label="Rimborso in caso di recesso">
         <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.recesso.attiva} aria-label="Rimborso per recesso acceso" onclick={() => (bozza!.recesso.attiva = !bozza!.recesso.attiva)}><span></span></button>
-          <h2 class="grow">Rimborso in caso di recesso</h2><span class="spiega">quanto si restituisce di un abbonamento già pagato</span></div>
+          <h2 class="grow">Recesso</h2><Fumetto tema="il recesso">Il rimborso in caso di recesso: quanto si restituisce di un abbonamento già pagato.</Fumetto></div>
         <div class="passi">
           {#each bozza.recesso.scaglioni as s, i (i)}
             <div class="passo"><span class="unita">Fino al</span><input class="inp m" type="date" bind:value={s.data} min={stagione.dal} max={stagione.al} aria-label="Fino al" />
-              <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale rimborsata" /><span class="unita">%</span>
+              <input class="inp m perc" type="number" min="0" max="100" bind:value={s.percentuale} aria-label="Percentuale rimborsata" aria-invalid={scaglioneNonValido(s)} aria-describedby={scaglioneNonValido(s) ? `err-rec-${i}` : undefined} /><span class="unita">%</span>
               <button type="button" class="x-btn" aria-label="Elimina lo scaglione" onclick={() => (bozza!.recesso.scaglioni = bozza!.recesso.scaglioni.filter((_, j) => j !== i))}><Icona nome="chiudi" /></button></div>
+            {#if scaglioneNonValido(s)}<ErroreCampo id="err-rec-{i}">{MSG_PERCENTUALE}</ErroreCampo>{/if}
           {/each}
           <div class="passo"><span class="unita">Dopo</span><span class="muted small">niente rimborso</span></div>
           <button type="button" class="mini-btn tratt sx" onclick={() => (bozza!.recesso.scaglioni = [...bozza!.recesso.scaglioni, { data: '', percentuale: '' }])}><Icona nome="piu" />Aggiungi uno scaglione</button>
@@ -300,7 +312,7 @@
     <aside class="lato-p">
       <section class="card sez" id="imp-sospensione" aria-label="Sospensione per malattia">
         <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.sospensione.attiva} aria-label="Sospensione per malattia accesa" onclick={() => (bozza!.sospensione.attiva = !bozza!.sospensione.attiva)}><span></span></button>
-          <h2 class="grow">Sospensione per malattia</h2></div>
+          <h2 class="grow">Sospensione</h2><Fumetto tema="la sospensione">La sospensione dell'abbonamento per malattia o infortunio.</Fumetto></div>
         <div class="riga-imp"><span class="t"><span>Chi si ferma per malattia o infortunio riceve le settimane perse, se rispetta queste condizioni.</span></span></div>
         <div class="riga-imp"><span class="t"><b>Lo stop deve durare più di</b><span>sotto questa soglia non si restituisce niente</span></span>
           <span class="ctl"><input class="inp num" type="number" min="0" max="52" bind:value={bozza.sospensione.settimaneMinime} aria-label="Settimane minime" /><span class="unita">settimane</span></span></div>
@@ -317,7 +329,7 @@
         <div class="sez-t"><button type="button" class="switch" role="switch" aria-checked={bozza.rate.attiva} aria-label="Rate accese" onclick={() => (bozza!.rate.attiva = !bozza!.rate.attiva)}><span></span></button>
           <h2 class="grow">Rate</h2></div>
         <div class="riga-imp"><span class="t"><b>1ª rata</b><span>all'iscrizione</span></span>
-          <span class="ctl"><input class="inp num" type="number" min="1" max="99" bind:value={bozza.rate.primaPercentuale} aria-label="Percentuale della 1ª rata" /><span class="unita">%</span></span></div>
+          <span class="ctl"><input class="inp num" type="number" min="1" max="99" bind:value={bozza.rate.primaPercentuale} aria-label="Percentuale della 1ª rata" aria-invalid={primaRataNonValida(bozza.rate.primaPercentuale)} aria-describedby={primaRataNonValida(bozza.rate.primaPercentuale) ? 'err-rata' : undefined} /><span class="unita">%</span></span>{#if primaRataNonValida(bozza.rate.primaPercentuale)}<ErroreCampo id="err-rata">{MSG_PRIMA_RATA}</ErroreCampo>{/if}</div>
         {#each Array.from({ length: bozza.rate.numero - 1 }) as _, i (i)}
           <div class="riga-imp"><span class="t"><b>{i + 2}ª rata entro il</b>{#if i === bozza.rate.numero - 2}<span>dopo questa data le rate non si offrono più</span>{/if}</span>
             <span class="ctl"><input class="inp m data" type="date" bind:value={bozza.rate.scadenze[i]} aria-label="Scadenza della {i + 2}ª rata" />
@@ -331,16 +343,19 @@
     </aside>
   </fieldset>
 
-  {#if cambiate.length}
-    <div class="salva-bar" role="status">
-      <span>{cambiate.length === 1 ? 'Una regola cambiata' : `${cambiate.length} regole cambiate`}: valgono dopo il salvataggio</span>
-      <button type="button" class="vuoto" onclick={() => (bozza = JSON.parse(originale))}>Annulla</button>
-      <button type="button" class="chiaro" onclick={salva}>Salva</button>
-    </div>
-  {/if}
+  <BarraSalva {valida} modifiche={originale ? contaModifiche(JSON.parse(originale), bozza) : 0} onannulla={() => (bozza = JSON.parse(originale))} onsalva={salva} />
 {/if}
 
 <style>
+  /* il titolo di una sezione sta su una riga (si tronca se la colonna è stretta); fumetto e interruttore restano interi */
+  .sez-t { flex-wrap: nowrap; }
+  /* larghezza 0 + crescita: il titolo prende lo spazio che resta e non allarga la sezione (un testo senza a capo ha altrimenti la sua larghezza piena come minimo) */
+  .sez-t h2 { flex: 1 1 0; width: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 380px) {
+    .sez-t { padding-inline: var(--space-12); gap: var(--space-6); }
+    .sez-t h2 { font-size: var(--text-xl); }
+  }
+  .passo :global(.muted) { min-width: 0; }
   .barra { display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap; }
   .stagione { width: 150px; height: 40px; appearance: auto; }
   select.inp { appearance: auto; }
@@ -350,7 +365,8 @@
   .oggi-t { justify-self: start; align-self: center; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: none;
     background: var(--cloro); color: var(--on-cloro); font: inherit; font-size: var(--text-sm); font-weight: 700; white-space: nowrap; cursor: pointer; }
   .oggi-t::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--on-cloro); }
-  .mesi { display: flex; }
+  .mesi { display: flex; min-width: 0; }
+  .mesi button { flex: 1 1 0; min-width: 0; }
   .mesi button { height: 30px; border: none; border-left: 1px solid var(--line-soft); background: none; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
     text-transform: uppercase; color: var(--muted); cursor: pointer; padding: 0; overflow: hidden; }
   .mesi button.dentro { background: var(--fill); color: var(--on-fill); border-radius: 6px; }
@@ -401,10 +417,20 @@
   .lato-p :global(.riga-imp .t) { flex-basis: 170px; }
   .lato-p :global(.riga-imp .ctl) { margin: 0 auto; justify-content: center; }
   @media (max-width: 900px) {
-    .linea-s { grid-template-columns: 1fr; }
+    .linea-s { grid-template-columns: minmax(0, 1fr); }
     .nomi { display: none; }
     .esempio { grid-template-columns: 1fr; }
     .scegli { flex: 1 1 100%; flex-wrap: wrap; }
     .scegli select { field-sizing: fixed; width: 100%; }
   }
+  /* telefono (dopo la regola di .passo, che altrimenti vince): la riga di uno scaglione va a capo invece di uscire dalla scheda */
+  @media (max-width: 480px) {
+    .passo { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+    .passo .inp[type='date'] { flex: 1 1 100px; min-width: 0; width: auto; }
+    .passo .inp.perc { flex: 0 0 64px; width: 64px; }
+    .passo > .x-btn { margin-left: auto; }
+  }
+  /* la percentuale ha 3 cifre al massimo: senza le frecce del campo numerico ci stanno anche a 64px */
+  .inp.perc { -moz-appearance: textfield; appearance: textfield; }
+  .inp.perc::-webkit-inner-spin-button, .inp.perc::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 </style>

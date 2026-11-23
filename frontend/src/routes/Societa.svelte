@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icona from '../components/Icona.svelte';
   import Azione from '../components/Azione.svelte';
+  import BarraSalva from '../components/BarraSalva.svelte';
   import Conferma from '../components/Conferma.svelte';
   import LineaStagione from '../components/impostazioni/LineaStagione.svelte';
   import { api, messaggioErrore, type DatiSocieta, type GruppoClienti, type MembroGruppo, type NuovaStagione, type Stagione } from '../lib/api';
@@ -8,6 +9,9 @@
   import { chiudiNovita, dataIndice, novitaChiusa } from '../lib/impostazioni';
   import { euro, euroColonna, importoNonValido, numeroDa, perCampo } from '../lib/numeri';
   import { quanti } from '../lib/plurali';
+  import { contaModifiche } from '../lib/salvataggio';
+  import { giorniAnticipoNonValidi, MSG_GIORNI_ANTICIPO } from '../lib/validita';
+  import ErroreCampo from '../components/ErroreCampo.svelte';
   import { sessione } from '../lib/sessione.svelte';
 
   /**
@@ -58,7 +62,9 @@
   const datiCambiati = $derived(!!dati && JSON.stringify(dati) !== originale);
   const stagioneCambiata = $derived(!!bozza && JSON.stringify(bozza) !== bozzaOriginale);
   const quotaNonValida = $derived(!!bozza && importoNonValido(bozza.quota));
-  const modifiche = $derived(Number(datiCambiati) + Number(stagioneCambiata));
+  const daJson = (s: string): unknown => (s ? JSON.parse(s) : null);
+  const giorniNonValidi = $derived(!!dati && giorniAnticipoNonValidi(dati.giorniAnticipo));
+  const modifiche = $derived(contaModifiche(daJson(originale), dati) + contaModifiche(daJson(bozzaOriginale), bozza));
 
   async function salva() {
     errore = '';
@@ -232,7 +238,8 @@
       </div>
       <div class="riga-imp">
         <span class="t"><b>Proponi il tesseramento della stagione nuova</b><span>Al banco e nella scheda compare «da rinnovare» da questo giorno. Vale per tutte le stagioni.</span></span>
-        <span class="ctl"><input class="inp num" type="number" min="0" max="365" bind:value={dati.giorniAnticipo} aria-label="Giorni prima" /><span class="unita">giorni prima del suo inizio</span></span>
+        <span class="ctl"><input class="inp num" type="number" min="0" max="365" bind:value={dati.giorniAnticipo} aria-label="Giorni prima" aria-invalid={giorniNonValidi} aria-describedby={giorniNonValidi ? 'err-giorni' : undefined} /><span class="unita">giorni prima del suo inizio</span></span>
+        {#if giorniNonValidi}<ErroreCampo id="err-giorni">{MSG_GIORNI_ANTICIPO}</ErroreCampo>{/if}
       </div>
       {#if scelta !== 'nuova'}
         <div class="riga-imp"><span class="t"><span>Una stagione si elimina solo se non ha listino né tesseramenti legati.</span></span>
@@ -320,13 +327,7 @@
     </aside>
   </div>
 
-  {#if modifiche}
-    <div class="salva-bar" role="status">
-      <span>{modifiche === 1 ? '1 modifica da salvare' : `${modifiche} modifiche da salvare`}</span>
-      <button type="button" class="vuoto" onclick={annulla}>Annulla</button>
-      <button type="button" class="chiaro" disabled={quotaNonValida} onclick={salva}>Salva</button>
-    </div>
-  {/if}
+  <BarraSalva {modifiche} valida={!quotaNonValida && !giorniNonValidi} onannulla={annulla} onsalva={salva} />
 {:else if !errore}
   <p class="muted">Caricamento…</p>
 {/if}
@@ -392,8 +393,6 @@
   .membri { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); padding: 0 var(--space-16) var(--space-12); }
   .modulo { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16); background: var(--carta); border-top: 1px solid var(--line-soft); }
   .nessuno { padding: var(--space-12) var(--space-16); margin: 0; }
-  /* come prima: l'Annulla della barra di salvataggio riceveva queste misure dalla vecchia regola .vuoto */
-  .salva-bar .vuoto { padding: var(--space-12) var(--space-16); margin: 0; }
   .ricevuta { padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
     font-size: var(--text-sm); box-shadow: 0 1px 2px rgba(16, 33, 43, 0.06); }
   .ricevuta .rs { font-family: var(--font-display); font-size: 17px; font-weight: 800; }

@@ -266,8 +266,8 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   Chiara Venturi, Davide Colombi, Elisa Marchi, Federico Bernardi o Giada Rinaldi (verdi e rossi per motivi diversi).
 - **Impostazioni della società** (admin, ADR 0018): dati della società, stagioni con la quota associativa (demo: dal 1/9
   al 31/8, 35 €), gruppi di clienti (demo: «Alunni dell'Istituto», «Squadra agonistica»); i gruppi si danno dalla scheda.
-- **Listino e regole di prezzo** (ADR 0018): «Impostazioni → Listino e prezzi» con i prezzi della Leone (scuola nuoto mono 520 €, bi 795 €,
-  alunni dell'Istituto 460 €, nuoto libero, carnet) e le regole (riduzione per iscrizione tardiva, rate, recesso).
+- **Listino e regole di prezzo** (ADR 0018): «Impostazioni → Listino» con i prezzi della Leone (scuola nuoto mono 520 €, bi 795 €,
+  alunni dell'Istituto 460 €, nuoto libero, carnet) e, in «Impostazioni → Regole di prezzo», le regole (riduzione tardiva, recesso, sospensione, rate). Cambia una percentuale: in fondo alla pagina compare la barra «1 modifica da salvare» con «Annulla» e «Salva»; scrivi 150 in una percentuale e «Salva» si spegne.
   Nella scheda, «Nuovo abbonamento o carnet…» vende dal listino con l'importo proposto; cambiarlo richiede il permesso
   «Cambiare l'importo proposto» e un motivo. «Termina oggi» mostra il rimborso secondo la regola di recesso.
 - **Addebiti e pagamenti** (ADR 0018, parte 5): nella scheda, «Pagamenti» mostra cosa c'è da pagare e entro quando
@@ -277,7 +277,7 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   bonifici da incassare; «Impostazioni → Metodi di pagamento». Annullare pagamenti e addebiti richiede il permesso
   «Annullare pagamenti» (demo: coordinatore) e il motivo; acconti e pagamenti divisi tra più metodi il permesso «Acconti
   e pagamenti misti». Per due fratelli insieme: un pagamento unico, uno per ciascuno o a scelta, secondo «Impostazioni →
-  Società e stagioni». Prova Tommaso Neri (`D0000002`): la seconda rata è scaduta,
+  Metodi di pagamento» (campo «Per più familiari insieme», si salva dalla barra). In «Metodi di pagamento» prova a eliminare «Bonifico»: ci sono bonifici da incassare, e sotto la riga compare il messaggio su due righe («Non si può eliminare…» / «Puoi spegnerlo…»). Prova Tommaso Neri (`D0000002`): la seconda rata è scaduta,
   la paga la mamma. Con «Termina oggi» e il recesso, le rate non pagate si annullano e il rimborso va nel borsellino.
 - **Borsellino, braccialetto, phon e docce** (ADR 0018, parti 7–9): nella scheda, «Borsellino» con il credito in euro
   (rimborsi; si usa per pagare con il metodo «Borsellino»; scade e si trasferisce ai familiari secondo le regole) e i
@@ -285,10 +285,13 @@ riceve un avviso. Anche il codice decimale del vecchio gestionale funziona (es. 
   addebita la cauzione; «Riconsegnato…» la restituisce (in denaro o nel borsellino) con i crediti; «Smarrito» li fa
   perdere se la regola lo dice. Pagina «Phon e docce» con un **simulatore** delle macchine (scrivi o leggi il codice,
   anche col telefono): prova Leonardo Ferri (`0C7A5CAE`, 37 crediti; la prima doccia del giorno è gratis). Regole in
-  «Impostazioni → Borsellino e braccialetto», servizi e dispositivi in «Impostazioni → Phon, docce e lettori».
-- **Impostazioni** (società e stagioni, listino, promemoria, regole del tornello, mansioni e tariffe, account, ruoli): tutte
-  sotto la voce «Impostazioni» in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area
-  («← Impostazioni» torna indietro); sul telefono da «Altro».
+  «Impostazioni → Macchine e crediti» (regole del borsellino e del braccialetto, servizi e dispositivi).
+- **Impostazioni** (dati, stagioni e gruppi, listino, regole di prezzo, metodi di pagamento, ricevute, cassa, promemoria,
+  regole del tornello, macchine e crediti, mansioni e tariffe, account e ruoli, aspetto): tutte sotto la voce «Impostazioni»
+  in fondo alla barra laterale, che scorre e mostra l’elenco delle impostazioni per area («← Impostazioni» torna
+  indietro); sul telefono da «Altro». Sotto il titolo di ogni pagina c'è una riga corta e il fumetto «i» con il resto. Le
+  modifiche di una pagina si salvano insieme dalla barra «N modifiche da salvare»; in «Regole del tornello» accendi o
+  spegni una regola o cambia un parametro e compare la stessa barra (da `admin@demo.leone`).
 - La segreteria ha di partenza tutta la gestione; ruoli e permessi si cambiano dalla pagina «Ruoli e permessi» (admin).
 
 ## Provare l'NFC dal telefono
@@ -542,7 +545,7 @@ la CI su Windows.
 | POST | `/api/pagamenti` `{paganteId, addebiti, metodi, importo?, data?, note?}` · `/api/pagamenti/addebiti` | pagamento (anche misto); addebito a mano (PAGAMENTI) |
 | POST | `/api/pagamenti/{id}/annulla` · `/api/pagamenti/addebiti/{id}/annulla` `{motivo}` | annullamenti (PAGAMENTI_ANNULLA) |
 | GET · POST | `/api/pagamenti/incassi?da=&a=` · `/api/pagamenti/da-incassare` · `/api/pagamenti/metodi-usati/{id}/incassa` | incassi e bonifici da incassare (PAGAMENTI) |
-| GET · POST · PUT · DELETE | `/api/pagamenti/metodi` · `/{id}` · `PUT /ordine` `{ids}` | metodi di pagamento; il riordino è una chiamata sola; l'eliminazione risponde 409 col motivo se c'è qualcosa di aperto o se è il borsellino; la modifica cambia anche il tipo (`daIncassare`, `contanti`) dal pagamento successivo, azzera `riscontro` per i metodi da incassare o nel cassetto e risponde 409 «Chiudi la cassa e poi cambia «Nome» da o verso «Nel cassetto».» se una cassa è aperta e `contanti` cambia (modifica: IMPOSTAZIONI) |
+| GET · POST · PUT · DELETE | `/api/pagamenti/metodi` · `/{id}` · `PUT /ordine` `{ids}` | metodi di pagamento; il riordino è una chiamata sola; l'eliminazione risponde 409 col motivo se c'è qualcosa di aperto o se è il borsellino; la modifica cambia anche il tipo (`daIncassare`, `contanti`) dal pagamento successivo, azzera `riscontro` per i metodi da incassare o nel cassetto e risponde 409 se una cassa è aperta e `contanti` cambia; il `detail` dei 409 dei metodi arriva su due righe separate da `\n` («Non si può cambiare adesso: c'è una cassa aperta.» / «Chiudi la cassa: poi potrai spostare «Nome» da o verso «Nel cassetto».») (modifica: IMPOSTAZIONI) |
 | GET | `/api/borsellino/persone/{id}` | saldi (euro e crediti), movimenti, a chi si può trasferire |
 | POST | `/api/borsellino/persone/{id}/ricariche` · `/trasferimenti` | ricarica dei crediti (pagata subito); euro a un familiare (BORSELLINO) |
 | POST | `/api/borsellino/persone/{id}/restituzioni` · `/correzioni` | credito restituito in denaro; correzioni a mano (BORSELLINO_RIMBORSI) |

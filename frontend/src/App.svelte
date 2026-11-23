@@ -25,6 +25,7 @@
   import Regole from './routes/Regole.svelte';
   import Segnalazioni from './components/Segnalazioni.svelte';
   import Foglio from './components/Foglio.svelte';
+  import Fumetto from './components/Fumetto.svelte';
   import CambioPassword from './routes/CambioPassword.svelte';
   import Accesso from './components/Accesso.svelte';
   import Marchio from './components/Marchio.svelte';
@@ -62,6 +63,8 @@
     /** Le impostazioni stanno tutte sotto un'unica voce, divise per area (con una riga di spiegazione per l'elenco). */
     area?: AreaImpostazioni;
     spiega?: string;
+    /** Il resto della spiegazione: sta nel fumetto accanto alla riga corta (`spiega`) sotto il titolo. */
+    dettaglio?: string;
     /** Visibile a chi ha almeno uno di questi permessi; senza, a tutti. */
     permessi?: Permesso[];
     /** In alternativa ai permessi: visibile se questa condizione è vera (es. chi insegna in un corso con livelli). */
@@ -92,32 +95,32 @@
     { id: 'modelli', nome: 'Settimana tipo', titolo: 'Settimana tipo', gruppo: 'Gestione', permessi: ['PIANIFICAZIONE'], larga: true, icona: 'modelli' },
     // ── Impostazioni: tutte sotto una voce, per area (ADR 0024) ──
     { id: 'societa', nome: 'Dati, stagioni e gruppi', titolo: 'Dati, stagioni e gruppi', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'societa',
-      spiega: 'Chi è la società (compare su ricevute ed email), le sue stagioni con la quota associativa e i gruppi di clienti' },
+      spiega: 'Chi siamo, stagioni e gruppi', dettaglio: 'Chi è la società (compare su ricevute ed email), le sue stagioni con la quota associativa e i gruppi di clienti.' },
     { id: 'calendario', nome: 'Calendario della stagione', titolo: 'Calendario della stagione', gruppo: 'Impostazioni', area: 'La società', permessi: ['IMPOSTAZIONI', 'PIANO_MODIFICA'], larga: true, icona: 'calendario',
-      spiega: 'Giorni di chiusura e a orario ridotto: niente turni dello staff né lezioni in quei giorni' },
+      spiega: 'Giorni di chiusura', dettaglio: 'Giorni di chiusura e a orario ridotto: niente turni dello staff né lezioni in quei giorni.' },
     { id: 'listino', nome: 'Listino', titolo: 'Listino', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'listino',
-      spiega: 'Le offerte di ogni stagione con i loro prezzi' },
+      spiega: 'Le offerte e i loro prezzi', dettaglio: 'Le offerte di ogni stagione con i loro prezzi.' },
     { id: 'prezzi', nome: 'Regole di prezzo', titolo: 'Regole di prezzo', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'CLIENTI'], larga: true, icona: 'prezzi',
-      spiega: 'Come cambia il prezzo durante la stagione: la riduzione per chi si iscrive tardi, le rate e quanto si rimborsa a chi recede' },
+      spiega: 'Riduzioni, rate e recesso', dettaglio: 'Come cambia il prezzo durante la stagione: la riduzione per chi si iscrive tardi, le rate e quanto si rimborsa a chi recede.' },
     { id: 'metodi', nome: 'Metodi di pagamento', titolo: 'Metodi di pagamento', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'metodi',
-      spiega: 'Contanti, carta, bonifico…: quali si usano, quali si segnano incassati a mano, e come paga una famiglia' },
+      spiega: 'Come si paga e si incassa', dettaglio: 'Contanti, carta, bonifico…: quali si usano, quali si segnano incassati a mano, e come paga una famiglia.' },
     { id: 'ricevute', nome: 'Ricevute', titolo: 'Ricevute', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'ricevuta',
-      spiega: 'Come si numerano, cosa c\'è scritto e come arrivano a chi paga' },
+      spiega: 'Numeri, testo e consegna', dettaglio: 'Come si numerano, cosa c\'è scritto e come arrivano a chi paga.' },
     { id: 'cassa', nome: 'Cassa', titolo: 'Cassa', gruppo: 'Impostazioni', area: 'Prezzi e pagamenti', permessi: ['IMPOSTAZIONI', 'PAGAMENTI'], larga: true, icona: 'incassi',
-      spiega: 'Una cassa o una per postazione, il fondo per il resto e quando si chiude' },
+      spiega: 'Casse, fondo e chiusura', dettaglio: 'Una cassa o una per postazione, il fondo per il resto e quando si chiude.' },
     { id: 'regole', nome: 'Regole del tornello', titolo: 'Regole del tornello', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['REGOLE_TORNELLO', 'BRACCIALETTI'], larga: true, icona: 'regole',
-      spiega: 'Cosa controlla il tornello a ogni passaggio' },
+      spiega: 'Cosa controlla il tornello', dettaglio: 'Cosa controlla il tornello a ogni passaggio, e quali regole fanno diventare rosso.' },
     { id: 'promemoria', nome: 'Promemoria email', titolo: 'Promemoria email', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['CLIENTI'], larga: true, icona: 'promemoria',
-      spiega: 'Le email che partono da sole prima (o dopo) una scadenza, e gli avvisi della lista d\'attesa' },
+      spiega: 'Email e lista d\'attesa', dettaglio: 'Le email che partono da sole prima (o dopo) una scadenza, e gli avvisi della lista d\'attesa.' },
     { id: 'servizi', nome: 'Macchine e crediti', titolo: 'Macchine e crediti', gruppo: 'Impostazioni', area: 'Clienti e accessi', permessi: ['IMPOSTAZIONI'], larga: true, icona: 'macchine',
-      spiega: 'Crediti e servizi, il borsellino, il braccialetto e le macchine' },
+      spiega: 'Crediti, braccialetto, macchine', dettaglio: 'Crediti e servizi, il borsellino, il braccialetto e le macchine.' },
     { id: 'postazioni', nome: 'Mansioni e tariffe', titolo: 'Mansioni e tariffe', gruppo: 'Impostazioni', area: 'Staff', permessi: ['ANAGRAFICHE_STAFF'], larga: true, icona: 'postazioni',
-      spiega: 'Ogni mansione è un ruolo pagato, con la sua tariffa; le postazioni sono le righe della pianificazione, divise per area' },
+      spiega: 'Mansioni, tariffe, postazioni', dettaglio: 'Ogni mansione è un ruolo pagato, con la sua tariffa; le postazioni sono le righe della pianificazione, divise per area.' },
     { id: 'account', nome: 'Account e ruoli', titolo: 'Account e ruoli', gruppo: 'Impostazioni', area: 'Sistema', permessi: ['ACCOUNT', 'RUOLI'], larga: true, icona: 'ruoli',
-      spiega: 'Chi accede al gestionale e cosa può fare' },
+      spiega: 'Chi accede e cosa può fare', dettaglio: 'Chi accede al gestionale e cosa può fare, con i ruoli e i permessi.' },
     // di chi usa il dispositivo, non della società: la vedono tutti
     { id: 'aspetto', nome: 'Aspetto', titolo: 'Aspetto', gruppo: 'Impostazioni', area: 'Sistema', larga: true, icona: 'aspetto',
-      spiega: 'Tema chiaro, scuro o come il sistema, su questo dispositivo' },
+      spiega: 'Tema chiaro o scuro', dettaglio: 'Tema chiaro, scuro o come il sistema, su questo dispositivo.' },
   ];
   const ID = SEZIONI.map((s) => s.id);
 
@@ -425,7 +428,7 @@
             <div>
               <div class="briciole lbl">{nomeSocieta || 'Impostazioni'}</div>
               <h1 class="page-title">Impostazioni</h1>
-              <p class="muted nomargin spiega">Come lavora la società: prezzi, regole del tornello, promemoria, staff e accessi. Cerca un'impostazione dalla barra in alto, o apri un'area.</p>
+              <p class="muted nomargin spiega">Come lavora la società<Fumetto tema="le impostazioni">Prezzi, regole del tornello, promemoria, staff e accessi. Cerca un'impostazione dalla barra in alto, o apri un'area.</Fumetto></p>
             </div>
           </header>
           <PanoramicaImpostazioni aree={areeImpostazioni} />
@@ -434,13 +437,13 @@
             <div>
               <div class="briciole lbl">Impostazioni · {corrente.area}</div>
               <h1 class="page-title">{corrente.titolo}</h1>
-              {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}.</p>{/if}
+              {#if corrente.spiega}<p class="muted nomargin spiega">{corrente.spiega}{#if corrente.dettaglio}<Fumetto tema="questa pagina">{corrente.dettaglio}</Fumetto>{/if}</p>{/if}
             </div>
           </header>
           {@render pagina()}
         {/if}
       {:else if elencoImpostazioni}
-        <header class="testa"><div><div class="lbl">{nomeSocieta}</div><h1 class="page-title">Impostazioni</h1></div></header>
+        <header class="testa"><div><div class="lbl">{nomeSocieta}</div><div class="titolo-f"><h1 class="page-title">Impostazioni</h1><Fumetto tema="le impostazioni">Prezzi, regole del tornello, promemoria, staff e accessi. Cerca un'impostazione dalla barra in alto, o apri un'area.</Fumetto></div></div></header>
         <CercaImpostazioni sezioni={sezioniImpostazioni} telefono />
         <PanoramicaImpostazioni aree={areeImpostazioni} telefono />
         {#each areeImpostazioni as a (a.nome)}
@@ -459,7 +462,11 @@
             <div>
               {#if !schermo.larga && inImpostazioni}<a class="indietro small" href="#/impostazioni"><Icona nome="sx" class="chev" />Impostazioni</a>
               {:else if !schermo.larga}<div class="lbl">{nomeSocieta}</div>{/if}
-              <h1 class="page-title">{corrente.titolo}</h1>
+              {#if inImpostazioni && corrente.dettaglio}
+                <div class="titolo-f"><h1 class="page-title">{corrente.titolo}</h1><Fumetto tema="questa pagina">{corrente.dettaglio}</Fumetto></div>
+              {:else}
+                <h1 class="page-title">{corrente.titolo}</h1>
+              {/if}
             </div>
           </header>
         {/if}
@@ -560,7 +567,9 @@
   .briciole { color: var(--cloro-ink); }
   /* la ricerca: fascia bianca con un filo sotto, così si stacca dal fondo carta della pagina */
   .testa-cerca { position: sticky; top: 0; z-index: 15; margin: -28px -40px 0; padding: 12px 40px; background: var(--surface); border-bottom: 1px solid var(--line); }
-  .spiega { margin-top: var(--space-4); }
+  .titolo-f { display: flex; align-items: center; gap: var(--space-8); }
+  .titolo-f .page-title { min-width: 0; }
+  .spiega { margin-top: var(--space-4); display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
 
   /* ── Elenco delle impostazioni (telefono) ── */
   .elenco-imp { display: flex; flex-direction: column; gap: var(--space-6); }

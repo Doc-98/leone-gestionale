@@ -2,10 +2,12 @@
   import { api, ErroreApi, messaggioErrore, type DatiSocieta, type MetodoPagamento, type PagamentiFamiglia } from '../lib/api';
   import { sessione } from '../lib/sessione.svelte';
   import { tipoMetodo, comeIncassa, type TipoMetodo } from '../lib/pagamenti';
+  import { contaModifiche } from '../lib/salvataggio';
   import ElencoModificabile from '../components/ElencoModificabile.svelte';
   import RiquadroAcceso from '../components/RiquadroAcceso.svelte';
   import Foglio from '../components/Foglio.svelte';
   import Fumetto from '../components/Fumetto.svelte';
+  import BarraSalva from '../components/BarraSalva.svelte';
   import Icona from '../components/Icona.svelte';
 
   /**
@@ -28,11 +30,16 @@
 
   // come paga una famiglia (sta nei dati della società; si cambia con il permesso «Impostazioni della società»)
   let societa = $state<DatiSocieta | null>(null);
-  api.societa().then((d) => (societa = d)).catch(() => {});
-  async function famiglia(v: PagamentiFamiglia) {
+  /** La scelta nel campo: si salva con la barra, come le altre impostazioni di pagina. */
+  let sceltaFamiglia = $state<PagamentiFamiglia>('A_SCELTA');
+  api.societa().then((d) => { societa = d; sceltaFamiglia = d.pagamentiFamiglia; }).catch(() => {});
+  const modificheFamiglia = $derived(societa ? contaModifiche(societa.pagamentiFamiglia, sceltaFamiglia) : 0);
+  async function salvaFamiglia() {
     errore = '';
+    messaggio = '';
     try {
-      societa = await api.modificaSocieta({ ...societa!, pagamentiFamiglia: v });
+      societa = await api.modificaSocieta({ ...societa!, pagamentiFamiglia: sceltaFamiglia });
+      sceltaFamiglia = societa.pagamentiFamiglia;
       messaggio = 'Salvato: vale dal prossimo pagamento.';
     } catch (e) {
       errore = messaggioErrore(e);
@@ -205,16 +212,17 @@
   {#if societa}
     <section class="card sez" id="imp-famiglia" aria-label="Pagamenti di famiglia">
       <div class="sez-t"><h2>Pagamenti di famiglia</h2>
-        <Fumetto tema="i pagamenti di famiglia">Quando qualcuno paga insieme per più persone della stessa famiglia, per esempio due fratelli. Vale dal prossimo pagamento.</Fumetto></div>
-      <div class="riga-imp"><span class="t"><b>Quando si paga per più familiari insieme</b><span>Un pagamento unico per la famiglia, uno per persona, o si sceglie ogni volta al banco.</span></span>
-        <span class="ctl"><select class="inp" value={societa.pagamentiFamiglia} disabled={!puo} aria-label="Come paga una famiglia"
-          onchange={(e) => famiglia(e.currentTarget.value as PagamentiFamiglia)}>
+        <Fumetto tema="i pagamenti di famiglia">Quando qualcuno paga insieme per più persone della stessa famiglia, per esempio due fratelli: un pagamento unico per la famiglia, uno per persona, o si sceglie ogni volta al banco. Vale dal prossimo pagamento, dopo il salvataggio.</Fumetto></div>
+      <div class="riga-imp"><span class="t"><b>Per più familiari insieme</b><span>Uno solo, uno a testa o si sceglie.</span></span>
+        <span class="ctl"><select class="inp" bind:value={sceltaFamiglia} disabled={!puo} aria-label="Come paga una famiglia">
           <option value="A_SCELTA">Si sceglie ogni volta</option>
           <option value="INSIEME">Sempre un pagamento unico</option>
           <option value="PER_PERSONA">Sempre uno per persona</option>
         </select></span></div>
     </section>
   {/if}
+
+  {#if puo}<BarraSalva modifiche={modificheFamiglia} onannulla={() => (sceltaFamiglia = societa!.pagamentiFamiglia)} onsalva={salvaFamiglia} />{/if}
 </div>
 
 {#snippet contenuto(m: MetodoPagamento)}

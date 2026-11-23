@@ -1,6 +1,7 @@
 <script lang="ts">
+  import Fumetto from '../Fumetto.svelte';
   import Icona from '../Icona.svelte';
-  import { api } from '../../lib/api';
+  import { api, type TipoRegolaPrezzo } from '../../lib/api';
   import { iso } from '../../lib/date';
   import { euro } from '../../lib/numeri';
   import { sessione } from '../../lib/sessione.svelte';
@@ -19,6 +20,8 @@
   let fatti = $state<Record<string, Fatto[]>>({});
   let avvisi = $state<Record<string, string>>({});
   let sistemare = $state<Sistemare[]>([]);
+  /** Le regole di prezzo che esistono, per dire «N accese su …» */
+  const TIPI_REGOLA_PREZZO: TipoRegolaPrezzo[] = ['RIDUZIONE_TARDIVA', 'RECESSO', 'RATE', 'SOSPENSIONE'];
   const oggi = iso(new Date());
 
   const ICONE_AREA: Record<string, NomeIcona> = { 'La società': 'societa', 'Prezzi e pagamenti': 'listino', 'Clienti e accessi': 'tornello', Staff: 'postazioni', Sistema: 'ruoli' };
@@ -37,8 +40,8 @@
       const [stagioni, gruppi, dati] = await Promise.all([prova(api.stagioni), prova(api.gruppi), prova(api.societa)]);
       const inCorso = stagioni?.find((s) => s.dal <= oggi && oggi <= s.al);
       aggiungi('La società',
-        inCorso ? { k: 'Stagione in corso', v: `${inCorso.nome}${inCorso.quota != null ? ` · quota ${euro(inCorso.quota)}` : ''}` } : { k: 'Stagione in corso', v: 'nessuna' },
-        gruppi ? { k: 'Gruppi di clienti', v: `${gruppi.filter((g) => g.attivo).length} · ${n(gruppi.reduce((s, g) => s + g.persone, 0), 'persona', 'persone')}` } : null);
+        inCorso ? { k: 'Stagione', v: `${inCorso.nome}${inCorso.quota != null ? ` · quota ${euro(inCorso.quota)}` : ''}` } : { k: 'Stagione', v: 'nessuna in corso' },
+        gruppi ? { k: 'Gruppi', v: `${gruppi.filter((g) => g.attivo).length} · ${n(gruppi.reduce((s, g) => s + g.persone, 0), 'persona', 'persone')}` } : null);
       if (dati && ((!dati.partitaIva && !dati.codiceFiscale) || !dati.indirizzo))
         da({ titolo: 'Mancano dei dati per le ricevute', spiega: 'Servono la partita IVA (o il codice fiscale) e l\'indirizzo della società.', href: '#/societa/dati', icona: 'ricevuta' });
       if (!inCorso) avvisi['La società'] = 'Nessuna stagione in corso';
@@ -46,9 +49,9 @@
         const listino = await prova(() => api.listino(inCorso.id));
         if (listino) {
           const conta = (t: string) => listino.offerte.filter((o) => o.tipo === t && o.attiva).length;
-          const attive = listino.regole.filter((r) => r.attiva).map((r) => ({ RIDUZIONE_TARDIVA: 'riduzione', RATE: 'rate', RECESSO: 'recesso', SOSPENSIONE: 'sospensione' })[r.tipo]);
-          aggiungi('Prezzi e pagamenti', { k: `Listino ${inCorso.nome}`, v: `${n(conta('CORSO'), 'abbonamento', 'abbonamenti')} · ${conta('CARNET')} carnet` },
-            { k: 'Regole attive', v: attive.length ? attive.join(', ') : 'nessuna' });
+          const accese = listino.regole.filter((r) => r.attiva && TIPI_REGOLA_PREZZO.includes(r.tipo)).length;
+          aggiungi('Prezzi e pagamenti', { k: 'Listino', v: `${n(conta('CORSO'), 'abbonamento', 'abbonamenti')} · ${conta('CARNET')} carnet` },
+            { k: 'Regole di prezzo', v: accese ? `${accese} accese su ${TIPI_REGOLA_PREZZO.length}` : 'nessuna accesa' });
         }
         // la stagione dopo, se comincia entro un anno, deve avere il suo listino
         const dopo = stagioni?.filter((s) => s.dal > oggi).sort((a, b) => a.dal.localeCompare(b.dal))[0];
@@ -65,14 +68,14 @@
       const stagioni = await prova(api.stagioni);
       const s = stagioni?.find((x) => x.dal <= oggi && oggi <= x.al);
       const c = s ? await prova(() => api.chiusure(s.dal, s.al)) : null;
-      if (c) aggiungi('La società', { k: 'Chiusure in calendario', v: String(c.chiusure.length) });
+      if (c) aggiungi('La società', { k: 'Chiusure', v: String(c.chiusure.length) });
     }
     if (visibile('metodi')) {
       const metodi = await prova(api.metodiPagamento);
       if (metodi) {
         const attivi = metodi.filter((m) => m.attivo);
-        const daInc = attivi.filter((m) => m.daIncassare).map((m) => m.nome.toLowerCase());
-        aggiungi('Prezzi e pagamenti', { k: 'Metodi di pagamento', v: `${attivi.length}${daInc.length ? ` · ${daInc.join(', ')} da incassare` : ''}` });
+        const daInc = attivi.filter((m) => m.daIncassare).length;
+        aggiungi('Prezzi e pagamenti', { k: 'Metodi', v: `${attivi.length}${daInc ? ` · ${daInc} da incassare` : ''}` });
       }
     }
     if (visibile('ricevute')) {
@@ -87,18 +90,18 @@
       if (c) {
         const i = c.impostazioni;
         const casse = i.casse === 'UNICA' ? 'una cassa' : `${c.casse.filter((x) => x.attiva).length} casse`;
-        const fondo = i.fondo === 'FISSO' ? `fondo fisso ${euro(i.importoFondo)}` : i.fondo === 'RIPORTATO' ? 'fondo riportato' : 'fondo contato';
-        aggiungi('Prezzi e pagamenti', { k: 'Cassa', v: `${casse} · ${fondo} · chiusura ${i.chiusura === 'TURNO' ? 'a fine turno' : 'a fine giornata'}` });
+        const fondo = i.fondo === 'FISSO' ? `fondo ${euro(i.importoFondo)}` : i.fondo === 'RIPORTATO' ? 'fondo riportato' : 'fondo contato';
+        aggiungi('Prezzi e pagamenti', { k: 'Cassa', v: `${casse} · ${fondo}` });
       }
     }
     if (visibile('regole')) {
       const regole = await prova(api.regole);
-      if (regole) aggiungi('Clienti e accessi', { k: 'Controlli del tornello', v: `${regole.filter((r) => r.attiva).length} attivi su ${regole.length}` });
+      if (regole) aggiungi('Clienti e accessi', { k: 'Controlli', v: `${regole.filter((r) => r.attiva).length} attivi su ${regole.length}` });
     }
     if (visibile('promemoria')) {
       const p = await prova(api.promemoria);
       if (p) {
-        aggiungi('Clienti e accessi', { k: 'Promemoria email', v: `${n(p.regole.filter((r) => r.attivo).length, 'attivo', 'attivi')} · ${p.orario}` });
+        aggiungi('Clienti e accessi', { k: 'Promemoria', v: `${n(p.regole.filter((r) => r.attivo).length, 'attivo', 'attivi')} · ${p.orario}` });
         if (!p.postaConfigurata) {
           avvisi['Clienti e accessi'] = 'Posta non configurata: i promemoria non partono';
           da({ titolo: 'I promemoria email non partono', spiega: 'Il server di posta non è configurato: le email si registrano ma non arrivano a nessuno.', href: '#/promemoria', icona: 'promemoria' });
@@ -107,8 +110,8 @@
     }
     if (visibile('servizi')) {
       const [regole, servizi, dispositivi] = await Promise.all([prova(api.regoleBorsellino), prova(api.servizi), prova(api.dispositivi)]);
-      if (regole) aggiungi('Clienti e accessi', { k: 'Un credito vale', v: `${euro(regole.valoreCredito)} · cauzione ${euro(regole.cauzione)}` });
-      if (servizi) aggiungi('Clienti e accessi', { k: 'Servizi a crediti', v: servizi.filter((s) => s.attivo).map((s) => s.nome.toLowerCase()).join(', ') || 'nessuno' });
+      if (regole) aggiungi('Clienti e accessi', { k: 'Credito', v: `${euro(regole.valoreCredito)} · cauzione ${euro(regole.cauzione)}` });
+      if (servizi) aggiungi('Clienti e accessi', { k: 'Servizi', v: servizi.filter((s) => s.attivo).map((s) => s.nome.toLowerCase()).join(', ') || 'nessuno' });
       // con i crediti sul braccialetto le macchine non si collegano (ADR 0025): non è una cosa da sistemare
       const mai = regole?.creditiSu === 'BRACCIALETTO' ? 0 : dispositivi?.filter((d) => d.attivo && !d.ultimoContatto).length ?? 0;
       if (regole?.creditiSu === 'BRACCIALETTO') aggiungi('Clienti e accessi', { k: 'Crediti', v: 'sul braccialetto' });
@@ -134,9 +137,9 @@
       const [account, ruoli] = await Promise.all([sessione.puo('ACCOUNT') ? prova(api.account) : null, sessione.puo('RUOLI') ? prova(api.ruoli) : null]);
       if (account) {
         const attivi = account.filter((a) => a.attivo);
-        aggiungi('Sistema', { k: 'Account attivi', v: `${attivi.length} · ${attivi.filter((a) => !a.ultimoAccesso).length} mai entrati` });
+        aggiungi('Sistema', { k: 'Account', v: `${attivi.length} · ${attivi.filter((a) => !a.ultimoAccesso).length} mai entrati` });
       }
-      if (ruoli) aggiungi('Sistema', { k: 'Ruoli', v: ruoli.ruoli.map((r) => r.nome.toLowerCase()).join(', ') });
+      if (ruoli) aggiungi('Sistema', { k: 'Ruoli', v: String(ruoli.ruoli.length) });
     }
     if (visibile('aspetto'))
       aggiungi('Sistema', { k: 'Tema', v: tema.scelta === 'sistema' ? `come il sistema (ora ${tema.effettivo})` : tema.scelta });
@@ -147,7 +150,7 @@
 {#if telefono}
   {#if sistemare.length}
     <div class="card da-tel" role="status">
-      <b>{n(sistemare.length, 'cosa da sistemare', 'cose da sistemare')}</b>
+      <span class="tit-tel"><b>{n(sistemare.length, 'cosa da sistemare', 'cose da sistemare')}</b><Fumetto tema="le cose da sistemare">Cose che il gestionale ha notato e che conviene sistemare, per esempio dati mancanti o un listino da preparare. Tocca una riga per aprire la pagina giusta.</Fumetto></span>
       {#each sistemare as s (s.titolo)}<a href={s.href}>{s.titolo}<Icona nome="dx" class="chev" /></a>{/each}
     </div>
   {/if}
@@ -158,8 +161,8 @@
       {#each sistemare as s (s.titolo)}
         <div class="sistemare">
           <span class="ic-w"><Icona nome={s.icona} /></span>
-          <span class="t"><b>{s.titolo}</b><span>{s.spiega}</span></span>
-          <a class="mini-btn" href={s.href}>Apri</a>
+          <span class="t"><span class="tit"><b>{s.titolo}</b><Fumetto tema="perché va sistemato">{s.spiega}</Fumetto></span></span>
+          <a class="btn btn-secondary btn-sm" href={s.href} aria-label={`Apri: ${s.titolo}`}>Apri</a>
         </div>
       {/each}
     </section>
@@ -186,7 +189,8 @@
   .sistemare { display: flex; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-16); border-top: 1px solid var(--line-soft); }
   .sez-t + .sistemare { border-top: none; }
   .sistemare .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .sistemare .t span { font-size: var(--text-sm); color: var(--muted); }
+  .sistemare .btn { text-decoration: none; }
+  .sistemare .tit { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
   .ic-w { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--warn-bg); color: var(--warn); flex-shrink: 0; }
   .ic-w :global(.ic) { width: 17px; height: 17px; }
   .aree { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-14); }
@@ -198,14 +202,16 @@
   .area h2 { margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 800; }
   .area :global(.chev) { width: 18px; height: 18px; color: var(--chevron); }
   .fatti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-6); }
-  .fatti li { display: flex; align-items: baseline; gap: var(--space-8); font-size: var(--text-md); }
-  .fatti .k { color: var(--muted); flex: 0 0 auto; white-space: nowrap; }
+  /* etichetta a sinistra, valore a destra: due colonne, così il valore lungo non passa mai sotto l'etichetta */
+  .fatti li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--space-12); font-size: var(--text-md); }
+  .fatti .k { color: var(--muted); white-space: nowrap; }
   /* il valore lungo si tronca con i puntini; l'etichetta resta intera */
-  .fatti .v { font-weight: 600; text-align: right; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fatti .v { font-weight: 600; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .avvisa { display: flex; gap: var(--space-8); align-items: flex-start; padding: var(--space-8) var(--space-10); border-radius: var(--radius-sm); background: var(--warn-bg);
     color: var(--warn); font-size: var(--text-sm); font-weight: 600; }
   .avvisa :global(.ic) { width: 16px; height: 16px; margin-top: 1px; flex-shrink: 0; }
   .da-tel { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-12) var(--space-14); background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn); }
+  .tit-tel { display: flex; align-items: center; gap: var(--space-6); }
   .da-tel a { display: flex; align-items: center; justify-content: space-between; min-height: 36px; color: var(--warn); text-decoration: none; font-size: var(--text-sm); font-weight: 600; }
   .da-tel :global(.chev) { width: 16px; height: 16px; }
 </style>

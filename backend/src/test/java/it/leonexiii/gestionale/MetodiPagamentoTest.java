@@ -125,10 +125,10 @@ class MetodiPagamentoTest extends ProvaApi {
         // il borsellino non si elimina mai
         var borsellino = lista(admin.get("/api/pagamenti/metodi")).stream().map(ProvaApi::mappa).filter(m -> Boolean.TRUE.equals(m.get("borsellino"))).findFirst().orElseThrow();
         assertThat(borsellino).containsEntry("eliminabile", false);
-        assertThat((String) borsellino.get("motivoBlocco")).contains("borsellino").contains("spegnilo");
+        assertThat((String) borsellino.get("motivoBlocco")).contains("borsellino").contains("Puoi spegnerlo");
         var no = admin.delete("/api/pagamenti/metodi/" + borsellino.get("id"));
         assertThat(no.statusCode()).isEqualTo(409);
-        assertThat(no.body()).contains("Il borsellino non si elimina");
+        assertThat((String) json(no).get("detail")).contains("Non si può eliminare: il borsellino").contains("\nPuoi spegnerlo:");
         assertThat(ids(admin)).contains((String) borsellino.get("id"));
 
         // pulizia: il metodo ricreato
@@ -150,7 +150,8 @@ class MetodiPagamentoTest extends ProvaApi {
 
         var bloccato = admin.delete("/api/pagamenti/metodi/" + id);
         assertThat(bloccato.statusCode()).isEqualTo(409);
-        assertThat(bloccato.body()).contains(nome).contains("ha ancora 2 pagamenti da incassare");
+        assertThat(json(bloccato).get("detail")).isEqualTo("Non si può eliminare: «" + nome + "» ha ancora 2 pagamenti da incassare.\n"
+            + "Puoi spegnerlo: quei pagamenti restano da incassare come prima, ma il metodo non verrà più proposto per i nuovi pagamenti.");
         var inElenco = lista(admin.get("/api/pagamenti/metodi")).stream().map(ProvaApi::mappa).filter(m -> id.equals(m.get("id"))).findFirst().orElseThrow();
         assertThat(inElenco).containsEntry("eliminabile", false);
         assertThat((String) inElenco.get("motivoBlocco")).contains("ha ancora 2 pagamenti da incassare");
@@ -162,6 +163,9 @@ class MetodiPagamentoTest extends ProvaApi {
 
         // incassato l'ultimo, il blocco dei pagamenti cade (resterebbe quello della cassa non chiusa: la prova è in CassaTest); lo si annulla
         String voce = (String) elenco(elenco(json(segr.get("/api/pagamenti/persone/" + due[0])).get("pagamenti")).getFirst().get("metodi")).getFirst().get("id");
+        // il metodo spento non è più proposto, ma i suoi pagamenti restano da incassare e si segnano incassati (la promessa del messaggio di blocco)
+        assertThat(json(admin.put("/api/pagamenti/metodi/" + id, "{\"nome\":\"" + nome + "\",\"attivo\":false}"))).containsEntry("attivo", false);
+        assertThat(segr.get("/api/pagamenti/da-incassare").body()).contains(due[1]);
         assertThat(segr.post("/api/pagamenti/metodi-usati/" + voce + "/incassa", "{}").statusCode()).isEqualTo(204);
         assertThat(segr.get("/api/pagamenti/da-incassare").body()).doesNotContain(due[1]);
         assertThat(coord.post("/api/pagamenti/" + due[1] + "/annulla", "{\"motivo\":\"Prova\"}").statusCode()).isEqualTo(204);

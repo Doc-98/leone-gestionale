@@ -4,6 +4,7 @@
   import Azione from './Azione.svelte';
   import Icona from './Icona.svelte';
   import StatoVuoto from './StatoVuoto.svelte';
+  import { righeBlocco } from '../lib/blocco';
   import { annuncioSpostamento, postoDalPunto, sposta, spostaDiUno, stessoOrdine } from '../lib/riordina';
 
   /**
@@ -11,15 +12,19 @@
    * (si trascina; a fuoco, frecce su e giù spostano di un posto), il contenuto, l'interruttore acceso/spento, il cestino
    * (due tocchi). In fondo la riga tratteggiata «Aggiungi un …». Elenco vuoto: «Nessun …» e sotto la stessa riga.
    * - Riga spenta: i valori restano leggibili (la pagina può attenuare solo il nome) e tutti i controlli restano attivi.
+   * - `riordinabile` false: niente maniglia (default true: come nei metodi di pagamento).
+   * - Il cestino si chiama «Elimina «X»» o «Rimuovi «X»», secondo `conferma` («Elimina?» o «Rimuovi?»).
    * - `modificabile` false: niente maniglia, interruttore, cestino né «Aggiungi»; una riga spenta porta il tag «Spento».
    * - Il riordino è ottimistico: l'ordine nuovo si vede subito; se `onriordina` fallisce (promessa rifiutata) torna quello
    *   di prima. L'ordine locale resta finché il genitore non passa `elementi` nuovi.
    * - `onelimina` può restituire (anche in una promessa) un testo: è il motivo per cui non si può eliminare, e compare sotto la riga.
+   *   Va su più righe (`\n`) e ogni riga comincia con un attacco in grassetto fino ai due punti (`righeBlocco`).
    * - Lo spostamento da tastiera o con il dito è annunciato in una regione `role="status"`.
    */
   let {
     elementi,
     modificabile = true,
+    riordinabile = true,
     nome,
     nomeElemento,
     articolo = 'un',
@@ -39,6 +44,8 @@
   }: {
     elementi: T[];
     modificabile?: boolean;
+    /** false: niente maniglia (l'ordine non si cambia) */
+    riordinabile?: boolean;
     /** Il nome di una riga: entra nelle etichette («Sposta «Satispay»») */
     nome: (el: T) => string;
     /** «metodo» → «Aggiungi un metodo…» e «Nessun metodo.» */
@@ -98,6 +105,8 @@
   });
   const idMostrati = $derived(mostrati.map((e) => e.id));
 
+  /** «Elimina?» → «Elimina «X»»; «Rimuovi?» → «Rimuovi «X»» */
+  const verbo = $derived(conferma.replace(/\?\s*$/, '').trim() || 'Elimina');
   const articoloNessuno = $derived(articolo === 'una' ? 'Nessuna' : 'Nessun');
   const scrittaAggiungi = $derived(testoAggiungi ?? `Aggiungi ${articolo} ${nomeElemento}${apreFoglio ? '…' : ''}`);
   const scrittaVuoto = $derived(testoVuoto ?? `${articoloNessuno} ${nomeElemento}.`);
@@ -220,7 +229,15 @@
     // eliminata: il fuoco passa alla riga dopo (o prima, o a «Aggiungi») invece di perdersi
     await tick();
     if (elementi.some((x) => x.id === el.id)) return;
-    (vicino ? maniglie.get(vicino) : bottoneAggiungi)?.focus();
+    (vicino ? fuocoDellaRiga(vicino) : bottoneAggiungi)?.focus();
+  }
+
+  /** Dove mettere il fuoco su una riga: la maniglia se c'è, altrimenti il contenuto che si apre, il cestino o il primo pulsante. */
+  function fuocoDellaRiga(id: string): HTMLElement | null {
+    const m = maniglie.get(id);
+    if (m) return m;
+    const li = [...(lista?.querySelectorAll<HTMLElement>(':scope > li[data-riga]') ?? [])].find((x) => x.dataset.id === id);
+    return li?.querySelector<HTMLElement>('button.apri, .azione, button') ?? null;
   }
 
   function maniglia(nodo: HTMLButtonElement, id: string) {
@@ -233,9 +250,9 @@
   {#each mostrati as el, i (el.id)}
     {@const spenta = !acceso(el)}
     {@const n = nome(el)}
-    <li data-riga class:trascinata={trascinato === el.id}>
+    <li data-riga data-id={el.id} class:trascinata={trascinato === el.id}>
       <div class="r">
-        {#if modificabile}
+        {#if modificabile && riordinabile}
           <button
             type="button"
             class="azione maniglia"
@@ -266,7 +283,7 @@
               ><span></span></button>
             {/if}
             {#if haCestino(el)}
-              <Azione icona="cestino" tono="danger" etichetta={`Elimina «${n}»`} {conferma} onclick={() => elimina(el)} />
+              <Azione icona="cestino" tono="danger" etichetta={`${verbo} «${n}»`} {conferma} onclick={() => elimina(el)} />
             {:else}
               <span class="posto-azione" aria-hidden="true"></span>
             {/if}
@@ -275,7 +292,9 @@
           <span class="tag t-altro">Spento</span>
         {/if}
       </div>
-      {#if blocchi[el.id]}<p class="blocco" role="alert">{blocchi[el.id]}</p>{/if}
+      {#if blocchi[el.id]}
+        <p class="blocco" role="alert">{#each righeBlocco(blocchi[el.id]) as r, k (k)}<span class="riga-b">{#if r.attacco}<b>{r.attacco}</b>{' '}{/if}{r.resto}{' '}</span>{/each}</p>
+      {/if}
     </li>
   {:else}
     <StatoVuoto come="li" testo={scrittaVuoto} />
@@ -286,7 +305,7 @@
     </li>
   {/if}
 </ul>
-{#if modificabile}<span class="sr" id={`${uid}-frecce`}>Frecce su e giù per spostare</span>{/if}
+{#if modificabile && riordinabile}<span class="sr" id={`${uid}-frecce`}>Frecce su e giù per spostare</span>{/if}
 <span class="sr" role="status">{annuncio}</span>
 
 <style>
@@ -306,7 +325,8 @@
   /* la riga trascinata si stacca dalle altre (fondo, bordo, ombra) senza coprire i tag, che hanno i loro colori */
   .trascinata { background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-seg); outline: 1px solid var(--line-strong); position: relative; z-index: 1; }
   .trascinata .maniglia { cursor: grabbing; color: var(--ink); }
-  .blocco { margin: 0 0 var(--space-8); padding: var(--space-8) var(--space-12); border-radius: var(--radius-md); background: var(--ferma-bg); color: var(--ferma-fg); font-size: var(--text-sm); }
+  .blocco { margin: 0 0 var(--space-8); padding: var(--space-8) var(--space-12); border-radius: var(--radius-md); background: var(--ferma-bg); color: var(--ferma-fg); font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-4); }
+  .blocco b { color: inherit; font-weight: 700; }
   .ultima { padding: var(--space-8) 0 var(--space-6); }
   .elenco > :global(.stato-vuoto) { border-radius: var(--radius-md); margin-bottom: var(--space-8); }
   .aggiungi {
